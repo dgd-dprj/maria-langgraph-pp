@@ -200,18 +200,19 @@ export function registrarRotaOrquestrador(app: FastifyInstance): void {
       // triagem (issue #35). Mesmo mecanismo de dadosConhecidos já usado
       // pra pré-preencher campo respondido (criarAtendimento passa direto
       // pro state inicial do grafo).
-      // Issue #191 — viaOrquestrador:true só é setado AQUI, nunca por quem
-      // chama POST /atendimentos com flowId direto (contrato da Tykhe).
-      // Fluxos com subgrafos de identificação/cadastro (violenciaDomestica,
-      // pessoaPresa) usam esse sinal pra decidir se ativam esse
-      // comportamento — sem ele, comportamento idêntico a antes das
-      // issues #171/#183/#189, a Tykhe não pode ganhar nada novo.
       const dadosConhecidosComTokens = {
         ...(body?.dadosConhecidos ?? {}),
-        viaOrquestrador: true,
         tokensGastos: tokensGastosConversa ?? { input: 0, output: 0, total: 0 },
       };
-      const resultadoAtendimento = await criarAtendimento(fluxo, flowIdEscolhido, chatId, dadosConhecidosComTokens, req.log);
+      // Issue #191 — viaOrquestrador:true como PARÂMETRO explícito, não
+      // dentro de dadosConhecidosComTokens (achado no code review da PR
+      // #192: dadosConhecidos é additionalProperties:true, controlado pelo
+      // cliente — se `viaOrquestrador` estivesse ali dentro, qualquer
+      // chamador de POST /atendimentos direto, inclusive a Tykhe, poderia
+      // mandar esse campo e ativar o comportamento que essa issue existe
+      // pra bloquear). criarAtendimento descarta qualquer viaOrquestrador
+      // vindo do body e só aceita este parâmetro, controlado por nós aqui.
+      const resultadoAtendimento = await criarAtendimento(fluxo, flowIdEscolhido, chatId, dadosConhecidosComTokens, req.log, true);
       if (resultadoAtendimento.statusCode !== 200) return reply.code(resultadoAtendimento.statusCode).send(resultadoAtendimento.corpo);
       return reply.code(200).header("Location", resultadoAtendimento.location).send(resultadoAtendimento.corpo);
     }
