@@ -107,9 +107,12 @@ jobs:
           payload += "=" * (-len(payload) % 4)
           dados_jwt = json.loads(base64.urlsafe_b64decode(payload))
           exp = dados_jwt.get("exp")
-          dias = (exp - time.time()) / 86400 if exp is not None else None
+          if exp is None:
+              print(f"[{ambiente}] token sem campo 'exp' — não dá pra decidir se precisa renovar, nada a fazer")
+              sys.exit(0)
+          dias = (exp - time.time()) / 86400
 
-          precisa_renovar = expirado or (dias is not None and dias <= DIAS_LIMITE)
+          precisa_renovar = expirado or dias <= DIAS_LIMITE
           if not precisa_renovar:
               print(f"[{ambiente}] token saudável (expira em {dias:.1f} dias) — nada a fazer")
               sys.exit(0)
@@ -120,7 +123,11 @@ jobs:
               print(f"::error::[{ambiente}] POST token/refresh falhou (HTTP {refresh_code}): {refresh} — grace period de 5 dias provavelmente estourado, precisa de token novo manual")
               sys.exit(1)
 
+          if not isinstance(refresh, dict) or "token" not in refresh:
+              print(f"::error::[{ambiente}] POST token/refresh devolveu 200 mas sem campo 'token' — contrato da Verde mudou? corpo: {refresh}")
+              sys.exit(1)
           token_novo = refresh["token"]
+
           segredo["VERDE_JWT_TOKEN"] = token_novo
           subprocess.run(
               [
@@ -133,15 +140,25 @@ jobs:
           )
           print(f"[{ambiente}] token renovado, gravado no Secrets Manager — forçando redeploy do ECS")
 
-          subprocess.run(
-              [
-                  "aws", "ecs", "update-service",
-                  "--cluster", cluster,
-                  "--service", service,
-                  "--force-new-deployment",
-                  "--region", region,
-              ],
-              check=True,
-          )
+          try:
+              subprocess.run(
+                  [
+                      "aws", "ecs", "update-service",
+                      "--cluster", cluster,
+                      "--service", service,
+                      "--force-new-deployment",
+                      "--region", region,
+                  ],
+                  check=True,
+              )
+          except subprocess.CalledProcessError as err:
+              # Nesse ponto o token JÁ foi trocado no Secrets Manager e a
+              # Verde já invalidou o antigo — as tasks rodando ficam sem
+              # token válido até alguém rodar o redeploy manualmente. Erro
+              # diferenciado de propósito, pra não confundir com uma falha
+              # de renovação comum (aqui a renovação FUNCIONOU, só o
+              # redeploy automático que não rodou).
+              print(f"::error::[{ambiente}] token renovado com sucesso, mas o redeploy do ECS falhou ({err}) — rode manualmente: aws ecs update-service --cluster {cluster} --service {service} --force-new-deployment --region {region}")
+              sys.exit(1)
           print(f"[{ambiente}] redeploy disparado ({cluster}/{service}) — task nova vai subir com o token renovado")
           EOF
