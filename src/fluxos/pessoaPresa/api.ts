@@ -1,7 +1,7 @@
 // Shape do campo `metadados` da resposta HTTP pra esse fluxo especificamente
 // (schema Swagger + extrator a partir do `values` do grafo) — cada fluxo tem
 // o seu, plugado em rotas/atendimentos.ts via registrarRotasAtendimento().
-import type { DadosApenado, DadosProcesso } from "../../shared/types.js";
+import type { DadosApenado, DadosPessoa, DadosProcesso } from "../../shared/types.js";
 
 // Recortes de DadosProcesso/DadosApenado — só os campos que outro sistema
 // vai consumir de verdade (payload de encaminhamento do fluxo prisional:
@@ -32,6 +32,13 @@ export interface MetadadosPessoaPresa {
   dadosProcesso?: DadosProcessoResumo;
   rg?: string;
   dadosApenado?: DadosApenadoResumo;
+  // Issue #183 — identificação/cadastro do ASSISTIDO (quem está
+  // conversando) no Verde, via CPF — não confundir com dadosApenado acima
+  // (o PRESO). Mesmo padrão de fluxos/violenciaDomestica/api.ts: expõe o
+  // objeto final resolvido, não os campos transitórios de coleta (cpf/nome/
+  // dataNascimento somem dentro de dadosPessoa depois de identificar/
+  // cadastrar).
+  dadosPessoa?: DadosPessoa;
   motivoHandoff?: string;
 }
 
@@ -63,6 +70,26 @@ export const metadadosSchemaPessoaPresa = {
         regime: { type: "string" },
       },
     },
+    dadosPessoa: {
+      type: "object",
+      properties: {
+        encontrado: { type: "boolean" },
+        idPessoa: { type: "number" },
+        nome: { type: "string" },
+        nomeSocial: { type: "string" },
+        genero: { type: "string" },
+        endereco: { type: "string" },
+        enderecoDetalhado: {
+          type: "object",
+          properties: {
+            cep: { type: "string" },
+            idUf: { type: "number" },
+            idBairro: { type: "number" },
+            idMunicipio: { type: "number" },
+          },
+        },
+      },
+    },
     motivoHandoff: {
       type: "string",
       enum: [
@@ -71,6 +98,7 @@ export const metadadosSchemaPessoaPresa = {
         "sem_numero_processo",
         "origem_processo_nao_suportada",
         "dados_pessoa_nao_atendidos",
+        "falha_cadastro",
       ],
     },
   },
@@ -94,6 +122,7 @@ export function extrairMetadadosPessoaPresa(values: Record<string, unknown>): Me
     dadosProcesso?: DadosProcesso;
     rg?: string;
     dadosApenado?: DadosApenado;
+    dadosPessoa?: DadosPessoa;
     motivoHandoff?: string;
   };
   return {
@@ -103,6 +132,7 @@ export function extrairMetadadosPessoaPresa(values: Record<string, unknown>): Me
     dadosProcesso: resumirDadosProcesso(v.dadosProcesso),
     rg: v.rg,
     dadosApenado: resumirDadosApenado(v.dadosApenado),
+    dadosPessoa: v.dadosPessoa,
     ...(v.motivoHandoff ? { motivoHandoff: v.motivoHandoff } : {}),
   };
 }
@@ -122,3 +152,8 @@ export const MENSAGEM_HANDOFF_SEM_NUMERO_PROCESSO =
 // origem nenhuma) vira handoff, mesmo com os outros dados confirmados.
 export const MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA =
   "Já confirmei os dados da pessoa presa, mas o processo informado tem uma origem que ainda não consigo tratar por aqui. Vou encaminhar seu atendimento pra equipe dar continuidade.";
+// Issue #183 — CPF do assistido esgotou tentativas (não encontrado) e o
+// cadastro novo no Verde (subgrafo cadastroPessoa) também falhou. Mesmo
+// texto/padrão de violenciaDomestica/api.ts::MENSAGEM_FALHA_CADASTRO.
+export const MENSAGEM_FALHA_CADASTRO =
+  "Não consegui localizar nem cadastrar seus dados no sistema. Vou encaminhar seu atendimento pra um atendente confirmar manualmente.";

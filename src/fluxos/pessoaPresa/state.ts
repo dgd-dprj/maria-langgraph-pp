@@ -1,5 +1,5 @@
 import { Annotation } from "@langchain/langgraph";
-import type { DadosApenado, DadosProcesso } from "../../shared/types.js";
+import type { DadosApenado, DadosPessoa, DadosProcesso } from "../../shared/types.js";
 import { AnnotationTokensGastos } from "../../shared/tokensAcumulados.js";
 
 export type PessoaPresaStateType = typeof PessoaPresaState.State;
@@ -13,6 +13,20 @@ export const PessoaPresaState = Annotation.Root({
   dadosApenado: Annotation<DadosApenado | undefined>,
   tentativasRg: Annotation<number | undefined>,
   querTentarNovamente: Annotation<boolean | undefined>,
+  // Issue #183 — identificação/cadastro do ASSISTIDO (quem está
+  // conversando) no Verde, via CPF — mesmos nomes de campo dos subgrafos
+  // identificarAssistido/cadastroPessoa (issue #171), pra channel sharing
+  // quando embutidos como nó aqui. Não confundir com `rg`/`dadosApenado`
+  // acima, que identificam o PRESO, uma pessoa diferente.
+  cpf: Annotation<string | undefined>,
+  dadosPessoa: Annotation<DadosPessoa | undefined>,
+  tentativasCpf: Annotation<number | undefined>,
+  querTentarNovamenteCpf: Annotation<boolean | undefined>,
+  digitouCpfDireto: Annotation<boolean | undefined>,
+  nome: Annotation<string | undefined>,
+  dataNascimento: Annotation<string | undefined>,
+  // preenchido só se o POST /integra/pessoa (subgrafo cadastroPessoa) falhar.
+  cadastroErro: Annotation<string | undefined>,
   // true quando a resposta de "quer tentar de novo?" já veio como um RG
   // digitado direto (em vez de "Sim"/"Não") — issue #54, achado ao vivo
   // (pessoa pula a confirmação e já manda o RG novo). Nesse caso `rg` já
@@ -34,6 +48,9 @@ export const PessoaPresaState = Annotation.Root({
     | "sem_numero_processo"
     | "origem_processo_nao_suportada"
     | "dados_pessoa_nao_atendidos"
+    // Issue #183 — esgotou tentativas de CPF do assistido E o cadastro
+    // novo no Verde (subgrafo cadastroPessoa) também falhou.
+    | "falha_cadastro"
     | undefined
   >,
   // texto final específico do desfecho — sobrescreve o texto genérico

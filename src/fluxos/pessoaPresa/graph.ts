@@ -7,7 +7,9 @@ import { prepararPergunta } from "../../ia/reescrever.js";
 import { extrairCamposLivre } from "../../ia/extrair.js";
 import { classificarEntreOpcoes } from "../../ia/classificar.js";
 import { criarCheckpointer } from "../../shared/checkpointer.js";
-import { MENSAGEM_HANDOFF_SEM_NUMERO_PROCESSO, MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA } from "./api.js";
+import { MENSAGEM_HANDOFF_SEM_NUMERO_PROCESSO, MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA, MENSAGEM_FALHA_CADASTRO } from "./api.js";
+import { grafo as subgrafoIdentificarAssistido } from "../../subgrafos/identificarAssistido/graph.js";
+import { grafo as subgrafoCadastroPessoa } from "../../subgrafos/cadastroPessoa/graph.js";
 
 const ORIGEM_PROCESSO_SUPORTADA = "SEEU";
 
@@ -383,6 +385,29 @@ function depoisDeConfirmarNome(state: PessoaPresaStateType): "concluir" | "naoCo
   return state.confirmaNome ? "concluir" : "naoConfirmado";
 }
 
+// Issue #183 — depois de confirmar o preso e o parentesco, identifica o
+// ASSISTIDO (quem está conversando) no Verde via CPF, mesmo racional de
+// violenciaDomestica/graph.ts (issue #171). Subgrafo embutido abaixo (ver
+// `grafo` no fim do arquivo).
+function depoisDeIdentificarAssistido(state: PessoaPresaStateType): "encontrado" | "cadastrar" {
+  return state.dadosPessoa?.encontrado ? "encontrado" : "cadastrar";
+}
+
+// Issue #183 — subgrafo cadastroPessoa (embutido abaixo) preenche
+// dadosPessoa (sucesso, mesmo campo de quem já tinha cadastro) ou
+// cadastroErro (falha) — nunca os dois.
+function depoisDeCadastrarPessoa(state: PessoaPresaStateType): "continuar" | "falhou" {
+  return state.dadosPessoa?.encontrado ? "continuar" : "falhou";
+}
+
+async function falhaCadastro(state: PessoaPresaStateType): Promise<Partial<PessoaPresaStateType>> {
+  return {
+    statusFinal: "handoff_humano",
+    motivoHandoff: "falha_cadastro",
+    mensagemFinal: state.cadastroErro ? `${MENSAGEM_FALHA_CADASTRO} (${state.cadastroErro})` : MENSAGEM_FALHA_CADASTRO,
+  };
+}
+
 const grafo = new StateGraph(PessoaPresaState)
   .addNode("prepararPerguntaLivre", prepararPerguntaLivre)
   .addNode("pedirLivre", pedirLivre)
@@ -401,6 +426,9 @@ const grafo = new StateGraph(PessoaPresaState)
   .addNode("pedirConfirmaNome", pedirConfirmaNome)
   .addNode("prepararPerguntaParentesco", prepararPerguntaParentesco)
   .addNode("pedirParentesco", pedirParentesco)
+  .addNode("identificarAssistido", subgrafoIdentificarAssistido)
+  .addNode("cadastroPessoa", subgrafoCadastroPessoa)
+  .addNode("falhaCadastro", falhaCadastro)
   .addNode("concluir", concluir)
   .addNode("naoConfirmado", naoConfirmado)
   // Roteamento condicional (não .addEdge fixo) é o que garante que, com a
@@ -445,7 +473,16 @@ const grafo = new StateGraph(PessoaPresaState)
     naoConfirmado: "naoConfirmado",
   })
   .addEdge("prepararPerguntaParentesco", "pedirParentesco")
-  .addEdge("pedirParentesco", "concluir")
+  .addEdge("pedirParentesco", "identificarAssistido")
+  .addConditionalEdges("identificarAssistido", depoisDeIdentificarAssistido, {
+    encontrado: "concluir",
+    cadastrar: "cadastroPessoa",
+  })
+  .addConditionalEdges("cadastroPessoa", depoisDeCadastrarPessoa, {
+    continuar: "concluir",
+    falhou: "falhaCadastro",
+  })
+  .addEdge("falhaCadastro", END)
   .addEdge("naoConfirmado", END)
   .addEdge("concluir", END)
   .compile({ checkpointer: await criarCheckpointer() });

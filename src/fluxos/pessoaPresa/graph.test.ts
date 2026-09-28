@@ -16,6 +16,15 @@ function pergunta(resultado: unknown): { pergunta: string; tipo: string; opcoes?
   return (resultado as { __interrupt__?: Array<{ value: { pergunta: string; tipo: string; opcoes?: string[] } }> }).__interrupt__?.[0]?.value;
 }
 
+// Issue #183 — depois do parentesco, identificarAssistido pergunta o CPF do
+// ASSISTIDO (quem está conversando, diferente do RG do preso) antes de
+// concluir — mesmo racional de violenciaDomestica/graph.ts (issue #171).
+// CPF "11111111111" acha a pessoa de teste no mock — caminho de cadastro
+// (CPF não encontrado) tem teste próprio, não usado aqui.
+async function identificarComCpf(config: { configurable: { thread_id: string } }) {
+  return grafo.invoke(new Command({ resume: "11111111111" }), config);
+}
+
 test("1ª invocação pausa em pedirTemProcesso (primeira pergunta da ordem atual)", async () => {
   const config = novoConfig();
   const r = await grafo.invoke({}, config);
@@ -90,7 +99,9 @@ test("fluxo completo: SEM processo, nome confirmado → handoff_humano (issue #4
   const pParentesco = pergunta(rConfirma);
   assert.match(pParentesco?.pergunta ?? "", /parentesco/);
 
-  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco
+  const rParentesco = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco
+  assert.match(pergunta(rParentesco)?.pergunta ?? "", /CPF/, "issue #183 — deveria pausar pedindo CPF do assistido antes de concluir");
+  const rFinal = await identificarComCpf(config);
   assert.equal(pergunta(rFinal), undefined, "não deve ter pergunta pendente no fim");
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string; mensagemFinal?: string };
   assert.equal(final.statusFinal, "handoff_humano", "sem número do processo não deveria ser marcado como concluido");
@@ -111,7 +122,8 @@ test("fluxo completo: COM processo, nome confirmado → concluido (comportamento
   const rConfirma = await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
   assert.match(pergunta(rConfirma)?.pergunta ?? "", /parentesco/);
 
-  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+  const rFinal = await identificarComCpf(config);
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "concluido");
   assert.equal(final.motivoHandoff, undefined);
@@ -132,7 +144,8 @@ test("fluxo completo: COM processo de origem NÃO suportada → handoff_humano (
   const rConfirma = await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
   assert.match(pergunta(rConfirma)?.pergunta ?? "", /parentesco/);
 
-  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+  const rFinal = await identificarComCpf(config);
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string; mensagemFinal?: string };
   assert.equal(final.statusFinal, "handoff_humano", "origem diferente de SEEU não deveria ser marcada como concluido");
   assert.equal(final.motivoHandoff, "origem_processo_nao_suportada");
@@ -148,7 +161,8 @@ test("fluxo completo: processo NÃO ENCONTRADO na consulta → handoff_humano, m
   await grafo.invoke(new Command({ resume: "000000000" }), config); // processo não encontrado (sentinela)
   await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
   await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
-  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+  const rFinal = await identificarComCpf(config);
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "origem_processo_nao_suportada");
@@ -166,7 +180,8 @@ test("fluxo completo: situação fora do permitido (ex: LIBERTADO) → handoff_h
   await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config); // origem SEEU (padrão)
   await grafo.invoke(new Command({ resume: "22222222222" }), config); // situação LIBERTADO (sentinela)
   await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
-  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+  const rFinal = await identificarComCpf(config);
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "dados_pessoa_nao_atendidos");
@@ -179,7 +194,8 @@ test("fluxo completo: tipo de preso fora do permitido (ex: PROVISÓRIO) → hand
   await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config);
   await grafo.invoke(new Command({ resume: "33333333333" }), config); // tipoPreso PROVISÓRIO (sentinela)
   await grafo.invoke(new Command({ resume: "true" }), config);
-  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config);
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+  const rFinal = await identificarComCpf(config);
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "dados_pessoa_nao_atendidos");
@@ -192,7 +208,8 @@ test("fluxo completo: regime fora do permitido (ex: ABERTO) → handoff_humano (
   await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config);
   await grafo.invoke(new Command({ resume: "44444444444" }), config); // regime ABERTO (sentinela)
   await grafo.invoke(new Command({ resume: "true" }), config);
-  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config);
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+  const rFinal = await identificarComCpf(config);
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "dados_pessoa_nao_atendidos");
@@ -209,10 +226,81 @@ test("fluxo completo: situação com prefixo 'EM' (EM RESDOM) → reconhecida, c
   await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config);
   await grafo.invoke(new Command({ resume: "55555555555" }), config); // situação "EM RESDOM" (sentinela)
   await grafo.invoke(new Command({ resume: "true" }), config);
-  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config);
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+  const rFinal = await identificarComCpf(config);
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "concluido", "'EM RESDOM' deveria ser reconhecido como 'RESDOM' (situação permitida)");
   assert.equal(final.motivoHandoff, undefined);
+});
+
+// Issue #183 — CPF do assistido esgotando as 3 tentativas entra no subgrafo
+// cadastroPessoa (nome, data de nascimento, endereço via coletarEndereco) —
+// mesmo racional de violenciaDomestica/graph.ts (issue #171). Endereço:
+// mock padrão de consultarCep (verde.ts) devolve logradouro/bairro/
+// município/UF completos — só número e complemento pausam de verdade
+// (mesmo racional de coletarEndereco/graph.test.ts).
+test("esgota as 3 tentativas de CPF do assistido → entra em cadastro; sucesso conclui normalmente (issue #183)", async () => {
+  const config = novoConfig();
+  await grafo.invoke({}, config); // tem processo?
+  await grafo.invoke(new Command({ resume: "true" }), config); // → pergunta número do processo
+  await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config); // número do processo (origem SEEU, mock padrão)
+  await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
+  await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+
+  const t1 = await grafo.invoke(new Command({ resume: "00000000000" }), config); // cpf sentinela "não encontrado"
+  assert.match(pergunta(t1)?.pergunta ?? "", /tentativa 1 de 3/);
+  await grafo.invoke(new Command({ resume: "Sim" }), config); // quer tentar de novo
+  const t2 = await grafo.invoke(new Command({ resume: "00000000000" }), config);
+  assert.match(pergunta(t2)?.pergunta ?? "", /tentativa 2 de 3/);
+  await grafo.invoke(new Command({ resume: "Sim" }), config);
+  const t3 = await grafo.invoke(new Command({ resume: "00000000000" }), config); // esgotou → entra em cadastro
+  assert.match(pergunta(t3)?.pergunta ?? "", /qual o seu nome completo/);
+
+  await grafo.invoke(new Command({ resume: "Maria de Teste" }), config); // nome
+  const rDataNasc = await grafo.invoke(new Command({ resume: "01/01/1990" }), config); // data de nascimento → pausa endereço
+  assert.match(pergunta(rDataNasc)?.pergunta ?? "", /CEP/);
+  await grafo.invoke(new Command({ resume: "20000-000" }), config); // CEP
+  await grafo.invoke(new Command({ resume: "123" }), config); // número
+  const rFinal = await grafo.invoke(new Command({ resume: "não" }), config); // sem complemento → cadastra
+
+  assert.equal(pergunta(rFinal), undefined);
+  const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
+  assert.equal(final.statusFinal, "concluido");
+  assert.equal(final.motivoHandoff, undefined);
+});
+
+test("esgota as 3 tentativas de CPF do assistido → entra em cadastro; cadastro falha → handoff_humano, motivo falha_cadastro (issue #183)", async () => {
+  const original = process.env.MOCK_CADASTRO_FALHA;
+  process.env.MOCK_CADASTRO_FALHA = "true";
+  try {
+    const config = novoConfig();
+    await grafo.invoke({}, config);
+    await grafo.invoke(new Command({ resume: "false" }), config); // sem processo → RG
+    await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
+    await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
+    await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+
+    await grafo.invoke(new Command({ resume: "00000000000" }), config); // tentativa 1
+    await grafo.invoke(new Command({ resume: "Sim" }), config);
+    await grafo.invoke(new Command({ resume: "00000000000" }), config); // tentativa 2
+    await grafo.invoke(new Command({ resume: "Sim" }), config);
+    await grafo.invoke(new Command({ resume: "00000000000" }), config); // tentativa 3, esgotou → cadastro
+
+    await grafo.invoke(new Command({ resume: "Maria de Teste" }), config); // nome
+    await grafo.invoke(new Command({ resume: "01/01/1990" }), config); // data de nascimento → pausa endereço
+    await grafo.invoke(new Command({ resume: "20000-000" }), config); // CEP
+    await grafo.invoke(new Command({ resume: "123" }), config); // número
+    const rFinal = await grafo.invoke(new Command({ resume: "não" }), config); // sem complemento → cadastro falha (mock)
+
+    assert.equal(pergunta(rFinal), undefined);
+    const final = rFinal as { statusFinal?: string; motivoHandoff?: string; mensagemFinal?: string };
+    assert.equal(final.statusFinal, "handoff_humano");
+    assert.equal(final.motivoHandoff, "falha_cadastro");
+    assert.match(final.mensagemFinal ?? "", /Não consegui localizar nem cadastrar/);
+  } finally {
+    process.env.MOCK_CADASTRO_FALHA = original;
+  }
 });
 
 test("confirmação de nome com 'Sim' literal → concluido (cenário exato do bug real: WhatsApp/Tykhe manda 'Sim', não 'true')", async () => {
