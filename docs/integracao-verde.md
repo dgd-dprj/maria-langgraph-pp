@@ -4,9 +4,17 @@ Todo o código de chamada ao Verde mora em `src/integracoes/verde.ts`. Base URL 
 
 **Modo mock**: sem `VERDE_JWT_TOKEN` no ambiente (dev local sem `.env`, ou testes), toda função cai num mock local com CPFs/RGs/números sentinela (`"000000000"` = não encontrado, etc — ver comentário de cada função). Nunca chama a Verde de verdade nesse modo.
 
-## Token expira — issue #113 monitora
+## Token expira — renovação automática (issues #113/#187)
 
-`VERDE_JWT_TOKEN` é temporário (emitido como app "Tykhe" pelo Verde). Um workflow agendado (`.github/workflows/verificar-token-verde.yml`) roda diário e falha se faltar ≤7 dias pra expirar — GitHub notifica quem tem notificação de Actions ativada.
+`VERDE_JWT_TOKEN` é temporário (emitido como app "Tykhe" pelo Verde). Um workflow agendado (`.github/workflows/verificar-token-verde.yml`) roda diário e:
+
+1. Consulta `GET /autenticacao/token/status` (dados `valido`/`expirado`/`revogado`/`expiraEm`).
+2. **Revogado** → falha o workflow direto (`::error::`) — não tem renovação possível, precisa de token novo emitido manualmente na Verde.
+3. **Saudável** (mais de 7 dias pro vencimento) → só loga, não faz nada.
+4. **Perto de vencer ou já expirado dentro do grace period** (Verde aceita renovar até 5 dias depois de expirado — nesse caso o token só serve pra chamar o refresh, nenhuma outra chamada) → chama `POST /autenticacao/token/refresh`, grava o token novo no Secrets Manager (`aws secretsmanager put-secret-value`) e força redeploy do ECS (`--force-new-deployment`) pra task pegar o valor novo no próximo boot.
+5. Refresh falhou (grace period estourado, erro de rede) → falha o workflow, mesmo canal de alerta de antes (e-mail via GitHub Actions).
+
+Esse workflow é o único "dono" da renovação — a aplicação nunca se auto-renova em runtime. Motivo: o serviço roda com múltiplas tasks ECS lendo o MESMO token; se 2 tasks tentassem renovar ao mesmo tempo, a primeira invalidaria o token na hora (regra da própria Verde) e a segunda colidiria. Um único processo agendado como dono evita essa corrida — as tasks só LEEM o token (no boot), nunca escrevem.
 
 ## Erros: distinguir "não encontrado" de "token/infra quebrado" — issue #112
 
