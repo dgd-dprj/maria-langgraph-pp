@@ -109,6 +109,16 @@ export function registrarRotaOrquestrador(app: FastifyInstance): void {
         | { chatId?: string; mensagem?: string; resposta?: string; dadosConhecidos?: Record<string, unknown> }
         | undefined;
 
+      // Issue #185 — resposta:"" (vazia, não só ausente) precisa barrar
+      // ANTES da checagem de "algum dos dois preenchido" abaixo — senão
+      // {mensagem:"x", resposta:""} passaria (mensagem preenchido) e ainda
+      // cairia no branch de Command({resume:""}) mais abaixo, que o
+      // LangGraph trata como "sem resume" (string vazia é falsy) e explode
+      // um 500 cru em vez de um 400 de validação normal. mensagem:"" não
+      // tem esse risco — vai pra um invoke() normal, não resume.
+      if (body?.resposta !== undefined && body.resposta === "") {
+        return reply.code(400).send({ erro: "resposta não pode ser vazia" });
+      }
       if (body?.mensagem === undefined && body?.resposta === undefined) {
         return reply.code(400).send({ erro: "mensagem (1ª chamada) ou resposta (continuação de desambiguação) obrigatório" });
       }

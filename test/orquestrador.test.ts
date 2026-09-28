@@ -28,6 +28,16 @@ test("sem mensagem → 400", async () => {
   assert.equal(res.statusCode, 400);
 });
 
+// Issue #185 — resposta:"" (vazia, não só ausente) precisa barrar aqui
+// também: viraria new Command({resume:""}) mais abaixo, que o LangGraph
+// trata como "sem resume" (string vazia é falsy) e explode um 500 cru em
+// vez de um 400 de validação normal.
+test("resposta vazia (\"\") → 400, não 500", async () => {
+  const app = await montarApp();
+  const res = await app.inject({ method: "POST", url: BASE, payload: { chatId: novoChatId(), resposta: "" }, headers: AUTH });
+  assert.equal(res.statusCode, 400);
+});
+
 test("sem Authorization → 401 (rota protegida igual às demais)", async () => {
   const app = await montarApp();
   const res = await app.inject({ method: "POST", url: BASE, payload: { mensagem: "qualquer coisa" } });

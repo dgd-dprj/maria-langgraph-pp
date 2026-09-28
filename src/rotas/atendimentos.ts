@@ -462,6 +462,13 @@ export function registrarRotasAtendimento(app: FastifyInstance): void {
 
       const chatId = body?.chatId;
       if (!chatId) return reply.code(400).send({ erro: "chatId obrigatório" });
+      // Issue #185 — achado ao vivo: resposta ausente/vazia virava
+      // `new Command({ resume: "" })` lá embaixo (processarResposta) —
+      // string vazia é falsy, LangGraph trata igual "sem resume" (mesmo bug
+      // de valor falsy já documentado pro caso resume:false em
+      // pessoaPresa/graph.ts) e explode um 500 cru ("Received empty Command
+      // input") em vez de um 400 de validação normal.
+      if (!body?.resposta) return reply.code(400).send({ erro: "resposta obrigatório" });
 
       const store = await obterAtendimentosStore();
       const fluxoId = await store.buscarFlowId(chatId);
