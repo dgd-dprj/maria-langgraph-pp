@@ -4,9 +4,15 @@ name: Verificar expiração do token Verde
 # Verde), com data de expiração conhecida. Sem esse workflow, só se descobre
 # que expirou quando as chamadas reais começam a falhar em produção (achado
 # ao vivo 2026-09-18, token de homolog já tinha expirado sem ninguém notar).
-# Falha proposital (exit 1) quando faltam poucos dias — GitHub notifica por
-# e-mail quem tem notificação de Actions ativada quando um workflow agendado
-# falha, sem precisar de nenhum canal novo.
+#
+# Issue #187 — a Verde passou a expor POST /autenticacao/token/refresh, que
+# renova o token (válido OU expirado há no máximo 5 dias — grace period).
+# Esse workflow virou o "dono" da renovação: só ele escreve no Secrets
+# Manager e força o redeploy ECS, evitando corrida entre múltiplas tasks
+# tentando renovar ao mesmo tempo (a Verde invalida o token antigo NA HORA
+# ao renovar — 2 tasks renovando juntas colidiriam). Continua falhando
+# proposital (exit 1) quando não consegue renovar — GitHub notifica por
+# e-mail quem tem notificação de Actions ativada, sem precisar de canal novo.
 on:
   schedule:
     - cron: "0 12 * * *" # todo dia, meio-dia UTC
@@ -22,39 +28,137 @@ jobs:
     strategy:
       fail-fast: false # 1 ambiente com token vencendo não deve esconder o outro
       matrix:
-        ambiente: [prod, release]
+        include:
+          - ambiente: prod
+            ecs_service: api
+          - ambiente: release
+            ecs_service: api-release
     steps:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: us-east-1
 
-      - name: Checar expiração do VERDE_JWT_TOKEN
+      - name: Checar e renovar VERDE_JWT_TOKEN se necessário
         env:
           AMBIENTE: ${{ matrix.ambiente }}
+          ECS_CLUSTER: maria-langgraph-pp
+          ECS_SERVICE: ${{ matrix.ecs_service }}
+          AWS_REGION: us-east-1
         run: |
           SECRET_ID="maria-langgraph-pp-${AMBIENTE}/app"
-          export VERDE_JWT_TOKEN=$(aws secretsmanager get-secret-value \
-            --secret-id "$SECRET_ID" --region us-east-1 \
-            --query SecretString --output text \
-            | python3 -c "import json,sys; print(json.load(sys.stdin)['VERDE_JWT_TOKEN'])")
+          aws secretsmanager get-secret-value \
+            --secret-id "$SECRET_ID" --region "$AWS_REGION" \
+            --query SecretString --output text > secret.json
+
           python3 - <<'EOF'
-          import base64, json, os, sys, time
+          import base64, json, os, subprocess, sys, time, urllib.error, urllib.request
 
           ambiente = os.environ["AMBIENTE"]
-          token = os.environ["VERDE_JWT_TOKEN"]
+          secret_id = f"maria-langgraph-pp-{ambiente}/app"
+          region = os.environ["AWS_REGION"]
+          cluster = os.environ["ECS_CLUSTER"]
+          service = os.environ["ECS_SERVICE"]
+          # Threshold igual ao alerta original (issue #113) — renova
+          # PROATIVAMENTE nesse ponto, não só avisa.
+          DIAS_LIMITE = 7
+
+          with open("secret.json") as f:
+              segredo = json.load(f)
+
+          api_url = segredo["VERDE_API_URL"].rstrip("/")
+          token = segredo["VERDE_JWT_TOKEN"]
+          client_id = segredo["VERDE_CLIENT_ID"]
+
+          def chamar(metodo, caminho, token_atual):
+              req = urllib.request.Request(
+                  f"{api_url}{caminho}",
+                  method=metodo,
+                  headers={
+                      "accept": "application/json",
+                      "authorization": f"Bearer {token_atual}",
+                      "x-client-id": client_id,
+                  },
+              )
+              try:
+                  with urllib.request.urlopen(req, timeout=20) as res:
+                      return res.status, json.loads(res.read())
+              except urllib.error.HTTPError as err:
+                  corpo = err.read().decode("utf-8", errors="replace")
+                  return err.code, corpo
+
+          status_code, status = chamar("GET", "/autenticacao/token/status", token)
+          if status_code != 200:
+              print(f"::error::[{ambiente}] GET token/status falhou (HTTP {status_code}): {status}")
+              sys.exit(1)
+
+          revogado = status.get("revogado", False)
+          expirado = status.get("expirado", False)
+          expira_em = status.get("expiraEm")
+          print(f"[{ambiente}] status atual: expirado={expirado} revogado={revogado} expiraEm={expira_em}")
+
+          if revogado:
+              print(f"::error::[{ambiente}] VERDE_JWT_TOKEN revogado — não dá pra renovar, precisa de um token NOVO emitido manualmente na Verde")
+              sys.exit(1)
+
+          # Sem `exp` em dias prontos na resposta — decodifica o próprio JWT
+          # só pra decidir SE precisa renovar (mesma lógica de antes da #187).
           payload = token.split(".")[1]
           payload += "=" * (-len(payload) % 4)
-          dados = json.loads(base64.urlsafe_b64decode(payload))
-          exp = dados.get("exp")
-
+          dados_jwt = json.loads(base64.urlsafe_b64decode(payload))
+          exp = dados_jwt.get("exp")
           if exp is None:
-              print(f"[{ambiente}] token sem campo 'exp' — não dá pra checar expiração")
+              print(f"[{ambiente}] token sem campo 'exp' — não dá pra decidir se precisa renovar, nada a fazer")
+              sys.exit(0)
+          dias = (exp - time.time()) / 86400
+
+          precisa_renovar = expirado or dias <= DIAS_LIMITE
+          if not precisa_renovar:
+              print(f"[{ambiente}] token saudável (expira em {dias:.1f} dias) — nada a fazer")
               sys.exit(0)
 
-          dias = (exp - time.time()) / 86400
-          print(f"[{ambiente}] token expira em {dias:.1f} dias")
-          if dias <= 7:
-              print(f"::error::[{ambiente}] VERDE_JWT_TOKEN expira em {dias:.1f} dias (ou já expirou) — renovar antes que pare de funcionar")
+          print(f"[{ambiente}] token perto de vencer ou expirado dentro do grace period — chamando refresh")
+          refresh_code, refresh = chamar("POST", "/autenticacao/token/refresh", token)
+          if refresh_code != 200:
+              print(f"::error::[{ambiente}] POST token/refresh falhou (HTTP {refresh_code}): {refresh} — grace period de 5 dias provavelmente estourado, precisa de token novo manual")
               sys.exit(1)
+
+          if not isinstance(refresh, dict) or "token" not in refresh:
+              print(f"::error::[{ambiente}] POST token/refresh devolveu 200 mas sem campo 'token' — contrato da Verde mudou? corpo: {refresh}")
+              sys.exit(1)
+          token_novo = refresh["token"]
+
+          segredo["VERDE_JWT_TOKEN"] = token_novo
+          subprocess.run(
+              [
+                  "aws", "secretsmanager", "put-secret-value",
+                  "--secret-id", secret_id,
+                  "--secret-string", json.dumps(segredo),
+                  "--region", region,
+              ],
+              check=True,
+          )
+          print(f"[{ambiente}] token renovado, gravado no Secrets Manager — forçando redeploy do ECS")
+
+          try:
+              subprocess.run(
+                  [
+                      "aws", "ecs", "update-service",
+                      "--cluster", cluster,
+                      "--service", service,
+                      "--force-new-deployment",
+                      "--region", region,
+                  ],
+                  check=True,
+              )
+          except subprocess.CalledProcessError as err:
+              # Nesse ponto o token JÁ foi trocado no Secrets Manager e a
+              # Verde já invalidou o antigo — as tasks rodando ficam sem
+              # token válido até alguém rodar o redeploy manualmente. Erro
+              # diferenciado de propósito, pra não confundir com uma falha
+              # de renovação comum (aqui a renovação FUNCIONOU, só o
+              # redeploy automático que não rodou).
+              print(f"::error::[{ambiente}] token renovado com sucesso, mas o redeploy do ECS falhou ({err}) — rode manualmente: aws ecs update-service --cluster {cluster} --service {service} --force-new-deployment --region {region}")
+              sys.exit(1)
+          print(f"[{ambiente}] redeploy disparado ({cluster}/{service}) — task nova vai subir com o token renovado")
           EOF

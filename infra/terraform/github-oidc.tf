@@ -123,6 +123,29 @@ resource "aws_iam_role_policy" "github_actions_read_app_secrets" {
   policy = data.aws_iam_policy_document.github_actions_read_app_secrets.json
 }
 
+# Issue #187 — verificar-token-verde.yml passou de só ALERTAR pra também
+# RENOVAR o VERDE_JWT_TOKEN de verdade (POST /autenticacao/token/refresh na
+# Verde, grava o token novo aqui). Restrito aos 2 secrets de app (nunca
+# Grafana/outros) — mesmo racional de least-privilege do statement de
+# leitura acima, escopo mínimo só pro que esse workflow específico precisa
+# escrever.
+data "aws_iam_policy_document" "github_actions_write_verde_token" {
+  statement {
+    sid     = "WriteVerdeTokenSecret"
+    actions = ["secretsmanager:PutSecretValue"]
+    resources = [
+      aws_secretsmanager_secret.app.arn,
+      aws_secretsmanager_secret.app_release.arn,
+    ]
+  }
+}
+
+resource "aws_iam_role_policy" "github_actions_write_verde_token" {
+  name   = "write-verde-token-secret"
+  role   = aws_iam_role.github_actions.id
+  policy = data.aws_iam_policy_document.github_actions_write_verde_token.json
+}
+
 # Issue #122 — ReadOnlyAccess (gerenciada pela AWS) pro workflow de drift
 # (.github/workflows/terraform-drift.yml) rodar `terraform plan` de
 # verdade — precisa descrever recursos de várias APIs (IAM, ECS, RDS,
