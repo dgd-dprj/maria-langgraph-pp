@@ -251,7 +251,16 @@ export async function criarAtendimento(
   fluxoId: string,
   chatIdBody: string | undefined,
   dadosConhecidos: Record<string, unknown> | undefined,
-  log: FastifyBaseLogger
+  log: FastifyBaseLogger,
+  // Issue #191 — NUNCA vem de dadosConhecidos (que é `additionalProperties:
+  // true`, o cliente controla livremente). Achado no code review da PR
+  // #192: sem esse parâmetro separado, qualquer chamador de POST
+  // /atendimentos (a própria Tykhe inclusive) podia mandar
+  // `dadosConhecidos: { viaOrquestrador: true }` e ativar o comportamento
+  // que essa issue existe pra bloquear — só rotas/orquestrador.ts pode
+  // setar isso, passando o parâmetro explícito abaixo. Qualquer
+  // `viaOrquestrador` que vier dentro de dadosConhecidos é descartado.
+  viaOrquestrador = false
 ): Promise<ResultadoCriarAtendimento> {
   if (!chatIdBody && process.env.NODE_ENV !== "test") {
     return { statusCode: 400, corpo: { erro: "chatId obrigatório" } };
@@ -298,7 +307,12 @@ export async function criarAtendimento(
   }
 
   log.info({ fluxoId, chatId, evento: "atendimento_criado" }, "atendimento criado");
-  const resultado = await fluxo.grafo.invoke(dadosConhecidos ?? {}, config);
+  // Issue #191 — descarta qualquer `viaOrquestrador` que tenha vindo dentro
+  // de dadosConhecidos (o cliente pode mandar o que quiser ali) e usa só o
+  // parâmetro explícito acima, controlado por quem CHAMA esta função, não
+  // pelo corpo da requisição.
+  const { viaOrquestrador: _viaOrquestradorIgnorado, ...dadosConhecidosLimpos } = dadosConhecidos ?? {};
+  const resultado = await fluxo.grafo.invoke({ ...dadosConhecidosLimpos, viaOrquestrador }, config);
 
   const interrupt = extrairInterruptDoInvoke(resultado);
   // Issue #82 — grafo padrão (fluxo planejado, issue #21) pode concluir JÁ
