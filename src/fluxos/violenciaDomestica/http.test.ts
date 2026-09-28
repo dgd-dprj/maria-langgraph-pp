@@ -62,9 +62,7 @@ test("fluxo completo com RO, cpf vindo em dadosConhecidos → concluido, urgente
   });
   await responder("true"); // é vítima
   await responder("false"); // sem processo
-  const rConfirma = await responder("true"); // tem RO — cpf já veio, não pergunta de novo, pausa confirmação (issue #189)
-  assert.match(rConfirma.json().resposta, /Confirma que seus dados são/);
-  const res = await responder("sim"); // confirma
+  const res = await responder("true"); // tem RO — cpf já veio, não pergunta de novo, conclui direto (issue #191, rota direta = Tykhe)
   const body = res.json();
 
   assert.equal(res.statusCode, 200);
@@ -92,8 +90,7 @@ test("encaminhamento real falha (MOCK_ENCAMINHAMENTO_FALHA) → handoff_humano, 
     });
     await responder("true"); // é vítima
     await responder("false"); // sem processo
-    await responder("true"); // tem RO — cpf já veio, pausa confirmação
-    const res = await responder("sim"); // confirma — órgão encontrado, mas encaminhar falha
+    const res = await responder("true"); // tem RO — cpf já veio, conclui direto (issue #191) — órgão encontrado, mas encaminhar falha
     const body = res.json();
 
     assert.equal(res.statusCode, 200);
@@ -116,9 +113,7 @@ test("fluxo completo sem RO, sem dadosConhecidos → pergunta CPF, conclui padr�
   await responder("false"); // sem processo
   const rCpf = await responder("false"); // sem RO → deveria perguntar CPF
   assert.match(rCpf.json().resposta, /Qual o seu CPF/);
-  const rConfirma = await responder("11111111111"); // cpf → pausa confirmação (issue #189)
-  assert.match(rConfirma.json().resposta, /Confirma que seus dados são/);
-  const res = await responder("sim"); // confirma
+  const res = await responder("11111111111"); // cpf → conclui direto (issue #191)
   const body = res.json();
 
   assert.equal(res.statusCode, 200);

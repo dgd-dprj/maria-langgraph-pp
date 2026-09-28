@@ -20,11 +20,16 @@ Vítima de violência doméstica buscando ajuda/proteção/encaminhamento juríd
 4. "Você já registrou o Boletim de Ocorrência (RO) na delegacia?"   (sim/não)
 5. [subgrafo `identificarAssistido`] "Qual o seu CPF?"   (texto — pulado se `cpf` já veio em dadosConhecidos)
      → consulta Verde (/pessoa)
-     encontrado                          → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
-                                             confirmou              → 6.
-                                             NÃO confirmou          → HANDOFF: assistido_nao_confirmado
+     encontrado, SEM viaOrquestrador (Tykhe)      → 6. direto, sem confirmar nada (comportamento de antes da #189)
+     encontrado, COM viaOrquestrador (issue #191) → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
+                                                       confirmou              → 6.
+                                                       NÃO confirmou          → HANDOFF: assistido_nao_confirmado
      não encontrado, < 3 tentativas      → "Quer tentar de novo o CPF?" (sim/não/CPF direto)
-     não encontrado, esgotou (3x)        → [subgrafo `cadastroPessoa`, issue #171]
+     não encontrado, esgotou (3x), SEM viaOrquestrador (Tykhe) → HANDOFF: cpf_nao_encontrado
+                                                                   (comportamento de antes da issue #171 — NUNCA
+                                                                   entra em cadastro, é a mesma pergunta que a
+                                                                   Tykhe sempre fez)
+     não encontrado, esgotou (3x), COM viaOrquestrador (issue #191) → [subgrafo `cadastroPessoa`, issue #171]
                                              "Qual o seu nome completo?" → "Qual a sua data de nascimento?"
                                              → [subgrafo `coletarEndereco`, issue #176]
                                                 CEP → consulta Verde (/cep) → só pergunta o que a Verde
@@ -46,7 +51,15 @@ Vítima de violência doméstica buscando ajuda/proteção/encaminhamento juríd
      deu certo → CONCLUÍDO (mensagem com nome do órgão + protocolo)
 ```
 
-`identificarAssistido`, `cadastroPessoa` e `coletarEndereco` (aninhado dentro de `cadastroPessoa`) são subgrafos reaproveitáveis (`src/subgrafos/`, ver `docs/novo-fluxo.md`) — embutidos como nó dentro deste fluxo, mesmo `chatId`/checkpoint, transparente pra Tykhe.
+`identificarAssistido`, `cadastroPessoa` e `coletarEndereco` (aninhado dentro de `cadastroPessoa`) são subgrafos reaproveitáveis (`src/subgrafos/`, ver `docs/novo-fluxo.md`) — embutidos como nó dentro deste fluxo, mesmo `chatId`/checkpoint.
+
+### `viaOrquestrador` — por que a Tykhe nunca vê nada disso (issue #191)
+
+A Tykhe consome este fluxo direto via `POST /atendimentos` com `flowId` explícito — contrato que já existia antes das issues #171/#189. Pra não alterar NADA desse contrato, um sinal novo no state (`viaOrquestrador`) decide se o comportamento novo (cadastro automático, confirmação de dados) ativa:
+
+- **Setado `true`** só em um lugar: `rotas/orquestrador.ts`, ao criar o atendimento via `POST /atendimentos/orquestrador` (pra quem não sabe de antemão qual fluxo usar — não é a Tykhe).
+- **Nunca setado** por quem chama `POST /atendimentos` direto — a Tykhe nunca manda esse campo, então o fluxo se comporta exatamente como antes dessas issues: CPF esgotado vira handoff direto (`cpf_nao_encontrado`), sem tentar cadastro nem perguntar confirmação.
+- É o MESMO `flowId`, o MESMO grafo — só o roteamento pós-subgrafo (`depoisDeIdentificarAssistido`/`depoisDeCadastrarPessoa`) e a confirmação dentro dos subgrafos checam esse sinal.
 
 ## Regras de negócio
 
@@ -56,8 +69,9 @@ Vítima de violência doméstica buscando ajuda/proteção/encaminhamento juríd
 |---|---|
 | `nao_e_vitima` | Respondeu "não" na 1ª pergunta. |
 | `sem_orgao_disponivel` | Pessoa encontrada, mas o Verde não achou nenhum órgão pra ela (só acontece com RO:true — sem RO sempre tem fallback). Vem com `mensagemCrc` pronta do Verde ("...ligar 129"). |
-| `falha_cadastro` | Esgotou as 3 tentativas de CPF sem achar a pessoa **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`, issue #171) também falhou — não confunde com `sem_orgao_disponivel` (que é pra pessoa já encontrada/cadastrada). Substitui o antigo `cpf_nao_encontrado` (issue #72): antes, esgotar tentativas já era handoff direto; agora tenta cadastrar primeiro. |
-| `assistido_nao_confirmado` | Achou por CPF **ou** cadastrou com sucesso, mas a pessoa negou que os dados são dela (issue #189) — não confunde com `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar, não sobre confirmação). |
+| `falha_cadastro` | Só no caminho `viaOrquestrador`: esgotou as 3 tentativas de CPF sem achar a pessoa **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`, issue #171) também falhou — não confunde com `sem_orgao_disponivel` (que é pra pessoa já encontrada/cadastrada). |
+| `cpf_nao_encontrado` | Só no caminho SEM `viaOrquestrador` (Tykhe): esgotou as 3 tentativas de CPF sem achar a pessoa — handoff direto, nunca tenta cadastro (issue #72, restaurado na #191). |
+| `assistido_nao_confirmado` | Só no caminho `viaOrquestrador`: achou por CPF **ou** cadastrou com sucesso, mas a pessoa negou que os dados são dela (issue #189) — não confunde com `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar, não sobre confirmação). |
 | `falha_encaminhamento` | Achou o órgão certo, mas o `POST /encaminhamento/encaminhar` de verdade falhou. Nunca inventa sucesso — manda pra atendente confirmar manualmente. |
 
 ### Quem decide o órgão: a Verde, não a Maria

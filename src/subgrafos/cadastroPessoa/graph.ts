@@ -70,12 +70,16 @@ function depoisDeCadastrar(state: CadastroPessoaStateType): "sucesso" | "falhou"
 
 // Issue #189 — cadastro com sucesso não sai direto: confirma os dados
 // antes de devolver pro fluxo pai (mesmo racional de identificarAssistido).
+// Issue #191 — só pergunta quando veio do orquestrador (mesmo racional de
+// identificarAssistido/graph.ts).
 async function prepararPerguntaConfirmaAssistido(state: CadastroPessoaStateType): Promise<Partial<CadastroPessoaStateType>> {
+  if (!state.viaOrquestrador) return {};
   const nome = state.dadosPessoa?.nome ?? "você";
   return prepararPergunta("confirmaAssistido", `Confirma que seus dados são: ${nome}?`);
 }
 
 async function pedirConfirmaAssistido(state: CadastroPessoaStateType): Promise<Partial<CadastroPessoaStateType>> {
+  if (!state.viaOrquestrador) return {};
   const nome = state.dadosPessoa?.nome ?? "você";
   const resposta = interrupt<Pergunta, string>({
     pergunta: state.perguntaAtualTexto ?? `Confirma que seus dados são: ${nome}?`,

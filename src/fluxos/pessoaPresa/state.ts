@@ -31,6 +31,13 @@ export const PessoaPresaState = Annotation.Root({
   // CPF (identificarAssistido) ou cadastrar (cadastroPessoa). Mesmo campo
   // compartilhado com os 2 subgrafos.
   confirmaAssistido: Annotation<boolean | undefined>,
+  // Issue #191 — setado pelo orquestrador (rotas/orquestrador.ts) ao criar
+  // o atendimento; NUNCA setado por quem chama POST /atendimentos com
+  // flowId direto (contrato da Tykhe). Sem isso, o fluxo pula
+  // identificarAssistido/cadastroPessoa inteiros e conclui direto depois
+  // do parentesco — comportamento de antes da issue #183, a Tykhe nunca
+  // pode ganhar a pergunta de CPF do assistido que não existia antes.
+  viaOrquestrador: Annotation<boolean | undefined>,
   // true quando a resposta de "quer tentar de novo?" já veio como um RG
   // digitado direto (em vez de "Sim"/"Não") — issue #54, achado ao vivo
   // (pessoa pula a confirmação e já manda o RG novo). Nesse caso `rg` já

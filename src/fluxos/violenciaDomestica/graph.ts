@@ -13,7 +13,7 @@ import { prepararPergunta } from "../../ia/reescrever.js";
 import { criarCheckpointer } from "../../shared/checkpointer.js";
 import { grafo as subgrafoIdentificarAssistido } from "../../subgrafos/identificarAssistido/graph.js";
 import { grafo as subgrafoCadastroPessoa } from "../../subgrafos/cadastroPessoa/graph.js";
-import { MENSAGEM_FALHA_CADASTRO, MENSAGEM_FALHA_ENCAMINHAMENTO, MENSAGEM_NAO_VITIMA, MENSAGEM_SEM_ORGAO_DISPONIVEL } from "./api.js";
+import { MENSAGEM_FALHA_CADASTRO, MENSAGEM_CPF_NAO_ENCONTRADO, MENSAGEM_FALHA_ENCAMINHAMENTO, MENSAGEM_NAO_VITIMA, MENSAGEM_SEM_ORGAO_DISPONIVEL } from "./api.js";
 
 // Mesma tolerância de respostas sim_nao de fluxos/pessoaPresa/graph.ts — a
 // Tykhe às vezes repassa "Sim"/"Não" literal em vez de "true"/"false" (bug
@@ -165,9 +165,22 @@ async function pedirTemRO(state: ViolenciaDomesticaStateType): Promise<Partial<V
 // Issue #189 — confirmaAssistido:false checado ANTES de dadosPessoa.encontrado:
 // achou a pessoa mas ela negou que os dados são dela — handoff direto, não
 // tenta cadastro novo (seria tratar "não confirmo" igual a "não achei").
-function depoisDeIdentificarAssistido(state: ViolenciaDomesticaStateType): "encontrado" | "cadastrar" | "naoConfirmado" {
+//
+// Issue #191 — CPF esgotado (não encontrado) SEM viaOrquestrador nunca
+// entra em cadastroPessoa — volta a ser handoff direto (comportamento de
+// antes da issue #171). A Tykhe (POST /atendimentos direto) nunca seta
+// viaOrquestrador, então nunca ganha o cadastro automático.
+function depoisDeIdentificarAssistido(state: ViolenciaDomesticaStateType): "encontrado" | "cadastrar" | "naoConfirmado" | "cpfEsgotado" {
   if (state.confirmaAssistido === false) return "naoConfirmado";
-  return state.dadosPessoa?.encontrado ? "encontrado" : "cadastrar";
+  if (state.dadosPessoa?.encontrado) return "encontrado";
+  return state.viaOrquestrador ? "cadastrar" : "cpfEsgotado";
+}
+
+// Issue #72 — restaurado na #191: comportamento de antes da issue #171
+// pra quem chama sem viaOrquestrador (a Tykhe). Esgotou as 3 tentativas
+// de CPF, handoff direto, nunca tenta cadastro nem pergunta confirmação.
+async function cpfEsgotado(): Promise<Partial<ViolenciaDomesticaStateType>> {
+  return { statusFinal: "handoff_humano", motivoHandoff: "cpf_nao_encontrado", mensagemFinal: MENSAGEM_CPF_NAO_ENCONTRADO };
 }
 
 // Issue #171 — subgrafo cadastroPessoa (embutido abaixo) preenche
@@ -340,6 +353,7 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
   .addNode("cadastroPessoa", subgrafoCadastroPessoa)
   .addNode("falhaCadastro", falhaCadastro)
   .addNode("assistidoNaoConfirmado", assistidoNaoConfirmado)
+  .addNode("cpfEsgotado", cpfEsgotado)
   .addNode("consultarCep", consultarCep)
   .addNode("consultarPlantao", consultarPlantao)
   .addNode("consultarOrgaos", consultarOrgaos)
@@ -380,6 +394,7 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
     encontrado: "consultarCep",
     cadastrar: "cadastroPessoa",
     naoConfirmado: "assistidoNaoConfirmado",
+    cpfEsgotado: "cpfEsgotado",
   })
   .addConditionalEdges("cadastroPessoa", depoisDeCadastrarPessoa, {
     continuar: "consultarCep",
@@ -388,6 +403,7 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
   })
   .addEdge("falhaCadastro", END)
   .addEdge("assistidoNaoConfirmado", END)
+  .addEdge("cpfEsgotado", END)
   .addEdge("consultarCep", "consultarPlantao")
   .addEdge("consultarPlantao", "consultarOrgaos")
   .addConditionalEdges("consultarOrgaos", depoisDeConsultarOrgaos, {
