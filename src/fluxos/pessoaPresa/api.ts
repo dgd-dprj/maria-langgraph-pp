@@ -99,6 +99,7 @@ export const metadadosSchemaPessoaPresa = {
         "origem_processo_nao_suportada",
         "dados_pessoa_nao_atendidos",
         "falha_cadastro",
+        "assistido_nao_confirmado",
       ],
     },
   },

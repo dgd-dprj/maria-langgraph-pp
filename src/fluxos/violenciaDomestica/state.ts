@@ -43,6 +43,10 @@ export const ViolenciaDomesticaState = Annotation.Root({
   nome: Annotation<string | undefined>,
   dataNascimento: Annotation<string | undefined>,
   cadastroErro: Annotation<string | undefined>,
+  // Issue #189 — confirmação dos dados do assistido depois de achar por
+  // CPF (identificarAssistido) ou cadastrar (cadastroPessoa). Mesmo campo
+  // compartilhado com os 2 subgrafos.
+  confirmaAssistido: Annotation<boolean | undefined>,
   // ids de plantão(ões) vigente(s) agora (consultarPlantaoVigente) — vazio
   // = fora de horário de plantão, usa consulta de órgão normal. Não vazio =
   // usa consultarOrgaosPlantaoViolenciaDomestica em vez da normal.
@@ -66,7 +70,12 @@ export const ViolenciaDomesticaState = Annotation.Root({
   // antigo "cpf_nao_encontrado" (issue #72): antes, esgotar tentativas já
   // virava handoff direto; agora tenta cadastrar primeiro, só vira handoff
   // se o cadastro em si falhar.
-  motivoHandoff: Annotation<"nao_e_vitima" | "sem_orgao_disponivel" | "falha_encaminhamento" | "falha_cadastro" | undefined>,
+  // assistido_nao_confirmado (issue #189) = achou/cadastrou a pessoa, mas
+  // ela respondeu que os dados NÃO são dela — handoff direto, diferente de
+  // falha_cadastro (que é sobre o POST /integra/pessoa em si falhar).
+  motivoHandoff: Annotation<
+    "nao_e_vitima" | "sem_orgao_disponivel" | "falha_encaminhamento" | "falha_cadastro" | "assistido_nao_confirmado" | undefined
+  >,
   // só preenchido quando statusFinal:"concluido".
   tipoEncaminhamento: Annotation<"padrao" | "urgente" | undefined>,
   // texto final específico do desfecho — sobrescreve o texto genérico

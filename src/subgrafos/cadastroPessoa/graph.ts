@@ -37,6 +37,15 @@ async function pedirDataNascimento(state: CadastroPessoaStateType): Promise<Part
   return { dataNascimento: resposta };
 }
 
+function respostaEhSim(resposta: string): boolean {
+  const normalizado = resposta
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .trim()
+    .toLowerCase();
+  return normalizado === "true" || normalizado === "sim" || normalizado === "s" || normalizado === "yes";
+}
+
 async function cadastrarPessoa(state: CadastroPessoaStateType): Promise<Partial<CadastroPessoaStateType>> {
   const resultado = await cadastrarPessoaVerde({
     nome: state.nome ?? "",
@@ -55,6 +64,27 @@ async function cadastrarPessoa(state: CadastroPessoaStateType): Promise<Partial<
   return { dadosPessoa: { encontrado: true, idPessoa: resultado.idPessoa, nome: state.nome } };
 }
 
+function depoisDeCadastrar(state: CadastroPessoaStateType): "sucesso" | "falhou" {
+  return state.cadastroErro !== undefined ? "falhou" : "sucesso";
+}
+
+// Issue #189 — cadastro com sucesso não sai direto: confirma os dados
+// antes de devolver pro fluxo pai (mesmo racional de identificarAssistido).
+async function prepararPerguntaConfirmaAssistido(state: CadastroPessoaStateType): Promise<Partial<CadastroPessoaStateType>> {
+  const nome = state.dadosPessoa?.nome ?? "você";
+  return prepararPergunta("confirmaAssistido", `Confirma que seus dados são: ${nome}?`);
+}
+
+async function pedirConfirmaAssistido(state: CadastroPessoaStateType): Promise<Partial<CadastroPessoaStateType>> {
+  const nome = state.dadosPessoa?.nome ?? "você";
+  const resposta = interrupt<Pergunta, string>({
+    pergunta: state.perguntaAtualTexto ?? `Confirma que seus dados são: ${nome}?`,
+    tipo: "sim_nao",
+    opcoes: ["Sim", "Não"],
+  });
+  return { confirmaAssistido: respostaEhSim(resposta) };
+}
+
 const grafo = new StateGraph(CadastroPessoaState)
   .addNode("prepararPerguntaNome", prepararPerguntaNome)
   .addNode("pedirNome", pedirNome)
@@ -66,13 +96,20 @@ const grafo = new StateGraph(CadastroPessoaState)
   // de violência doméstica mesmo em casos que teriam fallback.
   .addNode("coletarEndereco", subgrafoColetarEndereco)
   .addNode("cadastrarPessoa", cadastrarPessoa)
+  .addNode("prepararPerguntaConfirmaAssistido", prepararPerguntaConfirmaAssistido)
+  .addNode("pedirConfirmaAssistido", pedirConfirmaAssistido)
   .addEdge(START, "prepararPerguntaNome")
   .addEdge("prepararPerguntaNome", "pedirNome")
   .addEdge("pedirNome", "prepararPerguntaDataNascimento")
   .addEdge("prepararPerguntaDataNascimento", "pedirDataNascimento")
   .addEdge("pedirDataNascimento", "coletarEndereco")
   .addEdge("coletarEndereco", "cadastrarPessoa")
-  .addEdge("cadastrarPessoa", END)
+  .addConditionalEdges("cadastrarPessoa", depoisDeCadastrar, {
+    sucesso: "prepararPerguntaConfirmaAssistido",
+    falhou: END,
+  })
+  .addEdge("prepararPerguntaConfirmaAssistido", "pedirConfirmaAssistido")
+  .addEdge("pedirConfirmaAssistido", END)
   // Sem checkpointer próprio — mesmo racional de subgrafos/identificarAssistido.
   .compile();
 

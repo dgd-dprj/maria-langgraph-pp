@@ -17,6 +17,12 @@ export const IdentificarAssistidoState = Annotation.Root({
   tentativasCpf: Annotation<number | undefined>,
   querTentarNovamenteCpf: Annotation<boolean | undefined>,
   digitouCpfDireto: Annotation<boolean | undefined>,
+  // Issue #189 — depois de achar a pessoa por CPF, confirma que os dados
+  // são dela antes de devolver pro fluxo pai. false (não confirmado) é um
+  // desfecho DIFERENTE de "esgotado" (CPF não encontrado) — o pai não deve
+  // tentar cadastro novo aqui, é handoff direto. Mesmo campo compartilhado
+  // com cadastroPessoa (issue #189 cobre os 2 subgrafos) e os fluxos pai.
+  confirmaAssistido: Annotation<boolean | undefined>,
   perguntaAtualTexto: Annotation<string | undefined>,
   perguntaAtualViaIA: Annotation<boolean | undefined>,
   perguntaAtualTokensTotal: Annotation<number | undefined>,

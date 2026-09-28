@@ -5,14 +5,16 @@ import { consultarPessoaPorCpf } from "../../integracoes/verde.js";
 import { prepararPergunta } from "../../ia/reescrever.js";
 
 // Issue #171 — subgrafo reaproveitável: pergunta CPF, consulta o Verde, dá
-// até 3 tentativas antes de desistir. Termina em 2 desfechos possíveis (o
+// até 3 tentativas antes de desistir. Termina em 3 desfechos possíveis (o
 // grafo pai decide o que fazer com cada um, olhando `dadosPessoa.encontrado`
-// depois que esse subgrafo retornar):
-// - encontrado: dadosPessoa.encontrado === true
-// - esgotado: dadosPessoa.encontrado === false, 3 tentativas usadas
-// Nenhum dos dois vira handoff AQUI — isso é responsabilidade de quem
+// e `confirmaAssistido` depois que esse subgrafo retornar):
+// - encontrado e confirmado: dadosPessoa.encontrado === true, confirmaAssistido === true
+// - encontrado mas NÃO confirmado (issue #189): dadosPessoa.encontrado === true, confirmaAssistido === false
+// - esgotado: dadosPessoa.encontrado === false, 3 tentativas usadas (confirmaAssistido nunca chega a ser perguntado)
+// Nenhum dos três vira handoff AQUI — isso é responsabilidade de quem
 // embute este subgrafo (cada fluxo pai decide, ex: violenciaDomestica manda
-// pro subgrafo cadastroPessoa quando esgota).
+// pro subgrafo cadastroPessoa quando esgota, e pro handoff direto quando
+// não confirmado).
 
 function cpfFormatoValido(valor: string): boolean {
   return valor.replace(/\D/g, "").length === 11;
@@ -79,17 +81,37 @@ function depoisDePerguntaTentarCpf(state: IdentificarAssistidoStateType): "pedir
   return state.digitouCpfDireto ? "consultarPessoa" : "pedirCpf";
 }
 
+// Issue #189 — CPF encontrado não sai direto: confirma os dados achados
+// antes de devolver pro fluxo pai (mesmo racional do "Confirma que a
+// pessoa presa é <nome>?" já usado pro RG em pessoaPresa/graph.ts).
+async function prepararPerguntaConfirmaAssistido(state: IdentificarAssistidoStateType): Promise<Partial<IdentificarAssistidoStateType>> {
+  const nome = state.dadosPessoa?.nome ?? "você";
+  return prepararPergunta("confirmaAssistido", `Confirma que seus dados são: ${nome}?`);
+}
+
+async function pedirConfirmaAssistido(state: IdentificarAssistidoStateType): Promise<Partial<IdentificarAssistidoStateType>> {
+  const nome = state.dadosPessoa?.nome ?? "você";
+  const resposta = interrupt<Pergunta, string>({
+    pergunta: state.perguntaAtualTexto ?? `Confirma que seus dados são: ${nome}?`,
+    tipo: "sim_nao",
+    opcoes: ["Sim", "Não"],
+  });
+  return { confirmaAssistido: respostaEhSim(resposta) };
+}
+
 const grafo = new StateGraph(IdentificarAssistidoState)
   .addNode("prepararPerguntaCpf", prepararPerguntaCpf)
   .addNode("pedirCpf", pedirCpf)
   .addNode("consultarPessoa", consultarPessoa)
   .addNode("prepararPerguntaTentarNovamenteCpf", prepararPerguntaTentarNovamenteCpf)
   .addNode("perguntaTentarNovamenteCpf", perguntaTentarNovamenteCpf)
+  .addNode("prepararPerguntaConfirmaAssistido", prepararPerguntaConfirmaAssistido)
+  .addNode("pedirConfirmaAssistido", pedirConfirmaAssistido)
   .addEdge(START, "prepararPerguntaCpf")
   .addEdge("prepararPerguntaCpf", "pedirCpf")
   .addEdge("pedirCpf", "consultarPessoa")
   .addConditionalEdges("consultarPessoa", depoisDeConsultarPessoa, {
-    encontrado: END,
+    encontrado: "prepararPerguntaConfirmaAssistido",
     esgotado: END,
     tentarNovamente: "prepararPerguntaTentarNovamenteCpf",
   })
@@ -101,6 +123,8 @@ const grafo = new StateGraph(IdentificarAssistidoState)
     // consulta o Verde de novo direto.
     consultarPessoa: "consultarPessoa",
   })
+  .addEdge("prepararPerguntaConfirmaAssistido", "pedirConfirmaAssistido")
+  .addEdge("pedirConfirmaAssistido", END)
   // Sem checkpointer próprio — subgrafo embutido como nó num fluxo pai
   // (fluxos/violenciaDomestica/graph.ts) herda a persistência do checkpointer
   // do PAI. Passar um checkpointer aqui criaria uma 2ª camada de persistência
