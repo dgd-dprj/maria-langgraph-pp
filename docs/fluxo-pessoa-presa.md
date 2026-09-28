@@ -24,12 +24,16 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
                                               → 7. [subgrafo `identificarAssistido`, issue #183] "Qual o seu CPF?"
                                                  → consulta Verde (/pessoa) — identifica quem está CONVERSANDO,
                                                    diferente do RG acima (que identifica o PRESO)
-                                                 encontrado                     → conclui
+                                                 encontrado                     → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
+                                                                                    confirmou    → conclui
+                                                                                    NÃO confirmou → HANDOFF: assistido_nao_confirmado
                                                  não encontrado, esgotou (3x)   → [subgrafo `cadastroPessoa`, issue #183]
                                                                                     nome, data de nascimento, endereço
                                                                                     (subgrafo `coletarEndereco`, CEP-first)
                                                                                     → POST /integra/pessoa
-                                                 cadastrou com sucesso          → conclui (com o idPessoa novo)
+                                                 cadastrou com sucesso          → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
+                                                                                    confirmou    → conclui (com o idPessoa novo)
+                                                                                    NÃO confirmou → HANDOFF: assistido_nao_confirmado
                                                  falhou                         → HANDOFF: falha_cadastro
 ```
 
@@ -51,6 +55,7 @@ Outros motivos de handoff, fora dessa função:
 - `rg_nao_encontrado` — esgotou as 3 tentativas de consulta ao Verde (RG do preso).
 - `nome_nao_confirmado` — achou a pessoa mas a pessoa que está perguntando disse que não é ela.
 - `falha_cadastro` (issue #183) — CPF do assistido esgotou as 3 tentativas **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`) também falhou. Roda DEPOIS da conclusão normal do RG/processo/parentesco — não confundir com os motivos acima, que são sobre o PRESO.
+- `assistido_nao_confirmado` (issue #189) — achou o assistido por CPF **ou** cadastrou com sucesso, mas ele negou que os dados são dele. Diferente de `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar) e de `nome_nao_confirmado` (que é sobre o PRESO, via RG).
 
 ## Tolerâncias (achadas ao vivo, ver comentários no código)
 

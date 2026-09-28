@@ -20,9 +20,12 @@ function pergunta(resultado: unknown): { pergunta: string; tipo: string; opcoes?
 // ASSISTIDO (quem está conversando, diferente do RG do preso) antes de
 // concluir — mesmo racional de violenciaDomestica/graph.ts (issue #171).
 // CPF "11111111111" acha a pessoa de teste no mock — caminho de cadastro
-// (CPF não encontrado) tem teste próprio, não usado aqui.
+// (CPF não encontrado) tem teste próprio, não usado aqui. Issue #189 —
+// depois de achar, pausa pedindo confirmação dos dados; "sim" segue o
+// caminho de sempre (recusa tem teste dedicado próprio).
 async function identificarComCpf(config: { configurable: { thread_id: string } }) {
-  return grafo.invoke(new Command({ resume: "11111111111" }), config);
+  await grafo.invoke(new Command({ resume: "11111111111" }), config);
+  return grafo.invoke(new Command({ resume: "sim" }), config);
 }
 
 test("1ª invocação pausa em pedirTemProcesso (primeira pergunta da ordem atual)", async () => {
@@ -262,7 +265,9 @@ test("esgota as 3 tentativas de CPF do assistido → entra em cadastro; sucesso 
   assert.match(pergunta(rDataNasc)?.pergunta ?? "", /CEP/);
   await grafo.invoke(new Command({ resume: "20000-000" }), config); // CEP
   await grafo.invoke(new Command({ resume: "123" }), config); // número
-  const rFinal = await grafo.invoke(new Command({ resume: "não" }), config); // sem complemento → cadastra
+  const rConfirma = await grafo.invoke(new Command({ resume: "não" }), config); // sem complemento → cadastra → pausa confirmação (issue #189)
+  assert.match(pergunta(rConfirma)?.pergunta ?? "", /Confirma que seus dados são/);
+  const rFinal = await grafo.invoke(new Command({ resume: "sim" }), config); // confirma
 
   assert.equal(pergunta(rFinal), undefined);
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
@@ -301,6 +306,45 @@ test("esgota as 3 tentativas de CPF do assistido → entra em cadastro; cadastro
   } finally {
     process.env.MOCK_CADASTRO_FALHA = original;
   }
+});
+
+// Issue #189 — CPF do assistido encontrado, mas ele nega que os dados são
+// dele: handoff direto, NÃO tenta cadastro (diferente de "não achei").
+test("CPF do assistido válido mas NÃO confirma os dados → handoff_humano, motivo assistido_nao_confirmado (issue #189)", async () => {
+  const config = novoConfig();
+  await grafo.invoke({}, config);
+  await grafo.invoke(new Command({ resume: "false" }), config); // sem processo → RG
+  await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
+  await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+  await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → pausa confirmação
+  const r = await grafo.invoke(new Command({ resume: "não" }), config); // NÃO confirma
+  assert.equal(pergunta(r), undefined);
+  const final = r as { statusFinal?: string; motivoHandoff?: string };
+  assert.equal(final.statusFinal, "handoff_humano");
+  assert.equal(final.motivoHandoff, "assistido_nao_confirmado");
+});
+
+// Issue #189 — mesmo racional, agora depois de CADASTRAR (não achar).
+test("cadastra assistido novo mas NÃO confirma os dados → handoff_humano, motivo assistido_nao_confirmado (issue #189)", async () => {
+  const config = novoConfig();
+  await grafo.invoke({}, config);
+  await grafo.invoke(new Command({ resume: "false" }), config); // sem processo → RG
+  await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
+  await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+  await grafo.invoke(new Command({ resume: "00000000000" }), config); // cpf não encontrado
+  await grafo.invoke(new Command({ resume: "Não" }), config); // não quer tentar de novo → entra em cadastro
+  await grafo.invoke(new Command({ resume: "Maria de Teste" }), config); // nome
+  await grafo.invoke(new Command({ resume: "01/01/1990" }), config); // data de nascimento → pausa endereço
+  await grafo.invoke(new Command({ resume: "20000-000" }), config); // CEP
+  await grafo.invoke(new Command({ resume: "123" }), config); // número
+  await grafo.invoke(new Command({ resume: "não" }), config); // sem complemento → cadastra → pausa confirmação
+  const r = await grafo.invoke(new Command({ resume: "não" }), config); // NÃO confirma
+  assert.equal(pergunta(r), undefined);
+  const final = r as { statusFinal?: string; motivoHandoff?: string };
+  assert.equal(final.statusFinal, "handoff_humano");
+  assert.equal(final.motivoHandoff, "assistido_nao_confirmado");
 });
 
 test("confirmação de nome com 'Sim' literal → concluido (cenário exato do bug real: WhatsApp/Tykhe manda 'Sim', não 'true')", async () => {

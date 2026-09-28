@@ -389,15 +389,22 @@ function depoisDeConfirmarNome(state: PessoaPresaStateType): "concluir" | "naoCo
 // ASSISTIDO (quem está conversando) no Verde via CPF, mesmo racional de
 // violenciaDomestica/graph.ts (issue #171). Subgrafo embutido abaixo (ver
 // `grafo` no fim do arquivo).
-function depoisDeIdentificarAssistido(state: PessoaPresaStateType): "encontrado" | "cadastrar" {
+// Issue #189 — confirmaAssistido:false checado ANTES de dadosPessoa.encontrado:
+// achou a pessoa mas ela negou que os dados são dela — handoff direto, não
+// tenta cadastro novo (seria tratar "não confirmo" igual a "não achei").
+function depoisDeIdentificarAssistido(state: PessoaPresaStateType): "encontrado" | "cadastrar" | "assistidoNaoConfirmado" {
+  if (state.confirmaAssistido === false) return "assistidoNaoConfirmado";
   return state.dadosPessoa?.encontrado ? "encontrado" : "cadastrar";
 }
 
 // Issue #183 — subgrafo cadastroPessoa (embutido abaixo) preenche
 // dadosPessoa (sucesso, mesmo campo de quem já tinha cadastro) ou
-// cadastroErro (falha) — nunca os dois.
-function depoisDeCadastrarPessoa(state: PessoaPresaStateType): "continuar" | "falhou" {
-  return state.dadosPessoa?.encontrado ? "continuar" : "falhou";
+// cadastroErro (falha) — nunca os dois. Issue #189 — mesmo racional do
+// comentário acima, agora também depois de cadastrar.
+function depoisDeCadastrarPessoa(state: PessoaPresaStateType): "continuar" | "falhou" | "assistidoNaoConfirmado" {
+  if (state.cadastroErro !== undefined) return "falhou";
+  if (state.confirmaAssistido === false) return "assistidoNaoConfirmado";
+  return "continuar";
 }
 
 async function falhaCadastro(state: PessoaPresaStateType): Promise<Partial<PessoaPresaStateType>> {
@@ -406,6 +413,13 @@ async function falhaCadastro(state: PessoaPresaStateType): Promise<Partial<Pesso
     motivoHandoff: "falha_cadastro",
     mensagemFinal: state.cadastroErro ? `${MENSAGEM_FALHA_CADASTRO} (${state.cadastroErro})` : MENSAGEM_FALHA_CADASTRO,
   };
+}
+
+// Issue #189 — dead-end pra quando a pessoa nega que os dados achados/
+// cadastrados via CPF são dela — diferente do "naoConfirmado" já existente
+// (que é sobre o RG do PRESO, não o CPF do assistido).
+async function assistidoNaoConfirmado(): Promise<Partial<PessoaPresaStateType>> {
+  return { statusFinal: "handoff_humano", motivoHandoff: "assistido_nao_confirmado" };
 }
 
 const grafo = new StateGraph(PessoaPresaState)
@@ -429,6 +443,7 @@ const grafo = new StateGraph(PessoaPresaState)
   .addNode("identificarAssistido", subgrafoIdentificarAssistido)
   .addNode("cadastroPessoa", subgrafoCadastroPessoa)
   .addNode("falhaCadastro", falhaCadastro)
+  .addNode("assistidoNaoConfirmado", assistidoNaoConfirmado)
   .addNode("concluir", concluir)
   .addNode("naoConfirmado", naoConfirmado)
   // Roteamento condicional (não .addEdge fixo) é o que garante que, com a
@@ -477,12 +492,15 @@ const grafo = new StateGraph(PessoaPresaState)
   .addConditionalEdges("identificarAssistido", depoisDeIdentificarAssistido, {
     encontrado: "concluir",
     cadastrar: "cadastroPessoa",
+    assistidoNaoConfirmado: "assistidoNaoConfirmado",
   })
   .addConditionalEdges("cadastroPessoa", depoisDeCadastrarPessoa, {
     continuar: "concluir",
     falhou: "falhaCadastro",
+    assistidoNaoConfirmado: "assistidoNaoConfirmado",
   })
   .addEdge("falhaCadastro", END)
+  .addEdge("assistidoNaoConfirmado", END)
   .addEdge("naoConfirmado", END)
   .addEdge("concluir", END)
   .compile({ checkpointer: await criarCheckpointer() });

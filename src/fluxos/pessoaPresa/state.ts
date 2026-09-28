@@ -27,6 +27,10 @@ export const PessoaPresaState = Annotation.Root({
   dataNascimento: Annotation<string | undefined>,
   // preenchido só se o POST /integra/pessoa (subgrafo cadastroPessoa) falhar.
   cadastroErro: Annotation<string | undefined>,
+  // Issue #189 — confirmação dos dados do assistido depois de achar por
+  // CPF (identificarAssistido) ou cadastrar (cadastroPessoa). Mesmo campo
+  // compartilhado com os 2 subgrafos.
+  confirmaAssistido: Annotation<boolean | undefined>,
   // true quando a resposta de "quer tentar de novo?" já veio como um RG
   // digitado direto (em vez de "Sim"/"Não") — issue #54, achado ao vivo
   // (pessoa pula a confirmação e já manda o RG novo). Nesse caso `rg` já
@@ -51,6 +55,10 @@ export const PessoaPresaState = Annotation.Root({
     // Issue #183 — esgotou tentativas de CPF do assistido E o cadastro
     // novo no Verde (subgrafo cadastroPessoa) também falhou.
     | "falha_cadastro"
+    // Issue #189 — achou/cadastrou o assistido, mas ele negou que os
+    // dados são dele. Diferente de nome_nao_confirmado (que é sobre o
+    // PRESO, via RG).
+    | "assistido_nao_confirmado"
     | undefined
   >,
   // texto final específico do desfecho — sobrescreve o texto genérico

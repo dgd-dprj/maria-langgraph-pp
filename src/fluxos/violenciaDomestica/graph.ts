@@ -161,15 +161,23 @@ async function pedirTemRO(state: ViolenciaDomesticaStateType): Promise<Partial<V
 // subgrafo subgrafos/identificarAssistido/graph.ts (reaproveitável). Esse
 // subgrafo é embutido como nó abaixo (ver `grafo` no fim do arquivo) —
 // depoisDeIdentificarAssistido decide o que fazer com o resultado dele.
-function depoisDeIdentificarAssistido(state: ViolenciaDomesticaStateType): "encontrado" | "cadastrar" {
+//
+// Issue #189 — confirmaAssistido:false checado ANTES de dadosPessoa.encontrado:
+// achou a pessoa mas ela negou que os dados são dela — handoff direto, não
+// tenta cadastro novo (seria tratar "não confirmo" igual a "não achei").
+function depoisDeIdentificarAssistido(state: ViolenciaDomesticaStateType): "encontrado" | "cadastrar" | "naoConfirmado" {
+  if (state.confirmaAssistido === false) return "naoConfirmado";
   return state.dadosPessoa?.encontrado ? "encontrado" : "cadastrar";
 }
 
 // Issue #171 — subgrafo cadastroPessoa (embutido abaixo) preenche
 // dadosPessoa (sucesso, mesmo campo de quem já tinha cadastro) ou
-// cadastroErro (falha) — nunca os dois.
-function depoisDeCadastrarPessoa(state: ViolenciaDomesticaStateType): "continuar" | "falhou" {
-  return state.dadosPessoa?.encontrado ? "continuar" : "falhou";
+// cadastroErro (falha) — nunca os dois. Issue #189 — mesmo racional do
+// comentário acima, agora também depois de cadastrar (não só depois de achar).
+function depoisDeCadastrarPessoa(state: ViolenciaDomesticaStateType): "continuar" | "falhou" | "naoConfirmado" {
+  if (state.cadastroErro !== undefined) return "falhou";
+  if (state.confirmaAssistido === false) return "naoConfirmado";
+  return "continuar";
 }
 
 async function falhaCadastro(state: ViolenciaDomesticaStateType): Promise<Partial<ViolenciaDomesticaStateType>> {
@@ -178,6 +186,15 @@ async function falhaCadastro(state: ViolenciaDomesticaStateType): Promise<Partia
     motivoHandoff: "falha_cadastro",
     mensagemFinal: state.cadastroErro ? `${MENSAGEM_FALHA_CADASTRO} (${state.cadastroErro})` : MENSAGEM_FALHA_CADASTRO,
   };
+}
+
+// Issue #189 — dead-end compartilhado pelos 2 caminhos que embutem
+// identificarAssistido/cadastroPessoa (achou por CPF ou acabou de
+// cadastrar), quando a pessoa nega que os dados achados/cadastrados são
+// dela. Sem mensagem fixa de propósito — mesmo padrão de
+// dados_pessoa_nao_atendidos em pessoaPresa/graph.ts, só o status importa.
+async function assistidoNaoConfirmado(): Promise<Partial<ViolenciaDomesticaStateType>> {
+  return { statusFinal: "handoff_humano", motivoHandoff: "assistido_nao_confirmado" };
 }
 
 // Issue #127 — roda sempre depois de identificar a pessoa (encontrada ou
@@ -322,6 +339,7 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
   .addNode("identificarAssistido", subgrafoIdentificarAssistido)
   .addNode("cadastroPessoa", subgrafoCadastroPessoa)
   .addNode("falhaCadastro", falhaCadastro)
+  .addNode("assistidoNaoConfirmado", assistidoNaoConfirmado)
   .addNode("consultarCep", consultarCep)
   .addNode("consultarPlantao", consultarPlantao)
   .addNode("consultarOrgaos", consultarOrgaos)
@@ -361,12 +379,15 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
   .addConditionalEdges("identificarAssistido", depoisDeIdentificarAssistido, {
     encontrado: "consultarCep",
     cadastrar: "cadastroPessoa",
+    naoConfirmado: "assistidoNaoConfirmado",
   })
   .addConditionalEdges("cadastroPessoa", depoisDeCadastrarPessoa, {
     continuar: "consultarCep",
     falhou: "falhaCadastro",
+    naoConfirmado: "assistidoNaoConfirmado",
   })
   .addEdge("falhaCadastro", END)
+  .addEdge("assistidoNaoConfirmado", END)
   .addEdge("consultarCep", "consultarPlantao")
   .addEdge("consultarPlantao", "consultarOrgaos")
   .addConditionalEdges("consultarOrgaos", depoisDeConsultarOrgaos, {

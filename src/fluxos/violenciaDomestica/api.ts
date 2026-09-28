@@ -101,7 +101,7 @@ export const metadadosSchemaViolenciaDomestica = {
       },
     },
     tipoEncaminhamento: { type: "string", enum: ["padrao", "urgente"] },
-    motivoHandoff: { type: "string", enum: ["nao_e_vitima", "sem_orgao_disponivel", "falha_encaminhamento", "falha_cadastro"] },
+    motivoHandoff: { type: "string", enum: ["nao_e_vitima", "sem_orgao_disponivel", "falha_encaminhamento", "falha_cadastro", "assistido_nao_confirmado"] },
     encaminhamentoId: { type: "number" },
   },
 } as const;

@@ -25,6 +25,10 @@ export const CadastroPessoaState = Annotation.Root({
   // preenchido só se o POST /integra/pessoa falhar — pai decide o que fazer
   // (ver falhaCadastro em fluxos/violenciaDomestica/graph.ts).
   cadastroErro: Annotation<string | undefined>,
+  // Issue #189 — depois de cadastrar com sucesso, confirma os dados antes
+  // de devolver pro fluxo pai. Mesmo campo compartilhado com
+  // identificarAssistido (issue #189 cobre os 2 subgrafos) e os fluxos pai.
+  confirmaAssistido: Annotation<boolean | undefined>,
   perguntaAtualTexto: Annotation<string | undefined>,
   perguntaAtualViaIA: Annotation<boolean | undefined>,
   perguntaAtualTokensTotal: Annotation<number | undefined>,

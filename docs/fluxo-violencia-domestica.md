@@ -20,7 +20,9 @@ Vítima de violência doméstica buscando ajuda/proteção/encaminhamento juríd
 4. "Você já registrou o Boletim de Ocorrência (RO) na delegacia?"   (sim/não)
 5. [subgrafo `identificarAssistido`] "Qual o seu CPF?"   (texto — pulado se `cpf` já veio em dadosConhecidos)
      → consulta Verde (/pessoa)
-     encontrado                          → 6.
+     encontrado                          → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
+                                             confirmou              → 6.
+                                             NÃO confirmou          → HANDOFF: assistido_nao_confirmado
      não encontrado, < 3 tentativas      → "Quer tentar de novo o CPF?" (sim/não/CPF direto)
      não encontrado, esgotou (3x)        → [subgrafo `cadastroPessoa`, issue #171]
                                              "Qual o seu nome completo?" → "Qual a sua data de nascimento?"
@@ -30,7 +32,9 @@ Vítima de violência doméstica buscando ajuda/proteção/encaminhamento juríd
                                                 vir prontos; número e complemento nunca vêm do CEP, sempre
                                                 perguntados)
                                              → POST /integra/pessoa (cadastro novo, CPF reaproveitado, nunca perguntado de novo)
-                                             cadastrou com sucesso → 6. (com o idPessoa novo)
+                                             cadastrou com sucesso → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
+                                                confirmou              → 6. (com o idPessoa novo)
+                                                NÃO confirmou          → HANDOFF: assistido_nao_confirmado
                                              falhou                → HANDOFF: falha_cadastro (NÃO finge sucesso)
 6. consulta Verde (/cep) com o CEP do endereço → preenche idUf/idBairro/idMunicipio (não bloqueia se faltar)
    consulta Verde (/plantao/vigente) — plantão ativo agora?
@@ -53,6 +57,7 @@ Vítima de violência doméstica buscando ajuda/proteção/encaminhamento juríd
 | `nao_e_vitima` | Respondeu "não" na 1ª pergunta. |
 | `sem_orgao_disponivel` | Pessoa encontrada, mas o Verde não achou nenhum órgão pra ela (só acontece com RO:true — sem RO sempre tem fallback). Vem com `mensagemCrc` pronta do Verde ("...ligar 129"). |
 | `falha_cadastro` | Esgotou as 3 tentativas de CPF sem achar a pessoa **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`, issue #171) também falhou — não confunde com `sem_orgao_disponivel` (que é pra pessoa já encontrada/cadastrada). Substitui o antigo `cpf_nao_encontrado` (issue #72): antes, esgotar tentativas já era handoff direto; agora tenta cadastrar primeiro. |
+| `assistido_nao_confirmado` | Achou por CPF **ou** cadastrou com sucesso, mas a pessoa negou que os dados são dela (issue #189) — não confunde com `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar, não sobre confirmação). |
 | `falha_encaminhamento` | Achou o órgão certo, mas o `POST /encaminhamento/encaminhar` de verdade falhou. Nunca inventa sucesso — manda pra atendente confirmar manualmente. |
 
 ### Quem decide o órgão: a Verde, não a Maria
