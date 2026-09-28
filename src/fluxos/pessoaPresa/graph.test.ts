@@ -16,18 +16,6 @@ function pergunta(resultado: unknown): { pergunta: string; tipo: string; opcoes?
   return (resultado as { __interrupt__?: Array<{ value: { pergunta: string; tipo: string; opcoes?: string[] } }> }).__interrupt__?.[0]?.value;
 }
 
-// Issue #183 — depois do parentesco, identificarAssistido pergunta o CPF do
-// ASSISTIDO (quem está conversando, diferente do RG do preso) antes de
-// concluir — mesmo racional de violenciaDomestica/graph.ts (issue #171).
-// CPF "11111111111" acha a pessoa de teste no mock — caminho de cadastro
-// (CPF não encontrado) tem teste próprio, não usado aqui. Issue #189 —
-// depois de achar, pausa pedindo confirmação dos dados; "sim" segue o
-// caminho de sempre (recusa tem teste dedicado próprio).
-async function identificarComCpf(config: { configurable: { thread_id: string } }) {
-  await grafo.invoke(new Command({ resume: "11111111111" }), config);
-  return grafo.invoke(new Command({ resume: "sim" }), config);
-}
-
 test("1ª invocação pausa em pedirTemProcesso (primeira pergunta da ordem atual)", async () => {
   const config = novoConfig();
   const r = await grafo.invoke({}, config);
@@ -102,9 +90,7 @@ test("fluxo completo: SEM processo, nome confirmado → handoff_humano (issue #4
   const pParentesco = pergunta(rConfirma);
   assert.match(pParentesco?.pergunta ?? "", /parentesco/);
 
-  const rParentesco = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco
-  assert.match(pergunta(rParentesco)?.pergunta ?? "", /CPF/, "issue #183 — deveria pausar pedindo CPF do assistido antes de concluir");
-  const rFinal = await identificarComCpf(config);
+  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → conclui direto (sem viaOrquestrador, pula CPF do assistido — issue #191)
   assert.equal(pergunta(rFinal), undefined, "não deve ter pergunta pendente no fim");
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string; mensagemFinal?: string };
   assert.equal(final.statusFinal, "handoff_humano", "sem número do processo não deveria ser marcado como concluido");
@@ -125,8 +111,7 @@ test("fluxo completo: COM processo, nome confirmado → concluido (comportamento
   const rConfirma = await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
   assert.match(pergunta(rConfirma)?.pergunta ?? "", /parentesco/);
 
-  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
-  const rFinal = await identificarComCpf(config);
+  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → conclui direto (issue #191)
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "concluido");
   assert.equal(final.motivoHandoff, undefined);
@@ -147,8 +132,7 @@ test("fluxo completo: COM processo de origem NÃO suportada → handoff_humano (
   const rConfirma = await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
   assert.match(pergunta(rConfirma)?.pergunta ?? "", /parentesco/);
 
-  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
-  const rFinal = await identificarComCpf(config);
+  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → conclui direto (issue #191)
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string; mensagemFinal?: string };
   assert.equal(final.statusFinal, "handoff_humano", "origem diferente de SEEU não deveria ser marcada como concluido");
   assert.equal(final.motivoHandoff, "origem_processo_nao_suportada");
@@ -164,8 +148,7 @@ test("fluxo completo: processo NÃO ENCONTRADO na consulta → handoff_humano, m
   await grafo.invoke(new Command({ resume: "000000000" }), config); // processo não encontrado (sentinela)
   await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
   await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
-  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
-  const rFinal = await identificarComCpf(config);
+  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → conclui direto (issue #191)
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "origem_processo_nao_suportada");
@@ -183,8 +166,7 @@ test("fluxo completo: situação fora do permitido (ex: LIBERTADO) → handoff_h
   await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config); // origem SEEU (padrão)
   await grafo.invoke(new Command({ resume: "22222222222" }), config); // situação LIBERTADO (sentinela)
   await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
-  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
-  const rFinal = await identificarComCpf(config);
+  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → conclui direto (issue #191)
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "dados_pessoa_nao_atendidos");
@@ -197,8 +179,7 @@ test("fluxo completo: tipo de preso fora do permitido (ex: PROVISÓRIO) → hand
   await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config);
   await grafo.invoke(new Command({ resume: "33333333333" }), config); // tipoPreso PROVISÓRIO (sentinela)
   await grafo.invoke(new Command({ resume: "true" }), config);
-  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
-  const rFinal = await identificarComCpf(config);
+  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → conclui direto (issue #191)
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "dados_pessoa_nao_atendidos");
@@ -211,8 +192,7 @@ test("fluxo completo: regime fora do permitido (ex: ABERTO) → handoff_humano (
   await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config);
   await grafo.invoke(new Command({ resume: "44444444444" }), config); // regime ABERTO (sentinela)
   await grafo.invoke(new Command({ resume: "true" }), config);
-  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
-  const rFinal = await identificarComCpf(config);
+  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → conclui direto (issue #191)
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "dados_pessoa_nao_atendidos");
@@ -229,8 +209,7 @@ test("fluxo completo: situação com prefixo 'EM' (EM RESDOM) → reconhecida, c
   await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config);
   await grafo.invoke(new Command({ resume: "55555555555" }), config); // situação "EM RESDOM" (sentinela)
   await grafo.invoke(new Command({ resume: "true" }), config);
-  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
-  const rFinal = await identificarComCpf(config);
+  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → conclui direto (issue #191)
   const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "concluido", "'EM RESDOM' deveria ser reconhecido como 'RESDOM' (situação permitida)");
   assert.equal(final.motivoHandoff, undefined);
@@ -244,7 +223,7 @@ test("fluxo completo: situação com prefixo 'EM' (EM RESDOM) → reconhecida, c
 // (mesmo racional de coletarEndereco/graph.test.ts).
 test("esgota as 3 tentativas de CPF do assistido → entra em cadastro; sucesso conclui normalmente (issue #183)", async () => {
   const config = novoConfig();
-  await grafo.invoke({}, config); // tem processo?
+  await grafo.invoke({ viaOrquestrador: true }, config); // tem processo? (issue #191 — sem isso, pula identificarAssistido/cadastroPessoa inteiros)
   await grafo.invoke(new Command({ resume: "true" }), config); // → pergunta número do processo
   await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config); // número do processo (origem SEEU, mock padrão)
   await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
@@ -280,7 +259,7 @@ test("esgota as 3 tentativas de CPF do assistido → entra em cadastro; cadastro
   process.env.MOCK_CADASTRO_FALHA = "true";
   try {
     const config = novoConfig();
-    await grafo.invoke({}, config);
+    await grafo.invoke({ viaOrquestrador: true }, config); // issue #191
     await grafo.invoke(new Command({ resume: "false" }), config); // sem processo → RG
     await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
     await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
@@ -312,7 +291,7 @@ test("esgota as 3 tentativas de CPF do assistido → entra em cadastro; cadastro
 // dele: handoff direto, NÃO tenta cadastro (diferente de "não achei").
 test("CPF do assistido válido mas NÃO confirma os dados → handoff_humano, motivo assistido_nao_confirmado (issue #189)", async () => {
   const config = novoConfig();
-  await grafo.invoke({}, config);
+  await grafo.invoke({ viaOrquestrador: true }, config); // issue #191
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo → RG
   await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
   await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
@@ -328,7 +307,7 @@ test("CPF do assistido válido mas NÃO confirma os dados → handoff_humano, mo
 // Issue #189 — mesmo racional, agora depois de CADASTRAR (não achar).
 test("cadastra assistido novo mas NÃO confirma os dados → handoff_humano, motivo assistido_nao_confirmado (issue #189)", async () => {
   const config = novoConfig();
-  await grafo.invoke({}, config);
+  await grafo.invoke({ viaOrquestrador: true }, config); // issue #191
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo → RG
   await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
   await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
@@ -345,6 +324,25 @@ test("cadastra assistido novo mas NÃO confirma os dados → handoff_humano, mot
   const final = r as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "assistido_nao_confirmado");
+});
+
+// Issue #191 — a Tykhe chama POST /atendimentos com flowId direto, SEM
+// viaOrquestrador. Confirma que o fluxo COM processo (caminho que
+// concluiria normalmente) NUNCA pergunta CPF do assistido nem entra nos
+// subgrafos — comportamento idêntico a antes da issue #183.
+test("sem viaOrquestrador (Tykhe direto), COM processo → conclui sem nunca perguntar CPF do assistido (issue #191)", async () => {
+  const config = novoConfig();
+  await grafo.invoke({}, config); // tem processo? — sem viaOrquestrador
+  await grafo.invoke(new Command({ resume: "true" }), config); // → pergunta número do processo
+  await grafo.invoke(new Command({ resume: "0000088-95.2026.8.19.0010" }), config); // número do processo
+  await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
+  await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
+  const rFinal = await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco
+  assert.equal(pergunta(rFinal), undefined, "não deveria pausar pedindo CPF nem confirmação — deve concluir direto");
+  const final = rFinal as { statusFinal?: string; motivoHandoff?: string; dadosPessoa?: unknown };
+  assert.equal(final.statusFinal, "concluido");
+  assert.equal(final.motivoHandoff, undefined);
+  assert.equal(final.dadosPessoa, undefined, "identificarAssistido nunca rodou — dadosPessoa (assistido) não deveria existir no state");
 });
 
 test("confirmação de nome com 'Sim' literal → concluido (cenário exato do bug real: WhatsApp/Tykhe manda 'Sim', não 'true')", async () => {

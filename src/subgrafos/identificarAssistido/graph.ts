@@ -84,12 +84,16 @@ function depoisDePerguntaTentarCpf(state: IdentificarAssistidoStateType): "pedir
 // Issue #189 — CPF encontrado não sai direto: confirma os dados achados
 // antes de devolver pro fluxo pai (mesmo racional do "Confirma que a
 // pessoa presa é <nome>?" já usado pro RG em pessoaPresa/graph.ts).
+// Issue #191 — só pergunta quando veio do orquestrador; chamada direta da
+// Tykhe (POST /atendimentos, sem esse flag) nunca ganha essa pergunta.
 async function prepararPerguntaConfirmaAssistido(state: IdentificarAssistidoStateType): Promise<Partial<IdentificarAssistidoStateType>> {
+  if (!state.viaOrquestrador) return {};
   const nome = state.dadosPessoa?.nome ?? "você";
   return prepararPergunta("confirmaAssistido", `Confirma que seus dados são: ${nome}?`);
 }
 
 async function pedirConfirmaAssistido(state: IdentificarAssistidoStateType): Promise<Partial<IdentificarAssistidoStateType>> {
+  if (!state.viaOrquestrador) return {};
   const nome = state.dadosPessoa?.nome ?? "você";
   const resposta = interrupt<Pergunta, string>({
     pergunta: state.perguntaAtualTexto ?? `Confirma que seus dados são: ${nome}?`,

@@ -183,9 +183,7 @@ test("tem RO, CPF válido → conclui urgente, mensagem cita o órgão real (moc
   await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
   await grafo.invoke(new Command({ resume: "true" }), config); // tem RO
-  const rConfirma = await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → pausa confirmação (issue #189)
-  assert.match(pergunta(rConfirma)?.pergunta ?? "", /Confirma que seus dados são/);
-  const r = await confirmarAssistido(config);
+  const r = await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → conclui direto (sem viaOrquestrador, pula confirmação — issue #191)
   assert.equal(pergunta(r), undefined);
   assert.equal((r as { statusFinal?: string }).statusFinal, "concluido");
   assert.equal((r as { tipoEncaminhamento?: string }).tipoEncaminhamento, "urgente");
@@ -198,7 +196,7 @@ test("tem RO, CPF válido → conclui urgente, mensagem cita o órgão real (moc
 // "não achei").
 test("tem RO, CPF válido mas NÃO confirma os dados → handoff_humano, motivo assistido_nao_confirmado (issue #189)", async () => {
   const config = novoConfig();
-  await grafo.invoke({}, config);
+  await grafo.invoke({ viaOrquestrador: true }, config); // issue #191 — confirmação só acontece nesse caminho
   await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
   await grafo.invoke(new Command({ resume: "true" }), config); // tem RO
@@ -215,7 +213,7 @@ test("tem RO, CPF válido mas NÃO confirma os dados → handoff_humano, motivo 
 // nascimento/endereço). Também handoff direto, não confunde com falha_cadastro.
 test("tem RO, cadastra pessoa nova mas NÃO confirma os dados → handoff_humano, motivo assistido_nao_confirmado (issue #189)", async () => {
   const config = novoConfig();
-  await grafo.invoke({}, config);
+  await grafo.invoke({ viaOrquestrador: true }, config); // issue #191
   await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
   await grafo.invoke(new Command({ resume: "true" }), config); // tem RO
@@ -229,6 +227,31 @@ test("tem RO, cadastra pessoa nova mas NÃO confirma os dados → handoff_humano
   const final = r as { statusFinal?: string; motivoHandoff?: string };
   assert.equal(final.statusFinal, "handoff_humano");
   assert.equal(final.motivoHandoff, "assistido_nao_confirmado");
+});
+
+// Issue #191 — cenário real da Tykhe: CPF já vem pronto em dadosConhecidos
+// (bypass da pergunta), mas não é encontrado no Verde. Sem viaOrquestrador,
+// esgotar as 3 tentativas volta a ser handoff direto (motivo
+// cpf_nao_encontrado, comportamento de antes da issue #171) — NUNCA entra
+// no subgrafo de cadastro nem pede nome/data de nascimento/endereço, que
+// seriam perguntas novas que a Tykhe nunca fez antes.
+test("sem viaOrquestrador (Tykhe direto), CPF pré-preenchido não encontrado, esgota tentativas → handoff direto, motivo cpf_nao_encontrado (issue #191)", async () => {
+  const config = novoConfig();
+  await grafo.invoke({ cpf: "00000000000" }, config); // cpf sentinela "não encontrado", pré-preenchido como a Tykhe manda
+  await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
+  await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
+  const t1 = await grafo.invoke(new Command({ resume: "true" }), config); // tem RO → pula pergunta de CPF (bypass), consulta direto, tentativa 1
+  assert.match(pergunta(t1)?.pergunta ?? "", /tentativa 1 de 3/);
+  await grafo.invoke(new Command({ resume: "Sim" }), config); // quer tentar de novo
+  const t2 = await grafo.invoke(new Command({ resume: "00000000000" }), config); // tentativa 2
+  assert.match(pergunta(t2)?.pergunta ?? "", /tentativa 2 de 3/);
+  await grafo.invoke(new Command({ resume: "Sim" }), config);
+  const r = await grafo.invoke(new Command({ resume: "00000000000" }), config); // tentativa 3, esgotou
+  assert.equal(pergunta(r), undefined, "não deveria pausar pedindo nome/data de nascimento — nunca deveria entrar em cadastro");
+  const final = r as { statusFinal?: string; motivoHandoff?: string; mensagemFinal?: string };
+  assert.equal(final.statusFinal, "handoff_humano");
+  assert.equal(final.motivoHandoff, "cpf_nao_encontrado");
+  assert.match(final.mensagemFinal ?? "", /Não consegui localizar seus dados com o CPF informado/);
 });
 
 // Issue #72 — CPF não encontrado no ramo com RO (o mais urgente) agora dá
@@ -253,8 +276,7 @@ test("tem RO, CPF errado 1x depois acerta → conclui normal (issue #72)", async
   await grafo.invoke(new Command({ resume: "true" }), config); // tem RO
   await grafo.invoke(new Command({ resume: "00000000000" }), config); // cpf errado (não encontrado)
   await grafo.invoke(new Command({ resume: "Sim" }), config); // quer tentar de novo
-  await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf certo → pausa confirmação
-  const r = await confirmarAssistido(config);
+  const r = await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf certo → conclui direto (issue #191)
   assert.equal(pergunta(r), undefined);
   assert.equal((r as { statusFinal?: string }).statusFinal, "concluido");
   assert.equal((r as { tipoEncaminhamento?: string }).tipoEncaminhamento, "urgente");
@@ -266,7 +288,7 @@ test("tem RO, CPF errado 1x depois acerta → conclui normal (issue #72)", async
 // simulada via MOCK_CADASTRO_FALHA) vira handoff_humano, motivo falha_cadastro.
 test("tem RO, CPF errado, responde 'Não' quer tentar de novo → entra em cadastro, sucesso conclui normalmente (issue #171)", async () => {
   const config = novoConfig();
-  await grafo.invoke({}, config);
+  await grafo.invoke({ viaOrquestrador: true }, config); // issue #191 — sem isso, esgotar CPF vira cpfEsgotado direto, nunca cadastro
   await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
   await grafo.invoke(new Command({ resume: "true" }), config); // tem RO
@@ -290,7 +312,7 @@ test("tem RO, esgota as 3 tentativas de CPF → entra em cadastro; cadastro falh
   process.env.MOCK_CADASTRO_FALHA = "true";
   try {
     const config = novoConfig();
-    await grafo.invoke({}, config);
+    await grafo.invoke({ viaOrquestrador: true }, config); // issue #191
     await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
     await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
     await grafo.invoke(new Command({ resume: "true" }), config); // tem RO → pausa pedirCpf
@@ -324,10 +346,8 @@ test("tem RO, CPF errado, digita o CPF novo direto (não 'Sim') na pergunta de r
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
   await grafo.invoke(new Command({ resume: "true" }), config); // tem RO
   await grafo.invoke(new Command({ resume: "00000000000" }), config); // cpf errado → pausa "tentativa 1"
-  const rConfirma = await grafo.invoke(new Command({ resume: "11111111111" }), config); // CPF novo direto, não "Sim" → pausa confirmação
-  assert.match(pergunta(rConfirma)?.pergunta ?? "", /Confirma que seus dados são/, "CPF digitado direto deveria ser aceito e consultado, não tratado como 'não quer tentar de novo'");
-  const r = await confirmarAssistido(config);
-  assert.equal(pergunta(r), undefined, "não deveria pausar de novo depois de confirmar");
+  const r = await grafo.invoke(new Command({ resume: "11111111111" }), config); // CPF novo direto, não "Sim" → conclui direto (issue #191)
+  assert.equal(pergunta(r), undefined, "CPF digitado direto deveria ser aceito e consultado, não tratado como 'não quer tentar de novo'");
   assert.equal((r as { statusFinal?: string }).statusFinal, "concluido");
 });
 
@@ -341,8 +361,7 @@ test("CPF válido → dadosPessoa.enderecoDetalhado ganha idUf via consultarCep,
   await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
   await grafo.invoke(new Command({ resume: "false" }), config); // sem RO
-  await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → pausa confirmação
-  const r = await confirmarAssistido(config);
+  const r = await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → conclui direto (issue #191)
   const dadosPessoa = (r as { dadosPessoa?: { enderecoDetalhado?: Record<string, unknown> } }).dadosPessoa;
   assert.equal(dadosPessoa?.enderecoDetalhado?.idUf, 19, "mock de consultarCep deveria preencher idUf");
   assert.equal(dadosPessoa?.enderecoDetalhado?.bairro, undefined, "não deveria mais existir campo de texto bairro");
@@ -355,8 +374,7 @@ test("sem RO, CPF válido → conclui padrão, mensagem cita o órgão real (moc
   await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
   await grafo.invoke(new Command({ resume: "false" }), config); // sem RO
-  await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → pausa confirmação
-  const r = await confirmarAssistido(config);
+  const r = await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → conclui direto (issue #191)
   assert.equal(pergunta(r), undefined);
   assert.equal((r as { statusFinal?: string }).statusFinal, "concluido");
   assert.equal((r as { tipoEncaminhamento?: string }).tipoEncaminhamento, "padrao");
@@ -368,7 +386,7 @@ test("sem RO, CPF válido → conclui padrão, mensagem cita o órgão real (moc
 // fallback no Verde (NUDEM > núcleo > DP única) — conclui normal.
 test("sem RO, CPF não encontrado no Verde → entra em cadastro, sucesso encontra órgão (fallback do Verde)", async () => {
   const config = novoConfig();
-  await grafo.invoke({}, config);
+  await grafo.invoke({ viaOrquestrador: true }, config); // issue #191
   await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
   await grafo.invoke(new Command({ resume: "false" }), config); // sem RO
@@ -376,7 +394,7 @@ test("sem RO, CPF não encontrado no Verde → entra em cadastro, sucesso encont
   await grafo.invoke(new Command({ resume: "Não" }), config); // não quer tentar de novo → entra em cadastro
   await grafo.invoke(new Command({ resume: "Maria de Teste" }), config); // nome
   await grafo.invoke(new Command({ resume: "01/01/1990" }), config); // data de nascimento → pausa pra endereço
-  await preencherEndereco(config); // CEP...UF → cadastra → pausa confirmação (issue #189)
+  await preencherEndereco(config); // CEP...UF → cadastra → pausa confirmação
   const r = await confirmarAssistido(config);
   assert.match(pergunta(t1)?.pergunta ?? "", /tentativa 1 de 3/);
   assert.equal((r as { statusFinal?: string }).statusFinal, "concluido");
@@ -389,8 +407,7 @@ test("concluido de verdade inclui encaminhamentoId (POST real no Verde, mock ret
   await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
   await grafo.invoke(new Command({ resume: "false" }), config); // sem RO
-  await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → pausa confirmação
-  const r = await confirmarAssistido(config);
+  const r = await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → conclui direto (issue #191)
   assert.equal((r as { encaminhamentoId?: number }).encaminhamentoId, 999999);
   assert.match((r as { mensagemFinal?: string }).mensagemFinal ?? "", /Protocolo: 999999/);
 });
@@ -404,8 +421,7 @@ test("falha ao criar encaminhamento de verdade (MOCK_ENCAMINHAMENTO_FALHA) → h
     await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
     await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
     await grafo.invoke(new Command({ resume: "false" }), config); // sem RO
-    await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → pausa confirmação
-    const r = await confirmarAssistido(config); // confirma — acha órgão, mas encaminhar falha
+    const r = await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → conclui direto (issue #191) — acha órgão, mas encaminhar falha
     assert.equal(pergunta(r), undefined);
     assert.equal((r as { statusFinal?: string }).statusFinal, "handoff_humano");
     assert.equal((r as { motivoHandoff?: string }).motivoHandoff, "falha_encaminhamento");
@@ -427,8 +443,7 @@ test("plantão vigente (MOCK_PLANTAO_VIGENTE) → usa órgão de plantão, não 
     await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
     await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
     await grafo.invoke(new Command({ resume: "false" }), config); // sem RO
-    await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → pausa confirmação
-    const r = await confirmarAssistido(config);
+    const r = await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf → conclui direto (issue #191)
     assert.equal((r as { statusFinal?: string }).statusFinal, "concluido");
     const orgaos = (r as { orgaosViolenciaDomestica?: { orgaos: Array<{ nome: string }> } }).orgaosViolenciaDomestica;
     assert.match(orgaos?.orgaos[0]?.nome ?? "", /Plantão/, "deveria ter usado o órgão de plantão, não o normal (Coordenação/Juizado)");
@@ -453,8 +468,7 @@ test("plantão vigente + CPF não encontrado → pergunta se quer tentar de novo
     const rTentativa = await grafo.invoke(new Command({ resume: "00000000000" }), config); // cpf sentinela "não encontrado"
     assert.match(pergunta(rTentativa)?.pergunta ?? "", /Não encontrei ninguém com esse CPF \(tentativa 1 de 3\)/);
     await grafo.invoke(new Command({ resume: "Sim" }), config); // quer tentar de novo
-    await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf certo → pausa confirmação
-    const r = await confirmarAssistido(config);
+    const r = await grafo.invoke(new Command({ resume: "11111111111" }), config); // cpf certo → conclui direto (issue #191)
     assert.equal(pergunta(r), undefined);
     assert.equal((r as { statusFinal?: string }).statusFinal, "concluido");
     const orgaos = (r as { orgaosViolenciaDomestica?: { orgaos: Array<{ nome: string }> } }).orgaosViolenciaDomestica;
@@ -470,9 +484,7 @@ test("cpf pré-preenchido em dadosConhecidos → não pergunta CPF de novo", asy
   assert.match(pergunta(r0)?.pergunta ?? "", /vítima de violência doméstica/);
   await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
   await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
-  const rConfirma = await grafo.invoke(new Command({ resume: "false" }), config); // sem RO → deveria pular a pergunta de CPF, ir direto pra confirmação
-  assert.match(pergunta(rConfirma)?.pergunta ?? "", /Confirma que seus dados são/, "cpf já veio pronto, não deveria pausar pra perguntar de novo — só a confirmação (issue #189)");
-  const r = await confirmarAssistido(config);
-  assert.equal(pergunta(r), undefined);
+  const r = await grafo.invoke(new Command({ resume: "false" }), config); // sem RO → cpf já veio pronto, pula a pergunta E conclui direto (issue #191, sem viaOrquestrador)
+  assert.equal(pergunta(r), undefined, "cpf já veio pronto, não deveria pausar pra perguntar de novo nem pra confirmação");
   assert.equal((r as { tipoEncaminhamento?: string }).tipoEncaminhamento, "padrao");
 });

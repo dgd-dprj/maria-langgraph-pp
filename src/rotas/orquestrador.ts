@@ -200,8 +200,15 @@ export function registrarRotaOrquestrador(app: FastifyInstance): void {
       // triagem (issue #35). Mesmo mecanismo de dadosConhecidos já usado
       // pra pré-preencher campo respondido (criarAtendimento passa direto
       // pro state inicial do grafo).
+      // Issue #191 — viaOrquestrador:true só é setado AQUI, nunca por quem
+      // chama POST /atendimentos com flowId direto (contrato da Tykhe).
+      // Fluxos com subgrafos de identificação/cadastro (violenciaDomestica,
+      // pessoaPresa) usam esse sinal pra decidir se ativam esse
+      // comportamento — sem ele, comportamento idêntico a antes das
+      // issues #171/#183/#189, a Tykhe não pode ganhar nada novo.
       const dadosConhecidosComTokens = {
         ...(body?.dadosConhecidos ?? {}),
+        viaOrquestrador: true,
         tokensGastos: tokensGastosConversa ?? { input: 0, output: 0, total: 0 },
       };
       const resultadoAtendimento = await criarAtendimento(fluxo, flowIdEscolhido, chatId, dadosConhecidosComTokens, req.log);

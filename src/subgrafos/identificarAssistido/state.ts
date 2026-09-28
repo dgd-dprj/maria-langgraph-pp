@@ -23,6 +23,12 @@ export const IdentificarAssistidoState = Annotation.Root({
   // tentar cadastro novo aqui, é handoff direto. Mesmo campo compartilhado
   // com cadastroPessoa (issue #189 cobre os 2 subgrafos) e os fluxos pai.
   confirmaAssistido: Annotation<boolean | undefined>,
+  // Issue #191 — setado pelo orquestrador (rotas/orquestrador.ts) ao criar
+  // o atendimento; NUNCA setado por quem chama POST /atendimentos com
+  // flowId direto (contrato da Tykhe). A pergunta de confirmação acima só
+  // acontece quando isso é true — sem ele, a Tykhe não pode ganhar NENHUMA
+  // pergunta nova que não existia antes das issues #171/#183/#189.
+  viaOrquestrador: Annotation<boolean | undefined>,
   perguntaAtualTexto: Annotation<string | undefined>,
   perguntaAtualViaIA: Annotation<boolean | undefined>,
   perguntaAtualTokensTotal: Annotation<number | undefined>,

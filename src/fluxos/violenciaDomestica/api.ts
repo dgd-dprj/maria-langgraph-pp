@@ -101,7 +101,10 @@ export const metadadosSchemaViolenciaDomestica = {
       },
     },
     tipoEncaminhamento: { type: "string", enum: ["padrao", "urgente"] },
-    motivoHandoff: { type: "string", enum: ["nao_e_vitima", "sem_orgao_disponivel", "falha_encaminhamento", "falha_cadastro", "assistido_nao_confirmado"] },
+    motivoHandoff: {
+      type: "string",
+      enum: ["nao_e_vitima", "sem_orgao_disponivel", "falha_encaminhamento", "falha_cadastro", "assistido_nao_confirmado", "cpf_nao_encontrado"],
+    },
     encaminhamentoId: { type: "number" },
   },
 } as const;
@@ -148,12 +151,18 @@ export const MENSAGEM_SEM_ORGAO_DISPONIVEL =
 export const MENSAGEM_FALHA_ENCAMINHAMENTO =
   "Identifiquei o órgão certo pro seu caso, mas tive um problema técnico ao registrar o encaminhamento. Vou passar seu atendimento pra equipe confirmar manualmente.";
 // Issue #171 — CPF esgotou tentativas (não encontrado) e o cadastro novo
-// no Verde (subgrafo cadastroPessoa) também falhou. Substitui o antigo
-// MENSAGEM_CPF_NAO_ENCONTRADO (issue #72) — antes esgotar tentativas já
-// virava esse handoff direto; agora só chega aqui se o cadastro em si
-// não deu certo.
+// no Verde (subgrafo cadastroPessoa) também falhou. Só ocorre no caminho
+// viaOrquestrador (issue #191) — sem isso, esgotar tentativas nunca chega
+// a tentar cadastro, cai direto em MENSAGEM_CPF_NAO_ENCONTRADO abaixo.
 export const MENSAGEM_FALHA_CADASTRO =
   "Não consegui localizar nem cadastrar seus dados no sistema. Vou encaminhar seu atendimento pra um atendente confirmar manualmente.";
+// Issue #72 — esgotou as 3 tentativas de CPF sem achar a pessoa, SEM
+// viaOrquestrador (issue #191) — comportamento restaurado de antes da
+// issue #171, pra não alterar nada do que a Tykhe já consome. Mensagem
+// específica (não a de "sem órgão disponível") — o problema aqui é não
+// achar a pessoa, não falta de órgão pra atender.
+export const MENSAGEM_CPF_NAO_ENCONTRADO =
+  "Não consegui localizar seus dados com o CPF informado. Vou encaminhar seu atendimento pra um atendente confirmar manualmente.";
 
 // Fallback genérico exigido pelo contrato FluxoConfig (fluxos/index.ts) —
 // todo desfecho real deste fluxo seta mensagemFinal (acima), então isso só

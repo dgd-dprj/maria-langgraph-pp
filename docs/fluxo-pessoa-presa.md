@@ -21,7 +21,11 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
         encontrado                       → 5. "Confirma que é <nome>?" (sim/não)
            não confirmado                 → HANDOFF: nome_nao_confirmado
            confirmado                     → 6. "Qual seu parentesco?" (texto, classificado por IA numa lista fechada)
-                                              → 7. [subgrafo `identificarAssistido`, issue #183] "Qual o seu CPF?"
+                                              → SEM viaOrquestrador (Tykhe, issue #191): conclui DIRETO, nunca
+                                                pergunta CPF do assistido — idêntico ao comportamento de antes
+                                                da issue #183.
+                                              → COM viaOrquestrador (issue #191): 7. [subgrafo
+                                                `identificarAssistido`, issue #183] "Qual o seu CPF?"
                                                  → consulta Verde (/pessoa) — identifica quem está CONVERSANDO,
                                                    diferente do RG acima (que identifica o PRESO)
                                                  encontrado                     → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
@@ -39,6 +43,10 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
 
 `identificarAssistido`/`cadastroPessoa` (que embute `coletarEndereco`) são os mesmos subgrafos reaproveitáveis de violência doméstica (issues #171/#176/#178) — aqui aplicados depois do RG/parentesco em vez de antes, mesmo racional (ver `docs/novo-fluxo.md`). RG do PRESO e CPF do ASSISTIDO identificam pessoas diferentes; nada na lógica de RG/processo/parentesco muda.
 
+### `viaOrquestrador` — por que a Tykhe nunca pergunta CPF do assistido (issue #191)
+
+Mesmo racional de `docs/fluxo-violencia-domestica.md`: a Tykhe consome este fluxo direto via `POST /atendimentos` com `flowId` explícito, contrato que já existia antes da issue #183. `viaOrquestrador` (setado só por `rotas/orquestrador.ts`, nunca pela Tykhe) decide se `identificarAssistido`/`cadastroPessoa` rodam depois do parentesco — sem esse sinal, o fluxo pula os 2 subgrafos inteiros e conclui direto, exatamente como era antes da #183.
+
 ## Regras de negócio (o que decide handoff vs conclusão)
 
 A conclusão (`concluir()`, `graph.ts`) checa, nesta ordem:
@@ -54,8 +62,8 @@ A conclusão (`concluir()`, `graph.ts`) checa, nesta ordem:
 Outros motivos de handoff, fora dessa função:
 - `rg_nao_encontrado` — esgotou as 3 tentativas de consulta ao Verde (RG do preso).
 - `nome_nao_confirmado` — achou a pessoa mas a pessoa que está perguntando disse que não é ela.
-- `falha_cadastro` (issue #183) — CPF do assistido esgotou as 3 tentativas **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`) também falhou. Roda DEPOIS da conclusão normal do RG/processo/parentesco — não confundir com os motivos acima, que são sobre o PRESO.
-- `assistido_nao_confirmado` (issue #189) — achou o assistido por CPF **ou** cadastrou com sucesso, mas ele negou que os dados são dele. Diferente de `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar) e de `nome_nao_confirmado` (que é sobre o PRESO, via RG).
+- `falha_cadastro` (issue #183, só no caminho `viaOrquestrador`) — CPF do assistido esgotou as 3 tentativas **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`) também falhou. Roda DEPOIS da conclusão normal do RG/processo/parentesco — não confundir com os motivos acima, que são sobre o PRESO.
+- `assistido_nao_confirmado` (issue #189, só no caminho `viaOrquestrador`) — achou o assistido por CPF **ou** cadastrou com sucesso, mas ele negou que os dados são dele. Diferente de `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar) e de `nome_nao_confirmado` (que é sobre o PRESO, via RG).
 
 ## Tolerâncias (achadas ao vivo, ver comentários no código)
 

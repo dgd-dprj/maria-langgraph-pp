@@ -71,9 +71,7 @@ test("contrato Tykhe — pessoa presa, concluído (handoff sem processo)", async
   await app.inject({ method: "POST", url: "/atendimentos/respostas", payload: { chatId, resposta: "false" }, headers: AUTH }); // sem processo
   await app.inject({ method: "POST", url: "/atendimentos/respostas", payload: { chatId, resposta: "11111111111" }, headers: AUTH }); // rg (mock acha)
   await app.inject({ method: "POST", url: "/atendimentos/respostas", payload: { chatId, resposta: "true" }, headers: AUTH }); // confirma nome
-  await app.inject({ method: "POST", url: "/atendimentos/respostas", payload: { chatId, resposta: "mae" }, headers: AUTH }); // parentesco → pausa pra CPF (issue #183)
-  await app.inject({ method: "POST", url: "/atendimentos/respostas", payload: { chatId, resposta: "11111111111" }, headers: AUTH }); // cpf (mock acha) → pausa confirmação (issue #189)
-  const res = await app.inject({ method: "POST", url: "/atendimentos/respostas", payload: { chatId, resposta: "sim" }, headers: AUTH }); // confirma
+  const res = await app.inject({ method: "POST", url: "/atendimentos/respostas", payload: { chatId, resposta: "mae" }, headers: AUTH }); // parentesco → conclui direto (issue #191, rota direta = Tykhe)
   assert.equal(res.statusCode, 200);
   const body = res.json();
   assert.equal(body.status, "handoff_humano");

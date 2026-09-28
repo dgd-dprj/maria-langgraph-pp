@@ -29,6 +29,9 @@ export const CadastroPessoaState = Annotation.Root({
   // de devolver pro fluxo pai. Mesmo campo compartilhado com
   // identificarAssistido (issue #189 cobre os 2 subgrafos) e os fluxos pai.
   confirmaAssistido: Annotation<boolean | undefined>,
+  // Issue #191 — mesmo campo/racional de identificarAssistido/state.ts:
+  // confirmação só acontece quando veio do orquestrador.
+  viaOrquestrador: Annotation<boolean | undefined>,
   perguntaAtualTexto: Annotation<string | undefined>,
   perguntaAtualViaIA: Annotation<boolean | undefined>,
   perguntaAtualTokensTotal: Annotation<number | undefined>,

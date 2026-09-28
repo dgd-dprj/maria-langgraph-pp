@@ -389,6 +389,14 @@ function depoisDeConfirmarNome(state: PessoaPresaStateType): "concluir" | "naoCo
 // ASSISTIDO (quem está conversando) no Verde via CPF, mesmo racional de
 // violenciaDomestica/graph.ts (issue #171). Subgrafo embutido abaixo (ver
 // `grafo` no fim do arquivo).
+// Issue #191 — sem viaOrquestrador (a Tykhe, POST /atendimentos direto),
+// pula identificarAssistido/cadastroPessoa inteiros: conclui direto depois
+// do parentesco, comportamento de antes da issue #183. A Tykhe nunca pode
+// ganhar a pergunta de CPF do assistido que não existia antes.
+function depoisDeParentesco(state: PessoaPresaStateType): "identificar" | "concluir" {
+  return state.viaOrquestrador ? "identificar" : "concluir";
+}
+
 // Issue #189 — confirmaAssistido:false checado ANTES de dadosPessoa.encontrado:
 // achou a pessoa mas ela negou que os dados são dela — handoff direto, não
 // tenta cadastro novo (seria tratar "não confirmo" igual a "não achei").
@@ -488,7 +496,10 @@ const grafo = new StateGraph(PessoaPresaState)
     naoConfirmado: "naoConfirmado",
   })
   .addEdge("prepararPerguntaParentesco", "pedirParentesco")
-  .addEdge("pedirParentesco", "identificarAssistido")
+  .addConditionalEdges("pedirParentesco", depoisDeParentesco, {
+    identificar: "identificarAssistido",
+    concluir: "concluir",
+  })
   .addConditionalEdges("identificarAssistido", depoisDeIdentificarAssistido, {
     encontrado: "concluir",
     cadastrar: "cadastroPessoa",

@@ -66,10 +66,8 @@ test("fluxo completo SEM processo: termina handoff_humano (issue #49), metadados
   await responder("11111111111"); // RG
   await responder("true"); // confirma nome
   process.env.MOCK_CLASSIFICACAO_PARENTESCO = "Amigo(a)"; // issue #17 — resposta livre classificada contra lista fechada
-  await responder("amigo"); // parentesco → pausa pra CPF do assistido (issue #183)
+  const res = await responder("amigo"); // parentesco → conclui direto (issue #191, rota direta = Tykhe, nunca pergunta CPF do assistido)
   delete process.env.MOCK_CLASSIFICACAO_PARENTESCO;
-  await responder("11111111111"); // CPF (mock acha a pessoa) → pausa confirmação (issue #189)
-  const res = await responder("sim"); // confirma
   const body = res.json();
 
   assert.equal(res.statusCode, 200);

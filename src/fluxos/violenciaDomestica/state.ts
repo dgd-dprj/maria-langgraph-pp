@@ -47,6 +47,13 @@ export const ViolenciaDomesticaState = Annotation.Root({
   // CPF (identificarAssistido) ou cadastrar (cadastroPessoa). Mesmo campo
   // compartilhado com os 2 subgrafos.
   confirmaAssistido: Annotation<boolean | undefined>,
+  // Issue #191 — setado pelo orquestrador (rotas/orquestrador.ts) ao criar
+  // o atendimento; NUNCA setado por quem chama POST /atendimentos com
+  // flowId direto (contrato da Tykhe). Decide se CPF esgotado entra em
+  // cadastroPessoa (true) ou volta a ser handoff direto (ausente/false,
+  // comportamento de antes da issue #171) — a Tykhe não pode ganhar
+  // comportamento novo que não existia antes dessas issues.
+  viaOrquestrador: Annotation<boolean | undefined>,
   // ids de plantão(ões) vigente(s) agora (consultarPlantaoVigente) — vazio
   // = fora de horário de plantão, usa consulta de órgão normal. Não vazio =
   // usa consultarOrgaosPlantaoViolenciaDomestica em vez da normal.
@@ -73,8 +80,17 @@ export const ViolenciaDomesticaState = Annotation.Root({
   // assistido_nao_confirmado (issue #189) = achou/cadastrou a pessoa, mas
   // ela respondeu que os dados NÃO são dela — handoff direto, diferente de
   // falha_cadastro (que é sobre o POST /integra/pessoa em si falhar).
+  // cpf_nao_encontrado (issue #72, restaurado na #191) = CPF esgotou
+  // tentativas SEM viaOrquestrador — comportamento de antes da #171,
+  // nunca tenta cadastro (a Tykhe não pode ganhar esse comportamento novo).
   motivoHandoff: Annotation<
-    "nao_e_vitima" | "sem_orgao_disponivel" | "falha_encaminhamento" | "falha_cadastro" | "assistido_nao_confirmado" | undefined
+    | "nao_e_vitima"
+    | "sem_orgao_disponivel"
+    | "falha_encaminhamento"
+    | "falha_cadastro"
+    | "assistido_nao_confirmado"
+    | "cpf_nao_encontrado"
+    | undefined
   >,
   // só preenchido quando statusFinal:"concluido".
   tipoEncaminhamento: Annotation<"padrao" | "urgente" | undefined>,
