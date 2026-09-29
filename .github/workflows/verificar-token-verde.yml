@@ -87,9 +87,28 @@ jobs:
                   corpo = err.read().decode("utf-8", errors="replace")
                   return err.code, corpo
 
-          status_code, status = chamar("GET", "/autenticacao/token/status", token)
+          status_code, status_bruto = chamar("GET", "/autenticacao/token/status", token)
           if status_code != 200:
-              print(f"::error::[{ambiente}] GET token/status falhou (HTTP {status_code}): {status}")
+              print(f"::error::[{ambiente}] GET token/status falhou (HTTP {status_code}): {status_bruto}")
+              sys.exit(1)
+
+          # Issue #194 — achado ao vivo testando contra a Verde homolog real:
+          # GET token/status devolve envelopado em "dados" ({"dados": {...}}),
+          # mesmo padrão de TODO o resto da API (ver src/integracoes/verde.ts)
+          # — só não bate com o exemplo do Swagger, que mostrava flat. Sem
+          # isso, revogado/expirado sempre liam o default (False), quebrando
+          # silenciosamente a checagem mais importante do workflow. Diferente
+          # de POST token/refresh, que É flat de verdade (confirmado no mesmo
+          # teste ao vivo) — não envelopar isso quebraria o refresh.
+          status = status_bruto.get("dados", status_bruto) if isinstance(status_bruto, dict) else {}
+          # Achado no code review da própria #194: um shape inesperado (sem
+          # "dados" E sem os campos flat, ou resposta que não é dict) não
+          # pode virar silenciosamente "token saudável, não faz nada" — é
+          # exatamente o bug que essa issue corrigiu, só que disparado por
+          # outra causa. Mesma disciplina de fail-loud já usada no bloco de
+          # refresh logo abaixo (checagem de "token" in refresh).
+          if not isinstance(status, dict) or not ({"revogado", "expirado", "valido"} & status.keys()):
+              print(f"::error::[{ambiente}] GET token/status devolveu 200 mas sem nenhum campo esperado — contrato da Verde mudou? corpo: {status_bruto}")
               sys.exit(1)
 
           revogado = status.get("revogado", False)

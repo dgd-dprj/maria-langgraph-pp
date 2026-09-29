@@ -4,11 +4,11 @@ Todo o código de chamada ao Verde mora em `src/integracoes/verde.ts`. Base URL 
 
 **Modo mock**: sem `VERDE_JWT_TOKEN` no ambiente (dev local sem `.env`, ou testes), toda função cai num mock local com CPFs/RGs/números sentinela (`"000000000"` = não encontrado, etc — ver comentário de cada função). Nunca chama a Verde de verdade nesse modo.
 
-## Token expira — renovação automática (issues #113/#187)
+## Token expira — renovação automática (issues #113/#187/#194)
 
 `VERDE_JWT_TOKEN` é temporário (emitido como app "Tykhe" pelo Verde). Um workflow agendado (`.github/workflows/verificar-token-verde.yml`) roda diário e:
 
-1. Consulta `GET /autenticacao/token/status` (dados `valido`/`expirado`/`revogado`/`expiraEm`).
+1. Consulta `GET /autenticacao/token/status` — resposta vem **envelopada em `dados`** (`{"dados": {"valido":..., "expirado":..., "revogado":..., "expiraEm":...}}`), achado ao vivo (issue #194) diferente do exemplo flat do Swagger — mesmo padrão de inconsistência já visto no `/cep` (issue #127). `POST /autenticacao/token/refresh`, ao contrário, devolve FLAT de verdade (`{"token":..., "expiraEm":...}`, sem `dados`, confirmado no mesmo teste ao vivo).
 2. **Revogado** → falha o workflow direto (`::error::`) — não tem renovação possível, precisa de token novo emitido manualmente na Verde.
 3. **Saudável** (mais de 7 dias pro vencimento) → só loga, não faz nada.
 4. **Perto de vencer ou já expirado dentro do grace period** (Verde aceita renovar até 5 dias depois de expirado — nesse caso o token só serve pra chamar o refresh, nenhuma outra chamada) → chama `POST /autenticacao/token/refresh`, grava o token novo no Secrets Manager (`aws secretsmanager put-secret-value`) e força redeploy do ECS (`--force-new-deployment`) pra task pegar o valor novo no próximo boot.
