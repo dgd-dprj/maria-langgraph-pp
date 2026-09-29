@@ -101,6 +101,15 @@ jobs:
           # de POST token/refresh, que É flat de verdade (confirmado no mesmo
           # teste ao vivo) — não envelopar isso quebraria o refresh.
           status = status_bruto.get("dados", status_bruto) if isinstance(status_bruto, dict) else {}
+          # Achado no code review da própria #194: um shape inesperado (sem
+          # "dados" E sem os campos flat, ou resposta que não é dict) não
+          # pode virar silenciosamente "token saudável, não faz nada" — é
+          # exatamente o bug que essa issue corrigiu, só que disparado por
+          # outra causa. Mesma disciplina de fail-loud já usada no bloco de
+          # refresh logo abaixo (checagem de "token" in refresh).
+          if not isinstance(status, dict) or not ({"revogado", "expirado", "valido"} & status.keys()):
+              print(f"::error::[{ambiente}] GET token/status devolveu 200 mas sem nenhum campo esperado — contrato da Verde mudou? corpo: {status_bruto}")
+              sys.exit(1)
 
           revogado = status.get("revogado", False)
           expirado = status.get("expirado", False)
