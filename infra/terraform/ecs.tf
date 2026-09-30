@@ -28,6 +28,16 @@ resource "aws_ecs_task_definition" "api" {
     environment = [
       { name = "PORT", value = tostring(var.container_port) },
       { name = "AWS_REGION", value = var.aws_region },
+      # Issue #200 — achado ao vivo 2026-09-30: o modelo default do código
+      # (anthropic.claude-3-haiku-20240307-v1:0) foi desativado pela AWS
+      # (ResourceNotFoundException, "reached the end of its life"). Sem
+      # isso, TODA chamada de ia/ falha e degrada silenciosamente pro
+      # fallback sem IA (orquestrador cai em handoff_humano sempre). Não é
+      # segredo (só um id de modelo), environment var normal. Profile de
+      # inferência cross-region, não o model id direto (confirmado via
+      # `aws bedrock get-foundation-model`/`list-inference-profiles`) —
+      # mesmo fix já validado em release.tf e local.
+      { name = "BEDROCK_MODEL_ID", value = "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
     ]
     secrets = [
       for k in ["VERDE_API_URL", "VERDE_JWT_TOKEN", "VERDE_CLIENT_ID", "DATABASE_URL", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT", "API_KEY"] :
