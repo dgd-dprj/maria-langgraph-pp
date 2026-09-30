@@ -17,6 +17,11 @@ import { contextoAtual } from "../shared/contexto.js";
 const VERDE_API_URL = process.env.VERDE_API_URL ?? "https://homologacao.verde.rj.def.br/api/integra";
 const VERDE_JWT_TOKEN = process.env.VERDE_JWT_TOKEN ?? "";
 const VERDE_CLIENT_ID = process.env.VERDE_CLIENT_ID ?? "";
+// Issue #196 — achado ao vivo: RG que existe de verdade veio "não
+// encontrado" porque a chamada estourou o timeout antigo (20s) num dia de
+// Verde homolog lenta (levou 13.5s numa chamada direta) — timeout vira
+// encontrado:false no catch, indistinguível de "não achou de verdade".
+const TIMEOUT_VERDE_MS = 30_000;
 
 // Issue #112 — 401/403 (token expirado/inválido) e 5xx (infra da Verde) são
 // bem diferentes de 404/422 (dado de negócio genuinamente não encontrado),
@@ -99,7 +104,7 @@ export async function consultarApenadoPorRg(rg: string): Promise<DadosApenado> {
         "x-client-id": VERDE_CLIENT_ID,
       },
       body: JSON.stringify({ rg }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("apenado", res.status, Date.now() - inicio);
@@ -170,7 +175,7 @@ export async function consultarProcesso(numero: string): Promise<DadosProcesso> 
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("processo", res.status, Date.now() - inicio);
@@ -241,7 +246,7 @@ export async function consultarPessoaPorCpf(cpf: string): Promise<DadosPessoa> {
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       // 404 (CPF não encontrado) e 422 (mais de uma pessoa encontrada) caem
@@ -332,7 +337,7 @@ export async function consultarCep(cep: string): Promise<DadosCep> {
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("cep", res.status, Date.now() - inicio);
@@ -426,7 +431,7 @@ export async function consultarOrgaosViolenciaDomestica(indicacaoRO: boolean, id
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("orgao-violencia-domestica", res.status, Date.now() - inicio);
@@ -476,7 +481,7 @@ export async function consultarPlantaoVigente(): Promise<Plantao[]> {
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("plantao-vigente", res.status, Date.now() - inicio);
@@ -527,7 +532,7 @@ export async function consultarOrgaosPlantaoViolenciaDomestica(idPlantao: number
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("orgao-plantao-violencia-domestica", res.status, Date.now() - inicio);
@@ -610,7 +615,7 @@ export async function criarEncaminhamentoViolenciaDomestica(dados: DadosEncaminh
         "x-client-id": VERDE_CLIENT_ID,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     const corpo = (await res.json().catch(() => ({}))) as EncaminhamentoResponseVerde;
     if (!res.ok) {
@@ -680,7 +685,7 @@ export async function cadastrarPessoa(dados: DadosCadastroPessoa): Promise<Resul
         "x-client-id": VERDE_CLIENT_ID,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     const corpo = (await res.json().catch(() => ({}))) as CadastroPessoaResponseVerde;
     if (!res.ok) {
