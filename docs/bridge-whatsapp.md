@@ -9,12 +9,19 @@ Rota pública (fora do bloco protegido por Bearer de `app.ts` — é a Meta quem
 
 ## Decisão de roteamento (`src/rotas/webhookWhatsapp.ts`)
 
-`chatId` é sempre `whatsapp:${numeroDoRemetente}` — estável por número, mesma ideia do `thread_id` de qualquer outro atendimento.
+`chatId` é `whatsapp:${numero}:${timestampDaConversa}` — não é fixo por número pra sempre (ver "Achados do code review" abaixo). Um `Map` em memória (`conversasAtivas`) guarda qual chatId está aberto pra cada número.
 
 1. `store.buscarFlowId(chatId)` (mesma tabela de sempre, `shared/atendimentosDb.ts`) já tem um flowId pra esse chatId? → manda a mensagem pra `POST /atendimentos/respostas` (o atendimento já foi identificado, é só continuação normal do fluxo).
 2. Sem flowId ainda: checa o **estado do próprio grafo do orquestrador** (`grafoOrquestrador.getState({configurable:{thread_id:"orquestrador:"+chatId}})`, mesma técnica já usada em `POST /atendimentos/respostas` pra saber se tem `interrupt()` pendente) — se tem `next.length > 0`, é resposta a uma pergunta de desambiguação (`{chatId, resposta}`); senão é a 1ª mensagem mesmo (`{chatId, mensagem}`).
 
-Não existe tabela própria de "conversa em andamento" — a decisão inteira deriva de estado que já existe (tabela de atendimentos + checkpoint do LangGraph), sem duplicar bookkeeping.
+Não existe tabela própria de "atendimento em andamento" — essa decisão deriva de estado que já existe (tabela de atendimentos + checkpoint do LangGraph). O que É bookkeeping próprio do bridge é só "qual é a conversa ATUAL desse número" (ver abaixo).
+
+Processamento por número é serializado (fila em memória, `filaPorNumero`) — evita 2 mensagens quase simultâneas do mesmo número (retry de webhook da própria Meta, ou 2 mensagens em sequência rápida) invocarem o grafo do orquestrador em dobro e mandarem resposta duplicada.
+
+## Achados do code review da #198 (aplicados)
+
+- **chatId fixo travava o número pra sempre**: `POST /atendimentos/respostas` devolve 409 pra sempre em atendimento já `concluido`/`handoff_humano`/`expirado` (`rotas/atendimentos.ts`), sem caminho de recuperação — a Tykhe contorna isso abrindo um `chatId` novo por conta própria, o bridge precisava da mesma coisa. `conversasAtivas` invalida a conversa atual assim que ela conclui/faz handoff (ou em qualquer erro) — próxima mensagem do número abre atendimento novo automaticamente. Em memória de propósito (reset no restart do processo é aceitável: só significa "próxima mensagem começa do zero").
+- **`chatId` carrega o número em claro**: diferente do `chatId` da Tykhe (opaco, atribuído por ela), aqui `chatId` contém o telefone — e `chatId` é logado em toda parte como padrão de correlação (CLAUDE.md). Aceito por ora porque é só 1 número de teste conhecido; se este bridge sair do escopo "número de teste", vale trocar por um hash não reversível do número.
 
 ## Envio da resposta (`src/integracoes/whatsapp.ts`)
 

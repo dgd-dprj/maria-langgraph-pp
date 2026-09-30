@@ -32,8 +32,20 @@ export async function enviarMensagemWhatsapp(para: string, texto: string, chatId
     const duracaoMs = Date.now() - inicio;
 
     if (!res.ok) {
-      const corpo = await res.text();
-      logger.error({ chatId, status: res.status, duracaoMs, evento: "whatsapp_envio_falhou", corpo }, "[whatsapp] envio falhou");
+      // Achado no code review da #198: o corpo bruto de erro da Graph API
+      // costuma ecoar o número de destino dentro da mensagem (ex: erro de
+      // destinatário inválido) — logar ele inteiro vazaria telefone em texto
+      // plano (CLAUDE.md). Extrai só código/tipo do erro, nunca a mensagem
+      // completa nem o corpo cru.
+      const corpoTexto = await res.text();
+      let erroDetalhe: { codigo?: number; tipo?: string } | undefined;
+      try {
+        const parsed = JSON.parse(corpoTexto) as { error?: { code?: number; type?: string } };
+        erroDetalhe = parsed.error ? { codigo: parsed.error.code, tipo: parsed.error.type } : undefined;
+      } catch {
+        erroDetalhe = undefined;
+      }
+      logger.error({ chatId, status: res.status, duracaoMs, evento: "whatsapp_envio_falhou", erroDetalhe }, "[whatsapp] envio falhou");
       return;
     }
     logger.info({ chatId, duracaoMs, evento: "whatsapp_envio_ok" }, "[whatsapp] mensagem enviada");
