@@ -1,7 +1,7 @@
 import type { FastifyInstance } from "fastify";
 import { grafo as grafoOrquestrador } from "../orquestrador/graph.js";
 import { obterAtendimentosStore } from "../shared/atendimentosDb.js";
-import { enviarMensagemWhatsapp, extrairMensagemWhatsapp } from "../integracoes/whatsapp.js";
+import { enviarMensagemWhatsapp, extrairMensagemWhatsapp, extrairStatusWhatsapp } from "../integracoes/whatsapp.js";
 
 const PALAVRA_CHAVE_SAIR = "#sair";
 const MENSAGEM_SAIU = "Conversa encerrada. Pode mandar uma mensagem nova quando quiser.";
@@ -100,9 +100,15 @@ export function registrarRotaWebhookWhatsapp(app: FastifyInstance, apiKey: strin
   app.post("/webhook/whatsapp", { schema: { hide: true } }, async (req, reply) => {
     const mensagem = extrairMensagemWhatsapp(req.body);
     if (!mensagem) {
-      // Status de entrega/leitura ou tipo não suportado (áudio, imagem) —
-      // fora de escopo da v1 (issue #198). Meta só precisa de 200 pra não
-      // reenviar o mesmo webhook.
+      // Status de entrega/leitura (sent/delivered/read/failed) ou tipo não
+      // suportado (áudio, imagem) — fora de escopo da v1 (issue #198), mas
+      // logamos o status de entrega mesmo assim (diagnóstico ao vivo
+      // 2026-09-30: "whatsapp_envio_ok" só confirma que a Graph API aceitou
+      // a chamada, não que a mensagem chegou de verdade no destino).
+      const status = extrairStatusWhatsapp(req.body);
+      if (status) {
+        req.log.info({ evento: "whatsapp_status_entrega", status: status.status, erroCodigo: status.erroCodigo, erroTitulo: status.erroTitulo }, "[whatsapp] status de entrega recebido");
+      }
       return reply.code(200).send({ ok: true });
     }
 
