@@ -86,3 +86,38 @@ export function extrairMensagemWhatsapp(payload: unknown): MensagemRecebidaWhats
 
   return undefined;
 }
+
+interface StatusEntregaWhatsapp {
+  status: string;
+  erroCodigo?: number;
+  erroTitulo?: string;
+}
+
+// Diagnóstico (achado ao vivo 2026-09-30): "whatsapp_envio_ok" só confirma
+// que a Graph API ACEITOU a chamada (HTTP 200) — a Meta manda o resultado
+// de entrega de verdade (sent/delivered/read/failed) depois, como um
+// webhook SEPARADO (mesmo shape de mensagem, só que com `statuses` em vez
+// de `messages`), que até aqui a bridge ignorava silenciosamente. Só loga
+// status/erro (nunca `recipient_id`, que é o telefone em claro).
+export function extrairStatusWhatsapp(payload: unknown): StatusEntregaWhatsapp | undefined {
+  const entry = (payload as { entry?: unknown[] })?.entry;
+  if (!Array.isArray(entry)) return undefined;
+
+  for (const item of entry) {
+    const changes = (item as { changes?: unknown[] })?.changes;
+    if (!Array.isArray(changes)) continue;
+
+    for (const change of changes) {
+      const statuses = (change as { value?: { statuses?: unknown[] } })?.value?.statuses;
+      if (!Array.isArray(statuses) || statuses.length === 0) continue;
+
+      const status = statuses[0] as { status?: string; errors?: { code?: number; title?: string }[] };
+      if (!status.status) continue;
+
+      const erro = status.errors?.[0];
+      return { status: status.status, erroCodigo: erro?.code, erroTitulo: erro?.title };
+    }
+  }
+
+  return undefined;
+}
