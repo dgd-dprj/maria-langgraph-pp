@@ -4,6 +4,7 @@ import { montarApp } from "../src/app.js";
 import { extrairMensagemWhatsapp } from "../src/integracoes/whatsapp.js";
 import { ID_PESSOA_PRESA } from "../src/fluxos/index.js";
 import { _chatIdAtivoDeTeste, _limparConversasAtivasDeTeste } from "../src/rotas/webhookWhatsapp.js";
+import { obterAtendimentosStore } from "../src/shared/atendimentosDb.js";
 
 // Issue #198 — bridge WhatsApp (Meta Cloud API) pro orquestrador, separado
 // da Tykhe. extrairMensagemWhatsapp é lógica pura (payload real do Cloud
@@ -131,6 +132,45 @@ test("POST /webhook/whatsapp: 2 mensagens concorrentes do mesmo número são ser
     assert.equal(resA.statusCode, 200);
     assert.equal(resB.statusCode, 200);
     assert.ok(_chatIdAtivoDeTeste(numero), "deveria ter exatamente 1 chatId ativo pro número, sem corrida criando 2");
+  } finally {
+    process.env.MOCK_CLASSIFICACAO_FLOWID = original;
+  }
+});
+
+// "#sair" — único jeito de encerrar uma conversa no meio (fora conclusão
+// automática do próprio fluxo).
+test("POST /webhook/whatsapp: \"#sair\" sem conversa ativa não cria atendimento nenhum", async () => {
+  const numero = `test-wpp-sair-vazio-${Date.now()}`;
+  _limparConversasAtivasDeTeste();
+  const app = await montarApp();
+  const res = await app.inject({ method: "POST", url: "/webhook/whatsapp", payload: payloadTexto(numero, "#sair") });
+  assert.equal(res.statusCode, 200);
+  assert.equal(_chatIdAtivoDeTeste(numero), undefined);
+});
+
+test("POST /webhook/whatsapp: \"#sair\" no meio de uma conversa marca statusFinal expirado/saida_manual e libera número pra atendimento novo", async () => {
+  const original = process.env.MOCK_CLASSIFICACAO_FLOWID;
+  process.env.MOCK_CLASSIFICACAO_FLOWID = ID_PESSOA_PRESA;
+  const numero = `test-wpp-sair-${Date.now()}`;
+  _limparConversasAtivasDeTeste();
+  try {
+    const app = await montarApp();
+    await app.inject({ method: "POST", url: "/webhook/whatsapp", payload: payloadTexto(numero, "quero saber de um parente preso") });
+    const chatIdAberto = _chatIdAtivoDeTeste(numero);
+    assert.ok(chatIdAberto, "deveria ter aberto atendimento antes do #sair");
+
+    const resSair = await app.inject({ method: "POST", url: "/webhook/whatsapp", payload: payloadTexto(numero, "#sair") });
+    assert.equal(resSair.statusCode, 200);
+    assert.equal(_chatIdAtivoDeTeste(numero), undefined, "conversa deveria ter sido invalidada");
+
+    const store = await obterAtendimentosStore();
+    const atividade = await store.buscarAtividade(chatIdAberto as string);
+    assert.equal(atividade?.statusFinal, "expirado");
+
+    const res3 = await app.inject({ method: "POST", url: "/webhook/whatsapp", payload: payloadTexto(numero, "oi, começando de novo") });
+    assert.equal(res3.statusCode, 200);
+    const chatIdNovo = _chatIdAtivoDeTeste(numero);
+    assert.notEqual(chatIdNovo, chatIdAberto, "mensagem depois do #sair deveria abrir atendimento NOVO, não reaproveitar o encerrado");
   } finally {
     process.env.MOCK_CLASSIFICACAO_FLOWID = original;
   }

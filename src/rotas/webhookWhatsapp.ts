@@ -3,6 +3,10 @@ import { grafo as grafoOrquestrador } from "../orquestrador/graph.js";
 import { obterAtendimentosStore } from "../shared/atendimentosDb.js";
 import { enviarMensagemWhatsapp, extrairMensagemWhatsapp } from "../integracoes/whatsapp.js";
 
+const PALAVRA_CHAVE_SAIR = "#sair";
+const MENSAGEM_SAIU = "Conversa encerrada. Pode mandar uma mensagem nova quando quiser.";
+const MENSAGEM_NADA_PARA_SAIR = "Você não tem nenhuma conversa em andamento. Pode mandar uma mensagem pra começar.";
+
 interface CorpoRespostaAtendimento {
   resposta?: string;
   tipoResposta?: string;
@@ -103,6 +107,33 @@ export function registrarRotaWebhookWhatsapp(app: FastifyInstance, apiKey: strin
     }
 
     await executarSerializado(mensagem.de, async () => {
+      // Palavra-chave "#sair" — único jeito de encerrar uma conversa no meio
+      // (fora isso, encerramento é sempre automático: statusFinal
+      // concluido/handoff_humano). Reaproveita statusFinal:"expirado" (mesmo
+      // significado do TTL de inatividade, issue #166: "encerrado, próxima
+      // mensagem recomeça do zero"), com destino próprio ("saida_manual")
+      // pra não misturar com expiração por TTL nos dashboards. Só a bridge
+      // tem isso — Tykhe não precisa, ela já controla o próprio chatId.
+      if (mensagem.texto.trim().toLowerCase() === PALAVRA_CHAVE_SAIR) {
+        const chatIdAtivo = conversasAtivas.get(mensagem.de);
+        if (!chatIdAtivo) {
+          await enviarMensagemWhatsapp(mensagem.de, MENSAGEM_NADA_PARA_SAIR, "whatsapp:sem-conversa-ativa");
+          return;
+        }
+        const storeSaida = await obterAtendimentosStore();
+        const flowIdParaEncerrar = await storeSaida.buscarFlowId(chatIdAtivo);
+        // Só existe atendimento de verdade (linha em atendimentosDb) depois
+        // que o orquestrador converge pra um flowId — antes disso (ainda
+        // desambiguando) não tem o que marcar como concluído, só invalidar
+        // a conversa ativa da bridge mesmo.
+        if (flowIdParaEncerrar) {
+          await storeSaida.concluir(chatIdAtivo, { statusFinal: "expirado", destino: "saida_manual" });
+        }
+        conversasAtivas.delete(mensagem.de);
+        await enviarMensagemWhatsapp(mensagem.de, MENSAGEM_SAIU, chatIdAtivo);
+        return;
+      }
+
       const chatId = obterChatIdAtivo(mensagem.de);
       const store = await obterAtendimentosStore();
       const flowIdExistente = await store.buscarFlowId(chatId);
