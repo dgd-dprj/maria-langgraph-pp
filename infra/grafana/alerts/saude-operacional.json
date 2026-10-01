@@ -433,12 +433,12 @@
     "condition": "C",
     "noDataState": "OK",
     "execErrState": "Error",
-    "for": "5m",
+    "for": "15m",
     "data": [
       {
         "refId": "A",
         "relativeTimeRange": {
-          "from": 300,
+          "from": 900,
           "to": 0
         },
         "datasourceUid": "ffymvx5sukwlce",
@@ -460,7 +460,7 @@
       {
         "refId": "B",
         "relativeTimeRange": {
-          "from": 300,
+          "from": 900,
           "to": 0
         },
         "datasourceUid": "__expr__",
@@ -474,7 +474,7 @@
       {
         "refId": "C",
         "relativeTimeRange": {
-          "from": 300,
+          "from": 900,
           "to": 0
         },
         "datasourceUid": "__expr__",
@@ -504,12 +504,12 @@
     "condition": "C",
     "noDataState": "OK",
     "execErrState": "Error",
-    "for": "5m",
+    "for": "15m",
     "data": [
       {
         "refId": "A",
         "relativeTimeRange": {
-          "from": 300,
+          "from": 900,
           "to": 0
         },
         "datasourceUid": "ffymvx5sukwlce",
@@ -531,7 +531,7 @@
       {
         "refId": "B",
         "relativeTimeRange": {
-          "from": 300,
+          "from": 900,
           "to": 0
         },
         "datasourceUid": "__expr__",
@@ -545,7 +545,7 @@
       {
         "refId": "C",
         "relativeTimeRange": {
-          "from": 300,
+          "from": 900,
           "to": 0
         },
         "datasourceUid": "__expr__",
@@ -564,148 +564,6 @@
           ],
           "refId": "C"
         }
-      }
-    ]
-  },
-  {
-    "title": "CPU alta no serviço ECS (prod)",
-    "ruleGroup": "saude-operacional",
-    "folderUID": "ffymyi5yquw3ke",
-    "condition": "C",
-    "noDataState": "OK",
-    "execErrState": "Error",
-    "for": "5m",
-    "data": [
-      {
-        "refId": "A",
-        "relativeTimeRange": { "from": 300, "to": 0 },
-        "datasourceUid": "ffymvx5sukwlce",
-        "model": {
-          "namespace": "AWS/ECS",
-          "metricName": "CPUUtilization",
-          "statistic": "Average",
-          "dimensions": { "ClusterName": "maria-langgraph-pp", "ServiceName": "api" },
-          "region": "us-east-1",
-          "queryMode": "Metrics",
-          "refId": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 100
-        }
-      },
-      { "refId": "B", "relativeTimeRange": { "from": 300, "to": 0 }, "datasourceUid": "__expr__", "model": { "type": "reduce", "reducer": "last", "expression": "A", "refId": "B" } },
-      {
-        "refId": "C",
-        "relativeTimeRange": { "from": 300, "to": 0 },
-        "datasourceUid": "__expr__",
-        "model": { "type": "threshold", "expression": "B", "conditions": [{ "evaluator": { "type": "gt", "params": [80] } }], "refId": "C" }
-      }
-    ]
-  },
-  {
-    "title": "CPU alta no serviço ECS (release)",
-    "ruleGroup": "saude-operacional",
-    "folderUID": "ffymyi5yquw3ke",
-    "condition": "C",
-    "noDataState": "OK",
-    "execErrState": "Error",
-    "for": "5m",
-    "data": [
-      {
-        "refId": "A",
-        "relativeTimeRange": { "from": 300, "to": 0 },
-        "datasourceUid": "ffymvx5sukwlce",
-        "model": {
-          "namespace": "AWS/ECS",
-          "metricName": "CPUUtilization",
-          "statistic": "Average",
-          "dimensions": { "ClusterName": "maria-langgraph-pp", "ServiceName": "api-release" },
-          "region": "us-east-1",
-          "queryMode": "Metrics",
-          "refId": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 100
-        }
-      },
-      { "refId": "B", "relativeTimeRange": { "from": 300, "to": 0 }, "datasourceUid": "__expr__", "model": { "type": "reduce", "reducer": "last", "expression": "A", "refId": "B" } },
-      {
-        "refId": "C",
-        "relativeTimeRange": { "from": 300, "to": 0 },
-        "datasourceUid": "__expr__",
-        "model": { "type": "threshold", "expression": "B", "conditions": [{ "evaluator": { "type": "gt", "params": [80] } }], "refId": "C" }
-      }
-    ]
-  },
-  {
-    "title": "Latência p99 alta do ALB (prod)",
-    "ruleGroup": "saude-operacional",
-    "folderUID": "ffymyi5yquw3ke",
-    "condition": "C",
-    "noDataState": "OK",
-    "execErrState": "Error",
-    "for": "5m",
-    "data": [
-      {
-        "refId": "A",
-        "relativeTimeRange": { "from": 300, "to": 0 },
-        "datasourceUid": "ffymvx5sukwlce",
-        "model": {
-          "namespace": "AWS/ApplicationELB",
-          "metricName": "TargetResponseTime",
-          "statistic": "p99",
-          "dimensions": {
-            "LoadBalancer": "app/maria-langgraph-pp-alb/d386671af848ad96",
-            "TargetGroup": "targetgroup/maria-langgraph-pp-api/b48404228beb2d74"
-          },
-          "region": "us-east-1",
-          "queryMode": "Metrics",
-          "refId": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 100
-        }
-      },
-      { "refId": "B", "relativeTimeRange": { "from": 300, "to": 0 }, "datasourceUid": "__expr__", "model": { "type": "reduce", "reducer": "last", "expression": "A", "refId": "B" } },
-      {
-        "refId": "C",
-        "relativeTimeRange": { "from": 300, "to": 0 },
-        "datasourceUid": "__expr__",
-        "model": { "type": "threshold", "expression": "B", "conditions": [{ "evaluator": { "type": "gt", "params": [3] } }], "refId": "C" }
-      }
-    ]
-  },
-  {
-    "title": "Latência p99 alta do ALB (release)",
-    "ruleGroup": "saude-operacional",
-    "folderUID": "ffymyi5yquw3ke",
-    "condition": "C",
-    "noDataState": "OK",
-    "execErrState": "Error",
-    "for": "5m",
-    "data": [
-      {
-        "refId": "A",
-        "relativeTimeRange": { "from": 300, "to": 0 },
-        "datasourceUid": "ffymvx5sukwlce",
-        "model": {
-          "namespace": "AWS/ApplicationELB",
-          "metricName": "TargetResponseTime",
-          "statistic": "p99",
-          "dimensions": {
-            "LoadBalancer": "app/maria-langgraph-pp-alb/d386671af848ad96",
-            "TargetGroup": "targetgroup/maria-langgraph-pp-api-release/29d0b1aaa69bc404"
-          },
-          "region": "us-east-1",
-          "queryMode": "Metrics",
-          "refId": "A",
-          "intervalMs": 1000,
-          "maxDataPoints": 100
-        }
-      },
-      { "refId": "B", "relativeTimeRange": { "from": 300, "to": 0 }, "datasourceUid": "__expr__", "model": { "type": "reduce", "reducer": "last", "expression": "A", "refId": "B" } },
-      {
-        "refId": "C",
-        "relativeTimeRange": { "from": 300, "to": 0 },
-        "datasourceUid": "__expr__",
-        "model": { "type": "threshold", "expression": "B", "conditions": [{ "evaluator": { "type": "gt", "params": [3] } }], "refId": "C" }
       }
     ]
   }

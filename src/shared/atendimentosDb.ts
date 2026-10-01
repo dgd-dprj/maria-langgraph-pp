@@ -15,33 +15,92 @@ const { Pool } = pg;
 // no Grafana), sem depender só de CloudWatch Logs Insights (issue #82).
 // Mesmos campos do log "atendimento finalizado" (rotas/atendimentos.ts).
 export interface ConclusaoAtendimento {
-  statusFinal: "concluido" | "handoff_humano";
+  statusFinal: "concluido" | "handoff_humano" | "expirado";
   destino?: string;
   motivoHandoff?: string;
   tokensGastos?: { input: number; output: number; total: number };
+}
+
+// Issue #166 — TTL de inatividade. `atualizadoEm` é a última vez que uma
+// resposta foi PROCESSADA de verdade (não a criação — `criado_em` continua
+// fixo). `aguardandoConfirmacaoTtl`/`respostaPendente` existem só entre a
+// pergunta de confirmação ("quer continuar?") e a resposta a ela — fora
+// dessa janela, ficam false/undefined.
+export interface AtividadeAtendimento {
+  atualizadoEm: Date;
+  statusFinal: string | undefined;
+  aguardandoConfirmacaoTtl: boolean;
+  respostaPendente: string | undefined;
 }
 
 export interface AtendimentosStore {
   registrar(chatId: string, flowId: string): Promise<{ ok: true } | { ok: false; flowIdExistente: string }>;
   buscarFlowId(chatId: string): Promise<string | undefined>;
   concluir(chatId: string, dados: ConclusaoAtendimento): Promise<void>;
+  buscarAtividade(chatId: string): Promise<AtividadeAtendimento | undefined>;
+  marcarAtividade(chatId: string): Promise<void>;
+  marcarAguardandoConfirmacaoTtl(chatId: string, respostaPendente: string): Promise<void>;
+  resolverConfirmacaoTtlContinuar(chatId: string): Promise<string | undefined>;
+}
+
+interface RegistroEmMemoria {
+  flowId: string;
+  atualizadoEm: Date;
+  statusFinal: string | undefined;
+  aguardandoConfirmacaoTtl: boolean;
+  respostaPendente: string | undefined;
 }
 
 // Sem DATABASE_URL (testes, que não carregam .env) cai pra um Map em
 // memória — mesmo padrão de criarCheckpointer() (shared/checkpointer.ts).
+// Guarda os mesmos campos de atividade/TTL do Postgres (issue #166) — testes
+// de TTL usam TTL_INATIVIDADE_HORAS=0 pra forçar expiração sem mockar Date.
 function criarStoreEmMemoria(): AtendimentosStore {
-  const mapa = new Map<string, string>();
+  const mapa = new Map<string, RegistroEmMemoria>();
   return {
     async registrar(chatId, flowId) {
       const existente = mapa.get(chatId);
-      if (existente !== undefined) return existente === flowId ? { ok: true } : { ok: false, flowIdExistente: existente };
-      mapa.set(chatId, flowId);
+      if (existente !== undefined) return existente.flowId === flowId ? { ok: true } : { ok: false, flowIdExistente: existente.flowId };
+      mapa.set(chatId, { flowId, atualizadoEm: new Date(), statusFinal: undefined, aguardandoConfirmacaoTtl: false, respostaPendente: undefined });
       return { ok: true };
     },
     async buscarFlowId(chatId) {
-      return mapa.get(chatId);
+      return mapa.get(chatId)?.flowId;
     },
-    async concluir() {},
+    async concluir(chatId, dados) {
+      const registro = mapa.get(chatId);
+      if (registro) registro.statusFinal = dados.statusFinal;
+    },
+    async buscarAtividade(chatId) {
+      const registro = mapa.get(chatId);
+      if (!registro) return undefined;
+      return {
+        atualizadoEm: registro.atualizadoEm,
+        statusFinal: registro.statusFinal,
+        aguardandoConfirmacaoTtl: registro.aguardandoConfirmacaoTtl,
+        respostaPendente: registro.respostaPendente,
+      };
+    },
+    async marcarAtividade(chatId) {
+      const registro = mapa.get(chatId);
+      if (registro) registro.atualizadoEm = new Date();
+    },
+    async marcarAguardandoConfirmacaoTtl(chatId, respostaPendente) {
+      const registro = mapa.get(chatId);
+      if (registro) {
+        registro.aguardandoConfirmacaoTtl = true;
+        registro.respostaPendente = respostaPendente;
+      }
+    },
+    async resolverConfirmacaoTtlContinuar(chatId) {
+      const registro = mapa.get(chatId);
+      if (!registro) return undefined;
+      const pendente = registro.respostaPendente;
+      registro.aguardandoConfirmacaoTtl = false;
+      registro.respostaPendente = undefined;
+      registro.atualizadoEm = new Date();
+      return pendente;
+    },
   };
 }
 
@@ -70,6 +129,25 @@ async function criarStorePostgres(url: string): Promise<AtendimentosStore> {
       ADD COLUMN IF NOT EXISTS tokens_saida INTEGER,
       ADD COLUMN IF NOT EXISTS tokens_total INTEGER
   `);
+  // Issue #166 — TTL de inatividade. atualizado_em começa igual a criado_em
+  // (backfill pras linhas que já existiam) e passa a ser tocado em toda
+  // resposta processada com sucesso (marcarAtividade).
+  await pool.query(`
+    ALTER TABLE atendimentos
+      ADD COLUMN IF NOT EXISTS atualizado_em TIMESTAMPTZ,
+      ADD COLUMN IF NOT EXISTS aguardando_confirmacao_ttl BOOLEAN NOT NULL DEFAULT false,
+      ADD COLUMN IF NOT EXISTS resposta_pendente_ttl TEXT
+  `);
+  // Bug real achado ao vivo (2026-09-25, testando a issue #171 contra Verde
+  // homolog de verdade): ADD COLUMN IF NOT EXISTS sem DEFAULT só preenche
+  // atualizado_em nas linhas JÁ existentes (via o UPDATE de backfill
+  // abaixo) — toda linha NOVA inserida por registrar() (sem essa coluna no
+  // INSERT) ficava com atualizado_em NULL, e `.getTime()` em rotas/
+  // atendimentos.ts quebrava com "Cannot read properties of null" na
+  // primeira resposta de qualquer atendimento criado depois da migração.
+  // SET DEFAULT é idempotente — seguro rodar em toda inicialização.
+  await pool.query(`ALTER TABLE atendimentos ALTER COLUMN atualizado_em SET DEFAULT now()`);
+  await pool.query(`UPDATE atendimentos SET atualizado_em = criado_em WHERE atualizado_em IS NULL`);
   logger.info("[atendimentosDb] tabela 'atendimentos' pronta (Postgres)");
 
   return {
@@ -109,6 +187,45 @@ async function criarStorePostgres(url: string): Promise<AtendimentosStore> {
           dados.tokensGastos?.total ?? null,
         ]
       );
+    },
+    async buscarAtividade(chatId) {
+      const res = await pool.query<{
+        atualizado_em: Date;
+        status_final: string | null;
+        aguardando_confirmacao_ttl: boolean;
+        resposta_pendente_ttl: string | null;
+      }>(
+        `SELECT atualizado_em, status_final, aguardando_confirmacao_ttl, resposta_pendente_ttl
+         FROM atendimentos WHERE chat_id = $1`,
+        [chatId]
+      );
+      const linha = res.rows[0];
+      if (!linha) return undefined;
+      return {
+        atualizadoEm: linha.atualizado_em,
+        statusFinal: linha.status_final ?? undefined,
+        aguardandoConfirmacaoTtl: linha.aguardando_confirmacao_ttl,
+        respostaPendente: linha.resposta_pendente_ttl ?? undefined,
+      };
+    },
+    async marcarAtividade(chatId) {
+      await pool.query(`UPDATE atendimentos SET atualizado_em = now() WHERE chat_id = $1`, [chatId]);
+    },
+    async marcarAguardandoConfirmacaoTtl(chatId, respostaPendente) {
+      await pool.query(
+        `UPDATE atendimentos SET aguardando_confirmacao_ttl = true, resposta_pendente_ttl = $2 WHERE chat_id = $1`,
+        [chatId, respostaPendente]
+      );
+    },
+    async resolverConfirmacaoTtlContinuar(chatId) {
+      const res = await pool.query<{ resposta_pendente_ttl: string | null }>(
+        `UPDATE atendimentos
+         SET aguardando_confirmacao_ttl = false, resposta_pendente_ttl = NULL, atualizado_em = now()
+         WHERE chat_id = $1
+         RETURNING resposta_pendente_ttl`,
+        [chatId]
+      );
+      return res.rows[0]?.resposta_pendente_ttl ?? undefined;
     },
   };
 }

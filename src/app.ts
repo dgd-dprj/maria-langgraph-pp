@@ -6,6 +6,7 @@ import fastifyBearerAuth from "@fastify/bearer-auth";
 import { registrarRotasAtendimento } from "./rotas/atendimentos.js";
 import { registrarRotaFluxos } from "./rotas/fluxos.js";
 import { registrarRotaOrquestrador } from "./rotas/orquestrador.js";
+import { registrarRotaWebhookWhatsapp } from "./rotas/webhookWhatsapp.js";
 import { logger } from "./shared/logger.js";
 import { obterAtendimentosStore } from "./shared/atendimentosDb.js";
 import { obterPerguntasStore } from "./shared/perguntasDb.js";
@@ -90,6 +91,17 @@ export async function montarApp() {
     registrarRotaFluxos(protegido);
     registrarRotasAtendimento(protegido);
     registrarRotaOrquestrador(protegido);
+  });
+
+  // Issue #198 — webhook do WhatsApp Cloud API (Meta), pra testar o
+  // orquestrador com um número de teste real. FORA do bloco protegido: é a
+  // Meta quem chama essa rota, sem Bearer — autenticação própria é o
+  // verify_token na verificação (GET) e o token de acesso do app da Meta no
+  // envio de resposta (integracoes/whatsapp.ts). Recebe o apiKey pra fazer
+  // as chamadas internas (app.inject) às rotas protegidas de atendimento
+  // como um cliente autenticado normal, sem duplicar a lógica delas.
+  await app.register(async (publico) => {
+    registrarRotaWebhookWhatsapp(publico, apiKey);
   });
 
   return app;

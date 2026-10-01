@@ -28,6 +28,16 @@ test("sem mensagem → 400", async () => {
   assert.equal(res.statusCode, 400);
 });
 
+// Issue #185 — resposta:"" (vazia, não só ausente) precisa barrar aqui
+// também: viraria new Command({resume:""}) mais abaixo, que o LangGraph
+// trata como "sem resume" (string vazia é falsy) e explode um 500 cru em
+// vez de um 400 de validação normal.
+test("resposta vazia (\"\") → 400, não 500", async () => {
+  const app = await montarApp();
+  const res = await app.inject({ method: "POST", url: BASE, payload: { chatId: novoChatId(), resposta: "" }, headers: AUTH });
+  assert.equal(res.statusCode, 400);
+});
+
 test("sem Authorization → 401 (rota protegida igual às demais)", async () => {
   const app = await montarApp();
   const res = await app.inject({ method: "POST", url: BASE, payload: { mensagem: "qualquer coisa" } });
@@ -343,5 +353,39 @@ test("ambiguidade que nunca resolve → esgota limite de rodadas → handoff_hum
   } finally {
     process.env.MOCK_CLASSIFICACAO_FLOWIDS = original;
     process.env.MOCK_CLASSIFICACAO_FLOWID = originalSingular;
+  }
+});
+
+// Issue #191 — confirma que /atendimentos/orquestrador seta viaOrquestrador
+// de ponta a ponta: quem entra por aqui GANHA a pergunta de confirmação de
+// dados (issue #189), diferente de quem chama POST /atendimentos direto
+// com flowId (a Tykhe, ver violenciaDomestica/http.test.ts) — mesmo CPF,
+// mesmo mock, comportamento diferente só por onde o atendimento nasceu.
+test("orquestrador seta viaOrquestrador — CPF encontrado pergunta confirmação de dados (issue #189/#191)", async () => {
+  const original = process.env.MOCK_CLASSIFICACAO_FLOWID;
+  process.env.MOCK_CLASSIFICACAO_FLOWID = ID_VIOLENCIA_DOMESTICA;
+  try {
+    // Testes anteriores deste arquivo fazem `process.env.X = original` na
+    // limpeza — quando `original` é `undefined`, isso vira a STRING
+    // "undefined" (não apaga a env var), o que faz classificarFluxos.ts
+    // achar que MOCK_CLASSIFICACAO_FLOWIDS está setado de verdade. `delete`
+    // explícito aqui blinda este teste contra esse vazamento pré-existente.
+    delete process.env.MOCK_CLASSIFICACAO_FLOWIDS;
+    const chatId = novoChatId();
+    const app = await montarApp();
+    await app.inject({ method: "POST", url: BASE, payload: { chatId, mensagem: "sou vítima de violência doméstica" }, headers: AUTH });
+    const responder = (resposta: string) =>
+      app.inject({ method: "POST", url: "/atendimentos/respostas", payload: { chatId, resposta }, headers: AUTH });
+    await responder("true"); // é vítima
+    await responder("false"); // sem processo
+    const rConfirma = await responder("true"); // tem RO
+    // sem CPF pré-preenchido aqui — pergunta normalmente
+    assert.match(rConfirma.json().resposta, /Qual o seu CPF/);
+    const rConfirmaDados = await responder("11111111111"); // cpf encontrado
+    assert.match(rConfirmaDados.json().resposta, /Confirma que seus dados são/, "via orquestrador deveria perguntar confirmação — diferente da Tykhe direto");
+    const res = await responder("sim");
+    assert.equal(res.json().status, "concluido");
+  } finally {
+    process.env.MOCK_CLASSIFICACAO_FLOWID = original;
   }
 });

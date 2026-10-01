@@ -6,6 +6,7 @@ import type {
   OrgaoAtendimento,
   OrgaosViolenciaDomestica,
   Plantao,
+  ResultadoCadastroPessoa,
   ResultadoEncaminhamento,
 } from "../shared/types.js";
 import { logger } from "../shared/logger.js";
@@ -16,6 +17,11 @@ import { contextoAtual } from "../shared/contexto.js";
 const VERDE_API_URL = process.env.VERDE_API_URL ?? "https://homologacao.verde.rj.def.br/api/integra";
 const VERDE_JWT_TOKEN = process.env.VERDE_JWT_TOKEN ?? "";
 const VERDE_CLIENT_ID = process.env.VERDE_CLIENT_ID ?? "";
+// Issue #196 — achado ao vivo: RG que existe de verdade veio "não
+// encontrado" porque a chamada estourou o timeout antigo (20s) num dia de
+// Verde homolog lenta (levou 13.5s numa chamada direta) — timeout vira
+// encontrado:false no catch, indistinguível de "não achou de verdade".
+const TIMEOUT_VERDE_MS = 30_000;
 
 // Issue #112 — 401/403 (token expirado/inválido) e 5xx (infra da Verde) são
 // bem diferentes de 404/422 (dado de negócio genuinamente não encontrado),
@@ -98,7 +104,7 @@ export async function consultarApenadoPorRg(rg: string): Promise<DadosApenado> {
         "x-client-id": VERDE_CLIENT_ID,
       },
       body: JSON.stringify({ rg }),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("apenado", res.status, Date.now() - inicio);
@@ -169,7 +175,7 @@ export async function consultarProcesso(numero: string): Promise<DadosProcesso> 
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("processo", res.status, Date.now() - inicio);
@@ -240,7 +246,7 @@ export async function consultarPessoaPorCpf(cpf: string): Promise<DadosPessoa> {
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       // 404 (CPF não encontrado) e 422 (mais de uma pessoa encontrada) caem
@@ -268,21 +274,29 @@ export async function consultarPessoaPorCpf(cpf: string): Promise<DadosPessoa> {
   }
 }
 
-// bairro/municipio vêm ora null, ora objeto {id,...} (achado ao vivo
-// 2026-09-21, testando /cep com CEPs reais só uf veio populado) — leitura
-// defensiva, sem assumir shape fixo.
+// bairro/municipio vêm ora null, ora objeto completo {id, nome} (CEP a CEP,
+// não é regra geral da API) — leitura defensiva, sem assumir shape fixo.
+// Issue #176 — uf.sigla/bairro.nome/municipio.nome/logradouro são TEXTO de
+// verdade quando presentes (confirmado ao vivo com CEP real, issue #176) —
+// antes só os ids eram lidos, o texto era descartado.
 interface CepResponseVerde {
   codigo?: string;
   mensagem?: string;
   dados?: {
-    uf?: { id?: number } | null;
-    bairro?: { id?: number } | null;
-    municipio?: { id?: number } | null;
+    uf?: { id?: number; sigla?: string; nome?: string } | null;
+    bairro?: { id?: number; nome?: string } | null;
+    municipio?: { id?: number; nome?: string } | null;
+    logradouro?: string | null;
+    numero?: string | null;
   };
 }
 
 function idDeCampoCep(campo: { id?: number } | null | undefined): number | undefined {
   return campo && typeof campo === "object" ? campo.id : undefined;
+}
+
+function nomeDeCampoCep(campo: { nome?: string } | null | undefined): string | undefined {
+  return campo && typeof campo === "object" ? campo.nome : undefined;
 }
 
 // Issue #127 — GET /cep/{cep}, separado de /pessoa: devolve ids de
@@ -293,7 +307,26 @@ function idDeCampoCep(campo: { id?: number } | null | undefined): number | undef
 export async function consultarCep(cep: string): Promise<DadosCep> {
   if (!VERDE_JWT_TOKEN) {
     logger.warn(contextoAtual(), "[verde] VERDE_JWT_TOKEN ausente — modo mock (dev local)");
-    return { encontrado: true, idUf: 19 };
+    // CEP "00000000" simula "não encontrado" (mesmo padrão do CPF
+    // "00000000000" em consultarPessoaPorCpf) — testa o caso da pessoa
+    // não saber o CEP: coletarEndereco (issue #178) pergunta todos os
+    // campos normalmente, já que nada veio pronto.
+    if (cep.replace(/\D/g, "") === "00000000") return { encontrado: false };
+    // MOCK_CEP_INCOMPLETO=true simula o caso real já visto (issue #127) de
+    // CEP que só devolve uf, sem bairro/município/logradouro — testa o
+    // fallback de pergunta do subgrafo coletarEndereco (issue #176). Sem a
+    // flag, mock devolve endereço completo (caso mais comum na prática).
+    if (process.env.MOCK_CEP_INCOMPLETO === "true") return { encontrado: true, idUf: 19, uf: "RJ" };
+    return {
+      encontrado: true,
+      idUf: 19,
+      idBairro: 9948,
+      idMunicipio: 3643,
+      uf: "RJ",
+      bairro: "Bairro de Teste (mock)",
+      municipio: "Rio de Janeiro (mock)",
+      logradouro: "Rua de Teste (mock)",
+    };
   }
   const inicio = Date.now();
   try {
@@ -304,7 +337,7 @@ export async function consultarCep(cep: string): Promise<DadosCep> {
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("cep", res.status, Date.now() - inicio);
@@ -318,6 +351,10 @@ export async function consultarCep(cep: string): Promise<DadosCep> {
       idUf: idDeCampoCep(corpo.dados.uf),
       idBairro: idDeCampoCep(corpo.dados.bairro),
       idMunicipio: idDeCampoCep(corpo.dados.municipio),
+      uf: corpo.dados.uf?.sigla,
+      bairro: nomeDeCampoCep(corpo.dados.bairro),
+      municipio: nomeDeCampoCep(corpo.dados.municipio),
+      logradouro: corpo.dados.logradouro ?? undefined,
     };
   } catch (err) {
     logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "cep", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] cep: falha na chamada");
@@ -394,7 +431,7 @@ export async function consultarOrgaosViolenciaDomestica(indicacaoRO: boolean, id
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("orgao-violencia-domestica", res.status, Date.now() - inicio);
@@ -444,7 +481,7 @@ export async function consultarPlantaoVigente(): Promise<Plantao[]> {
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("plantao-vigente", res.status, Date.now() - inicio);
@@ -495,7 +532,7 @@ export async function consultarOrgaosPlantaoViolenciaDomestica(idPlantao: number
         authorization: `Bearer ${VERDE_JWT_TOKEN}`,
         "x-client-id": VERDE_CLIENT_ID,
       },
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     if (!res.ok) {
       logHttpNaoOk("orgao-plantao-violencia-domestica", res.status, Date.now() - inicio);
@@ -578,7 +615,7 @@ export async function criarEncaminhamentoViolenciaDomestica(dados: DadosEncaminh
         "x-client-id": VERDE_CLIENT_ID,
       },
       body: JSON.stringify(body),
-      signal: AbortSignal.timeout(20_000),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
     });
     const corpo = (await res.json().catch(() => ({}))) as EncaminhamentoResponseVerde;
     if (!res.ok) {
@@ -589,6 +626,80 @@ export async function criarEncaminhamentoViolenciaDomestica(dados: DadosEncaminh
     return { sucesso: true, id: corpo.dados?.id };
   } catch (err) {
     logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "encaminhamento", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] encaminhamento: falha na chamada");
+    return { sucesso: false, erro: "falha na chamada ao Verde" };
+  }
+}
+
+export interface EnderecoCadastroPessoa {
+  logradouro?: string;
+  numero?: string;
+  complemento?: string;
+  cep?: string;
+  bairro?: string;
+  municipio?: string;
+  uf?: string;
+}
+
+export interface DadosCadastroPessoa {
+  nome: string;
+  cpf: string;
+  dataNascimento: string;
+  // Issue #176 — opcional; sem ele, POST /integra/pessoa cadastra sem
+  // endereço (comportamento de antes da issue #176, ainda suportado).
+  endereco?: EnderecoCadastroPessoa;
+}
+
+interface CadastroPessoaResponseVerde {
+  codigo?: string;
+  mensagem?: string;
+  dados?: { idPessoa?: number };
+}
+
+// Issue #171 — POST /integra/pessoa, cria cadastro novo no Verde (CPF válido
+// e ainda não cadastrado). Escopo restrito de propósito (decisão registrada
+// na issue): só os 3 campos obrigatórios do CadastrarPessoaDTO (nome, cpf,
+// dtNascimento) — endereço/telefone/email/gênero/representante ficam pra
+// melhoria futura, chatbot não pede ainda.
+export async function cadastrarPessoa(dados: DadosCadastroPessoa): Promise<ResultadoCadastroPessoa> {
+  if (!VERDE_JWT_TOKEN) {
+    logger.warn(contextoAtual(), "[verde] VERDE_JWT_TOKEN ausente — modo mock (dev local)");
+    // MOCK_CADASTRO_FALHA=true simula falha — só lido em teste/dev, mesmo
+    // padrão de MOCK_ENCAMINHAMENTO_FALHA.
+    if (process.env.MOCK_CADASTRO_FALHA === "true") return { sucesso: false, erro: "falha simulada (mock)" };
+    return { sucesso: true, idPessoa: 888888 };
+  }
+  const inicio = Date.now();
+  try {
+    const body = {
+      nome: dados.nome,
+      cpf: dados.cpf,
+      dtNascimento: dados.dataNascimento,
+      ...(dados.endereco ? { endereco: dados.endereco } : {}),
+    };
+    const res = await fetch(`${VERDE_API_URL}/pessoa`, {
+      method: "POST",
+      headers: {
+        "content-type": "application/json",
+        accept: "application/json",
+        authorization: `Bearer ${VERDE_JWT_TOKEN}`,
+        "x-client-id": VERDE_CLIENT_ID,
+      },
+      body: JSON.stringify(body),
+      signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
+    });
+    const corpo = (await res.json().catch(() => ({}))) as CadastroPessoaResponseVerde;
+    if (!res.ok) {
+      logHttpNaoOk("cadastroPessoa", res.status, Date.now() - inicio, { corpo });
+      return { sucesso: false, erro: corpo.mensagem ?? `HTTP ${res.status}` };
+    }
+    logger.info(
+      { ...contextoAtual(), corpo, evento: "verde_chamada", chamada: "cadastroPessoa", resultado: "sucesso", duracaoMs: Date.now() - inicio },
+      "[verde] cadastroPessoa: chamada concluída"
+    );
+    if (corpo.dados?.idPessoa === undefined) return { sucesso: false, erro: "Verde não devolveu idPessoa" };
+    return { sucesso: true, idPessoa: corpo.dados.idPessoa };
+  } catch (err) {
+    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "cadastroPessoa", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] cadastroPessoa: falha na chamada");
     return { sucesso: false, erro: "falha na chamada ao Verde" };
   }
 }

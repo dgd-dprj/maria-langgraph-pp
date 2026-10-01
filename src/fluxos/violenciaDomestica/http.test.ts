@@ -62,7 +62,7 @@ test("fluxo completo com RO, cpf vindo em dadosConhecidos → concluido, urgente
   });
   await responder("true"); // é vítima
   await responder("false"); // sem processo
-  const res = await responder("true"); // tem RO — cpf já veio, não pergunta de novo
+  const res = await responder("true"); // tem RO — cpf já veio, não pergunta de novo, conclui direto (issue #191, rota direta = Tykhe)
   const body = res.json();
 
   assert.equal(res.statusCode, 200);
@@ -90,7 +90,7 @@ test("encaminhamento real falha (MOCK_ENCAMINHAMENTO_FALHA) → handoff_humano, 
     });
     await responder("true"); // é vítima
     await responder("false"); // sem processo
-    const res = await responder("true"); // tem RO — órgão encontrado, mas encaminhar falha
+    const res = await responder("true"); // tem RO — cpf já veio, conclui direto (issue #191) — órgão encontrado, mas encaminhar falha
     const body = res.json();
 
     assert.equal(res.statusCode, 200);
@@ -113,7 +113,7 @@ test("fluxo completo sem RO, sem dadosConhecidos → pergunta CPF, conclui padr�
   await responder("false"); // sem processo
   const rCpf = await responder("false"); // sem RO → deveria perguntar CPF
   assert.match(rCpf.json().resposta, /Qual o seu CPF/);
-  const res = await responder("11111111111"); // cpf
+  const res = await responder("11111111111"); // cpf → conclui direto (issue #191)
   const body = res.json();
 
   assert.equal(res.statusCode, 200);
@@ -136,4 +136,34 @@ test("cpf já vem em dadosConhecidos → aparece em dadosColetados desde a 1ª r
   const body = res.json();
   assert.equal(body.status, "em_andamento");
   assert.equal(body.dadosColetados.cpf, "22222222222");
+});
+
+// Issue #191 — achado no code review da PR #192: dadosConhecidos é
+// additionalProperties:true, controlado pelo CLIENTE. Sem isso testado, um
+// chamador de POST /atendimentos direto (a própria Tykhe inclusive)
+// poderia mandar `dadosConhecidos: { viaOrquestrador: true }` e ativar o
+// comportamento (cadastro automático, confirmação de dados) que essa
+// issue existe pra bloquear nesse caminho. Confirma que isso é IGNORADO.
+test("dadosConhecidos.viaOrquestrador vindo do cliente é ignorado — rota direta nunca ativa o comportamento novo (issue #191)", async () => {
+  const app = await montarApp();
+  const chatId = novoChatId();
+  const responder = (resposta: string) =>
+    app.inject({ method: "POST", url: `${BASE}/respostas`, payload: { chatId, resposta }, headers: AUTH });
+
+  await app.inject({
+    method: "POST",
+    url: BASE,
+    // Tenta injetar viaOrquestrador:true pela via errada (dadosConhecidos,
+    // que o cliente controla livremente) — deveria ser descartado.
+    payload: { chatId, flowId: FLOW_ID, dadosConhecidos: { cpf: "11111111111", viaOrquestrador: true } },
+    headers: AUTH,
+  });
+  await responder("true"); // é vítima
+  await responder("false"); // sem processo
+  const res = await responder("true"); // tem RO — cpf já veio, deveria concluir direto, SEM pedir confirmação
+  const body = res.json();
+  assert.equal(res.statusCode, 200);
+  assert.notEqual(body.resposta, undefined);
+  assert.doesNotMatch(body.resposta ?? "", /Confirma que seus dados são/, "viaOrquestrador vindo de dadosConhecidos deveria ser ignorado — não é a rota do orquestrador");
+  assert.equal(body.status, "concluido");
 });

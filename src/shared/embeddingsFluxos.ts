@@ -12,6 +12,10 @@ export interface FluxoParaIndexar {
 
 interface BuscaFluxos {
   buscarCandidatos(mensagem: string, k: number, catalogo: FluxoParaIndexar[]): Promise<FluxoParaIndexar[]>;
+  // Issue #180 — dispara a indexação sem esperar uma busca de verdade
+  // acontecer, usado pra pré-aquecer no boot do servidor. Só a variante
+  // Postgres precisa disso (a em-memória já é rápida e só existe em teste).
+  aquecer?(catalogo: FluxoParaIndexar[]): Promise<void>;
 }
 
 // Titan Embed Text v2 default — troca só se algum dia mudar de modelo (ver
@@ -114,26 +118,49 @@ function criarBuscaPostgres(url: string): BuscaFluxos {
   // processo (memoizado abaixo) é suficiente. Reindexação de verdade só
   // precisaria disso se o catálogo passasse a mudar em runtime sem reiniciar
   // o processo (fora de escopo aqui).
+  //
+  // Issue #180 — achado ao vivo: 76 fluxos indexados um por vez (loop
+  // serial, um embedding Bedrock por vez) levou 56s, bloqueando a 1ª
+  // requisição do orquestrador depois de cada restart do processo. Agora
+  // roda em lotes concorrentes (CONCORRENCIA por vez) — não afeta o
+  // resultado (cada item é independente), só o tempo total.
+  const CONCORRENCIA = 10;
   let indexadoPromise: Promise<void> | undefined;
   async function indexar(catalogo: FluxoParaIndexar[]): Promise<void> {
     await prontoPromise;
-    for (const f of catalogo) {
-      const vetor = await gerarEmbedding(f.descricao);
-      await pool.query(
-        `INSERT INTO fluxo_embeddings (id, nome, descricao, embedding)
-         VALUES ($1, $2, $3, $4::vector)
-         ON CONFLICT (id) DO UPDATE SET nome = $2, descricao = $3, embedding = $4::vector`,
-        [f.id, f.nome, f.descricao, paraLiteralVector(vetor)]
+    for (let i = 0; i < catalogo.length; i += CONCORRENCIA) {
+      const lote = catalogo.slice(i, i + CONCORRENCIA);
+      await Promise.all(
+        lote.map(async (f) => {
+          const vetor = await gerarEmbedding(f.descricao);
+          await pool.query(
+            `INSERT INTO fluxo_embeddings (id, nome, descricao, embedding)
+             VALUES ($1, $2, $3, $4::vector)
+             ON CONFLICT (id) DO UPDATE SET nome = $2, descricao = $3, embedding = $4::vector`,
+            [f.id, f.nome, f.descricao, paraLiteralVector(vetor)]
+          );
+        })
       );
     }
     logger.info({ total: catalogo.length }, "[embeddingsFluxos] catálogo (re)indexado");
   }
+  // Se `indexar` falhar (ex: throttling do Bedrock — mais provável agora
+  // com lotes concorrentes do que era com o loop serial), reseta a promise
+  // memoizada em vez de deixá-la rejeitada pra sempre — sem isso, TODA
+  // chamada futura (aquecimento de boot ou requisição real) ficaria presa
+  // no mesmo erro até reiniciar o processo (achado no code review da #180).
   function garantirIndexado(catalogo: FluxoParaIndexar[]): Promise<void> {
-    if (!indexadoPromise) indexadoPromise = indexar(catalogo);
+    if (!indexadoPromise) {
+      indexadoPromise = indexar(catalogo).catch((err) => {
+        indexadoPromise = undefined;
+        throw err;
+      });
+    }
     return indexadoPromise;
   }
 
   return {
+    aquecer: garantirIndexado,
     async buscarCandidatos(mensagem, k, catalogo) {
       if (catalogo.length <= k) return catalogo;
       await garantirIndexado(catalogo);
@@ -171,4 +198,14 @@ function obterBuscaFluxos(): Promise<BuscaFluxos> {
 export async function buscarCandidatos(mensagem: string, k: number, catalogo: FluxoParaIndexar[]): Promise<FluxoParaIndexar[]> {
   const busca = await obterBuscaFluxos();
   return busca.buscarCandidatos(mensagem, k, catalogo);
+}
+
+// Issue #180 — chamado no boot do servidor (fire-and-forget, ver
+// src/server.ts) pra disparar a indexação ANTES da 1ª requisição real
+// precisar dela. garantirIndexado() é memoizado por processo — se uma
+// requisição real chegar antes disso terminar, ela reaproveita a MESMA
+// promise em andamento, não dispara uma segunda indexação.
+export async function aquecerCatalogo(catalogo: FluxoParaIndexar[]): Promise<void> {
+  const busca = await obterBuscaFluxos();
+  await busca.aquecer?.(catalogo);
 }

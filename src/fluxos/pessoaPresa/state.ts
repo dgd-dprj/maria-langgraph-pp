@@ -1,5 +1,5 @@
 import { Annotation } from "@langchain/langgraph";
-import type { DadosApenado, DadosProcesso } from "../../shared/types.js";
+import type { DadosApenado, DadosPessoa, DadosProcesso } from "../../shared/types.js";
 import { AnnotationTokensGastos } from "../../shared/tokensAcumulados.js";
 
 export type PessoaPresaStateType = typeof PessoaPresaState.State;
@@ -13,6 +13,31 @@ export const PessoaPresaState = Annotation.Root({
   dadosApenado: Annotation<DadosApenado | undefined>,
   tentativasRg: Annotation<number | undefined>,
   querTentarNovamente: Annotation<boolean | undefined>,
+  // Issue #183 — identificação/cadastro do ASSISTIDO (quem está
+  // conversando) no Verde, via CPF — mesmos nomes de campo dos subgrafos
+  // identificarAssistido/cadastroPessoa (issue #171), pra channel sharing
+  // quando embutidos como nó aqui. Não confundir com `rg`/`dadosApenado`
+  // acima, que identificam o PRESO, uma pessoa diferente.
+  cpf: Annotation<string | undefined>,
+  dadosPessoa: Annotation<DadosPessoa | undefined>,
+  tentativasCpf: Annotation<number | undefined>,
+  querTentarNovamenteCpf: Annotation<boolean | undefined>,
+  digitouCpfDireto: Annotation<boolean | undefined>,
+  nome: Annotation<string | undefined>,
+  dataNascimento: Annotation<string | undefined>,
+  // preenchido só se o POST /integra/pessoa (subgrafo cadastroPessoa) falhar.
+  cadastroErro: Annotation<string | undefined>,
+  // Issue #189 — confirmação dos dados do assistido depois de achar por
+  // CPF (identificarAssistido) ou cadastrar (cadastroPessoa). Mesmo campo
+  // compartilhado com os 2 subgrafos.
+  confirmaAssistido: Annotation<boolean | undefined>,
+  // Issue #191 — setado pelo orquestrador (rotas/orquestrador.ts) ao criar
+  // o atendimento; NUNCA setado por quem chama POST /atendimentos com
+  // flowId direto (contrato da Tykhe). Sem isso, o fluxo pula
+  // identificarAssistido/cadastroPessoa inteiros e conclui direto depois
+  // do parentesco — comportamento de antes da issue #183, a Tykhe nunca
+  // pode ganhar a pergunta de CPF do assistido que não existia antes.
+  viaOrquestrador: Annotation<boolean | undefined>,
   // true quando a resposta de "quer tentar de novo?" já veio como um RG
   // digitado direto (em vez de "Sim"/"Não") — issue #54, achado ao vivo
   // (pessoa pula a confirmação e já manda o RG novo). Nesse caso `rg` já
@@ -34,6 +59,13 @@ export const PessoaPresaState = Annotation.Root({
     | "sem_numero_processo"
     | "origem_processo_nao_suportada"
     | "dados_pessoa_nao_atendidos"
+    // Issue #183 — esgotou tentativas de CPF do assistido E o cadastro
+    // novo no Verde (subgrafo cadastroPessoa) também falhou.
+    | "falha_cadastro"
+    // Issue #189 — achou/cadastrou o assistido, mas ele negou que os
+    // dados são dele. Diferente de nome_nao_confirmado (que é sobre o
+    // PRESO, via RG).
+    | "assistido_nao_confirmado"
     | undefined
   >,
   // texto final específico do desfecho — sobrescreve o texto genérico

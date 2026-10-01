@@ -205,6 +205,36 @@ test("POST /atendimentos/respostas sem chatId → 400", async () => {
   assert.equal(res.statusCode, 400);
 });
 
+// Issue #185 — achado ao vivo: resposta ausente/vazia virava
+// `new Command({ resume: "" })` (string vazia é falsy, LangGraph trata
+// como "sem resume") e explodia um 500 cru ("Received empty Command
+// input") em vez de um 400 de validação normal.
+test("POST /atendimentos/respostas sem resposta → 400, não 500", async () => {
+  const app = await montarApp();
+  const chatId = novoChatId();
+  await app.inject({ method: "POST", url: BASE, payload: { chatId, flowId: FLOW_ID }, headers: AUTH });
+  const res = await app.inject({
+    method: "POST",
+    url: `${BASE}/respostas`,
+    payload: { chatId },
+    headers: AUTH,
+  });
+  assert.equal(res.statusCode, 400);
+});
+
+test("POST /atendimentos/respostas com resposta vazia (\"\") → 400, não 500", async () => {
+  const app = await montarApp();
+  const chatId = novoChatId();
+  await app.inject({ method: "POST", url: BASE, payload: { chatId, flowId: FLOW_ID }, headers: AUTH });
+  const res = await app.inject({
+    method: "POST",
+    url: `${BASE}/respostas`,
+    payload: { chatId, resposta: "" },
+    headers: AUTH,
+  });
+  assert.equal(res.statusCode, 400);
+});
+
 test("POST /atendimentos/respostas em chatId inexistente (nunca criado) → 404", async () => {
   const app = await montarApp();
   const res = await app.inject({

@@ -5,14 +5,15 @@ import {
   consultarCep as consultarCepVerde,
   consultarOrgaosPlantaoViolenciaDomestica,
   consultarOrgaosViolenciaDomestica,
-  consultarPessoaPorCpf,
   consultarPlantaoVigente,
   consultarProcesso as consultarProcessoVerde,
   criarEncaminhamentoViolenciaDomestica,
 } from "../../integracoes/verde.js";
 import { prepararPergunta } from "../../ia/reescrever.js";
 import { criarCheckpointer } from "../../shared/checkpointer.js";
-import { MENSAGEM_CPF_NAO_ENCONTRADO, MENSAGEM_FALHA_ENCAMINHAMENTO, MENSAGEM_NAO_VITIMA, MENSAGEM_SEM_ORGAO_DISPONIVEL } from "./api.js";
+import { grafo as subgrafoIdentificarAssistido } from "../../subgrafos/identificarAssistido/graph.js";
+import { grafo as subgrafoCadastroPessoa } from "../../subgrafos/cadastroPessoa/graph.js";
+import { MENSAGEM_FALHA_CADASTRO, MENSAGEM_CPF_NAO_ENCONTRADO, MENSAGEM_FALHA_ENCAMINHAMENTO, MENSAGEM_NAO_VITIMA, MENSAGEM_SEM_ORGAO_DISPONIVEL } from "./api.js";
 
 // Mesma tolerância de respostas sim_nao de fluxos/pessoaPresa/graph.ts — a
 // Tykhe às vezes repassa "Sim"/"Não" literal em vez de "true"/"false" (bug
@@ -28,16 +29,11 @@ function respostaEhSim(resposta: string): boolean {
   return normalizado === "true" || normalizado === "sim" || normalizado === "s" || normalizado === "yes";
 }
 
-// Issue #77 — reconhece CPF/processo digitado direto na pergunta "quer
-// tentar de novo?" (em vez de "Sim") pelo FORMATO, mesmo padrão de
-// rgFormatoValido em pessoaPresa/graph.ts (issue #54). Sem isso,
-// respostaEhSim(resposta) devolveria false pra um CPF/processo digitado
-// direto, e o fluxo entenderia como "não quer tentar de novo" — pior que
-// não ter retry, engana quem já tentou se corrigir.
-function cpfFormatoValido(valor: string): boolean {
-  return valor.replace(/\D/g, "").length === 11;
-}
-
+// Issue #77 — reconhece processo digitado direto na pergunta "quer tentar
+// de novo?" (em vez de "Sim") pelo FORMATO, mesmo padrão de
+// rgFormatoValido em pessoaPresa/graph.ts (issue #54). CPF tem o
+// equivalente dentro de subgrafos/identificarAssistido/graph.ts agora
+// (issue #171).
 function numeroProcessoFormatoValido(valor: string): boolean {
   return valor.replace(/\D/g, "").length === 20;
 }
@@ -161,39 +157,61 @@ async function pedirTemRO(state: ViolenciaDomesticaStateType): Promise<Partial<V
   return { temRegistroOcorrencia: respostaEhSim(resposta) };
 }
 
-// cpf normalmente já vem em dadosConhecidos (ver rotas/atendimentos.ts) — só
-// pergunta se não veio. Comum aos 2 ramos (com/sem RO) — os dois precisam de
-// idPessoa pra consultar órgão (ver consultarOrgaos abaixo), diferente do
-// desenho anterior em que só o ramo sem RO pedia CPF.
+// Issue #171 — pedir/consultar CPF (com retry) morava aqui, extraído pro
+// subgrafo subgrafos/identificarAssistido/graph.ts (reaproveitável). Esse
+// subgrafo é embutido como nó abaixo (ver `grafo` no fim do arquivo) —
+// depoisDeIdentificarAssistido decide o que fazer com o resultado dele.
 //
-// Bypass só vale na tentativa 0 (issue #72, mesmo racional de
-// rgVeioDaExtracao em pessoaPresa/graph.ts) — sem o check de tentativasCpf,
-// um retry reusaria o CPF da tentativa anterior (que FALHOU) em vez de
-// perguntar de novo.
-function cpfVeioDeDadosConhecidos(state: ViolenciaDomesticaStateType): boolean {
-  return state.cpf !== undefined && (state.tentativasCpf ?? 0) === 0;
+// Issue #189 — confirmaAssistido:false checado ANTES de dadosPessoa.encontrado:
+// achou a pessoa mas ela negou que os dados são dela — handoff direto, não
+// tenta cadastro novo (seria tratar "não confirmo" igual a "não achei").
+//
+// Issue #191 — CPF esgotado (não encontrado) SEM viaOrquestrador nunca
+// entra em cadastroPessoa — volta a ser handoff direto (comportamento de
+// antes da issue #171). A Tykhe (POST /atendimentos direto) nunca seta
+// viaOrquestrador, então nunca ganha o cadastro automático.
+function depoisDeIdentificarAssistido(state: ViolenciaDomesticaStateType): "encontrado" | "cadastrar" | "naoConfirmado" | "cpfEsgotado" {
+  if (state.confirmaAssistido === false) return "naoConfirmado";
+  if (state.dadosPessoa?.encontrado) return "encontrado";
+  return state.viaOrquestrador ? "cadastrar" : "cpfEsgotado";
 }
 
-async function prepararPerguntaCpf(state: ViolenciaDomesticaStateType): Promise<Partial<ViolenciaDomesticaStateType>> {
-  if (cpfVeioDeDadosConhecidos(state)) return {};
-  return prepararPergunta("cpf", "Qual o seu CPF? Informe apenas os números.");
+// Issue #72 — restaurado na #191: comportamento de antes da issue #171
+// pra quem chama sem viaOrquestrador (a Tykhe). Esgotou as 3 tentativas
+// de CPF, handoff direto, nunca tenta cadastro nem pergunta confirmação.
+async function cpfEsgotado(): Promise<Partial<ViolenciaDomesticaStateType>> {
+  return { statusFinal: "handoff_humano", motivoHandoff: "cpf_nao_encontrado", mensagemFinal: MENSAGEM_CPF_NAO_ENCONTRADO };
 }
 
-async function pedirCpf(state: ViolenciaDomesticaStateType): Promise<Partial<ViolenciaDomesticaStateType>> {
-  if (cpfVeioDeDadosConhecidos(state)) return {};
-  const resposta = interrupt<Pergunta, string>({
-    pergunta: state.perguntaAtualTexto ?? "Qual o seu CPF? Informe apenas os números.",
-    tipo: "texto",
-  });
-  return { cpf: resposta };
+// Issue #171 — subgrafo cadastroPessoa (embutido abaixo) preenche
+// dadosPessoa (sucesso, mesmo campo de quem já tinha cadastro) ou
+// cadastroErro (falha) — nunca os dois. Issue #189 — mesmo racional do
+// comentário acima, agora também depois de cadastrar (não só depois de achar).
+function depoisDeCadastrarPessoa(state: ViolenciaDomesticaStateType): "continuar" | "falhou" | "naoConfirmado" {
+  if (state.cadastroErro !== undefined) return "falhou";
+  if (state.confirmaAssistido === false) return "naoConfirmado";
+  return "continuar";
 }
 
-async function consultarPessoa(state: ViolenciaDomesticaStateType): Promise<Partial<ViolenciaDomesticaStateType>> {
-  const dados = await consultarPessoaPorCpf(state.cpf ?? "");
-  return { dadosPessoa: dados, tentativasCpf: (state.tentativasCpf ?? 0) + 1 };
+async function falhaCadastro(state: ViolenciaDomesticaStateType): Promise<Partial<ViolenciaDomesticaStateType>> {
+  return {
+    statusFinal: "handoff_humano",
+    motivoHandoff: "falha_cadastro",
+    mensagemFinal: state.cadastroErro ? `${MENSAGEM_FALHA_CADASTRO} (${state.cadastroErro})` : MENSAGEM_FALHA_CADASTRO,
+  };
 }
 
-// Issue #127 — roda sempre depois de consultarPessoa (mesmo sem CPF
+// Issue #189 — dead-end compartilhado pelos 2 caminhos que embutem
+// identificarAssistido/cadastroPessoa (achou por CPF ou acabou de
+// cadastrar), quando a pessoa nega que os dados achados/cadastrados são
+// dela. Sem mensagem fixa de propósito — mesmo padrão de
+// dados_pessoa_nao_atendidos em pessoaPresa/graph.ts, só o status importa.
+async function assistidoNaoConfirmado(): Promise<Partial<ViolenciaDomesticaStateType>> {
+  return { statusFinal: "handoff_humano", motivoHandoff: "assistido_nao_confirmado" };
+}
+
+// Issue #127 — roda sempre depois de identificar a pessoa (encontrada ou
+// recém-cadastrada), mesmo sem CPF
 // encontrado, se enderecoDetalhado.cep não existir consultarCepVerde
 // devolve encontrado:false e só não preenche os ids — não bloqueia nada,
 // mesmo racional non-blocking de consultarPlantao/consultarProcesso).
@@ -240,21 +258,14 @@ async function consultarOrgaos(state: ViolenciaDomesticaStateType): Promise<Part
   return { orgaosViolenciaDomestica: resultado };
 }
 
-// Issue #72 — sem órgão encontrado tem 2 causas bem diferentes: (a) a
-// pessoa foi encontrada mas genuinamente não tem órgão disponível pra ela
-// (comportamento antigo, mensagem/motivo "sem_orgao_disponivel" inalterado),
-// ou (b) o CPF não foi encontrado (dadosPessoa.encontrado:false) — nesse
-// caso dá até 3 tentativas antes de desistir, em vez de já mandar pro
-// atendente com uma mensagem que nem fala a real do problema.
-function depoisDeConsultarOrgaos(
-  state: ViolenciaDomesticaStateType
-): "semOrgao" | "prosseguir" | "tentarCpfNovamente" | "cpfEsgotado" {
+// Issue #171 — só chega aqui depois de identificarAssistido/cadastroPessoa
+// já terem garantido que a pessoa existe (dadosPessoa.encontrado:true) —
+// "sem órgão" agora só tem 1 causa possível (pessoa encontrada, genuinamente
+// sem órgão disponível pra ela). O caso "CPF não encontrado" foi resolvido
+// (encontrado ou cadastrado) ANTES de chegar em consultarOrgaos.
+function depoisDeConsultarOrgaos(state: ViolenciaDomesticaStateType): "semOrgao" | "prosseguir" {
   const semOrgao = state.orgaosViolenciaDomestica?.contactarCrc || !state.orgaosViolenciaDomestica?.orgaos.length;
-  if (!semOrgao) return "prosseguir";
-  if (state.dadosPessoa?.encontrado === false) {
-    return (state.tentativasCpf ?? 0) >= 3 ? "cpfEsgotado" : "tentarCpfNovamente";
-  }
-  return "semOrgao";
+  return semOrgao ? "semOrgao" : "prosseguir";
 }
 
 // Único desfecho "sem órgão" documentado pelo Verde (RO:true sem nenhum
@@ -265,43 +276,6 @@ async function semOrgaoDisponivel(state: ViolenciaDomesticaStateType): Promise<P
     statusFinal: "handoff_humano",
     motivoHandoff: "sem_orgao_disponivel",
     mensagemFinal: state.orgaosViolenciaDomestica?.mensagemCrc ?? MENSAGEM_SEM_ORGAO_DISPONIVEL,
-  };
-}
-
-async function prepararPerguntaTentarNovamenteCpf(state: ViolenciaDomesticaStateType): Promise<Partial<ViolenciaDomesticaStateType>> {
-  return prepararPergunta(
-    "tentarNovamenteCpf",
-    `Não encontrei ninguém com esse CPF (tentativa ${state.tentativasCpf ?? 1} de 3). Quer tentar de novo?`
-  );
-}
-
-async function perguntaTentarNovamenteCpf(state: ViolenciaDomesticaStateType): Promise<Partial<ViolenciaDomesticaStateType>> {
-  const resposta = interrupt<Pergunta, string>({
-    pergunta:
-      state.perguntaAtualTexto ?? `Não encontrei ninguém com esse CPF (tentativa ${state.tentativasCpf ?? 1} de 3). Quer tentar de novo?`,
-    tipo: "sim_nao",
-    opcoes: ["Sim", "Não"],
-  });
-  // Issue #77 — CPF digitado direto em vez de "Sim" já é aceito como o novo
-  // valor, pulando pedirCpf (vai direto pra consultarPessoa).
-  if (cpfFormatoValido(resposta)) {
-    return { querTentarNovamenteCpf: true, cpf: resposta, digitouCpfDireto: true };
-  }
-  return { querTentarNovamenteCpf: respostaEhSim(resposta), digitouCpfDireto: false };
-}
-
-function depoisDePerguntaTentarCpf(state: ViolenciaDomesticaStateType): "pedirCpf" | "cpfEsgotado" | "consultarPessoa" {
-  if (!state.querTentarNovamenteCpf) return "cpfEsgotado";
-  return state.digitouCpfDireto ? "consultarPessoa" : "pedirCpf";
-}
-
-// Esgotou as 3 tentativas (ou respondeu "não" quer tentar de novo) — motivo
-// específico, não confunde com "sem_orgao_disponivel" (issue #72).
-async function cpfEsgotado(): Promise<Partial<ViolenciaDomesticaStateType>> {
-  return {
-    statusFinal: "handoff_humano",
-    motivoHandoff: "cpf_nao_encontrado",
-    mensagemFinal: MENSAGEM_CPF_NAO_ENCONTRADO,
   };
 }
 
@@ -375,16 +349,15 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
   .addNode("perguntaTentarNovamenteProcesso", perguntaTentarNovamenteProcesso)
   .addNode("prepararPerguntaTemRO", prepararPerguntaTemRO)
   .addNode("pedirTemRO", pedirTemRO)
-  .addNode("prepararPerguntaCpf", prepararPerguntaCpf)
-  .addNode("pedirCpf", pedirCpf)
-  .addNode("consultarPessoa", consultarPessoa)
+  .addNode("identificarAssistido", subgrafoIdentificarAssistido)
+  .addNode("cadastroPessoa", subgrafoCadastroPessoa)
+  .addNode("falhaCadastro", falhaCadastro)
+  .addNode("assistidoNaoConfirmado", assistidoNaoConfirmado)
+  .addNode("cpfEsgotado", cpfEsgotado)
   .addNode("consultarCep", consultarCep)
   .addNode("consultarPlantao", consultarPlantao)
   .addNode("consultarOrgaos", consultarOrgaos)
   .addNode("semOrgaoDisponivel", semOrgaoDisponivel)
-  .addNode("prepararPerguntaTentarNovamenteCpf", prepararPerguntaTentarNovamenteCpf)
-  .addNode("perguntaTentarNovamenteCpf", perguntaTentarNovamenteCpf)
-  .addNode("cpfEsgotado", cpfEsgotado)
   .addNode("criarEncaminhamento", criarEncaminhamento)
   .addNode("falhaEncaminhamento", falhaEncaminhamento)
   .addNode("concluir", concluir)
@@ -416,28 +389,28 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
     consultarProcesso: "consultarProcesso",
   })
   .addEdge("prepararPerguntaTemRO", "pedirTemRO")
-  .addEdge("pedirTemRO", "prepararPerguntaCpf")
-  .addEdge("prepararPerguntaCpf", "pedirCpf")
-  .addEdge("pedirCpf", "consultarPessoa")
-  .addEdge("consultarPessoa", "consultarCep")
+  .addEdge("pedirTemRO", "identificarAssistido")
+  .addConditionalEdges("identificarAssistido", depoisDeIdentificarAssistido, {
+    encontrado: "consultarCep",
+    cadastrar: "cadastroPessoa",
+    naoConfirmado: "assistidoNaoConfirmado",
+    cpfEsgotado: "cpfEsgotado",
+  })
+  .addConditionalEdges("cadastroPessoa", depoisDeCadastrarPessoa, {
+    continuar: "consultarCep",
+    falhou: "falhaCadastro",
+    naoConfirmado: "assistidoNaoConfirmado",
+  })
+  .addEdge("falhaCadastro", END)
+  .addEdge("assistidoNaoConfirmado", END)
+  .addEdge("cpfEsgotado", END)
   .addEdge("consultarCep", "consultarPlantao")
   .addEdge("consultarPlantao", "consultarOrgaos")
   .addConditionalEdges("consultarOrgaos", depoisDeConsultarOrgaos, {
     semOrgao: "semOrgaoDisponivel",
     prosseguir: "criarEncaminhamento",
-    tentarCpfNovamente: "prepararPerguntaTentarNovamenteCpf",
-    cpfEsgotado: "cpfEsgotado",
   })
   .addEdge("semOrgaoDisponivel", END)
-  .addEdge("prepararPerguntaTentarNovamenteCpf", "perguntaTentarNovamenteCpf")
-  .addConditionalEdges("perguntaTentarNovamenteCpf", depoisDePerguntaTentarCpf, {
-    pedirCpf: "prepararPerguntaCpf",
-    cpfEsgotado: "cpfEsgotado",
-    // CPF digitado direto na pergunta de retry (issue #77) — pula
-    // prepararPerguntaCpf, consulta o Verde de novo direto.
-    consultarPessoa: "consultarPessoa",
-  })
-  .addEdge("cpfEsgotado", END)
   .addConditionalEdges("criarEncaminhamento", depoisDeCriarEncaminhamento, {
     concluir: "concluir",
     falhou: "falhaEncaminhamento",

@@ -35,6 +35,14 @@ resource "aws_secretsmanager_secret_version" "app_release" {
     LANGSMITH_API_KEY = "PREENCHER"
     LANGSMITH_PROJECT = "maria-langgraph-pp-release"
     API_KEY           = "PREENCHER" # chave própria deste ambiente, diferente da do outro
+    # Issue #198 — bridge WhatsApp (Meta Cloud API), testado só no ambiente
+    # release por enquanto (número de teste da Meta, sem credencial própria
+    # ainda). WHATSAPP_VERIFY_TOKEN é segredo NOSSO (não vem da Meta) —
+    # mesmo valor cadastrado na configuração do webhook no app da Meta.
+    WHATSAPP_API_URL         = "PREENCHER"
+    WHATSAPP_PHONE_NUMBER_ID = "PREENCHER"
+    WHATSAPP_ACCESS_TOKEN    = "PREENCHER"
+    WHATSAPP_VERIFY_TOKEN    = "PREENCHER"
   })
 
   lifecycle {
@@ -65,9 +73,21 @@ resource "aws_ecs_task_definition" "api_release" {
     environment = [
       { name = "PORT", value = tostring(var.container_port) },
       { name = "AWS_REGION", value = var.aws_region },
+      # Achado ao vivo 2026-09-28/30: o modelo default do código
+      # (anthropic.claude-3-haiku-20240307-v1:0) foi desativado pela AWS
+      # (ResourceNotFoundException, "reached the end of its life") — sem
+      # isso, TODA classificação do orquestrador falha silenciosamente e
+      # cai em handoff_humano. Não é segredo (é só um id de modelo),
+      # environment var normal, não secrets. Profile de inferência
+      # cross-region, não o model id direto (confirmado via
+      # `aws bedrock get-foundation-model`/`list-inference-profiles`).
+      { name = "BEDROCK_MODEL_ID", value = "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
     ]
     secrets = [
-      for k in ["VERDE_API_URL", "VERDE_JWT_TOKEN", "VERDE_CLIENT_ID", "DATABASE_URL", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT", "API_KEY"] :
+      for k in [
+        "VERDE_API_URL", "VERDE_JWT_TOKEN", "VERDE_CLIENT_ID", "DATABASE_URL", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT", "API_KEY",
+        "WHATSAPP_API_URL", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_VERIFY_TOKEN",
+      ] :
       { name = k, valueFrom = "${aws_secretsmanager_secret.app_release.arn}:${k}::" }
     ]
     logConfiguration = {

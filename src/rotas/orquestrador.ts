@@ -109,6 +109,16 @@ export function registrarRotaOrquestrador(app: FastifyInstance): void {
         | { chatId?: string; mensagem?: string; resposta?: string; dadosConhecidos?: Record<string, unknown> }
         | undefined;
 
+      // Issue #185 — resposta:"" (vazia, não só ausente) precisa barrar
+      // ANTES da checagem de "algum dos dois preenchido" abaixo — senão
+      // {mensagem:"x", resposta:""} passaria (mensagem preenchido) e ainda
+      // cairia no branch de Command({resume:""}) mais abaixo, que o
+      // LangGraph trata como "sem resume" (string vazia é falsy) e explode
+      // um 500 cru em vez de um 400 de validação normal. mensagem:"" não
+      // tem esse risco — vai pra um invoke() normal, não resume.
+      if (body?.resposta !== undefined && body.resposta === "") {
+        return reply.code(400).send({ erro: "resposta não pode ser vazia" });
+      }
       if (body?.mensagem === undefined && body?.resposta === undefined) {
         return reply.code(400).send({ erro: "mensagem (1ª chamada) ou resposta (continuação de desambiguação) obrigatório" });
       }
@@ -194,7 +204,15 @@ export function registrarRotaOrquestrador(app: FastifyInstance): void {
         ...(body?.dadosConhecidos ?? {}),
         tokensGastos: tokensGastosConversa ?? { input: 0, output: 0, total: 0 },
       };
-      const resultadoAtendimento = await criarAtendimento(fluxo, flowIdEscolhido, chatId, dadosConhecidosComTokens, req.log);
+      // Issue #191 — viaOrquestrador:true como PARÂMETRO explícito, não
+      // dentro de dadosConhecidosComTokens (achado no code review da PR
+      // #192: dadosConhecidos é additionalProperties:true, controlado pelo
+      // cliente — se `viaOrquestrador` estivesse ali dentro, qualquer
+      // chamador de POST /atendimentos direto, inclusive a Tykhe, poderia
+      // mandar esse campo e ativar o comportamento que essa issue existe
+      // pra bloquear). criarAtendimento descarta qualquer viaOrquestrador
+      // vindo do body e só aceita este parâmetro, controlado por nós aqui.
+      const resultadoAtendimento = await criarAtendimento(fluxo, flowIdEscolhido, chatId, dadosConhecidosComTokens, req.log, true);
       if (resultadoAtendimento.statusCode !== 200) return reply.code(resultadoAtendimento.statusCode).send(resultadoAtendimento.corpo);
       return reply.code(200).header("Location", resultadoAtendimento.location).send(resultadoAtendimento.corpo);
     }

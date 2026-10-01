@@ -69,3 +69,49 @@ jobs:
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_SERVICE" \
             --region "$AWS_REGION"
+
+  # Issue #145 — só roda depois do deploy ter sucesso; não bloqueia nem
+  # atrasa o deploy em si (job separado, sem "needs" na direção contrária).
+  tag:
+    needs: deploy
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write # criar/push tag e GitHub Release
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # precisa do histórico completo pra achar a última tag e listar commits desde ela
+
+      - name: Calcular próxima versão semver e criar tag + Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -e
+          ULTIMA_TAG=$(git tag --list 'v*.*.*' --sort=-v:refname | head -n1)
+          if [ -z "$ULTIMA_TAG" ]; then
+            ULTIMA_TAG="v0.0.0"
+            RANGE="HEAD"
+          else
+            RANGE="$ULTIMA_TAG..HEAD"
+          fi
+
+          COMMITS=$(git log "$RANGE" --pretty=format:'%s%n%b')
+
+          MAJOR=$(echo "$ULTIMA_TAG" | sed 's/^v//' | cut -d. -f1)
+          MINOR=$(echo "$ULTIMA_TAG" | sed 's/^v//' | cut -d. -f2)
+          PATCH=$(echo "$ULTIMA_TAG" | sed 's/^v//' | cut -d. -f3)
+
+          if echo "$COMMITS" | grep -q "BREAKING CHANGE"; then
+            MAJOR=$((MAJOR + 1)); MINOR=0; PATCH=0
+          elif echo "$COMMITS" | grep -qE '^\s*:[a-z_]+:\s*feat:'; then
+            MINOR=$((MINOR + 1)); PATCH=0
+          else
+            PATCH=$((PATCH + 1))
+          fi
+
+          NOVA_TAG="v${MAJOR}.${MINOR}.${PATCH}"
+          echo "Última tag: $ULTIMA_TAG — nova tag: $NOVA_TAG"
+
+          git tag "$NOVA_TAG"
+          git push origin "$NOVA_TAG"
+          gh release create "$NOVA_TAG" --title "$NOVA_TAG" --generate-notes

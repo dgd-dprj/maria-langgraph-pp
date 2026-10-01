@@ -35,6 +35,25 @@ export const ViolenciaDomesticaState = Annotation.Root({
   // vez de "Sim") já é reconhecido pelo formato, mesmo padrão de
   // digitouRgDireto em pessoaPresa/state.ts (issue #54).
   digitouCpfDireto: Annotation<boolean | undefined>,
+  // Issue #171 — campos do subgrafo subgrafos/cadastroPessoa/, embutido
+  // quando o CPF esgota tentativas sem achar a pessoa. Precisam existir
+  // aqui (mesmo nome) pra LangGraph compartilhar o canal com o subgrafo —
+  // sem isso, o subgrafo não teria onde escrever nome/dataNascimento/
+  // cadastroErro. Nenhum fluxo além do de cadastro os lê.
+  nome: Annotation<string | undefined>,
+  dataNascimento: Annotation<string | undefined>,
+  cadastroErro: Annotation<string | undefined>,
+  // Issue #189 — confirmação dos dados do assistido depois de achar por
+  // CPF (identificarAssistido) ou cadastrar (cadastroPessoa). Mesmo campo
+  // compartilhado com os 2 subgrafos.
+  confirmaAssistido: Annotation<boolean | undefined>,
+  // Issue #191 — setado pelo orquestrador (rotas/orquestrador.ts) ao criar
+  // o atendimento; NUNCA setado por quem chama POST /atendimentos com
+  // flowId direto (contrato da Tykhe). Decide se CPF esgotado entra em
+  // cadastroPessoa (true) ou volta a ser handoff direto (ausente/false,
+  // comportamento de antes da issue #171) — a Tykhe não pode ganhar
+  // comportamento novo que não existia antes dessas issues.
+  viaOrquestrador: Annotation<boolean | undefined>,
   // ids de plantão(ões) vigente(s) agora (consultarPlantaoVigente) — vazio
   // = fora de horário de plantão, usa consulta de órgão normal. Não vazio =
   // usa consultarOrgaosPlantaoViolenciaDomestica em vez da normal.
@@ -52,10 +71,27 @@ export const ViolenciaDomesticaState = Annotation.Root({
   // só preenchido quando statusFinal:"handoff_humano". falha_encaminhamento
   // = achou o órgão certo mas o POST de encaminhamento de verdade falhou —
   // não inventa sucesso pro usuário, manda pra atendente confirmar.
-  // cpf_nao_encontrado (issue #72) = esgotou as 3 tentativas de CPF sem
-  // achar a pessoa — motivo específico, não confunde com "sem_orgao_disponivel"
-  // (que é pra pessoa ENCONTRADA sem órgão disponível pra ela).
-  motivoHandoff: Annotation<"nao_e_vitima" | "sem_orgao_disponivel" | "falha_encaminhamento" | "cpf_nao_encontrado" | undefined>,
+  // falha_cadastro (issue #171) = CPF esgotou tentativas (não encontrado) e
+  // o cadastro novo no Verde (subgrafo cadastroPessoa) também falhou — não
+  // inventa sucesso, manda pra atendente confirmar manualmente. Substitui o
+  // antigo "cpf_nao_encontrado" (issue #72): antes, esgotar tentativas já
+  // virava handoff direto; agora tenta cadastrar primeiro, só vira handoff
+  // se o cadastro em si falhar.
+  // assistido_nao_confirmado (issue #189) = achou/cadastrou a pessoa, mas
+  // ela respondeu que os dados NÃO são dela — handoff direto, diferente de
+  // falha_cadastro (que é sobre o POST /integra/pessoa em si falhar).
+  // cpf_nao_encontrado (issue #72, restaurado na #191) = CPF esgotou
+  // tentativas SEM viaOrquestrador — comportamento de antes da #171,
+  // nunca tenta cadastro (a Tykhe não pode ganhar esse comportamento novo).
+  motivoHandoff: Annotation<
+    | "nao_e_vitima"
+    | "sem_orgao_disponivel"
+    | "falha_encaminhamento"
+    | "falha_cadastro"
+    | "assistido_nao_confirmado"
+    | "cpf_nao_encontrado"
+    | undefined
+  >,
   // só preenchido quando statusFinal:"concluido".
   tipoEncaminhamento: Annotation<"padrao" | "urgente" | undefined>,
   // texto final específico do desfecho — sobrescreve o texto genérico

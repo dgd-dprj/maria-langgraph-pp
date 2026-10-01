@@ -14,9 +14,23 @@ import { obterAtendimentosStore } from "../shared/atendimentosDb.js";
 // destino conhecido (fica ausente até algum fluxo novo precisar de um).
 function destinoDoLog(fluxoId: string, statusFinal: string | undefined): string | undefined {
   if (statusFinal === "handoff_humano") return "atendimento_humano";
+  if (statusFinal === "expirado") return "sessao_expirada";
   if (fluxoId === ID_VIOLENCIA_DOMESTICA) return "agendamento";
   return undefined;
 }
+
+// Issue #166 — TTL de inatividade. Lido a cada request (não módulo-level)
+// de propósito — testes setam TTL_INATIVIDADE_HORAS=0 em process.env pra
+// forçar "sempre expirado" sem esperar tempo real nem mockar Date; um const
+// avaliado 1x na importação não veria essa mudança feita depois do módulo
+// já carregado.
+function ttlInatividadeHoras(): number {
+  return Number(process.env.TTL_INATIVIDADE_HORAS ?? "24");
+}
+
+const TEXTO_CONFIRMACAO_TTL = "Já faz um tempo desde sua última mensagem. Quer continuar de onde você parou?";
+const MENSAGEM_EXPIRADO =
+  "Essa conversa expirou por inatividade. Pra continuar, inicie um novo atendimento.";
 
 export interface InterruptValue {
   pergunta: string;
@@ -130,7 +144,12 @@ const respostaAtendimentoSchema = {
     resposta: { type: "string", description: "Texto da pergunta (se em_andamento) ou mensagem final" },
     tipoResposta: { type: "string", enum: ["texto", "sim_nao", "opcoes"] },
     opcoes: { type: "array", items: { type: "string" } },
-    status: { type: "string", enum: ["em_andamento", "concluido", "handoff_humano"] },
+    status: {
+      type: "string",
+      enum: ["em_andamento", "concluido", "handoff_humano", "expirado"],
+      description:
+        "expirado (issue #166): atendimento parado por mais de TTL_INATIVIDADE_HORAS e a pessoa escolheu não continuar — precisa iniciar um novo atendimento (novo chatId) pra seguir.",
+    },
     flowId: { type: "string", format: "uuid", description: "Fluxo a que esse atendimento pertence — identifica o schema de metadados" },
     metadados: {
       type: "object",
@@ -232,7 +251,16 @@ export async function criarAtendimento(
   fluxoId: string,
   chatIdBody: string | undefined,
   dadosConhecidos: Record<string, unknown> | undefined,
-  log: FastifyBaseLogger
+  log: FastifyBaseLogger,
+  // Issue #191 — NUNCA vem de dadosConhecidos (que é `additionalProperties:
+  // true`, o cliente controla livremente). Achado no code review da PR
+  // #192: sem esse parâmetro separado, qualquer chamador de POST
+  // /atendimentos (a própria Tykhe inclusive) podia mandar
+  // `dadosConhecidos: { viaOrquestrador: true }` e ativar o comportamento
+  // que essa issue existe pra bloquear — só rotas/orquestrador.ts pode
+  // setar isso, passando o parâmetro explícito abaixo. Qualquer
+  // `viaOrquestrador` que vier dentro de dadosConhecidos é descartado.
+  viaOrquestrador = false
 ): Promise<ResultadoCriarAtendimento> {
   if (!chatIdBody && process.env.NODE_ENV !== "test") {
     return { statusCode: 400, corpo: { erro: "chatId obrigatório" } };
@@ -279,7 +307,12 @@ export async function criarAtendimento(
   }
 
   log.info({ fluxoId, chatId, evento: "atendimento_criado" }, "atendimento criado");
-  const resultado = await fluxo.grafo.invoke(dadosConhecidos ?? {}, config);
+  // Issue #191 — descarta qualquer `viaOrquestrador` que tenha vindo dentro
+  // de dadosConhecidos (o cliente pode mandar o que quiser ali) e usa só o
+  // parâmetro explícito acima, controlado por quem CHAMA esta função, não
+  // pelo corpo da requisição.
+  const { viaOrquestrador: _viaOrquestradorIgnorado, ...dadosConhecidosLimpos } = dadosConhecidos ?? {};
+  const resultado = await fluxo.grafo.invoke({ ...dadosConhecidosLimpos, viaOrquestrador }, config);
 
   const interrupt = extrairInterruptDoInvoke(resultado);
   // Issue #82 — grafo padrão (fluxo planejado, issue #21) pode concluir JÁ
@@ -443,6 +476,13 @@ export function registrarRotasAtendimento(app: FastifyInstance): void {
 
       const chatId = body?.chatId;
       if (!chatId) return reply.code(400).send({ erro: "chatId obrigatório" });
+      // Issue #185 — achado ao vivo: resposta ausente/vazia virava
+      // `new Command({ resume: "" })` lá embaixo (processarResposta) —
+      // string vazia é falsy, LangGraph trata igual "sem resume" (mesmo bug
+      // de valor falsy já documentado pro caso resume:false em
+      // pessoaPresa/graph.ts) e explode um 500 cru ("Received empty Command
+      // input") em vez de um 400 de validação normal.
+      if (!body?.resposta) return reply.code(400).send({ erro: "resposta obrigatório" });
 
       const store = await obterAtendimentosStore();
       const fluxoId = await store.buscarFlowId(chatId);
@@ -457,49 +497,98 @@ export function registrarRotasAtendimento(app: FastifyInstance): void {
       const config = { configurable: { thread_id: chatId, fluxoId } };
       const estadoAnterior = await fluxo.grafo.getState(config);
       const isResuming = (estadoAnterior.next?.length ?? 0) > 0;
+      const valoresAtuais = (estadoAnterior.values ?? {}) as ValoresAtendimento;
+
+      // Issue #166 — TTL de inatividade, checado ANTES de tocar no grafo
+      // (o checkpoint do LangGraph em si nunca sabe de "expirado" — isso é
+      // só um controle nosso, na tabela atendimentos).
+      const atividade = await store.buscarAtividade(chatId);
+      if (atividade?.statusFinal === "expirado") {
+        const respostaFinal = montarRespostaAtendimento(fluxo, fluxoId, chatId, undefined, { ...valoresAtuais, statusFinal: "expirado", mensagemFinal: MENSAGEM_EXPIRADO });
+        return reply.code(409).send({ erro: "atendimento expirado por inatividade — inicie um novo atendimento", ...respostaFinal });
+      }
+
+      // Resposta a uma pergunta de confirmação de TTL ("quer continuar?"),
+      // não a pergunta original de negócio.
+      if (atividade?.aguardandoConfirmacaoTtl) {
+        const quisContinuar = body?.resposta === "true";
+        if (!quisContinuar) {
+          await store.concluir(chatId, { statusFinal: "expirado", destino: destinoDoLog(fluxoId, "expirado") });
+          req.log.info({ fluxoId, chatId, evento: "atendimento_expirado" }, "atendimento marcado como expirado — pessoa optou por recomeçar");
+          const respostaFinal = montarRespostaAtendimento(fluxo, fluxoId, chatId, undefined, { ...valoresAtuais, statusFinal: "expirado", mensagemFinal: MENSAGEM_EXPIRADO });
+          return respostaFinal;
+        }
+        // Continuar: processa a resposta ORIGINAL que ficou pendente —
+        // interceptada quando a gente perguntou "quer continuar?" em vez de
+        // já processar. resolverConfirmacaoTtlContinuar já limpa a flag e
+        // bump atualizado_em.
+        const respostaOriginal = (await store.resolverConfirmacaoTtlContinuar(chatId)) ?? "";
+        req.log.info({ fluxoId, chatId, evento: "resposta_recebida" }, "resposta recebida (retomada após confirmação de TTL)");
+        return processarResposta(respostaOriginal, fluxo, fluxoId, chatId);
+      }
+
       if (!isResuming) {
         // Já concluiu — não avança nada, mas devolve os dados coletados
         // igual a um GET, pra quem bateu nesse 409 não precisar de uma 2ª
         // chamada só pra recuperar metadados/dadosColetados que já tinha.
-        const valoresFinais = (estadoAnterior.values ?? {}) as ValoresAtendimento;
-        const respostaFinal = montarRespostaAtendimento(fluxo, fluxoId, chatId, undefined, valoresFinais);
+        const respostaFinal = montarRespostaAtendimento(fluxo, fluxoId, chatId, undefined, valoresAtuais);
         return reply.code(409).send({ erro: "atendimento já foi concluído — nada esperando resposta", ...respostaFinal });
       }
+
+      // Passou o TTL desde a última atividade de verdade — pergunta antes
+      // de processar, sem perder a resposta que a pessoa mandou agora (fica
+      // guardada até ela confirmar).
+      const horasInativo = atividade ? (Date.now() - atividade.atualizadoEm.getTime()) / 3_600_000 : 0;
+      if (horasInativo > ttlInatividadeHoras()) {
+        await store.marcarAguardandoConfirmacaoTtl(chatId, body?.resposta ?? "");
+        req.log.info({ fluxoId, chatId, evento: "ttl_confirmacao_solicitada", horasInativo: Math.round(horasInativo) }, "TTL de inatividade excedido — perguntando se quer continuar");
+        return montarRespostaAtendimento(fluxo, fluxoId, chatId, { pergunta: TEXTO_CONFIRMACAO_TTL, tipo: "sim_nao" }, valoresAtuais);
+      }
+
       req.log.info({ fluxoId, chatId, evento: "resposta_recebida" }, "resposta recebida");
+      return processarResposta(body?.resposta ?? "", fluxo, fluxoId, chatId);
 
       // resume sempre como string crua — pras perguntas sim_nao, a Tykhe
       // manda literalmente "true"/"false" (não texto em português), e o nó
       // compara === "true"/normaliza. Nada de resume:boolean aqui —
-      // Command({resume:false}) quebra no LangGraph.
-      const resultado = await fluxo.grafo.invoke(new Command({ resume: body?.resposta ?? "" }), config);
+      // Command({resume:false}) quebra no LangGraph. Recebe fluxo/fluxoId/
+      // chatId por parâmetro (não por closure) — narrowing de "fluxo !==
+      // undefined" feito mais acima não é preservado dentro de function
+      // declaration aninhada pelo TS. Extraído em função porque tanto o
+      // fluxo normal quanto o "confirmou continuar depois do TTL" (acima)
+      // terminam no mesmo processamento, só a origem da resposta muda.
+      async function processarResposta(resposta: string, fluxo: FluxoConfig, fluxoId: string, chatId: string) {
+        const resultado = await fluxo.grafo.invoke(new Command({ resume: resposta }), config);
+        await store.marcarAtividade(chatId);
 
-      const interrupt = extrairInterruptDoInvoke(resultado);
-      // Issue #90 — `evento` fixo. Issue #92 — `tokensGastos` como objeto
-      // único; `status`/`destino` NO LOG (não confundir com o campo
-      // `status` da resposta HTTP, que continua igual pra Tykhe).
-      if (interrupt) {
-        const { perguntaAtualViaIA: viaIA, perguntaAtualTokensTotal: tokensGastosTotal } = resultado as {
-          perguntaAtualViaIA?: boolean;
-          perguntaAtualTokensTotal?: number;
-        };
-        req.log.info(
-          { fluxoId, chatId, evento: "pergunta_enviada", status: "em_andamento", tipoResposta: interrupt.tipo, viaIA: viaIA ?? false, tokensGastosTotal },
-          "pergunta enviada"
-        );
-      } else {
-        // Issue #82 — motivoHandoff/tokensGastos agora vão pro log, sem
-        // isso não tinha como montar métrica de "handoff por motivo" nem
-        // "tokens gastos por dia" via CloudWatch Logs Insights.
-        const { statusFinal, motivoHandoff, tokensGastos } = resultado as ValoresAtendimento;
-        const destino = destinoDoLog(fluxoId, statusFinal);
-        req.log.info({ fluxoId, chatId, evento: "atendimento_finalizado", status: "concluido", destino, motivoHandoff, tokensGastos }, "atendimento finalizado");
-        // Issue #83 — mesmo dado do log, gravado estruturado (colunas) pra
-        // consulta SQL direta via datasource Postgres no Grafana.
-        if (statusFinal) {
-          await store.concluir(chatId, { statusFinal: statusFinal as "concluido" | "handoff_humano", destino, motivoHandoff: motivoHandoff as string | undefined, tokensGastos });
+        const interrupt = extrairInterruptDoInvoke(resultado);
+        // Issue #90 — `evento` fixo. Issue #92 — `tokensGastos` como objeto
+        // único; `status`/`destino` NO LOG (não confundir com o campo
+        // `status` da resposta HTTP, que continua igual pra Tykhe).
+        if (interrupt) {
+          const { perguntaAtualViaIA: viaIA, perguntaAtualTokensTotal: tokensGastosTotal } = resultado as {
+            perguntaAtualViaIA?: boolean;
+            perguntaAtualTokensTotal?: number;
+          };
+          req.log.info(
+            { fluxoId, chatId, evento: "pergunta_enviada", status: "em_andamento", tipoResposta: interrupt.tipo, viaIA: viaIA ?? false, tokensGastosTotal },
+            "pergunta enviada"
+          );
+        } else {
+          // Issue #82 — motivoHandoff/tokensGastos agora vão pro log, sem
+          // isso não tinha como montar métrica de "handoff por motivo" nem
+          // "tokens gastos por dia" via CloudWatch Logs Insights.
+          const { statusFinal, motivoHandoff, tokensGastos } = resultado as ValoresAtendimento;
+          const destino = destinoDoLog(fluxoId, statusFinal);
+          req.log.info({ fluxoId, chatId, evento: "atendimento_finalizado", status: "concluido", destino, motivoHandoff, tokensGastos }, "atendimento finalizado");
+          // Issue #83 — mesmo dado do log, gravado estruturado (colunas) pra
+          // consulta SQL direta via datasource Postgres no Grafana.
+          if (statusFinal) {
+            await store.concluir(chatId, { statusFinal: statusFinal as "concluido" | "handoff_humano", destino, motivoHandoff: motivoHandoff as string | undefined, tokensGastos });
+          }
         }
+        return montarRespostaAtendimento(fluxo, fluxoId, chatId, interrupt, resultado as ValoresAtendimento);
       }
-      return montarRespostaAtendimento(fluxo, fluxoId, chatId, interrupt, resultado as ValoresAtendimento);
     }
   );
 }
