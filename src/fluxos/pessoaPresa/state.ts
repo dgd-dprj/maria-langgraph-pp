@@ -66,6 +66,11 @@ export const PessoaPresaState = Annotation.Root({
     // dados são dele. Diferente de nome_nao_confirmado (que é sobre o
     // PRESO, via RG).
     | "assistido_nao_confirmado"
+    // Issue #172 — consultarApenadoPorRg esgotou o retry automático de
+    // infra (401/403/5xx) — diferente de rg_nao_encontrado (que é RG
+    // genuinamente inexistente/digitado errado), não entra no retry de
+    // negócio "quer tentar de novo?".
+    | "falha_infra_verde"
     | undefined
   >,
   // texto final específico do desfecho — sobrescreve o texto genérico

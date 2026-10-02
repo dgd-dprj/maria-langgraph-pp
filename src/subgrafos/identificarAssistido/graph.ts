@@ -55,8 +55,15 @@ async function consultarPessoa(state: IdentificarAssistidoStateType): Promise<Pa
   return { dadosPessoa: dados, tentativasCpf: (state.tentativasCpf ?? 0) + 1 };
 }
 
+// Issue #172 — falhaInfra (401/403/5xx esgotado, retry automático já
+// tentado dentro de consultarPessoaPorCpf) sai direto, SEM passar pelo
+// retry de negócio "quer tentar de novo?" — o grafo pai distingue esse
+// desfecho de "esgotado de verdade" olhando dadosPessoa.falhaInfra, e NÃO
+// tenta cadastroPessoa em cima disso (não é "pessoa sem cadastro", é "não
+// consegui nem verificar").
 function depoisDeConsultarPessoa(state: IdentificarAssistidoStateType): "encontrado" | "tentarNovamente" | "esgotado" {
   if (state.dadosPessoa?.encontrado) return "encontrado";
+  if (state.dadosPessoa?.falhaInfra) return "esgotado";
   return (state.tentativasCpf ?? 0) >= 3 ? "esgotado" : "tentarNovamente";
 }
 

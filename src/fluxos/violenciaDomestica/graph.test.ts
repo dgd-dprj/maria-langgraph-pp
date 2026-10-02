@@ -307,6 +307,23 @@ test("tem RO, CPF errado, responde 'Não' quer tentar de novo → entra em cadas
   assert.equal((r5 as { tipoEncaminhamento?: string }).tipoEncaminhamento, "urgente");
 });
 
+// Issue #172 — CPF com falha de INFRA (sentinela "66666666666") nunca
+// entra em cadastroPessoa (arriscaria duplicar cadastro de quem já tem
+// registro) nem no retry de negócio "quer tentar de novo?" — handoff
+// direto, mesmo com viaOrquestrador:true e mesmo na 1ª tentativa.
+test("tem RO, CPF com falha de infra esgotada → handoff direto, NUNCA entra em cadastro nem pergunta 'quer tentar de novo?' (issue #172)", async () => {
+  const config = novoConfig();
+  await grafo.invoke({ viaOrquestrador: true }, config);
+  await grafo.invoke(new Command({ resume: "true" }), config); // é vítima
+  await grafo.invoke(new Command({ resume: "false" }), config); // sem processo
+  await grafo.invoke(new Command({ resume: "true" }), config); // tem RO → pausa pedirCpf
+  const r = await grafo.invoke(new Command({ resume: "66666666666" }), config);
+  assert.equal(pergunta(r), undefined, "não deveria perguntar nada — nem retry de negócio, nem cadastro");
+  const final = r as { statusFinal?: string; motivoHandoff?: string };
+  assert.equal(final.statusFinal, "handoff_humano");
+  assert.equal(final.motivoHandoff, "falha_infra_verde");
+});
+
 test("tem RO, esgota as 3 tentativas de CPF → entra em cadastro; cadastro falha → handoff_humano, motivo falha_cadastro (issue #171)", async () => {
   const original = process.env.MOCK_CADASTRO_FALHA;
   process.env.MOCK_CADASTRO_FALHA = "true";

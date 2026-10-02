@@ -20,6 +20,12 @@ export interface DadosApenado {
   // Regime, etc).
   tipoPreso?: string;
   regime?: string;
+  // Issue #172 — distingue "RG não encontrado de verdade" (encontrado:false
+  // sem isso) de "não consegui nem verificar" (falha de infra esgotada,
+  // 401/403/5xx mesmo depois de retry automático). Fluxos tratam esse caso
+  // como handoff_humano direto, sem entrar no retry de negócio ("quer
+  // tentar de novo?") que é especificamente pra erro de digitação.
+  falhaInfra?: boolean;
 }
 
 export interface MovimentoProcesso {
@@ -60,6 +66,10 @@ export interface DadosPessoa {
   genero?: string;
   endereco?: string;
   enderecoDetalhado?: EnderecoDetalhado;
+  // Issue #172 — mesmo racional de DadosApenado.falhaInfra, pro CPF do
+  // assistido (identificarAssistido/graph.ts, compartilhado por pessoaPresa
+  // e violenciaDomestica).
+  falhaInfra?: boolean;
 }
 
 // Issue #127 — GET /cep/{cep} na Verde, separado de /pessoa. idBairro/

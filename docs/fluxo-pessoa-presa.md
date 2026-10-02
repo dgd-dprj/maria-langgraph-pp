@@ -64,6 +64,7 @@ Outros motivos de handoff, fora dessa função:
 - `nome_nao_confirmado` — achou a pessoa mas a pessoa que está perguntando disse que não é ela.
 - `falha_cadastro` (issue #183, só no caminho `viaOrquestrador`) — CPF do assistido esgotou as 3 tentativas **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`) também falhou. Roda DEPOIS da conclusão normal do RG/processo/parentesco — não confundir com os motivos acima, que são sobre o PRESO.
 - `assistido_nao_confirmado` (issue #189, só no caminho `viaOrquestrador`) — achou o assistido por CPF **ou** cadastrou com sucesso, mas ele negou que os dados são dele. Diferente de `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar) e de `nome_nao_confirmado` (que é sobre o PRESO, via RG).
+- `falha_infra_verde` (issue #172) — RG do preso **ou** CPF do assistido esgotou o retry automático de infra (401/403/5xx, `docs/integracao-verde.md`) — diferente de `rg_nao_encontrado`/"CPF não encontrado" (que são dado genuinamente não encontrado/digitado errado): nunca entra no retry de negócio "quer tentar de novo?" nem tenta `cadastroPessoa` (arriscaria duplicar cadastro de quem já tem registro).
 
 ## Tolerâncias (achadas ao vivo, ver comentários no código)
 

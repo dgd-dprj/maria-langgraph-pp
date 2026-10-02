@@ -73,6 +73,7 @@ A Tykhe consome este fluxo direto via `POST /atendimentos` com `flowId` explíci
 | `cpf_nao_encontrado` | Só no caminho SEM `viaOrquestrador` (Tykhe): esgotou as 3 tentativas de CPF sem achar a pessoa — handoff direto, nunca tenta cadastro (issue #72, restaurado na #191). |
 | `assistido_nao_confirmado` | Só no caminho `viaOrquestrador`: achou por CPF **ou** cadastrou com sucesso, mas a pessoa negou que os dados são dela (issue #189) — não confunde com `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar, não sobre confirmação). |
 | `falha_encaminhamento` | Achou o órgão certo, mas o `POST /encaminhamento/encaminhar` de verdade falhou. Nunca inventa sucesso — manda pra atendente confirmar manualmente. |
+| `falha_infra_verde` | CPF esgotou o retry automático de infra (401/403/5xx, `docs/integracao-verde.md`, issue #172) — diferente de `cpf_nao_encontrado` (CPF genuinamente não encontrado/digitado errado): independe de `viaOrquestrador`, nunca entra no retry de negócio "quer tentar de novo?" nem tenta `cadastroPessoa` (arriscaria duplicar cadastro de quem já tem registro). |
 
 ### Quem decide o órgão: a Verde, não a Maria
 
