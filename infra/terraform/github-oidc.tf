@@ -34,11 +34,15 @@ data "aws_iam_policy_document" "github_actions_assume" {
       variable = "token.actions.githubusercontent.com:sub"
       # GitHub inclui IDs numéricos imutáveis no sub (owner@id/repo@id), não
       # só o nome — achado ao vivo 2026-09-04 decodificando o token real (ver
-      # passo de debug removido de deploy-release.yml). IDs não mudam se o
-      # repo/owner for renomeado, então é MAIS robusto que casar só pelo nome.
+      # passo de debug removido de deploy-release.yml). O id do REPO não muda
+      # se o repo for renomeado OU transferido pra outro owner — só o id do
+      # OWNER muda numa transferência. Repo transferido 2026-10-02 de
+      # icaroeduardo-lab (id 276099947) pra org dgd-dprj (id 337067883);
+      # repo@1347683221 é o mesmo de sempre, confirmado via
+      # `gh api repos/dgd-dprj/maria-langgraph-pp --jq .id` depois do transfer.
       values = [
-        "repo:icaroeduardo-lab@276099947/maria-langgraph-pp@1347683221:ref:refs/heads/main",
-        "repo:icaroeduardo-lab@276099947/maria-langgraph-pp@1347683221:ref:refs/heads/develop",
+        "repo:dgd-dprj@337067883/maria-langgraph-pp@1347683221:ref:refs/heads/main",
+        "repo:dgd-dprj@337067883/maria-langgraph-pp@1347683221:ref:refs/heads/develop",
       ]
     }
   }
