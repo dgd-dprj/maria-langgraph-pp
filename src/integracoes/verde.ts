@@ -39,6 +39,54 @@ function logHttpNaoOk(chamada: string, status: number, duracaoMs: number, extra:
   );
 }
 
+function ehAuthOuInfra(status: number): boolean {
+  return status === 401 || status === 403 || status >= 500;
+}
+
+// Issue #172 — 401/403/5xx (auth_ou_infra, já classificado por
+// logHttpNaoOk) e exceção de rede/timeout são tratados IGUAL aqui: retry
+// automático, mesmo número de tentativas de ia/*.ts (TENTATIVAS_RETRY_IA).
+// 404/422 (negócio — dado genuinamente não encontrado) NUNCA retenta, sai
+// na 1ª tentativa — é resposta válida da Verde, não falha.
+export const TENTATIVAS_RETRY_VERDE = 3;
+
+// `res` fica disponível no caso de falha de NEGÓCIO (404/422) e também na
+// última tentativa de uma falha de infra esgotada baseada em status HTTP
+// (não numa exceção de rede/timeout, que nunca chega a ter Response) — dá
+// pra quem precisa (encaminhamento/cadastroPessoa, que leem `corpo.mensagem`
+// do erro) ainda extrair a mensagem real da Verde quando ela existir.
+type ResultadoChamadaVerde = { ok: true; res: Response } | { ok: false; res?: Response; falhaInfra: boolean };
+
+// Exportado (não precisa de VERDE_JWT_TOKEN/rede real pra testar) —
+// montarRequisicao é injetado pelo chamador, então dá pra testar a lógica
+// de retry/classificação isoladamente com um fake, sem mock mode nem HTTP
+// de verdade (ver verde.test.ts).
+export async function chamarVerdeComRetry(chamada: string, montarRequisicao: () => Promise<Response>): Promise<ResultadoChamadaVerde> {
+  for (let tentativa = 1; tentativa <= TENTATIVAS_RETRY_VERDE; tentativa++) {
+    const inicio = Date.now();
+    try {
+      const res = await montarRequisicao();
+      const duracaoMs = Date.now() - inicio;
+      if (res.ok) return { ok: true, res };
+      if (!ehAuthOuInfra(res.status)) {
+        logHttpNaoOk(chamada, res.status, duracaoMs);
+        return { ok: false, res, falhaInfra: false };
+      }
+      logHttpNaoOk(chamada, res.status, duracaoMs, { tentativa, tentativasRestantes: TENTATIVAS_RETRY_VERDE - tentativa });
+      if (tentativa === TENTATIVAS_RETRY_VERDE) return { ok: false, res, falhaInfra: true };
+    } catch (err) {
+      const duracaoMs = Date.now() - inicio;
+      logger.error(
+        { ...contextoAtual(), err, evento: "verde_chamada", chamada, resultado: "erro", duracaoMs, tentativa, tipoErro: "auth_ou_infra" },
+        `[verde] ${chamada}: falha na chamada (tentativa ${tentativa})`
+      );
+      if (tentativa === TENTATIVAS_RETRY_VERDE) return { ok: false, falhaInfra: true };
+    }
+  }
+  /* c8 ignore next */
+  return { ok: false, falhaInfra: true }; // inalcançável — loop sempre retorna antes, só pro TS não reclamar de falta de return
+}
+
 interface ApenadoResponseVerde {
   codigo?: string;
   mensagem?: string;
@@ -63,6 +111,11 @@ export async function consultarApenadoPorRg(rg: string): Promise<DadosApenado> {
     // retry sem depender do Verde real) — qualquer outro RG "acha" a pessoa
     // de teste.
     if (rg === "000000000") return { encontrado: false };
+    // Issue #172 — simula falha de infra esgotada (401/403/5xx mesmo depois
+    // do retry automático), sentinela separado de "000000000" (não
+    // encontrado de verdade) — testa o roteamento pro handoff direto, sem
+    // precisar de rede/token real.
+    if (rg === "66666666666") return { encontrado: false, falhaInfra: true };
     // situacao/tipoPreso/regime sem sufixo "(mock)" de propósito (issue
     // #57) — concluir() (fluxos/pessoaPresa/graph.ts) compara esses 3
     // campos por igualdade estrita contra o que o Verde real devolve, um
@@ -95,8 +148,8 @@ export async function consultarApenadoPorRg(rg: string): Promise<DadosApenado> {
     };
   }
   const inicio = Date.now();
-  try {
-    const res = await fetch(`${VERDE_API_URL}/apenado`, {
+  const resultado = await chamarVerdeComRetry("apenado", () =>
+    fetch(`${VERDE_API_URL}/apenado`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -105,31 +158,25 @@ export async function consultarApenadoPorRg(rg: string): Promise<DadosApenado> {
       },
       body: JSON.stringify({ rg }),
       signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
-    });
-    if (!res.ok) {
-      logHttpNaoOk("apenado", res.status, Date.now() - inicio);
-      return { encontrado: false };
-    }
-    const corpo = (await res.json()) as ApenadoResponseVerde;
-    // RG não encontrado: Verde devolve "dados": {} (objeto VAZIO, não null/
-    // ausente — confirmado ao vivo 2026-08-28) — checar só `!corpo.dados`
-    // não pega isso, `{}` é truthy. Checa um campo que só existe se achou
-    // de verdade.
-    logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "apenado", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] apenado: chamada concluída");
-    if (!corpo.dados || corpo.dados.idPessoa === undefined) return { encontrado: false };
-    return {
-      encontrado: true,
-      idSeap: corpo.dados.idSeap,
-      idPessoa: corpo.dados.idPessoa,
-      nome: corpo.dados.nome,
-      situacao: corpo.dados.situacao,
-      tipoPreso: corpo.dados.tipoPreso,
-      regime: corpo.dados.regime,
-    };
-  } catch (err) {
-    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "apenado", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] apenado: falha na chamada");
-    return { encontrado: false };
-  }
+    })
+  );
+  if (!resultado.ok) return { encontrado: false, ...(resultado.falhaInfra ? { falhaInfra: true as const } : {}) };
+  const corpo = (await resultado.res.json()) as ApenadoResponseVerde;
+  // RG não encontrado: Verde devolve "dados": {} (objeto VAZIO, não null/
+  // ausente — confirmado ao vivo 2026-08-28) — checar só `!corpo.dados`
+  // não pega isso, `{}` é truthy. Checa um campo que só existe se achou
+  // de verdade.
+  logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "apenado", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] apenado: chamada concluída");
+  if (!corpo.dados || corpo.dados.idPessoa === undefined) return { encontrado: false };
+  return {
+    encontrado: true,
+    idSeap: corpo.dados.idSeap,
+    idPessoa: corpo.dados.idPessoa,
+    nome: corpo.dados.nome,
+    situacao: corpo.dados.situacao,
+    tipoPreso: corpo.dados.tipoPreso,
+    regime: corpo.dados.regime,
+  };
 }
 
 interface ProcessoResponseVerde {
@@ -167,8 +214,8 @@ export async function consultarProcesso(numero: string): Promise<DadosProcesso> 
     return { encontrado: true, id: 999999, origem: "SEEU", nomeAssunto: "Processo de Teste (mock)" };
   }
   const inicio = Date.now();
-  try {
-    const res = await fetch(`${VERDE_API_URL}/processo/consultar/${encodeURIComponent(numero)}`, {
+  const resultado = await chamarVerdeComRetry("processo", () =>
+    fetch(`${VERDE_API_URL}/processo/consultar/${encodeURIComponent(numero)}`, {
       method: "GET",
       headers: {
         accept: "application/json",
@@ -176,27 +223,21 @@ export async function consultarProcesso(numero: string): Promise<DadosProcesso> 
         "x-client-id": VERDE_CLIENT_ID,
       },
       signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
-    });
-    if (!res.ok) {
-      logHttpNaoOk("processo", res.status, Date.now() - inicio);
-      return { encontrado: false };
-    }
-    const corpo = (await res.json()) as ProcessoResponseVerde;
-    logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "processo", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] processo: chamada concluída");
-    if (!corpo.dados || corpo.dados.id === undefined) return { encontrado: false };
-    return {
-      encontrado: true,
-      id: corpo.dados.id,
-      origem: corpo.dados.origem,
-      instancia: corpo.dados.instancia,
-      nomeAssunto: corpo.dados.nomeAssunto,
-      nomeOrgaoJulgador: corpo.dados.nomeOrgaoJulgador,
-      movimentos: corpo.dados.movimentos,
-    };
-  } catch (err) {
-    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "processo", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] processo: falha na chamada");
-    return { encontrado: false };
-  }
+    })
+  );
+  if (!resultado.ok) return { encontrado: false };
+  const corpo = (await resultado.res.json()) as ProcessoResponseVerde;
+  logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "processo", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] processo: chamada concluída");
+  if (!corpo.dados || corpo.dados.id === undefined) return { encontrado: false };
+  return {
+    encontrado: true,
+    id: corpo.dados.id,
+    origem: corpo.dados.origem,
+    instancia: corpo.dados.instancia,
+    nomeAssunto: corpo.dados.nomeAssunto,
+    nomeOrgaoJulgador: corpo.dados.nomeOrgaoJulgador,
+    movimentos: corpo.dados.movimentos,
+  };
 }
 
 interface PessoaResponseVerde {
@@ -228,6 +269,10 @@ export async function consultarPessoaPorCpf(cpf: string): Promise<DadosPessoa> {
     // "000000000" em consultarApenadoPorRg — qualquer outro CPF "acha" a
     // pessoa de teste, com município Rio de Janeiro (capital).
     if (cpf === "00000000000") return { encontrado: false };
+    // Issue #172 — mesmo racional do sentinela "66666666666" em
+    // consultarApenadoPorRg: simula falha de infra esgotada, separado de
+    // "não encontrado de verdade".
+    if (cpf === "66666666666") return { encontrado: false, falhaInfra: true };
     return {
       encontrado: true,
       idPessoa: 999999,
@@ -238,8 +283,12 @@ export async function consultarPessoaPorCpf(cpf: string): Promise<DadosPessoa> {
     };
   }
   const inicio = Date.now();
-  try {
-    const res = await fetch(`${VERDE_API_URL}/pessoa?cpf=${encodeURIComponent(cpf)}`, {
+  // 404 (CPF não encontrado) e 422 (mais de uma pessoa encontrada) caem no
+  // mesmo `encontrado:false` — mesmo tratamento genérico de status não-ok
+  // dos outros métodos deste arquivo, sem distinguir motivo (repo pequeno,
+  // não vale ramificação extra por enquanto).
+  const resultado = await chamarVerdeComRetry("pessoa", () =>
+    fetch(`${VERDE_API_URL}/pessoa?cpf=${encodeURIComponent(cpf)}`, {
       method: "GET",
       headers: {
         accept: "application/json",
@@ -247,31 +296,21 @@ export async function consultarPessoaPorCpf(cpf: string): Promise<DadosPessoa> {
         "x-client-id": VERDE_CLIENT_ID,
       },
       signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
-    });
-    if (!res.ok) {
-      // 404 (CPF não encontrado) e 422 (mais de uma pessoa encontrada) caem
-      // aqui junto — mesmo tratamento genérico de status não-ok dos outros 2
-      // métodos deste arquivo, sem distinguir motivo (repo pequeno, não vale
-      // ramificação extra por enquanto).
-      logHttpNaoOk("pessoa", res.status, Date.now() - inicio);
-      return { encontrado: false };
-    }
-    const corpo = (await res.json()) as PessoaResponseVerde;
-    logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "pessoa", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] pessoa: chamada concluída");
-    if (!corpo.dados || corpo.dados.idPessoa === undefined) return { encontrado: false };
-    return {
-      encontrado: true,
-      idPessoa: corpo.dados.idPessoa,
-      nome: corpo.dados.nome,
-      nomeSocial: corpo.dados.nomeSocial,
-      genero: corpo.dados.genero,
-      endereco: corpo.dados.endereco,
-      enderecoDetalhado: corpo.dados.enderecoDetalhado,
-    };
-  } catch (err) {
-    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "pessoa", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] pessoa: falha na chamada");
-    return { encontrado: false };
-  }
+    })
+  );
+  if (!resultado.ok) return { encontrado: false, ...(resultado.falhaInfra ? { falhaInfra: true as const } : {}) };
+  const corpo = (await resultado.res.json()) as PessoaResponseVerde;
+  logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "pessoa", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] pessoa: chamada concluída");
+  if (!corpo.dados || corpo.dados.idPessoa === undefined) return { encontrado: false };
+  return {
+    encontrado: true,
+    idPessoa: corpo.dados.idPessoa,
+    nome: corpo.dados.nome,
+    nomeSocial: corpo.dados.nomeSocial,
+    genero: corpo.dados.genero,
+    endereco: corpo.dados.endereco,
+    enderecoDetalhado: corpo.dados.enderecoDetalhado,
+  };
 }
 
 // bairro/municipio vêm ora null, ora objeto completo {id, nome} (CEP a CEP,
@@ -329,8 +368,8 @@ export async function consultarCep(cep: string): Promise<DadosCep> {
     };
   }
   const inicio = Date.now();
-  try {
-    const res = await fetch(`${VERDE_API_URL}/cep/${encodeURIComponent(cep)}`, {
+  const resultado = await chamarVerdeComRetry("cep", () =>
+    fetch(`${VERDE_API_URL}/cep/${encodeURIComponent(cep)}`, {
       method: "GET",
       headers: {
         accept: "application/json",
@@ -338,28 +377,22 @@ export async function consultarCep(cep: string): Promise<DadosCep> {
         "x-client-id": VERDE_CLIENT_ID,
       },
       signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
-    });
-    if (!res.ok) {
-      logHttpNaoOk("cep", res.status, Date.now() - inicio);
-      return { encontrado: false };
-    }
-    const corpo = (await res.json()) as CepResponseVerde;
-    logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "cep", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] cep: chamada concluída");
-    if (!corpo.dados) return { encontrado: false };
-    return {
-      encontrado: true,
-      idUf: idDeCampoCep(corpo.dados.uf),
-      idBairro: idDeCampoCep(corpo.dados.bairro),
-      idMunicipio: idDeCampoCep(corpo.dados.municipio),
-      uf: corpo.dados.uf?.sigla,
-      bairro: nomeDeCampoCep(corpo.dados.bairro),
-      municipio: nomeDeCampoCep(corpo.dados.municipio),
-      logradouro: corpo.dados.logradouro ?? undefined,
-    };
-  } catch (err) {
-    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "cep", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] cep: falha na chamada");
-    return { encontrado: false };
-  }
+    })
+  );
+  if (!resultado.ok) return { encontrado: false };
+  const corpo = (await resultado.res.json()) as CepResponseVerde;
+  logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "cep", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] cep: chamada concluída");
+  if (!corpo.dados) return { encontrado: false };
+  return {
+    encontrado: true,
+    idUf: idDeCampoCep(corpo.dados.uf),
+    idBairro: idDeCampoCep(corpo.dados.bairro),
+    idMunicipio: idDeCampoCep(corpo.dados.municipio),
+    uf: corpo.dados.uf?.sigla,
+    bairro: nomeDeCampoCep(corpo.dados.bairro),
+    municipio: nomeDeCampoCep(corpo.dados.municipio),
+    logradouro: corpo.dados.logradouro ?? undefined,
+  };
 }
 
 interface OrgaoResponseVerde {
@@ -423,8 +456,8 @@ export async function consultarOrgaosViolenciaDomestica(indicacaoRO: boolean, id
     return { encontrado: true, orgaos: [orgao] };
   }
   const inicio = Date.now();
-  try {
-    const res = await fetch(`${VERDE_API_URL}/orgao/violencia-domestica?indicacaoRO=${indicacaoRO}&idPessoa=${idPessoa}`, {
+  const resultado = await chamarVerdeComRetry("orgao-violencia-domestica", () =>
+    fetch(`${VERDE_API_URL}/orgao/violencia-domestica?indicacaoRO=${indicacaoRO}&idPessoa=${idPessoa}`, {
       method: "GET",
       headers: {
         accept: "application/json",
@@ -432,25 +465,19 @@ export async function consultarOrgaosViolenciaDomestica(indicacaoRO: boolean, id
         "x-client-id": VERDE_CLIENT_ID,
       },
       signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
-    });
-    if (!res.ok) {
-      logHttpNaoOk("orgao-violencia-domestica", res.status, Date.now() - inicio);
-      return { encontrado: false, orgaos: [] };
-    }
-    const corpo = (await res.json()) as OrgaoResponseVerde;
-    logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "orgao-violencia-domestica", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] orgao-violencia-domestica: chamada concluída");
-    // "CONTACTAR_CRC" — código específico do Verde pra "não achei nada,
-    // liga 129" (só acontece com RO:true). mensagem já vem pronta deles,
-    // pt-BR, direto pro usuário.
-    if (corpo.codigo === "CONTACTAR_CRC") {
-      return { encontrado: false, orgaos: [], contactarCrc: true, mensagemCrc: corpo.mensagem };
-    }
-    const orgaos: OrgaoAtendimento[] = (corpo.dados ?? []).map((o) => ({ id: o.id ?? 0, nome: o.nome ?? "", enderecos: o.enderecos }));
-    return { encontrado: orgaos.length > 0, orgaos };
-  } catch (err) {
-    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "orgao-violencia-domestica", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] orgao-violencia-domestica: falha na chamada");
-    return { encontrado: false, orgaos: [] };
+    })
+  );
+  if (!resultado.ok) return { encontrado: false, orgaos: [] };
+  const corpo = (await resultado.res.json()) as OrgaoResponseVerde;
+  logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "orgao-violencia-domestica", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] orgao-violencia-domestica: chamada concluída");
+  // "CONTACTAR_CRC" — código específico do Verde pra "não achei nada,
+  // liga 129" (só acontece com RO:true). mensagem já vem pronta deles,
+  // pt-BR, direto pro usuário.
+  if (corpo.codigo === "CONTACTAR_CRC") {
+    return { encontrado: false, orgaos: [], contactarCrc: true, mensagemCrc: corpo.mensagem };
   }
+  const orgaos: OrgaoAtendimento[] = (corpo.dados ?? []).map((o) => ({ id: o.id ?? 0, nome: o.nome ?? "", enderecos: o.enderecos }));
+  return { encontrado: orgaos.length > 0, orgaos };
 }
 
 interface PlantaoResponseVerde {
@@ -473,8 +500,8 @@ export async function consultarPlantaoVigente(): Promise<Plantao[]> {
     return [];
   }
   const inicio = Date.now();
-  try {
-    const res = await fetch(`${VERDE_API_URL}/plantao/vigente`, {
+  const resultado = await chamarVerdeComRetry("plantao-vigente", () =>
+    fetch(`${VERDE_API_URL}/plantao/vigente`, {
       method: "GET",
       headers: {
         accept: "application/json",
@@ -482,18 +509,12 @@ export async function consultarPlantaoVigente(): Promise<Plantao[]> {
         "x-client-id": VERDE_CLIENT_ID,
       },
       signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
-    });
-    if (!res.ok) {
-      logHttpNaoOk("plantao-vigente", res.status, Date.now() - inicio);
-      return [];
-    }
-    const corpo = (await res.json()) as PlantaoResponseVerde;
-    logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "plantao-vigente", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] plantao-vigente: chamada concluída");
-    return (corpo.dados ?? []).filter((p) => p.id !== undefined).map((p) => ({ id: p.id as number, tipo: p.tipo }));
-  } catch (err) {
-    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "plantao-vigente", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] plantao-vigente: falha na chamada");
-    return [];
-  }
+    })
+  );
+  if (!resultado.ok) return [];
+  const corpo = (await resultado.res.json()) as PlantaoResponseVerde;
+  logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "plantao-vigente", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] plantao-vigente: chamada concluída");
+  return (corpo.dados ?? []).filter((p) => p.id !== undefined).map((p) => ({ id: p.id as number, tipo: p.tipo }));
 }
 
 // GET /integra/orgao/plantao/violencia-domestica — mesmo formato de
@@ -523,9 +544,9 @@ export async function consultarOrgaosPlantaoViolenciaDomestica(idPlantao: number
     };
   }
   const inicio = Date.now();
-  try {
-    const query = idPlantao.map((id) => `idPlantao=${id}`).join("&");
-    const res = await fetch(`${VERDE_API_URL}/orgao/plantao/violencia-domestica?${query}&idAssistido=${idAssistido}`, {
+  const query = idPlantao.map((id) => `idPlantao=${id}`).join("&");
+  const resultado = await chamarVerdeComRetry("orgao-plantao-violencia-domestica", () =>
+    fetch(`${VERDE_API_URL}/orgao/plantao/violencia-domestica?${query}&idAssistido=${idAssistido}`, {
       method: "GET",
       headers: {
         accept: "application/json",
@@ -533,38 +554,32 @@ export async function consultarOrgaosPlantaoViolenciaDomestica(idPlantao: number
         "x-client-id": VERDE_CLIENT_ID,
       },
       signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
-    });
-    if (!res.ok) {
-      logHttpNaoOk("orgao-plantao-violencia-domestica", res.status, Date.now() - inicio);
-      return { encontrado: false, orgaos: [] };
-    }
-    logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "orgao-plantao-violencia-domestica", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] orgao-plantao-violencia-domestica: chamada concluída");
-    const corpo = (await res.json()) as {
-      codigo?: string;
-      mensagem?: string;
-      dados?: NonNullable<OrgaoResponseVerde["dados"]>[number] | NonNullable<OrgaoResponseVerde["dados"]>;
-    };
-    if (corpo.codigo) {
-      // qualquer resposta com `codigo` aqui é erro/"não encontrado" (ex:
-      // REQUISICAO_INVALIDA visto ao vivo pra assistido sem endereço) — trata
-      // igual ao CONTACTAR_CRC do endpoint normal, mesma UX (handoff humano).
-      return { encontrado: false, orgaos: [], contactarCrc: true, mensagemCrc: corpo.mensagem };
-    }
-    // Doc do Swagger mostra `dados` como objeto único aqui (diferente do
-    // endpoint normal, que é array) — normaliza os dois formatos, não
-    // confiei 100% na doc depois do que já vimos divergir da realidade.
-    const bruto = (corpo as { dados?: unknown }).dados;
-    const lista = Array.isArray(bruto) ? bruto : bruto ? [bruto] : [];
-    const orgaos: OrgaoAtendimento[] = (lista as Array<{ id?: number; nome?: string; enderecos?: OrgaoAtendimento["enderecos"] }>).map((o) => ({
-      id: o.id ?? 0,
-      nome: o.nome ?? "",
-      enderecos: o.enderecos,
-    }));
-    return { encontrado: orgaos.length > 0, orgaos };
-  } catch (err) {
-    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "orgao-plantao-violencia-domestica", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] orgao-plantao-violencia-domestica: falha na chamada");
-    return { encontrado: false, orgaos: [] };
+    })
+  );
+  if (!resultado.ok) return { encontrado: false, orgaos: [] };
+  logger.info({ ...contextoAtual(), evento: "verde_chamada", chamada: "orgao-plantao-violencia-domestica", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] orgao-plantao-violencia-domestica: chamada concluída");
+  const corpo = (await resultado.res.json()) as {
+    codigo?: string;
+    mensagem?: string;
+    dados?: NonNullable<OrgaoResponseVerde["dados"]>[number] | NonNullable<OrgaoResponseVerde["dados"]>;
+  };
+  if (corpo.codigo) {
+    // qualquer resposta com `codigo` aqui é erro/"não encontrado" (ex:
+    // REQUISICAO_INVALIDA visto ao vivo pra assistido sem endereço) — trata
+    // igual ao CONTACTAR_CRC do endpoint normal, mesma UX (handoff humano).
+    return { encontrado: false, orgaos: [], contactarCrc: true, mensagemCrc: corpo.mensagem };
   }
+  // Doc do Swagger mostra `dados` como objeto único aqui (diferente do
+  // endpoint normal, que é array) — normaliza os dois formatos, não
+  // confiei 100% na doc depois do que já vimos divergir da realidade.
+  const bruto = (corpo as { dados?: unknown }).dados;
+  const lista = Array.isArray(bruto) ? bruto : bruto ? [bruto] : [];
+  const orgaos: OrgaoAtendimento[] = (lista as Array<{ id?: number; nome?: string; enderecos?: OrgaoAtendimento["enderecos"] }>).map((o) => ({
+    id: o.id ?? 0,
+    nome: o.nome ?? "",
+    enderecos: o.enderecos,
+  }));
+  return { encontrado: orgaos.length > 0, orgaos };
 }
 
 interface EncaminhamentoResponseVerde {
@@ -596,17 +611,17 @@ export async function criarEncaminhamentoViolenciaDomestica(dados: DadosEncaminh
     return { sucesso: true, id: 999999 };
   }
   const inicio = Date.now();
-  try {
-    const body = {
-      idPessoa: dados.idPessoa,
-      idOrgao: dados.idOrgao,
-      ...(dados.idLocalAtendimento !== undefined ? { idLocalAtendimento: dados.idLocalAtendimento } : {}),
-      urgencia: dados.urgente,
-      preferenciaAtendimento: "Remoto",
-      fluxoEncaminhamento: "VIOLENCIA_DOMESTICA",
-      ...(dados.urgente ? { motivoUrgencia: "Violência doméstica com Boletim de Ocorrência registrado" } : {}),
-    };
-    const res = await fetch(`${VERDE_API_URL}/encaminhamento/encaminhar`, {
+  const body = {
+    idPessoa: dados.idPessoa,
+    idOrgao: dados.idOrgao,
+    ...(dados.idLocalAtendimento !== undefined ? { idLocalAtendimento: dados.idLocalAtendimento } : {}),
+    urgencia: dados.urgente,
+    preferenciaAtendimento: "Remoto",
+    fluxoEncaminhamento: "VIOLENCIA_DOMESTICA",
+    ...(dados.urgente ? { motivoUrgencia: "Violência doméstica com Boletim de Ocorrência registrado" } : {}),
+  };
+  const resultado = await chamarVerdeComRetry("encaminhamento", () =>
+    fetch(`${VERDE_API_URL}/encaminhamento/encaminhar`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -616,18 +631,25 @@ export async function criarEncaminhamentoViolenciaDomestica(dados: DadosEncaminh
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
-    });
-    const corpo = (await res.json().catch(() => ({}))) as EncaminhamentoResponseVerde;
-    if (!res.ok) {
-      logHttpNaoOk("encaminhamento", res.status, Date.now() - inicio, { corpo });
-      return { sucesso: false, erro: corpo.mensagem ?? `HTTP ${res.status}` };
-    }
-    logger.info({ ...contextoAtual(), corpo, evento: "verde_chamada", chamada: "encaminhamento", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] encaminhamento: chamada concluída");
-    return { sucesso: true, id: corpo.dados?.id };
-  } catch (err) {
-    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "encaminhamento", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] encaminhamento: falha na chamada");
-    return { sucesso: false, erro: "falha na chamada ao Verde" };
+    })
+  );
+  if (!resultado.ok) {
+    const corpoErro = (await resultado.res?.json().catch(() => ({}))) as EncaminhamentoResponseVerde | undefined;
+    // Achado em code review: chamarVerdeComRetry só loga via logHttpNaoOk
+    // ANTES do parse do body (não tem acesso ao JSON) — sem isso aqui, o
+    // corpo de erro da Verde (campo mensagem/codigo) sumia do log
+    // estruturado em caso de falha, só sobrevivia dentro do campo `erro` do
+    // retorno (que `falhaEncaminhamento()` em violenciaDomestica/graph.ts
+    // nem sequer lê — vira mensagem genérica pro usuário).
+    logger.error(
+      { ...contextoAtual(), corpo: corpoErro, status: resultado.res?.status, evento: "verde_chamada", chamada: "encaminhamento", resultado: "nao_ok", duracaoMs: Date.now() - inicio },
+      "[verde] encaminhamento: falhou, corpo de erro da Verde"
+    );
+    return { sucesso: false, erro: corpoErro?.mensagem ?? (resultado.falhaInfra ? "falha na chamada ao Verde (infra esgotada)" : `HTTP ${resultado.res?.status}`) };
   }
+  const corpo = (await resultado.res.json().catch(() => ({}))) as EncaminhamentoResponseVerde;
+  logger.info({ ...contextoAtual(), corpo, evento: "verde_chamada", chamada: "encaminhamento", resultado: "sucesso", duracaoMs: Date.now() - inicio }, "[verde] encaminhamento: chamada concluída");
+  return { sucesso: true, id: corpo.dados?.id };
 }
 
 export interface EnderecoCadastroPessoa {
@@ -669,14 +691,14 @@ export async function cadastrarPessoa(dados: DadosCadastroPessoa): Promise<Resul
     return { sucesso: true, idPessoa: 888888 };
   }
   const inicio = Date.now();
-  try {
-    const body = {
-      nome: dados.nome,
-      cpf: dados.cpf,
-      dtNascimento: dados.dataNascimento,
-      ...(dados.endereco ? { endereco: dados.endereco } : {}),
-    };
-    const res = await fetch(`${VERDE_API_URL}/pessoa`, {
+  const body = {
+    nome: dados.nome,
+    cpf: dados.cpf,
+    dtNascimento: dados.dataNascimento,
+    ...(dados.endereco ? { endereco: dados.endereco } : {}),
+  };
+  const resultado = await chamarVerdeComRetry("cadastroPessoa", () =>
+    fetch(`${VERDE_API_URL}/pessoa`, {
       method: "POST",
       headers: {
         "content-type": "application/json",
@@ -686,20 +708,23 @@ export async function cadastrarPessoa(dados: DadosCadastroPessoa): Promise<Resul
       },
       body: JSON.stringify(body),
       signal: AbortSignal.timeout(TIMEOUT_VERDE_MS),
-    });
-    const corpo = (await res.json().catch(() => ({}))) as CadastroPessoaResponseVerde;
-    if (!res.ok) {
-      logHttpNaoOk("cadastroPessoa", res.status, Date.now() - inicio, { corpo });
-      return { sucesso: false, erro: corpo.mensagem ?? `HTTP ${res.status}` };
-    }
-    logger.info(
-      { ...contextoAtual(), corpo, evento: "verde_chamada", chamada: "cadastroPessoa", resultado: "sucesso", duracaoMs: Date.now() - inicio },
-      "[verde] cadastroPessoa: chamada concluída"
+    })
+  );
+  if (!resultado.ok) {
+    const corpoErro = (await resultado.res?.json().catch(() => ({}))) as CadastroPessoaResponseVerde | undefined;
+    // Mesmo achado de code review do encaminhamento acima — sem isso, o
+    // corpo de erro da Verde sumia do log estruturado em caso de falha.
+    logger.error(
+      { ...contextoAtual(), corpo: corpoErro, status: resultado.res?.status, evento: "verde_chamada", chamada: "cadastroPessoa", resultado: "nao_ok", duracaoMs: Date.now() - inicio },
+      "[verde] cadastroPessoa: falhou, corpo de erro da Verde"
     );
-    if (corpo.dados?.idPessoa === undefined) return { sucesso: false, erro: "Verde não devolveu idPessoa" };
-    return { sucesso: true, idPessoa: corpo.dados.idPessoa };
-  } catch (err) {
-    logger.error({ ...contextoAtual(), err, evento: "verde_chamada", chamada: "cadastroPessoa", resultado: "erro", duracaoMs: Date.now() - inicio }, "[verde] cadastroPessoa: falha na chamada");
-    return { sucesso: false, erro: "falha na chamada ao Verde" };
+    return { sucesso: false, erro: corpoErro?.mensagem ?? (resultado.falhaInfra ? "falha na chamada ao Verde (infra esgotada)" : `HTTP ${resultado.res?.status}`) };
   }
+  const corpo = (await resultado.res.json().catch(() => ({}))) as CadastroPessoaResponseVerde;
+  logger.info(
+    { ...contextoAtual(), corpo, evento: "verde_chamada", chamada: "cadastroPessoa", resultado: "sucesso", duracaoMs: Date.now() - inicio },
+    "[verde] cadastroPessoa: chamada concluída"
+  );
+  if (corpo.dados?.idPessoa === undefined) return { sucesso: false, erro: "Verde não devolveu idPessoa" };
+  return { sucesso: true, idPessoa: corpo.dados.idPessoa };
 }

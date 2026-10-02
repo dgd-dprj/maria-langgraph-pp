@@ -170,8 +170,15 @@ async function pedirTemRO(state: ViolenciaDomesticaStateType): Promise<Partial<V
 // entra em cadastroPessoa — volta a ser handoff direto (comportamento de
 // antes da issue #171). A Tykhe (POST /atendimentos direto) nunca seta
 // viaOrquestrador, então nunca ganha o cadastro automático.
-function depoisDeIdentificarAssistido(state: ViolenciaDomesticaStateType): "encontrado" | "cadastrar" | "naoConfirmado" | "cpfEsgotado" {
+//
+// Issue #172 — falhaInfra checado ANTES de "não achou" (encontrado/
+// cadastrar/cpfEsgotado): esgotou retry automático de infra, NÃO é "pessoa
+// sem cadastro" — nem tenta cadastroPessoa (arriscaria duplicar cadastro de
+// quem já tem registro), nem usa a mensagem de "CPF não encontrado" (que é
+// especificamente sobre CPF inexistente/digitado errado).
+function depoisDeIdentificarAssistido(state: ViolenciaDomesticaStateType): "encontrado" | "cadastrar" | "naoConfirmado" | "cpfEsgotado" | "falhaInfraVerde" {
   if (state.confirmaAssistido === false) return "naoConfirmado";
+  if (state.dadosPessoa?.falhaInfra) return "falhaInfraVerde";
   if (state.dadosPessoa?.encontrado) return "encontrado";
   return state.viaOrquestrador ? "cadastrar" : "cpfEsgotado";
 }
@@ -181,6 +188,14 @@ function depoisDeIdentificarAssistido(state: ViolenciaDomesticaStateType): "enco
 // de CPF, handoff direto, nunca tenta cadastro nem pergunta confirmação.
 async function cpfEsgotado(): Promise<Partial<ViolenciaDomesticaStateType>> {
   return { statusFinal: "handoff_humano", motivoHandoff: "cpf_nao_encontrado", mensagemFinal: MENSAGEM_CPF_NAO_ENCONTRADO };
+}
+
+// Issue #172 — identificarAssistido esgotou retry automático de infra
+// (401/403/5xx), não CPF genuinamente não encontrado — sem mensagem fixa
+// de propósito (mesmo padrão de naoConfirmado/assistidoNaoConfirmado),
+// usa o texto genérico de handoff que o fluxo já tem.
+async function falhaInfraVerde(): Promise<Partial<ViolenciaDomesticaStateType>> {
+  return { statusFinal: "handoff_humano", motivoHandoff: "falha_infra_verde" };
 }
 
 // Issue #171 — subgrafo cadastroPessoa (embutido abaixo) preenche
@@ -354,6 +369,7 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
   .addNode("falhaCadastro", falhaCadastro)
   .addNode("assistidoNaoConfirmado", assistidoNaoConfirmado)
   .addNode("cpfEsgotado", cpfEsgotado)
+  .addNode("falhaInfraVerde", falhaInfraVerde)
   .addNode("consultarCep", consultarCep)
   .addNode("consultarPlantao", consultarPlantao)
   .addNode("consultarOrgaos", consultarOrgaos)
@@ -395,6 +411,7 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
     cadastrar: "cadastroPessoa",
     naoConfirmado: "assistidoNaoConfirmado",
     cpfEsgotado: "cpfEsgotado",
+    falhaInfraVerde: "falhaInfraVerde",
   })
   .addConditionalEdges("cadastroPessoa", depoisDeCadastrarPessoa, {
     continuar: "consultarCep",
@@ -404,6 +421,7 @@ const grafo = new StateGraph(ViolenciaDomesticaState)
   .addEdge("falhaCadastro", END)
   .addEdge("assistidoNaoConfirmado", END)
   .addEdge("cpfEsgotado", END)
+  .addEdge("falhaInfraVerde", END)
   .addEdge("consultarCep", "consultarPlantao")
   .addEdge("consultarPlantao", "consultarOrgaos")
   .addConditionalEdges("consultarOrgaos", depoisDeConsultarOrgaos, {

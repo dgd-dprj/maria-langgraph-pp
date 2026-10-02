@@ -90,6 +90,11 @@ export const ViolenciaDomesticaState = Annotation.Root({
     | "falha_cadastro"
     | "assistido_nao_confirmado"
     | "cpf_nao_encontrado"
+    // Issue #172 — identificarAssistido esgotou retry automático de infra
+    // (401/403/5xx) consultando o CPF — diferente de cpf_nao_encontrado
+    // (CPF genuinamente inexistente/digitado errado), não entra em
+    // cadastroPessoa nem no retry de negócio "quer tentar de novo?".
+    | "falha_infra_verde"
     | undefined
   >,
   // só preenchido quando statusFinal:"concluido".

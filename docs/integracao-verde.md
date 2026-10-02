@@ -28,6 +28,14 @@ Toda chamada passa por `logHttpNaoOk()` quando o HTTP não é 2xx:
 
 Antes dessa distinção existir, um token expirado virava indistinguível de "CPF não encontrado" nos logs — quase fez a gente culpar dado de teste em vez de credencial (achado ao vivo 2026-09-18). Painel no Grafana separa os dois tipos por ambiente/chamada.
 
+### Retry automático em `auth_ou_infra` + sinal `falhaInfra` — issue #172
+
+Antes, `auth_ou_infra` (401/403/5xx, timeout/erro de rede incluso) virava o MESMO `encontrado:false` de "não encontrado de negócio" (404/422) pro resto do grafo — token expirado ou Verde fora do ar virava indistinguível de "CPF/RG genuinamente não existe", e o fluxo tratava os dois igual (retry de negócio "quer tentar de novo?", que é especificamente pra erro de digitação).
+
+Agora, `chamarVerdeComRetry()` (helper interno de `verde.ts`, usado por todas as 9 funções) tenta de novo automaticamente em `auth_ou_infra` — até `TENTATIVAS_RETRY_VERDE` (3) vezes, mesmo número de `ia/*.ts`. 404/422 (negócio) **nunca** retenta, sai na 1ª tentativa — é resposta válida da Verde, não falha.
+
+Se esgotar as 3 tentativas por infra, `consultarApenadoPorRg`/`consultarPessoaPorCpf` devolvem `falhaInfra: true` (em vez de só `encontrado: false`) — `DadosApenado`/`DadosPessoa` (`shared/types.ts`). Os fluxos que consomem isso (`fluxos/pessoaPresa/graph.ts`, `fluxos/violenciaDomestica/graph.ts`, `subgrafos/identificarAssistido/graph.ts`) checam `falhaInfra` ANTES de "não encontrado" e vão direto pro `handoff_humano` (motivo `falha_infra_verde`) — nunca entram no retry de negócio "quer tentar de novo?" nem tentam `cadastroPessoa` em cima disso (arriscaria duplicar cadastro de quem já tem registro, só não deu pra confirmar).
+
 ## Endpoints usados
 
 ### `POST /apenado` (por RG) — pessoa presa

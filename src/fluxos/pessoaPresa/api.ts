@@ -100,6 +100,7 @@ export const metadadosSchemaPessoaPresa = {
         "dados_pessoa_nao_atendidos",
         "falha_cadastro",
         "assistido_nao_confirmado",
+        "falha_infra_verde",
       ],
     },
   },

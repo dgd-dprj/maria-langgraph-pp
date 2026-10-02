@@ -254,6 +254,25 @@ test("esgota as 3 tentativas de CPF do assistido → entra em cadastro; sucesso 
   assert.equal(final.motivoHandoff, undefined);
 });
 
+// Issue #172 — CPF do assistido com falha de INFRA (sentinela "66666666666")
+// nunca entra em cadastroPessoa (arriscaria duplicar cadastro de quem já
+// tem registro) nem no retry de negócio "quer tentar de novo?" — handoff
+// direto, mesmo na 1ª tentativa.
+test("CPF do assistido com falha de infra esgotada → handoff direto, NUNCA entra em cadastro nem pergunta 'quer tentar de novo?' (issue #172)", async () => {
+  const config = novoConfig();
+  await grafo.invoke({ viaOrquestrador: true }, config);
+  await grafo.invoke(new Command({ resume: "false" }), config); // sem processo → RG
+  await grafo.invoke(new Command({ resume: "11111111111" }), config); // RG
+  await grafo.invoke(new Command({ resume: "true" }), config); // confirma nome
+  await grafo.invoke(new Command({ resume: "amigo" }), config); // parentesco → pausa pra CPF
+
+  const rFinal = await grafo.invoke(new Command({ resume: "66666666666" }), config);
+  assert.equal(pergunta(rFinal), undefined, "não deveria perguntar nada — nem retry de negócio, nem cadastro");
+  const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
+  assert.equal(final.statusFinal, "handoff_humano");
+  assert.equal(final.motivoHandoff, "falha_infra_verde");
+});
+
 test("esgota as 3 tentativas de CPF do assistido → entra em cadastro; cadastro falha → handoff_humano, motivo falha_cadastro (issue #183)", async () => {
   const original = process.env.MOCK_CADASTRO_FALHA;
   process.env.MOCK_CADASTRO_FALHA = "true";
@@ -435,6 +454,21 @@ test("RG não encontrado 3x seguidas → esgota tentativas, vai direto pro atend
   const rFinal = await grafo.invoke(new Command({ resume: "000000000" }), config);
   assert.equal(pergunta(rFinal), undefined, "não deve perguntar de novo — esgotou as 3 tentativas");
   assert.equal((rFinal as { statusFinal?: string }).statusFinal, "handoff_humano");
+});
+
+// Issue #172 — RG com falha de INFRA (401/403/5xx esgotado, sentinela
+// "66666666666") nunca deveria cair no retry de negócio "quer tentar de
+// novo?" (isso é especificamente pra RG digitado errado) — vai direto pro
+// atendente, mesmo na 1ª tentativa.
+test("RG com falha de infra esgotada (não 'não encontrado' de negócio) → handoff direto, sem perguntar 'quer tentar de novo?', motivo falha_infra_verde", async () => {
+  const config = novoConfig();
+  await grafo.invoke({}, config);
+  await grafo.invoke(new Command({ resume: "false" }), config);
+  const rFinal = await grafo.invoke(new Command({ resume: "66666666666" }), config);
+  assert.equal(pergunta(rFinal), undefined, "não deveria perguntar 'quer tentar de novo?' — não é erro de digitação");
+  const final = rFinal as { statusFinal?: string; motivoHandoff?: string };
+  assert.equal(final.statusFinal, "handoff_humano");
+  assert.equal(final.motivoHandoff, "falha_infra_verde");
 });
 
 // Validação de formato do RG (issue #15) — rejeita ANTES de consultar o

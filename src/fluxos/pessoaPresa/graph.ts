@@ -230,8 +230,13 @@ async function consultarApenado(state: PessoaPresaStateType): Promise<Partial<Pe
 // 3 tentativas de RG no total. Não encontrado com tentativa < 3: pergunta se
 // quer tentar de novo (perguntaTentarNovamente). Na 3ª falha, esgotou —
 // direto pro atendente, sem perguntar de novo (não sobra tentativa).
+// Issue #172 — falhaInfra (401/403/5xx esgotado, já com retry automático
+// dentro de consultarApenadoPorRg) vai direto pro atendente, SEM passar
+// pelo retry de negócio "quer tentar de novo?" — não é erro de digitação,
+// é a Verde/nossa infra que não respondeu, culpar o usuário seria errado.
 function depoisDeConsultarApenado(state: PessoaPresaStateType): "pedirConfirmaNome" | "perguntaTentarNovamente" | "naoConfirmado" {
   if (state.dadosApenado?.encontrado) return "pedirConfirmaNome";
+  if (state.dadosApenado?.falhaInfra) return "naoConfirmado";
   if ((state.tentativasRg ?? 0) >= 3) return "naoConfirmado";
   return "perguntaTentarNovamente";
 }
@@ -370,14 +375,18 @@ async function concluir(state: PessoaPresaStateType): Promise<Partial<PessoaPres
   return { statusFinal: "concluido" };
 }
 
-// naoConfirmado é o dead-end compartilhado por 2 caminhos diferentes:
-// esgotou as 3 tentativas de RG (dadosApenado nunca encontrado) ou achou a
-// pessoa mas não confirmou o nome. O motivo não vem por parâmetro (LangGraph
-// não passa argumento extra pro nó, só o state) — dá pra deduzir olhando o
-// que já está no estado: se NÃO achou ninguém, é falta de RG; se achou mas
-// confirmaNome é false, é nome não confirmado.
+// naoConfirmado é o dead-end compartilhado por 3 caminhos diferentes:
+// falha de infra esgotada (issue #172, não é erro de digitação), esgotou as
+// 3 tentativas de RG (dadosApenado nunca encontrado) ou achou a pessoa mas
+// não confirmou o nome. O motivo não vem por parâmetro (LangGraph não passa
+// argumento extra pro nó, só o state) — dá pra deduzir olhando o que já
+// está no estado.
 async function naoConfirmado(state: PessoaPresaStateType): Promise<Partial<PessoaPresaStateType>> {
-  const motivoHandoff = state.dadosApenado?.encontrado ? "nome_nao_confirmado" : "rg_nao_encontrado";
+  const motivoHandoff = state.dadosApenado?.falhaInfra
+    ? "falha_infra_verde"
+    : state.dadosApenado?.encontrado
+      ? "nome_nao_confirmado"
+      : "rg_nao_encontrado";
   return { statusFinal: "handoff_humano", motivoHandoff };
 }
 
@@ -400,8 +409,13 @@ function depoisDeParentesco(state: PessoaPresaStateType): "identificar" | "concl
 // Issue #189 — confirmaAssistido:false checado ANTES de dadosPessoa.encontrado:
 // achou a pessoa mas ela negou que os dados são dela — handoff direto, não
 // tenta cadastro novo (seria tratar "não confirmo" igual a "não achei").
-function depoisDeIdentificarAssistido(state: PessoaPresaStateType): "encontrado" | "cadastrar" | "assistidoNaoConfirmado" {
+// Issue #172 — falhaInfra checado ANTES do "não achou → cadastrar": esgotou
+// retry automático de infra no subgrafo identificarAssistido, NÃO é "pessoa
+// sem cadastro" — tentar cadastroPessoa em cima disso arriscaria duplicar
+// cadastro de quem JÁ TEM registro (só não deu pra confirmar).
+function depoisDeIdentificarAssistido(state: PessoaPresaStateType): "encontrado" | "cadastrar" | "assistidoNaoConfirmado" | "falhaInfraVerde" {
   if (state.confirmaAssistido === false) return "assistidoNaoConfirmado";
+  if (state.dadosPessoa?.falhaInfra) return "falhaInfraVerde";
   return state.dadosPessoa?.encontrado ? "encontrado" : "cadastrar";
 }
 
@@ -430,6 +444,15 @@ async function assistidoNaoConfirmado(): Promise<Partial<PessoaPresaStateType>> 
   return { statusFinal: "handoff_humano", motivoHandoff: "assistido_nao_confirmado" };
 }
 
+// Issue #172 — identificarAssistido esgotou retry automático de infra
+// (401/403/5xx) consultando o CPF do assistido. Mesmo motivoHandoff de
+// naoConfirmado (RG do preso) — "falha de infra da Verde" é o mesmo
+// problema de fundo, não precisa de um motivo separado por qual consulta
+// falhou.
+async function falhaInfraAssistido(): Promise<Partial<PessoaPresaStateType>> {
+  return { statusFinal: "handoff_humano", motivoHandoff: "falha_infra_verde" };
+}
+
 const grafo = new StateGraph(PessoaPresaState)
   .addNode("prepararPerguntaLivre", prepararPerguntaLivre)
   .addNode("pedirLivre", pedirLivre)
@@ -452,6 +475,7 @@ const grafo = new StateGraph(PessoaPresaState)
   .addNode("cadastroPessoa", subgrafoCadastroPessoa)
   .addNode("falhaCadastro", falhaCadastro)
   .addNode("assistidoNaoConfirmado", assistidoNaoConfirmado)
+  .addNode("falhaInfraAssistido", falhaInfraAssistido)
   .addNode("concluir", concluir)
   .addNode("naoConfirmado", naoConfirmado)
   // Roteamento condicional (não .addEdge fixo) é o que garante que, com a
@@ -504,6 +528,7 @@ const grafo = new StateGraph(PessoaPresaState)
     encontrado: "concluir",
     cadastrar: "cadastroPessoa",
     assistidoNaoConfirmado: "assistidoNaoConfirmado",
+    falhaInfraVerde: "falhaInfraAssistido",
   })
   .addConditionalEdges("cadastroPessoa", depoisDeCadastrarPessoa, {
     continuar: "concluir",
@@ -512,6 +537,7 @@ const grafo = new StateGraph(PessoaPresaState)
   })
   .addEdge("falhaCadastro", END)
   .addEdge("assistidoNaoConfirmado", END)
+  .addEdge("falhaInfraAssistido", END)
   .addEdge("naoConfirmado", END)
   .addEdge("concluir", END)
   .compile({ checkpointer: await criarCheckpointer() });
