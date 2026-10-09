@@ -1,0 +1,352 @@
+[
+  {
+    "nome": "health-200",
+    "metodo": "GET",
+    "caminho": "/health",
+    "status": 200,
+    "descricao": "Health check do ALB, sem auth"
+  },
+  {
+    "nome": "fluxos-200",
+    "metodo": "GET",
+    "caminho": "/fluxos",
+    "status": 200,
+    "descricao": "Lista de fluxos implementados"
+  },
+  {
+    "nome": "erro-auth-sem-header-401",
+    "metodo": "GET",
+    "caminho": "/fluxos",
+    "status": 401,
+    "descricao": "Rota protegida sem Authorization"
+  },
+  {
+    "nome": "erro-auth-token-invalido-401",
+    "metodo": "GET",
+    "caminho": "/fluxos",
+    "status": 401,
+    "descricao": "Rota protegida com token errado"
+  },
+  {
+    "nome": "erro-auth-sem-bearer-401",
+    "metodo": "GET",
+    "caminho": "/fluxos",
+    "status": 401,
+    "descricao": "Authorization sem o prefixo Bearer"
+  },
+  {
+    "nome": "erro-validacao-flowid-formato-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 400,
+    "descricao": "flowId que não é UUID (format uuid do schema)"
+  },
+  {
+    "nome": "erro-validacao-json-invalido-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 400,
+    "descricao": "Corpo com JSON malformado"
+  },
+  {
+    "nome": "erro-validacao-corpo-vazio-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 400,
+    "descricao": "content-type JSON com corpo vazio"
+  },
+  {
+    "nome": "erro-validacao-content-type-texto-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 400,
+    "descricao": "content-type text/plain (Fastify tem parser de texto; o corpo string falha no schema)"
+  },
+  {
+    "nome": "erro-validacao-content-type-desconhecido",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 415,
+    "descricao": "content-type sem parser registrado"
+  },
+  {
+    "nome": "erro-validacao-orquestrador-mensagem-objeto-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "status": 400,
+    "descricao": "Orquestrador com mensagem de tipo errado (erroSchema sem additionalProperties)"
+  },
+  {
+    "nome": "health-head",
+    "metodo": "HEAD",
+    "caminho": "/health",
+    "status": 200,
+    "descricao": "HEAD /health (rota HEAD automática do Fastify)"
+  },
+  {
+    "nome": "erro-barra-final-fluxos",
+    "metodo": "GET",
+    "caminho": "/fluxos/",
+    "status": 404,
+    "descricao": "GET /fluxos/ com barra final"
+  },
+  {
+    "nome": "erro-validacao-tipo-coagido-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 200,
+    "descricao": "chatId numérico: ajv coerceTypes converte pra string (não é erro)"
+  },
+  {
+    "nome": "erro-flowid-ausente-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 400,
+    "descricao": "POST /atendimentos sem flowId"
+  },
+  {
+    "nome": "erro-flowid-inexistente-404",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 404,
+    "descricao": "flowId UUID válido que não existe"
+  },
+  {
+    "nome": "erro-resposta-chatid-ausente-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 400,
+    "descricao": "POST /atendimentos/respostas sem chatId"
+  },
+  {
+    "nome": "erro-resposta-ausente-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 400,
+    "descricao": "POST /atendimentos/respostas sem resposta (issue #185)"
+  },
+  {
+    "nome": "erro-resposta-vazia-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 400,
+    "descricao": "POST /atendimentos/respostas com resposta vazia"
+  },
+  {
+    "nome": "erro-atendimento-inexistente-get-404",
+    "metodo": "GET",
+    "caminho": "/atendimentos/cap-nunca-existiu",
+    "status": 404,
+    "descricao": "GET de chatId nunca criado"
+  },
+  {
+    "nome": "erro-atendimento-inexistente-resposta-404",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 404,
+    "descricao": "Resposta para chatId nunca criado"
+  },
+  {
+    "nome": "erro-rota-inexistente-404",
+    "metodo": "GET",
+    "caminho": "/nao-existe",
+    "status": 404,
+    "descricao": "Rota que não existe (formato padrão do Fastify)"
+  },
+  {
+    "nome": "pessoa-presa-criar-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 200,
+    "descricao": "Cria atendimento: 1ª pergunta sim_nao com opcoes"
+  },
+  {
+    "nome": "pessoa-presa-criar-repetido-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 200,
+    "descricao": "POST repetido no mesmo chatId: devolve estado atual, não reinicia"
+  },
+  {
+    "nome": "erro-chatid-outro-flowid-409",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 409,
+    "descricao": "chatId já usado por outro flowId"
+  },
+  {
+    "nome": "pessoa-presa-get-em-andamento-200",
+    "metodo": "GET",
+    "caminho": "/atendimentos/cap-pessoa-presa-1",
+    "status": 200,
+    "descricao": "GET com atendimento em andamento"
+  },
+  {
+    "nome": "pessoa-presa-resposta-texto-sem-opcoes-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 200,
+    "descricao": "Responde 'false': próxima pergunta tipo texto, campo opcoes ausente (omitido, não null)"
+  },
+  {
+    "nome": "pessoa-presa-resposta-rg-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 200,
+    "descricao": "Responde RG: pergunta de confirmação de nome, metadados com dadosApenado"
+  },
+  {
+    "nome": "pessoa-presa-get-metadados-parciais-200",
+    "metodo": "GET",
+    "caminho": "/atendimentos/cap-pessoa-presa-1",
+    "status": 200,
+    "descricao": "GET com metadados parciais (campos ainda não coletados omitidos)"
+  },
+  {
+    "nome": "violencia-domestica-criar-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 200,
+    "descricao": "Cria atendimento de violência doméstica"
+  },
+  {
+    "nome": "violencia-domestica-handoff-nao-vitima-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 200,
+    "descricao": "Responde 'false': handoff_humano, motivoHandoff, mensagemFinal, tokensGastos {0,0,0}, _links só self"
+  },
+  {
+    "nome": "erro-atendimento-ja-concluido-409",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 409,
+    "descricao": "Resposta em atendimento concluído: erro + objeto de atendimento"
+  },
+  {
+    "nome": "violencia-domestica-get-concluido-200",
+    "metodo": "GET",
+    "caminho": "/atendimentos/cap-vd-1",
+    "status": 200,
+    "descricao": "GET de atendimento concluído"
+  },
+  {
+    "nome": "orquestrador-identificado-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "status": 200,
+    "descricao": "Relato livre classificado em 1 fluxo: cria o atendimento (viaOrquestrador)"
+  },
+  {
+    "nome": "erro-orquestrador-sem-mensagem-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "status": 400,
+    "descricao": "Orquestrador sem mensagem nem resposta"
+  },
+  {
+    "nome": "erro-orquestrador-resposta-vazia-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "status": 400,
+    "descricao": "Orquestrador com resposta vazia"
+  },
+  {
+    "nome": "orquestrador-resposta-sem-pendencia-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "status": 200,
+    "descricao": "Resposta de desambiguação sem pergunta pendente: roda do zero com mensagem vazia → handoff"
+  },
+  {
+    "nome": "erro-nao-tratado-500",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 500,
+    "descricao": "Erro não tratado: dadosConhecidos.tokensGastos null quebra o reducer de tokens"
+  },
+  {
+    "nome": "webhook-verificacao-200",
+    "metodo": "GET",
+    "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=token-verificacao-captura&hub.challenge=desafio123",
+    "status": 200,
+    "descricao": "Verificação do webhook: devolve challenge em text/plain"
+  },
+  {
+    "nome": "webhook-verificacao-token-errado-403",
+    "metodo": "GET",
+    "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=errado&hub.challenge=desafio123",
+    "status": 403,
+    "descricao": "Verificação com token errado: 403 sem corpo"
+  },
+  {
+    "nome": "webhook-status-entrega-200",
+    "metodo": "POST",
+    "caminho": "/webhook/whatsapp",
+    "status": 200,
+    "descricao": "Webhook de status de entrega (sem mensagem): só ok"
+  },
+  {
+    "nome": "orquestrador-desambiguacao-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "status": 200,
+    "descricao": "Relato ambíguo: pergunta de desambiguação, sem flowId"
+  },
+  {
+    "nome": "orquestrador-nao-identificado-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "status": 200,
+    "descricao": "Relato sem fluxo: handoff_humano nao_identificado"
+  },
+  {
+    "nome": "ttl-criar-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 200,
+    "descricao": "Cria atendimento (VD) para o cenário de TTL"
+  },
+  {
+    "nome": "ttl-confirmacao-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 200,
+    "descricao": "Resposta após TTL: pergunta 'quer continuar?' (sim_nao sem opcoes)"
+  },
+  {
+    "nome": "ttl-recusa-expirado-200",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 200,
+    "descricao": "Responde 'false' à confirmação: status expirado (200)"
+  },
+  {
+    "nome": "erro-expirado-409",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 409,
+    "descricao": "Resposta em atendimento expirado: 409 com erro + objeto de atendimento (atendimentos.ts:506-509)"
+  },
+  {
+    "nome": "ttl-get-expirado-200",
+    "metodo": "GET",
+    "caminho": "/atendimentos/cap-ttl-1",
+    "status": 200,
+    "descricao": "GET de atendimento expirado (estado do checkpoint, sem status expirado)"
+  },
+  {
+    "nome": "erro-chatid-obrigatorio-atendimentos-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 400,
+    "descricao": "Fora de NODE_ENV=test, POST /atendimentos sem chatId → 400"
+  },
+  {
+    "nome": "erro-chatid-obrigatorio-orquestrador-400",
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "status": 400,
+    "descricao": "Fora de NODE_ENV=test, orquestrador sem chatId → 400"
+  }
+]

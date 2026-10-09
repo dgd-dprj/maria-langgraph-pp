@@ -1,0 +1,62 @@
+{
+  "nome": "pessoa-presa-resposta-rg-200",
+  "descricao": "Responde RG: pergunta de confirmação de nome, metadados com dadosApenado",
+  "instancia": {
+    "nome": "a-test-classificacao-pessoa-presa",
+    "env": {
+      "NODE_ENV": "test",
+      "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-pessoa-presa-1",
+      "resposta": "123456789"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"resposta\":\"Confirma que a pessoa presa é Pessoa de Teste (mock)?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"metadados\":{\"temProcesso\":false,\"rg\":\"123456789\",\"dadosApenado\":{\"idSeap\":999999,\"idPessoa\":999999,\"nome\":\"Pessoa de Teste (mock)\",\"situacao\":\"ATIVO\",\"tipoPreso\":\"CONDENADO\",\"regime\":\"SEMIABERTO\"}},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-pessoa-presa-1\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}",
+    "corpo": {
+      "resposta": "Confirma que a pessoa presa é Pessoa de Teste (mock)?",
+      "tipoResposta": "sim_nao",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "status": "em_andamento",
+      "flowId": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "metadados": {
+        "temProcesso": false,
+        "rg": "123456789",
+        "dadosApenado": {
+          "idSeap": 999999,
+          "idPessoa": 999999,
+          "nome": "Pessoa de Teste (mock)",
+          "situacao": "ATIVO",
+          "tipoPreso": "CONDENADO",
+          "regime": "SEMIABERTO"
+        }
+      },
+      "dadosColetados": {},
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-pessoa-presa-1"
+        },
+        "responder": {
+          "href": "/atendimentos/respostas",
+          "method": "POST"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,48 @@
+{
+  "nome": "erro-expirado-409",
+  "descricao": "Resposta em atendimento expirado: 409 com erro + objeto de atendimento (atendimentos.ts:506-509)",
+  "instancia": {
+    "nome": "d-test-ttl-zero",
+    "env": {
+      "NODE_ENV": "test",
+      "TTL_INATIVIDADE_HORAS": "0"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-ttl-1",
+      "resposta": "true"
+    }
+  },
+  "resposta": {
+    "status": 409,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"erro\":\"atendimento expirado por inatividade — inicie um novo atendimento\",\"resposta\":\"Essa conversa expirou por inatividade. Pra continuar, inicie um novo atendimento.\",\"tipoResposta\":\"texto\",\"status\":\"expirado\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-ttl-1\"}}}",
+    "corpo": {
+      "erro": "atendimento expirado por inatividade — inicie um novo atendimento",
+      "resposta": "Essa conversa expirou por inatividade. Pra continuar, inicie um novo atendimento.",
+      "tipoResposta": "texto",
+      "status": "expirado",
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc",
+      "metadados": {},
+      "dadosColetados": {},
+      "tokensGastos": {
+        "input": 0,
+        "output": 0,
+        "total": 0
+      },
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-ttl-1"
+        }
+      }
+    }
+  }
+}

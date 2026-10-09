@@ -1,0 +1,26 @@
+{
+  "nome": "health-200",
+  "descricao": "Health check do ALB, sem auth",
+  "instancia": {
+    "nome": "a-test-classificacao-pessoa-presa",
+    "env": {
+      "NODE_ENV": "test",
+      "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "GET",
+    "caminho": "/health",
+    "headers": {}
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"status\":\"ok\"}",
+    "corpo": {
+      "status": "ok"
+    }
+  }
+}
