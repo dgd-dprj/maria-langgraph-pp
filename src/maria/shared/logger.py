@@ -132,15 +132,36 @@ class _PonteStdlib(logging.Handler):
         getattr(logger, metodo)(registro.getMessage(), **campos)
 
 
+# Bibliotecas cujos registros abaixo de WARNING carregam conteúdo do atendimento:
+# o botocore registra em DEBUG o corpo da requisição ao Bedrock (o prompt, com o
+# relato da pessoa, e o texto dos embeddings); o httpx e o httpcore registram a
+# URL completa, que no Verde inclui ?cpf= (verde.ts:291); urllib3 e s3transfer são
+# o que o boto3 usa por baixo; o psycopg_pool registra cada conexão entregue.
+# O nível fica FIXO em cada uma delas, e não herdado: baixar o nível raiz para
+# DEBUG numa depuração de incidente não as afeta. Decisão registrada na #208.
+BIBLIOTECAS_COM_NIVEL_FIXO: tuple[str, ...] = (
+    "botocore",
+    "boto3",
+    "urllib3",
+    "s3transfer",
+    "httpx",
+    "httpcore",
+    "psycopg",
+)
+
+
 def configurar_logging_stdlib() -> None:
-    # Bibliotecas só passam de WARNING para cima. Em INFO, o psycopg_pool registra
-    # cada conexão entregue ("connection given by ...") e o httpx registra cada
-    # requisição com a URL completa, que no Verde inclui ?cpf= (verde.ts:291):
-    # ruído que develop não tinha e dado pessoal no CloudWatch. Só o uvicorn fica
-    # em INFO, para as linhas de inicialização, como o "Server listening" do Fastify.
+    # Três barreiras independentes contra registro de biblioteca com dado pessoal:
+    # 1. o nível raiz fica em WARNING (bibliotecas sem nível próprio);
+    # 2. as BIBLIOTECAS_COM_NIVEL_FIXO ficam em WARNING mesmo se o raiz mudar;
+    # 3. o logger structlog filtra abaixo de INFO.
+    # Só o uvicorn fica em INFO, para as linhas de inicialização, como o
+    # "Server listening" do Fastify.
     raiz = logging.getLogger()
     raiz.handlers = [_PonteStdlib()]
     raiz.setLevel(logging.WARNING)
+    for nome in BIBLIOTECAS_COM_NIVEL_FIXO:
+        logging.getLogger(nome).setLevel(logging.WARNING)
     for nome in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         lg = logging.getLogger(nome)
         lg.handlers = []
