@@ -14,6 +14,7 @@ dependencies = [
     "psycopg-pool>=3.2",
     "structlog>=24.4",
     "python-dotenv>=1.0",
+    "langchain-aws>=1.8",
 ]
 
 [dependency-groups]
@@ -56,6 +57,11 @@ src = ["src", "tests"]
 select = ["E", "F", "W", "I", "UP", "B", "ASYNC", "RUF"]
 # Mensagens e comentários do domínio são em português, com acentos e travessão.
 ignore = ["RUF001", "RUF002", "RUF003"]
+
+[tool.ruff.lint.per-file-ignores]
+# O SQL das stores é copiado de develop sem alteração de texto (spec do módulo
+# persistencia); quebrar as linhas longas mudaria o texto.
+"src/maria/shared/{atendimentos_db,perguntas_db,fluxos_planejados_db,embeddings_fluxos}.py" = ["E501"]
 
 [tool.mypy]
 python_version = "3.12"

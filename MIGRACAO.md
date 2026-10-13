@@ -58,8 +58,8 @@ scripts/
 
 | # | Módulo | Issue | Estado |
 |---|---|---|---|
-| 1 | `fundacao` | #209 | em revisão |
-| 2 | `persistencia` | — | spec escrita |
+| 1 | `fundacao` | #209 | mergeada (PR #213) |
+| 2 | `persistencia` | #216 | em tradução |
 | 3 | `integracoes` | — | spec escrita |
 | 4 | `ia` | — | spec escrita |
 | 5 | `subgrafos` | — | — |
@@ -87,6 +87,7 @@ scripts/
 ### Peças compartilhadas (fundação)
 
 - **Logger** (`shared/logger.py`): structlog com o envelope de linha do pino, na mesma ordem das linhas gravadas em develop: `level` (numérico), `time` (ms), `pid`, `hostname`, campos de negócio, `msg`. Campo `None` é omitido, como o `undefined` do JS. `err=` é serializado como o `err` do pino (`{type, message, stack}`). A saída é sempre UTF-8, como no pino, independentemente da codificação local: no Windows, com a saída redirecionada, o Python usaria cp1252 e corromperia "—" e "ã". O logging da biblioteca padrão (uvicorn) passa pelo mesmo envelope, para nenhuma linha de texto puro chegar ao `scripts/logs-prod.sh`.
+- **Nível fixo das bibliotecas que carregam conteúdo do atendimento** (`BIBLIOTECAS_COM_NIVEL_FIXO` em `shared/logger.py`): `botocore`, `boto3`, `urllib3`, `s3transfer`, `httpx`, `httpcore` e `psycopg` ficam em WARNING com nível próprio, e não herdado. Em DEBUG, o botocore registra o corpo da chamada ao Bedrock (o prompt com o relato do cidadão, inclusive de vítimas de violência doméstica, e o texto dos embeddings), e o httpx registra a URL com `?cpf=`. Ninguém liga DEBUG em produção hoje, mas alguém pode ligar para depurar um incidente; com o nível fixo, baixar o nível raiz não libera essas bibliotecas. São três barreiras independentes: nível raiz em WARNING, nível fixo dessas bibliotecas e o filtro INFO do logger structlog. O teste simula o DEBUG global e falha se o nível fixo for removido.
 - **Contexto** (`shared/contexto.py`): `get_config()` do LangGraph Python lança exceção fora de um run, enquanto o `getConfig()` do JS devolvia `undefined`. A exceção é absorvida para manter o contrato de nunca lançar.
 - **Canal `tokensGastos`** (`shared/tokens_acumulados.py`): verificado contra o LangGraph instalado, um canal com reducer começa em `Tipo()`, e com `TypedDict` isso dá `{}`. Em develop, o default é `{input: 0, output: 0, total: 0}`. O canal usa uma subclasse de `dict` cujo construtor devolve esse valor, e o serializador do checkpointer a grava e lê como `dict` comum.
 - **Checkpointer em schema próprio** (`shared/checkpointer.py`). O `setup()` do langgraph-checkpoint-postgres cria tabelas sem schema, com os mesmos nomes das tabelas do JS em `public` (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`), e as serializações são incompatíveis. Toda conexão do pool fixa `search_path` só no schema do Python. Os testes `postgres` provam que nada em `public` é tocado.
@@ -98,15 +99,21 @@ scripts/
   | conexões ao iniciar | nenhuma | 4 | `min_size=0` |
   | máximo | 10 | `min_size` | `max_size=10` |
   | conexão ociosa fecha em | 10 s | 600 s | `max_idle=10.0` |
-  | espera por conexão com o pool cheio | sem limite | 30 s, depois `PoolTimeout` | `timeout=math.inf` |
+  | espera por conexão | pool cheio: sem limite; banco fora: erro devolvido a quem pediu | 30 s nos dois casos, depois `PoolTimeout` | `timeout=120.0` (provisório; ver achado abaixo) |
   | idade máxima da conexão | nenhuma | 3600 s | `max_lifetime=math.inf` |
+  | transação por consulta | sim (cada `pool.query`) | não (transação implícita) | `autocommit=True` |
+  | prepared statements | só statements sem nome | prepara depois de 5 execuções | `prepare_threshold=None` (desligado) |
 
-  O pool é criado fechado e aberto explicitamente (`await pool.open()`). Sem esses valores, cada pool seguraria conexões ociosas por 10 minutos no RDS Proxy compartilhado com o stack antigo, e um pool cheio transformaria em erro (`PoolTimeout` em 30 s) o que em develop é espera. O `timeout=math.inf` leva comentário no código para não ser "corrigido" numa revisão.
+  **Correção de um erro da fundação.** O checkpointer da fundação passava `prepare_threshold=0` com o comentário "evita prepared statements". No psycopg é o contrário: `0` prepara **toda** consulta já na primeira execução, e só `None` desliga. Prepared statements fazem o RDS Proxy fixar a sessão (pinning), o que tira a multiplexação do proxy compartilhado com o stack antigo. Corrigido no módulo persistencia: os parâmetros de conexão agora são fixos em `shared/pool.py` para todos os pools, e um teste impede a volta do `0`.
+
+  O pool é criado fechado e aberto explicitamente (`await pool.open()`). Sem esses valores, cada pool seguraria conexões ociosas por 10 minutos no RDS Proxy compartilhado com o stack antigo, e o `timeout` do psycopg_pool precisou de tratamento à parte (achado abaixo). O valor do `timeout` leva comentário no código explicando os dois casos, para não ser "corrigido" numa revisão.
 - **Tipos que admitem `null`:** `shared/types.py` tipa como `int | None` seis campos que o Verde pode devolver como `null` e que develop preserva (`DadosApenado.idPessoa`, `DadosProcesso.id`, `DadosPessoa.idPessoa`, `Plantao.id`, `ResultadoEncaminhamento.id`, `ResultadoCadastroPessoa.idPessoa`). Em TypeScript eram `number` e recebiam `null` em execução.
 
 ### Contrato HTTP
 
 - Status, content-type e corpo de toda resposta, inclusive de erro, idênticos às fixtures de `tests/fixtures/contrato/`. Elas foram gravadas com a aplicação TypeScript de develop @ `4e695f2` rodando de verdade: 50 casos e as linhas de log de cada uma das 5 instâncias. A receita está anexada à #209. A comparação byte a byte acontece no módulo `api`.
+- **Fixtures que refletem a store em memória, e não a de produção.** A captura rodou sem `DATABASE_URL`, como os testes de develop. Onde as duas stores divergem, a fixture registra o comportamento da memória:
+  - **`ttl-confirmacao-200`**: depois de confirmar "quer continuar?", a store em memória devolve a resposta pendente, e a fixture mostra o fluxo avançando com ela. **Em produção, a store Postgres devolve `NULL`, e a resposta da pessoa é descartada** ([#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217)). A fixture é contrato da store em memória; não serve de prova do comportamento de produção nesse caminho.
 - **Identificadores da máquina de captura trocados nas linhas de log, antes do primeiro commit.** O valor dessas fixtures está nos nomes de campo e na ordem do envelope, e não nos valores de ambiente. O `hostname` virou `maquina-de-captura` (166 linhas). O IP de rede interna nas linhas "Server listening" virou `192.0.2.10`, da faixa reservada para documentação (RFC 5737; 5 linhas). Os caminhos locais nos `stack` de erro, com o usuário e a pasta temporária, viraram o prefixo `C:\captura\develop-ts\` (39 linhas). A ordem das chaves não mudou, e um teste impede que esses dados voltem. A chave de API já tinha sido mascarada na captura (`Bearer <API_KEY>`).
 - Os sete formatos de corpo de erro de develop são reproduzidos, inclusive o 400 de validação com corpo `{}`, que é o mais contraintuitivo (tabela na #208). O 500 vaza a mensagem interna (#210) e o 400 não dá motivo (#211): os dois são tratados depois da migração.
 
@@ -128,7 +135,19 @@ scripts/
   - **Alcance:** desenvolvimento local e qualquer captura de log feita no Windows. **Em produção, o defeito não se manifestaria:** a imagem `python:3.12-slim` define `LANG=C.UTF-8`, e o Python 3.7+ força UTF-8 em locale C no Linux (PEP 538/540). O que está em jogo é o mesmo que estaria em produção: uma linha de log com acentuação corrompida deixa de casar com termos acentuados no Logs Insights e no `scripts/logs-prod.sh`. Por isso a correção não depende do ambiente.
 
 - **Tempos do pool Postgres (encontrado e corrigido antes do merge da fundação).** A primeira versão da fundação fixava só `min_size` e `max_size`, e herdava do psycopg_pool a ociosidade de 600 s, a espera de 30 s e a reciclagem de 3600 s, onde develop tem 10 s, espera sem limite e nenhuma reciclagem. Apareceu na releitura da spec de persistencia contra a fundação. Corrigido com `shared/pool.py` (ver Decisões registradas).
-- **Logs de biblioteca em INFO (encontrado e corrigido antes do merge da fundação).** A ponte do logging padrão deixava passar o INFO de qualquer biblioteca. O psycopg_pool registra cada conexão entregue, e o httpx registra cada requisição com a URL completa, que no Verde inclui `?cpf=` (`verde.ts:291`). Seria ruído que develop não tinha e, a partir do módulo integracoes, dado pessoal no CloudWatch. A ponte agora deixa passar só WARNING ou mais para as bibliotecas, e mantém INFO só para o uvicorn (linhas de inicialização). Teste: `tests/shared/test_logger.py`.
+- **Logs de biblioteca em INFO: dado pessoal que nenhum código nosso escrevia (encontrado e corrigido antes do merge da fundação).** A ponte do logging padrão deixava passar o INFO de qualquer biblioteca. O httpx registra em INFO cada requisição com a URL completa, e `verde.ts:291` monta a consulta de pessoa como `/pessoa?cpf=…`. A partir do módulo integracoes, **todo CPF consultado iria para o CloudWatch de produção**, violando a regra escrita do repositório (nunca registrar dado sensível em log), sem que ninguém fizesse nada errado: a biblioteca registra sozinha e a ponte deixava passar. O psycopg_pool, pelo mesmo caminho, registraria cada conexão entregue. A ponte agora deixa passar só WARNING ou mais para bibliotecas, e mantém INFO só para o uvicorn (linhas de inicialização). Teste: `tests/shared/test_logger.py`.
+  - **A lição vale mais que a correção.** As revisões da migração olhavam o que o nosso código registra, nunca o que as bibliotecas registram por conta própria. **Regra a partir daqui: toda dependência nova entra com a pergunta "o que ela registra por padrão, em que logger e em que nível?"**, respondida no PR que a introduz. Com o filtro atual, um INFO de biblioteca já não sai; um WARNING ou ERROR sai, e precisa ser conferido também. A mesma pergunta vale para as exceções que o nosso código registra em `err`: algumas carregam a URL na mensagem (no httpx, o `HTTPStatusError` do `raise_for_status`), e a URL do Verde pode ter `?cpf=`.
+
+- **Parâmetro com o mesmo nome e semântica diferente entre bibliotecas: o `timeout` do pool (encontrado e corrigido no módulo persistencia).** A fundação usou `timeout=math.inf`, aprovado com um raciocínio **correto sobre o pool cheio** (o `pg` espera sem limite, e o padrão de 30 s transformaria espera em erro) e **errado sobre a falha de conexão**, porque o psycopg_pool junta os dois casos num parâmetro só. O que separou os dois foi ler o pg-pool 3.14 de develop, e não o psycopg_pool. **É o tipo de erro que se repete nesta migração:** a tradução de parâmetro de uma biblioteca para a outra deve conferir a semântica nos dois lados, caso a caso, e não pelo nome. O mesmo aconteceu com o `prepare_threshold=0` (acima).
+
+  | Caso | `pg` (pg-pool 3.14, develop) | psycopg_pool com `timeout=inf` |
+  |---|---|---|
+  | Pool cheio, banco no ar | espera sem limite na fila (`connectionTimeoutMillis` = 0) | espera sem limite: **igual** |
+  | Banco fora do ar | a conexão é aberta no contexto de quem pediu (`newClient`), e o erro de conexão vai direto para quem pediu (`pendingItem.callback(err)`), sem nova tentativa | a conexão é aberta em segundo plano, com novas tentativas por até `reconnect_timeout` (300 s), e quem pediu **não é avisado**: espera para sempre |
+
+  Medido com uma porta sem servidor: conexão direta falha em 2,1 s; o pool com `timeout=inf` ainda esperava depois de 20 s (o teste cortou); com `timeout=30`, `PoolTimeout` em 30 s. Com `inf`, uma falha de conexão deixa a requisição pendurada, sem erro e sem resposta ao cidadão, e a única pista são warnings em segundo plano ("error connecting in 'pool-N'"). Com a instabilidade já registrada na #196, esse caminho tem chance real de ocorrer. **O `inf` reproduz o `pg` só no primeiro caso e introduz comportamento novo no segundo.**
+
+  **Decisão: `timeout=120.0`, provisório** (decisão em aberto na #208). É o padrão da AWS para o `ConnectionBorrowTimeout` do RDS Proxy, a melhor aproximação disponível do prazo em que o `pg` erraria em produção, onde a conexão passa pelo proxy. **Não é a resposta exata:** o `ConnectionBorrowTimeout` governa o empréstimo quando as conexões do proxy estão todas ocupadas, que não é exatamente o caso de banco indisponível; e a configuração real do proxy, que é do stack antigo, não foi conferida (o valor fica no grupo de destinos, `describe-db-proxy-target-groups`). O custo da escolha: com o pool cheio por mais de 120 s, o psycopg_pool erra onde o `pg` esperaria. Isso exige 10 consultas presas ao mesmo tempo no mesmo pool, o que com consultas de milissegundos é cenário teórico; o caso do banco fora é real. Um teste impede a volta do `inf`.
 
 ## Divergências aceitas
 
@@ -138,6 +157,19 @@ scripts/
 | Retry da leitura do corpo nos GET ao Verde | Timeout lendo o corpo vira 500 | É retentado | Retentar leitura é inofensivo |
 | Backoff do retry da IA | p-retry | tenacity | Mesmo número de tentativas; só a latência muda |
 | `err.type` em erro do Bedrock | Nome da exceção do SDK | `ClientError` (a tradução usa o código AWS) | Nenhum painel nem alerta consulta `err.*` |
+| Linha de log em falha de embedding | Nenhuma linha da biblioteca | O `langchain_aws` registra em ERROR "Error raised by inference endpoint", com traceback | Só aparece em falha, não carrega o texto do embedding, e a ponte deixa passar ERROR de propósito. O INFO de cada chamada ("Successfully invoked model…", só metadados) é barrado pelo nível fixo |
+
+## Módulo persistencia (#216)
+
+- **Quatro stores traduzidas** (`atendimentos_db`, `perguntas_db`, `fluxos_planejados_db`, `embeddings_fluxos`), com o SQL **textualmente igual** ao de develop, salvo a sintaxe de parâmetro: 34 instruções conferidas por script, byte a byte, depois de normalizar `$n`, `%s` e `%(nome)s`. Onde develop reutiliza o mesmo `$n`, a tradução usa parâmetros nomeados.
+- **Divergências entre a store em memória e a Postgres, mantidas porque develop é assim:**
+  1. `concluir` em memória grava só `statusFinal`; o Postgres grava também `destino`, `motivo_handoff`, `tokens_*` e `concluido_em`.
+  2. `resolver_confirmacao_ttl_continuar` devolve a resposta pendente em memória e `None` no Postgres: **defeito de produção, [#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217)**, fixado por teste com comentário apontando para a issue.
+  3. `listar_perguntas_por_flow` ordena por `ordem` no Postgres e mantém a ordem de inserção em memória.
+  4. `listar_fluxos_planejados` ordena por `id` no Postgres (`ORDER BY id`) e mantém a ordem de inserção em memória. Encontrada na tradução; não estava na spec.
+- **`fechar_*()` em cada store**, chamado no `finally` do lifespan (`FINALIZADORES` em `app.py`): o pytest-asyncio cria um event loop por teste, e um pool memoizado de outro loop quebraria. Em develop, os pools nunca eram fechados.
+- **Embeddings:** um cliente `BedrockEmbeddings` por chamada, com o ambiente lido na hora, como develop. A troca de `\n` por espaço é feita antes da biblioteca, porque o `langchain-aws` Python troca `os.linesep`, que no Windows é `\r\n`. O corpo enviado é `{"inputText": ...}`, sem `dimensions` nem normalização, igual ao JS. O embedding falso de teste soma code units UTF-16, conferido contra um vetor calculado com o `charCodeAt` do JS.
+- **Logs de dependência (regra deste documento) para `langchain-aws`:** o próprio `langchain_aws` registra INFO de metadados a cada chamada e ERROR com traceback em falha; `boto3`/`botocore` registram em DEBUG o corpo da requisição, com o texto do embedding; `urllib3` e `s3transfer` vêm junto. Todos ficam com nível fixo em WARNING (`BIBLIOTECAS_COM_NIVEL_FIXO`). O ERROR do `langchain_aws` passa e está nas divergências aceitas.
 
 ## Melhorias registradas, fora do escopo
 

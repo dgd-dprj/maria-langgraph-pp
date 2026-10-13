@@ -105,6 +105,41 @@ def test_logs_info_de_bibliotecas_nao_saem(capsys: pytest.CaptureFixture[str]) -
     assert mensagens == ["Application startup complete.", "aviso do pool"]
 
 
+def test_debug_global_nao_libera_bibliotecas_com_conteudo_do_atendimento(capsys: pytest.CaptureFixture[str]) -> None:
+    # Cenário: alguém baixa o nível raiz para DEBUG para depurar um incidente. O
+    # botocore registraria o corpo da chamada ao Bedrock (prompt com o relato) e o
+    # httpx a URL com ?cpf=. Nenhum dos dois pode sair; um WARNING continua saindo.
+    import logging
+
+    from maria.shared.logger import BIBLIOTECAS_COM_NIVEL_FIXO
+
+    nomes = ("uvicorn", "uvicorn.error", "uvicorn.access", *BIBLIOTECAS_COM_NIVEL_FIXO)
+    raiz = logging.getLogger()
+    estado = raiz.handlers[:], raiz.level, {n: logging.getLogger(n).level for n in nomes}
+    try:
+        configurar_logging_stdlib()
+        raiz.setLevel(logging.DEBUG)
+        logging.getLogger("botocore.endpoint").debug("Making request ... body: {'messages': [{'content': 'relato'}]}")
+        logging.getLogger("botocore.endpoint").info("Making request ... (info)")
+        logging.getLogger("httpx").info("HTTP Request: GET https://verde/pessoa?cpf=00000000000")
+        logging.getLogger("httpcore.http11").debug("send_request_headers")
+        logging.getLogger("urllib3.connectionpool").debug("https://bedrock-runtime:443 POST /model/x/converse")
+        logging.getLogger("psycopg.pool").info("connection given by 'pool-1'")
+        logging.getLogger("botocore.retryhandler").warning("aviso do botocore")
+    finally:
+        raiz.handlers, raiz.level = estado[0], estado[1]
+        for nome, nivel in estado[2].items():
+            logging.getLogger(nome).setLevel(nivel)
+    mensagens = [linha["msg"] for linha in _linhas(capsys)]
+    assert mensagens == ["aviso do botocore"]
+
+
+def test_bibliotecas_com_nivel_fixo_cobrem_aws_http_e_banco() -> None:
+    from maria.shared.logger import BIBLIOTECAS_COM_NIVEL_FIXO
+
+    assert {"botocore", "boto3", "urllib3", "s3transfer", "httpx", "httpcore", "psycopg"} <= set(BIBLIOTECAS_COM_NIVEL_FIXO)
+
+
 def test_bytes_sempre_em_utf8_mesmo_com_codificacao_local_diferente(capfdbinary: pytest.CaptureFixture[bytes]) -> None:
     # Achado ao rodar o servidor no Windows com a saída redirecionada: o Python
     # usava cp1252 e corrompia o "—". O pino escreve sempre UTF-8.

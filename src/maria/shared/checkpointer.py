@@ -53,10 +53,9 @@ async def _criar_checkpointer() -> BaseCheckpointSaver[str]:
     async with await psycopg.AsyncConnection.connect(url, autocommit=True) as conexao:
         await conexao.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(SCHEMA_CHECKPOINT)))
 
-    # Parâmetros de pool iguais aos do pg de develop (shared/pool.py). autocommit é
-    # exigido pelo setup() (CREATE INDEX CONCURRENTLY); prepare_threshold=0 evita
-    # prepared statements, que o RDS Proxy não multiplexa.
-    pool = criar_pool(url, configure=_fixar_search_path, autocommit=True, prepare_threshold=0)
+    # Parâmetros de pool e de conexão iguais aos do pg de develop (shared/pool.py).
+    # O autocommit de lá também é exigido pelo setup() (CREATE INDEX CONCURRENTLY).
+    pool = criar_pool(url, configure=_fixar_search_path)
     await pool.open()
     _pool = pool
     saver = AsyncPostgresSaver(pool)

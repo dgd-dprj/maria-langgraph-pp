@@ -107,11 +107,12 @@ async def test_search_path_e_fixado_em_cada_conexao_nova_pelo_configure_do_pool(
     kwargs = argumentos_do_pool["kwargs"]
     assert isinstance(kwargs, dict)
     assert kwargs["autocommit"] is True
+    assert kwargs["prepare_threshold"] is None
     # O pool do checkpointer sai de shared/pool.py, com os tempos do pg de develop.
     assert argumentos_do_pool["min_size"] == 0
     assert argumentos_do_pool["max_size"] == 10
     assert argumentos_do_pool["max_idle"] == 10.0
-    assert argumentos_do_pool["timeout"] == math.inf
+    assert argumentos_do_pool["timeout"] == 120.0
     assert argumentos_do_pool["max_lifetime"] == math.inf
 
     # Duas conexões novas: cada uma recebe o próprio SET.

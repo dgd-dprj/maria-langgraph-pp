@@ -11,9 +11,8 @@ uvicorn só abre o socket depois que o lifespan termina, então o `/health` do
 ALB não responde enquanto o checkpointer e o schema de negócio não estiverem
 prontos. O teste `tests/test_app.py` prova essa sequência.
 
-A fundação entrega só o esqueleto. As stores de negócio (módulo
-`persistencia`) entram em `INICIALIZADORES_PADRAO` depois do checkpointer, e as
-rotas de negócio chegam no módulo `api`.
+Depois do checkpointer vêm as stores de negócio, na mesma sequência de
+`app.ts:40-43` em develop. As rotas de negócio chegam no módulo `api`.
 """
 
 from __future__ import annotations
@@ -23,12 +22,40 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from maria.shared.atendimentos_db import fechar_atendimentos_store, obter_atendimentos_store
 from maria.shared.checkpointer import fechar_checkpointer, inicializar_checkpointer
+from maria.shared.embeddings_fluxos import fechar_busca_fluxos
+from maria.shared.fluxos_planejados_db import fechar_fluxos_planejados_store, listar_fluxos_planejados
+from maria.shared.perguntas_db import fechar_perguntas_store, obter_perguntas_store
 
 Inicializador = Callable[[], Awaitable[object]]
 
-# Ordem importa: checkpointer primeiro, depois o schema de negócio.
-INICIALIZADORES_PADRAO: tuple[Inicializador, ...] = (inicializar_checkpointer,)
+
+async def _preparar_esquema_perguntas() -> None:
+    # A store de perguntas cria o esquema em segundo plano; uma consulta força a
+    # espera, como `listarPerguntasPorFlow("0000…")` em app.ts:41-42.
+    store = await obter_perguntas_store()
+    await store.listar_perguntas_por_flow("00000000-0000-0000-0000-000000000000")
+
+
+# Ordem importa: checkpointer primeiro, depois o schema de negócio (app.ts:40-43).
+# O fluxo_embeddings fica de fora: é criado no pré-aquecimento, sem bloquear o boot.
+INICIALIZADORES_PADRAO: tuple[Inicializador, ...] = (
+    inicializar_checkpointer,
+    obter_atendimentos_store,
+    _preparar_esquema_perguntas,
+    listar_fluxos_planejados,
+)
+
+# Develop nunca fechava os pools (o Node tem um único event loop). Aqui eles são
+# fechados no fim do lifespan: o pytest-asyncio cria um loop por teste.
+FINALIZADORES: tuple[Inicializador, ...] = (
+    fechar_checkpointer,
+    fechar_atendimentos_store,
+    fechar_perguntas_store,
+    fechar_fluxos_planejados_store,
+    fechar_busca_fluxos,
+)
 
 
 def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO) -> FastAPI:
@@ -39,7 +66,8 @@ def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO)
         try:
             yield
         finally:
-            await fechar_checkpointer()
+            for finalizar in FINALIZADORES:
+                await finalizar()
 
     # /docs e /openapi.json chegam com as rotas, no módulo api, conferidos contra
     # o contrato de develop. Até lá, nenhuma rota além do /health.

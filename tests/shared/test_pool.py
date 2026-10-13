@@ -19,7 +19,7 @@ def test_parametros_reproduzem_o_pg_de_develop() -> None:
     assert pool.min_size == 0  # pg: nenhuma conexão até a primeira consulta
     assert pool.max_size == 10  # pg: max 10
     assert pool.max_idle == 10.0  # pg: idleTimeoutMillis 10 000
-    assert pool.timeout == math.inf  # pg: connectionTimeoutMillis 0 = espera sem limite
+    assert pool.timeout == 120.0  # provisório: ConnectionBorrowTimeout padrão do RDS Proxy (#208)
     assert pool.max_lifetime == math.inf  # pg: sem idade máxima
 
 
@@ -33,10 +33,26 @@ def test_nenhum_parametro_ficou_no_padrao_do_psycopg_pool() -> None:
     assert pool.max_lifetime != 3600.0
 
 
+def test_espera_por_conexao_e_finita() -> None:
+    # Com math.inf, um banco fora do ar deixava a requisição pendurada para sempre:
+    # o psycopg_pool tenta reconectar em segundo plano e não avisa quem espera,
+    # enquanto o pg devolve o erro de conexão a quem pediu. Ver shared/pool.py.
+    assert math.isfinite(criar_pool(URL).timeout)
+
+
 def test_pool_nasce_fechado() -> None:
     assert criar_pool(URL).closed
 
 
-def test_kwargs_de_conexao_e_row_factory() -> None:
-    pool = criar_pool(URL, autocommit=True, prepare_threshold=0)
-    assert pool.kwargs == {"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row}
+def test_parametros_de_conexao_reproduzem_o_pg() -> None:
+    pool = criar_pool(URL)
+    assert pool.kwargs == {"autocommit": True, "prepare_threshold": None, "row_factory": dict_row}
+
+
+def test_prepared_statements_desligados_e_nao_zero() -> None:
+    # Em psycopg, prepare_threshold=0 PREPARA toda consulta na primeira execução;
+    # None desliga. Prepared statements fixam a sessão no RDS Proxy (pinning).
+    # A fundação passou 0 achando que desligava: este teste impede a volta.
+    kwargs = criar_pool(URL).kwargs
+    assert isinstance(kwargs, dict)
+    assert kwargs["prepare_threshold"] is None
