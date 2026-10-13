@@ -156,6 +156,7 @@ scripts/
 | Timeout do Bedrock | Sem timeout de requisição | 60 s de leitura do botocore | **Valor herdado do botocore, não escolhido.** 60 s é muito para quem espera no WhatsApp, mas ajustar seria mudança de produto disfarçada de migração |
 | Retry da leitura do corpo nos GET ao Verde | Timeout lendo o corpo vira 500 | É retentado | Retentar leitura é inofensivo |
 | Backoff do retry da IA | p-retry | tenacity | Mesmo número de tentativas; só a latência muda |
+| Espera entre tentativas do SDK (Bedrock) | 100 ms de base (500 ms no throttling), com teto de 20 s | botocore: 1 s de base, com teto de 20 s | Mesmo número de requisições. **Mas piora o caso da #222:** com throttling persistente, o embedding desiste em 14,7 min no Python, contra 12,6 min em develop (medido, 147 requisições nos dois). Quem corrigir a #222 deve partir de 14,7 min |
 | `err.type` em erro do Bedrock | Nome da exceção do SDK | `ClientError` (a tradução usa o código AWS) | Nenhum painel nem alerta consulta `err.*` |
 | Linha de log em falha de embedding | `console.error({ error: e })` cru no stderr, fora do pino, uma vez por chamada ao SDK (49 por consulta com o Bedrock fora, #222) | O `langchain_aws` registra em ERROR "Error raised by inference endpoint", com traceback, também uma vez por chamada ao SDK | **Corrigido em 2026-10-13:** este registro dizia que develop não tinha linha nenhuma, e tinha. A diferença é só de formato (envelope JSON contra objeto cru). A ponte deixa passar ERROR de propósito. A linha carrega a mensagem do Bedrock, que é a rota 2 da #220. O INFO de cada chamada ("Successfully invoked model…", só metadados) é barrado pelo nível fixo |
 
@@ -203,6 +204,8 @@ No mesmo preparo, também aprovado na releitura:
 - `botocore-stubs` entra só no grupo `dev`, para o mypy strict.
 
 A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo) contra develop pega o que a leitura do nome não pega.** Os três casos só apareceram porque o teste conta requisições num servidor falso.
+
+**O padrão já contaminou a nossa própria especificação.** O `max_attempts: 3` não foi erro de tradução: estava escrito na spec do ia, revisada e aprovada. A spec descreve a configuração, e a configuração tem o mesmo problema de nome que a biblioteca. **Contar requisições vale mais que confiar na configuração**, inclusive na que nós mesmos escrevemos. Regra para os próximos módulos: todo parâmetro de retry, prazo ou limite traduzido tem um teste que mede o efeito (requisições contadas num servidor falso, tempo medido) contra o número de develop, e não um teste que só confere o valor passado à biblioteca.
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 

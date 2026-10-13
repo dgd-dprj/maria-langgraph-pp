@@ -69,7 +69,7 @@ async def _embed_query_como_develop(cliente: BedrockEmbeddings, texto: str) -> l
 
     O `embedQuery` chama o caller (embeddings.js:108), e o `_embedText` chama de
     novo (:73). Com o Bedrock falhando sempre: 7 × 7 = 49 chamadas ao SDK, cada
-    uma com até 3 tentativas do botocore, e de 8 a 17 minutos até desistir (medido: 12,6 a 13,4).
+    uma com até 3 tentativas do botocore, e de 8 a 17 minutos até desistir (medido em develop: 12,6 a 13,4; no Python, 12,5 a 14,7).
     Ninguém escolheu esse número: é defeito de develop reproduzido de propósito,
     registrado na #222. Não "corrija" aqui.
     """
