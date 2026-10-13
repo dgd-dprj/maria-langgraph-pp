@@ -111,6 +111,11 @@ scripts/
   - A saída estruturada **não** é validada, como em develop: o `z.enum` só descrevia a saída no prompt, e o `ChatBedrockConverse` do JS nunca validou. Um teste fixa isso, com comentário apontando para [#212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212), onde o defeito será corrigido depois da migração.
   - Retry medido em develop e reproduzido: 429 e 5xx dão 9 requisições; o boto3 fica em modo `standard` com 3 tentativas.
 
+## Achados durante a migração
+
+- **Logger em cp1252 no Windows (encontrado e corrigido na fundação).** Só apareceu porque a instalação da imagem foi reproduzida localmente e a saída do servidor foi redirecionada para arquivo. Com a saída redirecionada, o Python no Windows escreve na codificação ANSI local (cp1252), e "—", "ã" e os demais caracteres acentuados saíam como bytes inválidos em UTF-8. O pino sempre escreve UTF-8. A correção grava os bytes em UTF-8 independentemente da codificação local, e `tests/shared/test_logger.py` fixa isso no nível dos bytes.
+  - **Alcance:** desenvolvimento local e qualquer captura de log feita no Windows. **Em produção, o defeito não se manifestaria:** a imagem `python:3.12-slim` define `LANG=C.UTF-8`, e o Python 3.7+ força UTF-8 em locale C no Linux (PEP 538/540). O que está em jogo é o mesmo que estaria em produção: uma linha de log com acentuação corrompida deixa de casar com termos acentuados no Logs Insights e no `scripts/logs-prod.sh`. Por isso a correção não depende do ambiente.
+
 ## Divergências aceitas
 
 | Onde | develop | Python | Por que é aceita |
