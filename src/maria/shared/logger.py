@@ -139,6 +139,9 @@ class _PonteStdlib(logging.Handler):
 # o que o boto3 usa por baixo; o psycopg_pool registra cada conexão entregue.
 # O nível fica FIXO em cada uma delas, e não herdado: baixar o nível raiz para
 # DEBUG numa depuração de incidente não as afeta. Decisão registrada na #208.
+# NÃO é redundante com o filtro INFO do logger structlog (wrap_logger acima):
+# são barreiras independentes, e cada uma cobre a remoção da outra. Quem baixar o
+# filtro do structlog para depurar ainda tem esta; não remover numa limpeza.
 BIBLIOTECAS_COM_NIVEL_FIXO: tuple[str, ...] = (
     "botocore",
     "boto3",
