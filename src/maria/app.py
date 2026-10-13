@@ -22,6 +22,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from maria.integracoes.cliente_http import fechar_cliente_http
 from maria.shared.atendimentos_db import fechar_atendimentos_store, obter_atendimentos_store
 from maria.shared.checkpointer import fechar_checkpointer, inicializar_checkpointer
 from maria.shared.embeddings_fluxos import fechar_busca_fluxos
@@ -55,6 +56,7 @@ FINALIZADORES: tuple[Inicializador, ...] = (
     fechar_perguntas_store,
     fechar_fluxos_planejados_store,
     fechar_busca_fluxos,
+    fechar_cliente_http,
 )
 
 
