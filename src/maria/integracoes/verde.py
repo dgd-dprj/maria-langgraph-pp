@@ -27,9 +27,9 @@ from urllib.parse import quote
 
 import httpx
 
-from maria.integracoes import _js
-from maria.integracoes._js import AUSENTE
 from maria.integracoes.cliente_http import obter_cliente_http
+from maria.shared import _js
+from maria.shared._js import AUSENTE
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
 from maria.shared.types import (

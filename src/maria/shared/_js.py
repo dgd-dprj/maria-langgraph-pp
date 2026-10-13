@@ -1,7 +1,8 @@
-"""Semântica de JavaScript usada pelas integrações, para a tradução ser fiel.
+"""Semântica de JavaScript usada pelas integrações e pela IA, para a tradução ser fiel.
 
-O código de develop lê respostas do Verde e do WhatsApp com `o.k`, `o?.k`, `??`
-e testes de verdade (`if (x)`). Em Python, `dict.get`, `or` e `not` não fazem a
+O código de develop lê respostas do Verde e do WhatsApp, e os argumentos da
+ferramenta devolvidos pelo modelo, com `o.k`, `o?.k`, `??` e testes de verdade
+(`if (x)`). Em Python, `dict.get`, `or` e `not` não fazem a
 mesma coisa:
 
 - `o.k` com `o` igual a null LANÇA TypeError em JS; `o?.k` devolve undefined.

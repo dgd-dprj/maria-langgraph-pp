@@ -14,9 +14,9 @@ import os
 import time
 from typing import Any, NotRequired, TypedDict
 
-from maria.integracoes import _js
-from maria.integracoes._js import AUSENTE
 from maria.integracoes.cliente_http import obter_cliente_http
+from maria.shared import _js
+from maria.shared._js import AUSENTE
 from maria.shared.logger import logger
 
 # Lidos na importação, como em develop (whatsapp.ts:7-9).
