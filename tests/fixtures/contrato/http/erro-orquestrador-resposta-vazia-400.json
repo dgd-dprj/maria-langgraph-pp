@@ -1,0 +1,33 @@
+{
+  "nome": "erro-orquestrador-resposta-vazia-400",
+  "descricao": "Orquestrador com resposta vazia",
+  "instancia": {
+    "nome": "a-test-classificacao-pessoa-presa",
+    "env": {
+      "NODE_ENV": "test",
+      "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-orq-2",
+      "resposta": ""
+    }
+  },
+  "resposta": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"erro\":\"resposta não pode ser vazia\"}",
+    "corpo": {
+      "erro": "resposta não pode ser vazia"
+    }
+  }
+}

@@ -1,0 +1,39 @@
+{
+  "nome": "orquestrador-nao-identificado-200",
+  "descricao": "Relato sem fluxo: handoff_humano nao_identificado",
+  "instancia": {
+    "nome": "c-test-sem-classificacao",
+    "env": {
+      "NODE_ENV": "test"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-orq-nenhum",
+      "mensagem": "texto qualquer"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"resposta\":\"Não consegui identificar como te ajudar a partir do que você escreveu. Vou encaminhar seu atendimento pra um atendente humano confirmar.\",\"tipoResposta\":\"texto\",\"status\":\"handoff_humano\",\"motivoHandoff\":\"nao_identificado\",\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-orq-nenhum\"}}}",
+    "corpo": {
+      "resposta": "Não consegui identificar como te ajudar a partir do que você escreveu. Vou encaminhar seu atendimento pra um atendente humano confirmar.",
+      "tipoResposta": "texto",
+      "status": "handoff_humano",
+      "motivoHandoff": "nao_identificado",
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-orq-nenhum"
+        }
+      }
+    }
+  }
+}

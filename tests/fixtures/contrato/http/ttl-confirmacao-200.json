@@ -1,0 +1,46 @@
+{
+  "nome": "ttl-confirmacao-200",
+  "descricao": "Resposta após TTL: pergunta 'quer continuar?' (sim_nao sem opcoes)",
+  "instancia": {
+    "nome": "d-test-ttl-zero",
+    "env": {
+      "NODE_ENV": "test",
+      "TTL_INATIVIDADE_HORAS": "0"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-ttl-1",
+      "resposta": "true"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"resposta\":\"Já faz um tempo desde sua última mensagem. Quer continuar de onde você parou?\",\"tipoResposta\":\"sim_nao\",\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-ttl-1\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}",
+    "corpo": {
+      "resposta": "Já faz um tempo desde sua última mensagem. Quer continuar de onde você parou?",
+      "tipoResposta": "sim_nao",
+      "status": "em_andamento",
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc",
+      "metadados": {},
+      "dadosColetados": {},
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-ttl-1"
+        },
+        "responder": {
+          "href": "/atendimentos/respostas",
+          "method": "POST"
+        }
+      }
+    }
+  }
+}

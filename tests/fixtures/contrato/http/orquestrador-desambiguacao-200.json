@@ -1,0 +1,43 @@
+{
+  "nome": "orquestrador-desambiguacao-200",
+  "descricao": "Relato ambíguo: pergunta de desambiguação, sem flowId",
+  "instancia": {
+    "nome": "b-test-classificacao-ambigua",
+    "env": {
+      "NODE_ENV": "test",
+      "MOCK_CLASSIFICACAO_FLOWIDS": "3df874f2-675a-4c43-9ec7-480f7c702f50,cabb2495-4e12-4f4a-9956-3d20649059bc"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-orq-amb",
+      "mensagem": "preciso de ajuda"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"resposta\":\"Pra te ajudar melhor, qual dessas opções descreve o que você precisa?\",\"tipoResposta\":\"texto\",\"status\":\"em_andamento\",\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-orq-amb\"},\"responder\":{\"href\":\"/atendimentos/orquestrador\",\"method\":\"POST\"}}}",
+    "corpo": {
+      "resposta": "Pra te ajudar melhor, qual dessas opções descreve o que você precisa?",
+      "tipoResposta": "texto",
+      "status": "em_andamento",
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-orq-amb"
+        },
+        "responder": {
+          "href": "/atendimentos/orquestrador",
+          "method": "POST"
+        }
+      }
+    }
+  }
+}

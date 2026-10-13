@@ -1,0 +1,51 @@
+{
+  "nome": "erro-validacao-tipo-coagido-200",
+  "descricao": "chatId numérico: ajv coerceTypes converte pra string (não é erro)",
+  "instancia": {
+    "nome": "a-test-classificacao-pessoa-presa",
+    "env": {
+      "NODE_ENV": "test",
+      "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": 12345,
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": "/atendimentos/12345",
+    "corpoBruto": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/12345\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}",
+    "corpo": {
+      "resposta": "Você é a vítima de violência doméstica?",
+      "tipoResposta": "sim_nao",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "status": "em_andamento",
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc",
+      "metadados": {},
+      "dadosColetados": {},
+      "_links": {
+        "self": {
+          "href": "/atendimentos/12345"
+        },
+        "responder": {
+          "href": "/atendimentos/respostas",
+          "method": "POST"
+        }
+      }
+    }
+  }
+}
