@@ -26,6 +26,7 @@ dev = [
     "pytest-asyncio>=0.24",
     "pyyaml>=6.0",
     "types-pyyaml>=6.0",
+    "botocore-stubs>=1.43.112",
 ]
 
 [build-system]
