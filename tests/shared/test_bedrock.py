@@ -55,7 +55,7 @@ def bedrock_falso(monkeypatch: pytest.MonkeyPatch) -> Iterator[_BedrockFalso]:
             pass
 
     servidor = ThreadingHTTPServer(("127.0.0.1", 0), Tratador)
-    threading.Thread(target=servidor.serve_forever, daemon=True).start()
+    threading.Thread(target=servidor.serve_forever, kwargs={"poll_interval": 0.02}, daemon=True).start()
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.setenv("AWS_ENDPOINT_URL_BEDROCK_RUNTIME", f"http://127.0.0.1:{servidor.server_address[1]}")
     monkeypatch.setenv("AWS_ACCESS_KEY_ID", "AKIAFAKEFAKEFAKEFAKE")

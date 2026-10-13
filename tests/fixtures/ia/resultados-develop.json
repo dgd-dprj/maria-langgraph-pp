@@ -1,0 +1,324 @@
+{
+  "01-escolha-unica-valida": {
+    "resultado": {
+      "escolhaId": "b",
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      33
+    ],
+    "duracaoTotalMs": 42
+  },
+  "02-escolha-unica-nenhum": {
+    "resultado": {
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      3
+    ],
+    "duracaoTotalMs": 4
+  },
+  "03-escolha-unica-fora-da-lista": {
+    "resultado": {
+      "escolhaId": "inventado",
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      2
+    ],
+    "duracaoTotalMs": 3
+  },
+  "04-escolha-unica-tipo-errado": {
+    "resultado": {
+      "escolhaId": 7,
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      3
+    ],
+    "duracaoTotalMs": 4
+  },
+  "05-escolha-unica-sem-chave": {
+    "resultado": {
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      3
+    ],
+    "duracaoTotalMs": 4
+  },
+  "06-multipla-fora-da-lista": {
+    "resultado": {
+      "ids": [
+        "a",
+        "inventado"
+      ],
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      3
+    ],
+    "duracaoTotalMs": 3
+  },
+  "07-multipla-nao-lista": {
+    "resultado": {
+      "ids": "a",
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      2
+    ],
+    "duracaoTotalMs": 2
+  },
+  "08-sem-tool-use": {
+    "resultado": {
+      "viaIA": false
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      2
+    ],
+    "duracaoTotalMs": 7
+  },
+  "09-sem-usage": {
+    "resultado": {
+      "escolhaId": "a",
+      "viaIA": true
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      3
+    ],
+    "duracaoTotalMs": 4
+  },
+  "10-preparar-pergunta-sem-usage": {
+    "resultado": {
+      "perguntaAtualTexto": "Qual o seu RG? 🙂",
+      "perguntaAtualViaIA": true,
+      "tokensGastos": {
+        "input": 0,
+        "output": 0,
+        "total": 0
+      }
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      3
+    ],
+    "duracaoTotalMs": 4
+  },
+  "11-preparar-pergunta-com-usage": {
+    "resultado": {
+      "perguntaAtualTexto": "Qual o seu RG? 🙂",
+      "perguntaAtualViaIA": true,
+      "perguntaAtualTokensTotal": 18,
+      "tokensGastos": {
+        "input": 11,
+        "output": 7,
+        "total": 18
+      }
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      2
+    ],
+    "duracaoTotalMs": 3
+  },
+  "12-reescrever-sem-chave": {
+    "resultado": {
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      3
+    ],
+    "duracaoTotalMs": 3
+  },
+  "13-extrair-tipo-errado": {
+    "resultado": {
+      "temProcesso": "sim",
+      "rg": 123456,
+      "extra": "x",
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      2
+    ],
+    "duracaoTotalMs": 3
+  },
+  "14-desambiguar-tipo-errado": {
+    "resultado": {
+      "pergunta": [
+        "a",
+        "b"
+      ],
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      2
+    ],
+    "duracaoTotalMs": 3
+  },
+  "15-sumarizar-ok": {
+    "resultado": {
+      "resumo": "resumo curto",
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      2
+    ],
+    "duracaoTotalMs": 3
+  },
+  "16-throttle-sempre": {
+    "resultado": {
+      "viaIA": false
+    },
+    "requisicoesHttp": 9,
+    "intervalosMs": [
+      3,
+      461,
+      950,
+      1781,
+      277,
+      671,
+      2027,
+      382,
+      709
+    ],
+    "duracaoTotalMs": 7266
+  },
+  "17-500-sempre": {
+    "resultado": {
+      "viaIA": false
+    },
+    "requisicoesHttp": 9,
+    "intervalosMs": [
+      3,
+      100,
+      59,
+      1989,
+      70,
+      31,
+      3045,
+      43,
+      92
+    ],
+    "duracaoTotalMs": 5433
+  },
+  "18-400-validacao": {
+    "resultado": {
+      "viaIA": false
+    },
+    "requisicoesHttp": 3,
+    "intervalosMs": [
+      2,
+      1580,
+      3887
+    ],
+    "duracaoTotalMs": 5471
+  },
+  "19-throttle-depois-ok": {
+    "resultado": {
+      "escolhaId": "a",
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 4,
+    "intervalosMs": [
+      3,
+      500,
+      202,
+      1641
+    ],
+    "duracaoTotalMs": 2347
+  },
+  "20-prompt-classificar-fluxos": {
+    "resultado": {
+      "ids": [
+        "f1"
+      ],
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      3
+    ],
+    "duracaoTotalMs": 3
+  },
+  "21-prompt-extrair": {
+    "resultado": {
+      "rg": "123",
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      2
+    ],
+    "duracaoTotalMs": 2
+  },
+  "22-prompt-reescrever": {
+    "resultado": {
+      "texto": "Qual é o seu RG? 🙂",
+      "viaIA": true,
+      "tokensEntrada": 11,
+      "tokensSaida": 7,
+      "tokensTotal": 18
+    },
+    "requisicoesHttp": 1,
+    "intervalosMs": [
+      1
+    ],
+    "duracaoTotalMs": 1
+  }
+}

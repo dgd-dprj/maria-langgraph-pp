@@ -1,0 +1,56 @@
+{
+  "metodo": "POST",
+  "caminho": "/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "corpo": {
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "Campo: rg\nPergunta original: Qual o RG?\nReescreva."
+          }
+        ]
+      }
+    ],
+    "system": [
+      {
+        "text": "Você reescreve perguntas de um formulário jurídico da Defensoria Pública do RJ.\nRegras: mantenha o MESMO significado — nunca invente informação nova, nunca mude o que está sendo pedido.\nTom acolhedor, claro, direto. Português do Brasil com emoji (se for possível). Uma frase só, terminada em \"?\".\nPreserve a ordem natural das palavras perto de nomes próprios e do termo \"pessoa presa\" — nunca separe \"presa\"\ndo que ela qualifica (ex: NUNCA \"Essa é o Fulano presa?\"; prefira \"Essa pessoa presa é o Fulano?\" ou manter a\nestrutura original). Reescreva o tom/fraseado, não a ordem das informações."
+      }
+    ],
+    "toolConfig": {
+      "tools": [
+        {
+          "toolSpec": {
+            "name": "extract",
+            "inputSchema": {
+              "json": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "pergunta": {
+                    "type": "string",
+                    "description": "a pergunta reescrita, curta e natural, em português do Brasil"
+                  }
+                },
+                "required": [
+                  "pergunta"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "description": "A function available to call."
+          }
+        }
+      ],
+      "toolChoice": {
+        "tool": {
+          "name": "extract"
+        }
+      }
+    }
+  },
+  "t": 1791573031407
+}

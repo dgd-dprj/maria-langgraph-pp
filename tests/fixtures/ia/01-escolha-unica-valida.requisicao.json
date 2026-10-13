@@ -1,0 +1,61 @@
+{
+  "metodo": "POST",
+  "caminho": "/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "corpo": {
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "msg"
+          }
+        ]
+      }
+    ],
+    "system": [
+      {
+        "text": "sistema de teste"
+      }
+    ],
+    "toolConfig": {
+      "tools": [
+        {
+          "toolSpec": {
+            "name": "extract",
+            "inputSchema": {
+              "json": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "escolhaId": {
+                    "type": "string",
+                    "enum": [
+                      "nenhum",
+                      "a",
+                      "b"
+                    ],
+                    "description": "id do candidato que melhor atende, ou \"nenhum\" se não bater com confiança em nenhum"
+                  }
+                },
+                "required": [
+                  "escolhaId"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "description": "A function available to call."
+          }
+        }
+      ],
+      "toolChoice": {
+        "tool": {
+          "name": "extract"
+        }
+      }
+    }
+  },
+  "t": 1791573010813
+}
