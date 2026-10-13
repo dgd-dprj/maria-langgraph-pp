@@ -1,0 +1,6 @@
+# Fim de linha LF no repositório e na cópia de trabalho, em qualquer máquina,
+# independentemente do core.autocrlf de cada uma (o Git for Windows vem com true).
+# Sem isto, um editor que grave CRLF numa máquina com autocrlf=false registra
+# quebras de linha do Windows no commit, e o diff mostra o arquivo inteiro como
+# alterado. text=auto deixa o git detectar binários sozinho.
+* text=auto eol=lf
