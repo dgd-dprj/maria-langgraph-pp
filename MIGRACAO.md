@@ -59,8 +59,8 @@ scripts/
 | # | Módulo | Issue | Estado |
 |---|---|---|---|
 | 1 | `fundacao` | #209 | mergeada (PR #213) |
-| 2 | `persistencia` | #216 | em tradução |
-| 3 | `integracoes` | — | spec escrita |
+| 2 | `persistencia` | #216 | mergeada (PR #218) |
+| 3 | `integracoes` | #219 | em tradução |
 | 4 | `ia` | — | spec escrita |
 | 5 | `subgrafos` | — | — |
 | 6 | `fluxos` | — | — |
@@ -170,6 +170,11 @@ scripts/
 - **`fechar_*()` em cada store**, chamado no `finally` do lifespan (`FINALIZADORES` em `app.py`): o pytest-asyncio cria um event loop por teste, e um pool memoizado de outro loop quebraria. Em develop, os pools nunca eram fechados.
 - **Embeddings:** um cliente `BedrockEmbeddings` por chamada, com o ambiente lido na hora, como develop. A troca de `\n` por espaço é feita antes da biblioteca, porque o `langchain-aws` Python troca `os.linesep`, que no Windows é `\r\n`. O corpo enviado é `{"inputText": ...}`, sem `dimensions` nem normalização, igual ao JS. O embedding falso de teste soma code units UTF-16, conferido contra um vetor calculado com o `charCodeAt` do JS.
 - **Logs de dependência (regra deste documento) para `langchain-aws`:** o próprio `langchain_aws` registra INFO de metadados a cada chamada e ERROR com traceback em falha; `boto3`/`botocore` registram em DEBUG o corpo da requisição, com o texto do embedding; `urllib3` e `s3transfer` vêm junto. Todos ficam com nível fixo em WARNING (`BIBLIOTECAS_COM_NIVEL_FIXO`). O ERROR do `langchain_aws` passa e está nas divergências aceitas.
+
+## Módulo integracoes (#219)
+
+- **Conexões simultâneas ao Verde sem limite (`max_connections=None`): limite ausente que ninguém escolheu.** O `fetch` de develop usa o pool global do undici, sem limite de conexões por origem, e a tradução reproduz isso no lugar do padrão de 100 do httpx. Nem em develop nem aqui alguém decidiu esse valor. O Verde é sistema da Defensoria com capacidade desconhecida, e o teto prático de chamadas simultâneas hoje vem do número de atendimentos simultâneos, não da biblioteca. **Aceito por fidelidade, não por desenho.** Se o Verde precisar de proteção, isso é decisão de produto, a tomar depois da migração.
+- **Prazo de conexão de 10 s, como o undici** (terceiro caso do padrão "parâmetro com nome familiar e semântica diferente", comentário 12 da #208). O `fetch` aborta a abertura da conexão em 10 s (`connectTimeout` do undici), bem antes do `AbortSignal` de 30 s. Medido no Node 24.21: 10,8 s. A tradução usa `httpx.Timeout(connect=10.0)`. Sem isso, com as 3 tentativas, um Verde que não aceita conexão levaria 90 s para virar falha de infra, contra cerca de 30 s em develop.
 
 ## Melhorias registradas, fora do escopo
 
