@@ -157,7 +157,7 @@ scripts/
 | Retry da leitura do corpo nos GET ao Verde | Timeout lendo o corpo vira 500 | É retentado | Retentar leitura é inofensivo |
 | Backoff do retry da IA | p-retry | tenacity | Mesmo número de tentativas; só a latência muda |
 | `err.type` em erro do Bedrock | Nome da exceção do SDK | `ClientError` (a tradução usa o código AWS) | Nenhum painel nem alerta consulta `err.*` |
-| Linha de log em falha de embedding | Nenhuma linha da biblioteca | O `langchain_aws` registra em ERROR "Error raised by inference endpoint", com traceback | Só aparece em falha, não carrega o texto do embedding, e a ponte deixa passar ERROR de propósito. O INFO de cada chamada ("Successfully invoked model…", só metadados) é barrado pelo nível fixo |
+| Linha de log em falha de embedding | `console.error({ error: e })` cru no stderr, fora do pino, uma vez por chamada ao SDK (49 por consulta com o Bedrock fora, #222) | O `langchain_aws` registra em ERROR "Error raised by inference endpoint", com traceback, também uma vez por chamada ao SDK | **Corrigido em 2026-10-13:** este registro dizia que develop não tinha linha nenhuma, e tinha. A diferença é só de formato (envelope JSON contra objeto cru). A ponte deixa passar ERROR de propósito. A linha carrega a mensagem do Bedrock, que é a rota 2 da #220. O INFO de cada chamada ("Successfully invoked model…", só metadados) é barrado pelo nível fixo |
 
 ## Módulo persistencia (#216)
 
@@ -180,9 +180,29 @@ scripts/
   1. `dados` como objeto, ou item `null` na lista de órgãos e de plantões, gera `TypeError` e 500 em develop (`verde.ts:479`, `:517`). A tradução lança nos mesmos casos.
   2. O 1º item `null` de `messages` ou `statuses` do WhatsApp lança `TypeError` em develop (`whatsapp.ts:81`, `:115`). A spec dizia que a extração nunca lançava.
   3. No corpo enviado ao Verde, `undefined` é chave ausente e `None` é `null`: **nada é removido antes de serializar**. A spec mandava remover `None` recursivamente, o que mudaria o envio de um `null` vindo do próprio Verde. Os módulos de cima devem representar o `undefined` de develop como chave ausente no estado, e não como `None`.
-- **Semântica de JS num auxiliar único** (`integracoes/_js.py`): `prop` (`o.k`, que lança em null), `opt` (`o?.k`), `coalesce` (`??`), `verdadeiro` (`{}` e `[]` são verdadeiros), `texto_template` (`${v}`: `true`, `null`, `undefined`) e `json_parse`/`json_stringify` com as regras do JSON de JS.
+- **Semântica de JS num auxiliar único** (`shared/_js.py`; nasceu em `integracoes/` e foi movido para `shared/` antes do ia, que precisa da mesma semântica): `prop` (`o.k`, que lança em null), `opt` (`o?.k`), `coalesce` (`??`), `verdadeiro` (`{}` e `[]` são verdadeiros), `texto_template` (`${v}`: `true`, `null`, `undefined`) e `json_parse`/`json_stringify` com as regras do JSON de JS.
 - **Verificação por mutação:** a tradução ingênua de cada divergência (redirect, prazo de conexão, `True` na query, escape, POST com o corpo lido dentro do retry, remoção recursiva de `None`) foi aplicada no código, e o teste correspondente falhou em todos os casos.
 - **Corpo da resposta do Verde no log (comportamento de develop, reproduzido; em avaliação).** Em develop, o encaminhamento e o cadastro registram o corpo da resposta do Verde no sucesso e na falha (`verde.ts:645`, `:651`, `:718`, `:725`; `campo corpo`). No sucesso, pelo formato documentado, ele não tem dado pessoal. Na falha, é `{codigo, mensagem}` escrito pelo Verde, e **não foi verificado se alguma mensagem de erro do cadastro repete o CPF ou o nome enviados**. Apontado pela revisão automática de segurança dos commits. Reproduzido como em develop; a medição nos logs reais (sucesso e falha) e a decisão estão na [#220](https://github.com/dgd-dprj/maria-langgraph-pp/issues/220). **É a segunda rota de dado pessoal para o log encontrada na migração:** a primeira foi uma biblioteca registrando sozinha (achado "Logs de biblioteca em INFO", resolvido com `BIBLIOTECAS_COM_NIVEL_FIXO`); esta é o nosso código registrando a resposta de um terceiro, e o filtro de nível não a cobre, porque a linha sai pelo logger da aplicação. Para essa rota, a proteção só pode estar no que se decide registrar.
+
+## Correção do persistencia antes do ia: retry do Bedrock (2026-10-13)
+
+A releitura da spec do ia encontrou uma divergência **já mergeada** na `migration` (persistencia, `b2e7d7f`). Ela foi corrigida antes da tradução do ia, no primeiro commit da branch do módulo.
+
+- **develop:** o `BedrockEmbeddings` do JS empilha três camadas de retry: dois `AsyncCaller` com 6 retentativas cada (`embeddings.js:108` e `:73`) e o SDK com 3 tentativas. Com o Bedrock falso falhando sempre, foram 49 requisições (400), 147 (429) e 99 (500), com cerca de 13 minutos até desistir. Ninguém escolheu esses números: é defeito de produção, [#222](https://github.com/dgd-dprj/maria-langgraph-pp/issues/222).
+- **`migration` antes da correção:** nenhum caller, e o boto3 em modo `legacy` (5 tentativas): falha em segundos. **Diverge de develop**, e a régua é develop.
+- **Correção:** `shared/bedrock.py` (`CONFIG_BOTOCORE`, `cota_como_sdk_js`, `chamar_como_async_caller`), usado pelo persistencia agora e pelo ia na tradução. O teste `tests/shared/test_bedrock.py` fixa 49, 147 e 99 contra um Bedrock falso local.
+
+**Dois casos novos do padrão "parâmetro com nome familiar e semântica diferente"** (o quarto e o quinto foram encontrados juntos; o sexto, na medição):
+- **Quarto, "retry":** no JS, retry existe em três camadas, e no Python, em uma só. O `BedrockEmbeddings` Python não tem caller.
+- **Quinto, `max_attempts`:** no botocore, `max_attempts` conta as **retentativas**, e `max_attempts: 3` dá 4 requisições. O total de tentativas fica em `total_max_attempts`. A spec do ia prescrevia `max_attempts: 3`. **O erro estava na spec**, e o teste que conta requisições pegou.
+- **Sexto, cota de retentativas:** os dois SDKs têm uma cota de 500 fichas por cliente. O SDK JS cobra 10 por retentativa de 5xx; o botocore cobra 5 e reserva o 10 para timeout. Com 500 persistente, isso dá 99 requisições contra 147. A tradução troca a cota do cliente pela do JS (`cota_como_sdk_js`).
+
+No mesmo preparo, também aprovado na releitura:
+- `_js.py` sai de `integracoes/` e vai para `shared/`;
+- `langsmith` entra em `BIBLIOTECAS_COM_NIVEL_FIXO`, porque já vem instalado, como dependência transitiva do `langchain-core`, na versão 0.14.7;
+- `botocore-stubs` entra só no grupo `dev`, para o mypy strict.
+
+A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo) contra develop pega o que a leitura do nome não pega.** Os três casos só apareceram porque o teste conta requisições num servidor falso.
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
