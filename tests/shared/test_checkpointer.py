@@ -6,6 +6,7 @@ com pgvector. Eles provam que o `setup()` do Python cria as tabelas só em
 criou em `public`.
 """
 
+import math
 import os
 from collections.abc import AsyncIterator
 
@@ -91,8 +92,10 @@ async def test_search_path_e_fixado_em_cada_conexao_nova_pelo_configure_do_pool(
     async def _conectar(*_a: object, **_k: object) -> _ConexaoFalsa:
         return conexao_do_schema
 
+    from maria.shared import pool as modulo_pool
+
     monkeypatch.setenv("DATABASE_URL", "postgresql://usuario@host-falso/banco")
-    monkeypatch.setattr(checkpointer, "AsyncConnectionPool", _PoolFalso)
+    monkeypatch.setattr(modulo_pool, "AsyncConnectionPool", _PoolFalso)
     monkeypatch.setattr(checkpointer, "AsyncPostgresSaver", _SaverFalso)
     monkeypatch.setattr(psycopg.AsyncConnection, "connect", _conectar)
 
@@ -104,6 +107,12 @@ async def test_search_path_e_fixado_em_cada_conexao_nova_pelo_configure_do_pool(
     kwargs = argumentos_do_pool["kwargs"]
     assert isinstance(kwargs, dict)
     assert kwargs["autocommit"] is True
+    # O pool do checkpointer sai de shared/pool.py, com os tempos do pg de develop.
+    assert argumentos_do_pool["min_size"] == 0
+    assert argumentos_do_pool["max_size"] == 10
+    assert argumentos_do_pool["max_idle"] == 10.0
+    assert argumentos_do_pool["timeout"] == math.inf
+    assert argumentos_do_pool["max_lifetime"] == math.inf
 
     # Duas conexões novas: cada uma recebe o próprio SET.
     primeira, segunda = _ConexaoFalsa(), _ConexaoFalsa()

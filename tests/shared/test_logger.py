@@ -84,6 +84,27 @@ def test_utf8_cru_sem_escape(capsys: pytest.CaptureFixture[str]) -> None:
     assert "violência doméstica — órgão" in capsys.readouterr().out
 
 
+def test_logs_info_de_bibliotecas_nao_saem(capsys: pytest.CaptureFixture[str]) -> None:
+    # psycopg_pool registra cada conexão entregue e httpx registra cada requisição
+    # com a URL completa (no Verde, com ?cpf=). Nenhum dos dois pode chegar ao stdout.
+    import logging
+
+    raiz = logging.getLogger()
+    estado = raiz.handlers[:], raiz.level, {n: logging.getLogger(n).level for n in ("uvicorn", "uvicorn.error", "uvicorn.access")}
+    try:
+        configurar_logging_stdlib()
+        logging.getLogger("psycopg.pool").info("connection given by %r", "pool-1")
+        logging.getLogger("httpx").info("HTTP Request: GET https://verde/pessoa?cpf=00000000000")
+        logging.getLogger("uvicorn.error").info("Application startup complete.")
+        logging.getLogger("psycopg.pool").warning("aviso do pool")
+    finally:
+        raiz.handlers, raiz.level = estado[0], estado[1]
+        for nome, nivel in estado[2].items():
+            logging.getLogger(nome).setLevel(nivel)
+    mensagens = [linha["msg"] for linha in _linhas(capsys)]
+    assert mensagens == ["Application startup complete.", "aviso do pool"]
+
+
 def test_bytes_sempre_em_utf8_mesmo_com_codificacao_local_diferente(capfdbinary: pytest.CaptureFixture[bytes]) -> None:
     # Achado ao rodar o servidor no Windows com a saída redirecionada: o Python
     # usava cp1252 e corrompia o "—". O pino escreve sempre UTF-8.

@@ -91,7 +91,18 @@ scripts/
 - **Canal `tokensGastos`** (`shared/tokens_acumulados.py`): verificado contra o LangGraph instalado, um canal com reducer começa em `Tipo()`, e com `TypedDict` isso dá `{}`. Em develop, o default é `{input: 0, output: 0, total: 0}`. O canal usa uma subclasse de `dict` cujo construtor devolve esse valor, e o serializador do checkpointer a grava e lê como `dict` comum.
 - **Checkpointer em schema próprio** (`shared/checkpointer.py`). O `setup()` do langgraph-checkpoint-postgres cria tabelas sem schema, com os mesmos nomes das tabelas do JS em `public` (`checkpoints`, `checkpoint_blobs`, `checkpoint_writes`, `checkpoint_migrations`), e as serializações são incompatíveis. Toda conexão do pool fixa `search_path` só no schema do Python. Os testes `postgres` provam que nada em `public` é tocado.
 - **Ordem de inicialização:** o `setup()` do checkpointer e o schema de negócio rodam no lifespan, nessa ordem. O uvicorn só abre o socket depois do lifespan. `tests/test_app.py` prova a sequência com o uvicorn de verdade: enquanto a inicialização está bloqueada, a conexão é recusada. Se a inicialização falhar, o processo sai com código 3, e o ECS recria a task.
-- **Pools Postgres** com `min_size=0`, `max_size=10`, `open=False` e `await pool.open()`, reproduzindo a abertura preguiçosa do `pg.Pool` contra o RDS Proxy compartilhado.
+- **Pools Postgres criados num único lugar** (`shared/pool.py`, função `criar_pool`), que todo pool do serviço usa: o checkpointer desde a fundação e as quatro stores a partir do módulo persistencia. Os parâmetros reproduzem o `pg` (pg-pool 3.14) de develop, e não os padrões do psycopg_pool:
+
+  | | develop (`pg`) | padrão do psycopg_pool | usado |
+  |---|---|---|---|
+  | conexões ao iniciar | nenhuma | 4 | `min_size=0` |
+  | máximo | 10 | `min_size` | `max_size=10` |
+  | conexão ociosa fecha em | 10 s | 600 s | `max_idle=10.0` |
+  | espera por conexão com o pool cheio | sem limite | 30 s, depois `PoolTimeout` | `timeout=math.inf` |
+  | idade máxima da conexão | nenhuma | 3600 s | `max_lifetime=math.inf` |
+
+  O pool é criado fechado e aberto explicitamente (`await pool.open()`). Sem esses valores, cada pool seguraria conexões ociosas por 10 minutos no RDS Proxy compartilhado com o stack antigo, e um pool cheio transformaria em erro (`PoolTimeout` em 30 s) o que em develop é espera. O `timeout=math.inf` leva comentário no código para não ser "corrigido" numa revisão.
+- **Tipos que admitem `null`:** `shared/types.py` tipa como `int | None` seis campos que o Verde pode devolver como `null` e que develop preserva (`DadosApenado.idPessoa`, `DadosProcesso.id`, `DadosPessoa.idPessoa`, `Plantao.id`, `ResultadoEncaminhamento.id`, `ResultadoCadastroPessoa.idPessoa`). Em TypeScript eram `number` e recebiam `null` em execução.
 
 ### Contrato HTTP
 
@@ -115,6 +126,9 @@ scripts/
 
 - **Logger em cp1252 no Windows (encontrado e corrigido na fundação).** Só apareceu porque a instalação da imagem foi reproduzida localmente e a saída do servidor foi redirecionada para arquivo. Com a saída redirecionada, o Python no Windows escreve na codificação ANSI local (cp1252), e "—", "ã" e os demais caracteres acentuados saíam como bytes inválidos em UTF-8. O pino sempre escreve UTF-8. A correção grava os bytes em UTF-8 independentemente da codificação local, e `tests/shared/test_logger.py` fixa isso no nível dos bytes.
   - **Alcance:** desenvolvimento local e qualquer captura de log feita no Windows. **Em produção, o defeito não se manifestaria:** a imagem `python:3.12-slim` define `LANG=C.UTF-8`, e o Python 3.7+ força UTF-8 em locale C no Linux (PEP 538/540). O que está em jogo é o mesmo que estaria em produção: uma linha de log com acentuação corrompida deixa de casar com termos acentuados no Logs Insights e no `scripts/logs-prod.sh`. Por isso a correção não depende do ambiente.
+
+- **Tempos do pool Postgres (encontrado e corrigido antes do merge da fundação).** A primeira versão da fundação fixava só `min_size` e `max_size`, e herdava do psycopg_pool a ociosidade de 600 s, a espera de 30 s e a reciclagem de 3600 s, onde develop tem 10 s, espera sem limite e nenhuma reciclagem. Apareceu na releitura da spec de persistencia contra a fundação. Corrigido com `shared/pool.py` (ver Decisões registradas).
+- **Logs de biblioteca em INFO (encontrado e corrigido antes do merge da fundação).** A ponte do logging padrão deixava passar o INFO de qualquer biblioteca. O psycopg_pool registra cada conexão entregue, e o httpx registra cada requisição com a URL completa, que no Verde inclui `?cpf=` (`verde.ts:291`). Seria ruído que develop não tinha e, a partir do módulo integracoes, dado pessoal no CloudWatch. A ponte agora deixa passar só WARNING ou mais para as bibliotecas, e mantém INFO só para o uvicorn (linhas de inicialização). Teste: `tests/shared/test_logger.py`.
 
 ## Divergências aceitas
 

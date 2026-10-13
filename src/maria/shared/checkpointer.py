@@ -28,19 +28,18 @@ from langgraph.checkpoint.base import BaseCheckpointSaver
 from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.checkpoint.postgres.aio import AsyncPostgresSaver
 from psycopg import sql
-from psycopg.rows import DictRow, dict_row
-from psycopg_pool import AsyncConnectionPool
 
 from maria.shared.logger import logger
+from maria.shared.pool import ConexaoAsync, PoolAsync, criar_pool
 
 SCHEMA_CHECKPOINT = "checkpoint_py"
 
 _checkpointer: BaseCheckpointSaver[str] | None = None
-_pool: AsyncConnectionPool[psycopg.AsyncConnection[DictRow]] | None = None
+_pool: PoolAsync | None = None
 _trava = asyncio.Lock()
 
 
-async def _fixar_search_path(conexao: psycopg.AsyncConnection[DictRow]) -> None:
+async def _fixar_search_path(conexao: ConexaoAsync) -> None:
     await conexao.execute(sql.SQL("SET search_path TO {}").format(sql.Identifier(SCHEMA_CHECKPOINT)))
 
 
@@ -54,18 +53,10 @@ async def _criar_checkpointer() -> BaseCheckpointSaver[str]:
     async with await psycopg.AsyncConnection.connect(url, autocommit=True) as conexao:
         await conexao.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(SCHEMA_CHECKPOINT)))
 
-    # min_size=0 reproduz a abertura preguiçosa do pg.Pool de develop (decisão da
-    # spec de persistência, para não abrir conexões ociosas no RDS Proxy compartilhado).
-    # autocommit é exigido pelo setup() (CREATE INDEX CONCURRENTLY); prepare_threshold=0
-    # evita prepared statements, que o RDS Proxy não multiplexa.
-    pool: AsyncConnectionPool[psycopg.AsyncConnection[DictRow]] = AsyncConnectionPool(
-        url,
-        min_size=0,
-        max_size=10,
-        open=False,
-        configure=_fixar_search_path,
-        kwargs={"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row},
-    )
+    # Parâmetros de pool iguais aos do pg de develop (shared/pool.py). autocommit é
+    # exigido pelo setup() (CREATE INDEX CONCURRENTLY); prepare_threshold=0 evita
+    # prepared statements, que o RDS Proxy não multiplexa.
+    pool = criar_pool(url, configure=_fixar_search_path, autocommit=True, prepare_threshold=0)
     await pool.open()
     _pool = pool
     saver = AsyncPostgresSaver(pool)

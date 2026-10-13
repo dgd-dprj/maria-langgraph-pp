@@ -133,10 +133,16 @@ class _PonteStdlib(logging.Handler):
 
 
 def configurar_logging_stdlib() -> None:
+    # Bibliotecas só passam de WARNING para cima. Em INFO, o psycopg_pool registra
+    # cada conexão entregue ("connection given by ...") e o httpx registra cada
+    # requisição com a URL completa, que no Verde inclui ?cpf= (verde.ts:291):
+    # ruído que develop não tinha e dado pessoal no CloudWatch. Só o uvicorn fica
+    # em INFO, para as linhas de inicialização, como o "Server listening" do Fastify.
     raiz = logging.getLogger()
     raiz.handlers = [_PonteStdlib()]
-    raiz.setLevel(logging.INFO)
+    raiz.setLevel(logging.WARNING)
     for nome in ("uvicorn", "uvicorn.error", "uvicorn.access"):
         lg = logging.getLogger(nome)
         lg.handlers = []
         lg.propagate = True
+        lg.setLevel(logging.INFO)

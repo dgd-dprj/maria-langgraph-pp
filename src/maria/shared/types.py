@@ -6,6 +6,13 @@ do grafo e, a partir dele, para `metadados` na resposta à Tykhe.
 
 `TypedDict(total=False)` com `Required[...]` reproduz o `campo?:` do
 TypeScript: um campo opcional ausente fica ausente, e não `None`.
+
+`int | None` em `DadosApenado.idPessoa`, `DadosProcesso.id`,
+`DadosPessoa.idPessoa`, `Plantao.id`, `ResultadoEncaminhamento.id` e
+`ResultadoCadastroPessoa.idPessoa`: o Verde pode devolver `null` nesses campos,
+e develop preserva o `null` (chave presente com `null` conta como encontrado
+ou sucesso; ver a spec do módulo integracoes, tabela 3.3). Em TypeScript eles
+eram `number` e recebiam `null` em execução; aqui o tipo diz a verdade.
 """
 
 from __future__ import annotations
@@ -22,7 +29,7 @@ class Pergunta(TypedDict, total=False):
 class DadosApenado(TypedDict, total=False):
     encontrado: Required[bool]
     idSeap: int
-    idPessoa: int
+    idPessoa: int | None
     nome: str
     situacao: str
     # Confirmados ao vivo em 2026-09-09: o Verde já devolve os dois no /apenado.
@@ -45,7 +52,7 @@ class MovimentoProcesso(TypedDict, total=False):
 
 class DadosProcesso(TypedDict, total=False):
     encontrado: Required[bool]
-    id: int
+    id: int | None
     origem: str
     instancia: int
     nomeAssunto: str
@@ -65,7 +72,7 @@ class EnderecoDetalhado(TypedDict, total=False):
 
 class DadosPessoa(TypedDict, total=False):
     encontrado: Required[bool]
-    idPessoa: int
+    idPessoa: int | None
     nome: str
     nomeSocial: str
     genero: str
@@ -130,14 +137,14 @@ class OrgaosViolenciaDomestica(TypedDict, total=False):
 class Plantao(TypedDict, total=False):
     """GET /integra/plantao/vigente: lista vazia = fora de horário de plantão."""
 
-    id: Required[int]
+    id: Required[int | None]
     tipo: str
 
 
 class ResultadoEncaminhamento(TypedDict, total=False):
     sucesso: Required[bool]
     # Só com sucesso: id do encaminhamento criado no Verde (protocolo).
-    id: int
+    id: int | None
     # Só sem sucesso.
     erro: str
 
@@ -146,5 +153,5 @@ class ResultadoCadastroPessoa(TypedDict, total=False):
     """Issue #171: cadastro de pessoa nova no Verde (POST /integra/pessoa)."""
 
     sucesso: Required[bool]
-    idPessoa: int
+    idPessoa: int | None
     erro: str
