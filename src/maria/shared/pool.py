@@ -44,12 +44,22 @@ ESPERA_POR_CONEXAO_S = math.inf
 IDADE_MAXIMA_S = math.inf
 
 
-def criar_pool(url: str, *, configure: Callable[[ConexaoAsync], Awaitable[None]] | None = None, **kwargs_conexao: Any) -> PoolAsync:
+# Parâmetros de cada conexão, fixos para todos os pools, também reproduzindo o pg:
+# - autocommit: no pg, cada `pool.query` roda como transação própria. Sem isso, o
+#   psycopg abriria uma transação implícita por conexão.
+# - prepare_threshold=None: DESLIGA prepared statements. O pg só usa statements
+#   sem nome. ATENÇÃO: 0 faz o contrário (prepara toda consulta já na primeira
+#   execução), e prepared statements fazem o RDS Proxy fixar a sessão (pinning),
+#   perdendo a multiplexação no proxy compartilhado com o stack antigo.
+PARAMETROS_DE_CONEXAO: dict[str, Any] = {"autocommit": True, "prepare_threshold": None, "row_factory": dict_row}
+
+
+def criar_pool(url: str, *, configure: Callable[[ConexaoAsync], Awaitable[None]] | None = None) -> PoolAsync:
     """Pool fechado (`open=False`); quem cria abre com `await pool.open()`.
 
     `min_size=0` reproduz a abertura preguiçosa do pg: nenhuma conexão até a
-    primeira consulta. `kwargs_conexao` vai para cada conexão nova (por exemplo,
-    `autocommit`); `row_factory` é sempre `dict_row`.
+    primeira consulta. Toda conexão nova recebe PARAMETROS_DE_CONEXAO e, se
+    houver, passa pelo `configure` (por exemplo, o search_path do checkpointer).
     """
     return AsyncConnectionPool(
         url,
@@ -60,5 +70,5 @@ def criar_pool(url: str, *, configure: Callable[[ConexaoAsync], Awaitable[None]]
         max_lifetime=IDADE_MAXIMA_S,
         open=False,
         configure=configure,
-        kwargs={**kwargs_conexao, "row_factory": dict_row},
+        kwargs=dict(PARAMETROS_DE_CONEXAO),
     )

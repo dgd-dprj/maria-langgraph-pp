@@ -101,6 +101,10 @@ scripts/
   | conexão ociosa fecha em | 10 s | 600 s | `max_idle=10.0` |
   | espera por conexão com o pool cheio | sem limite | 30 s, depois `PoolTimeout` | `timeout=math.inf` |
   | idade máxima da conexão | nenhuma | 3600 s | `max_lifetime=math.inf` |
+  | transação por consulta | sim (cada `pool.query`) | não (transação implícita) | `autocommit=True` |
+  | prepared statements | só statements sem nome | prepara depois de 5 execuções | `prepare_threshold=None` (desligado) |
+
+  **Correção de um erro da fundação.** O checkpointer da fundação passava `prepare_threshold=0` com o comentário "evita prepared statements". No psycopg é o contrário: `0` prepara **toda** consulta já na primeira execução, e só `None` desliga. Prepared statements fazem o RDS Proxy fixar a sessão (pinning), o que tira a multiplexação do proxy compartilhado com o stack antigo. Corrigido no módulo persistencia: os parâmetros de conexão agora são fixos em `shared/pool.py` para todos os pools, e um teste impede a volta do `0`.
 
   O pool é criado fechado e aberto explicitamente (`await pool.open()`). Sem esses valores, cada pool seguraria conexões ociosas por 10 minutos no RDS Proxy compartilhado com o stack antigo, e um pool cheio transformaria em erro (`PoolTimeout` em 30 s) o que em develop é espera. O `timeout=math.inf` leva comentário no código para não ser "corrigido" numa revisão.
 - **Tipos que admitem `null`:** `shared/types.py` tipa como `int | None` seis campos que o Verde pode devolver como `null` e que develop preserva (`DadosApenado.idPessoa`, `DadosProcesso.id`, `DadosPessoa.idPessoa`, `Plantao.id`, `ResultadoEncaminhamento.id`, `ResultadoCadastroPessoa.idPessoa`). Em TypeScript eram `number` e recebiam `null` em execução.

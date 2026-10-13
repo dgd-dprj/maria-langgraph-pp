@@ -37,6 +37,15 @@ def test_pool_nasce_fechado() -> None:
     assert criar_pool(URL).closed
 
 
-def test_kwargs_de_conexao_e_row_factory() -> None:
-    pool = criar_pool(URL, autocommit=True, prepare_threshold=0)
-    assert pool.kwargs == {"autocommit": True, "prepare_threshold": 0, "row_factory": dict_row}
+def test_parametros_de_conexao_reproduzem_o_pg() -> None:
+    pool = criar_pool(URL)
+    assert pool.kwargs == {"autocommit": True, "prepare_threshold": None, "row_factory": dict_row}
+
+
+def test_prepared_statements_desligados_e_nao_zero() -> None:
+    # Em psycopg, prepare_threshold=0 PREPARA toda consulta na primeira execução;
+    # None desliga. Prepared statements fixam a sessão no RDS Proxy (pinning).
+    # A fundação passou 0 achando que desligava: este teste impede a volta.
+    kwargs = criar_pool(URL).kwargs
+    assert isinstance(kwargs, dict)
+    assert kwargs["prepare_threshold"] is None
