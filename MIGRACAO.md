@@ -58,8 +58,8 @@ scripts/
 
 | # | Módulo | Issue | Estado |
 |---|---|---|---|
-| 1 | `fundacao` | #209 | em revisão |
-| 2 | `persistencia` | — | spec escrita |
+| 1 | `fundacao` | #209 | mergeada (PR #213) |
+| 2 | `persistencia` | #216 | em tradução |
 | 3 | `integracoes` | — | spec escrita |
 | 4 | `ia` | — | spec escrita |
 | 5 | `subgrafos` | — | — |
@@ -157,6 +157,19 @@ scripts/
 | Retry da leitura do corpo nos GET ao Verde | Timeout lendo o corpo vira 500 | É retentado | Retentar leitura é inofensivo |
 | Backoff do retry da IA | p-retry | tenacity | Mesmo número de tentativas; só a latência muda |
 | `err.type` em erro do Bedrock | Nome da exceção do SDK | `ClientError` (a tradução usa o código AWS) | Nenhum painel nem alerta consulta `err.*` |
+| Linha de log em falha de embedding | Nenhuma linha da biblioteca | O `langchain_aws` registra em ERROR "Error raised by inference endpoint", com traceback | Só aparece em falha, não carrega o texto do embedding, e a ponte deixa passar ERROR de propósito. O INFO de cada chamada ("Successfully invoked model…", só metadados) é barrado pelo nível fixo |
+
+## Módulo persistencia (#216)
+
+- **Quatro stores traduzidas** (`atendimentos_db`, `perguntas_db`, `fluxos_planejados_db`, `embeddings_fluxos`), com o SQL **textualmente igual** ao de develop, salvo a sintaxe de parâmetro: 34 instruções conferidas por script, byte a byte, depois de normalizar `$n`, `%s` e `%(nome)s`. Onde develop reutiliza o mesmo `$n`, a tradução usa parâmetros nomeados.
+- **Divergências entre a store em memória e a Postgres, mantidas porque develop é assim:**
+  1. `concluir` em memória grava só `statusFinal`; o Postgres grava também `destino`, `motivo_handoff`, `tokens_*` e `concluido_em`.
+  2. `resolver_confirmacao_ttl_continuar` devolve a resposta pendente em memória e `None` no Postgres: **defeito de produção, [#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217)**, fixado por teste com comentário apontando para a issue.
+  3. `listar_perguntas_por_flow` ordena por `ordem` no Postgres e mantém a ordem de inserção em memória.
+  4. `listar_fluxos_planejados` ordena por `id` no Postgres (`ORDER BY id`) e mantém a ordem de inserção em memória. Encontrada na tradução; não estava na spec.
+- **`fechar_*()` em cada store**, chamado no `finally` do lifespan (`FINALIZADORES` em `app.py`): o pytest-asyncio cria um event loop por teste, e um pool memoizado de outro loop quebraria. Em develop, os pools nunca eram fechados.
+- **Embeddings:** um cliente `BedrockEmbeddings` por chamada, com o ambiente lido na hora, como develop. A troca de `\n` por espaço é feita antes da biblioteca, porque o `langchain-aws` Python troca `os.linesep`, que no Windows é `\r\n`. O corpo enviado é `{"inputText": ...}`, sem `dimensions` nem normalização, igual ao JS. O embedding falso de teste soma code units UTF-16, conferido contra um vetor calculado com o `charCodeAt` do JS.
+- **Logs de dependência (regra deste documento) para `langchain-aws`:** o próprio `langchain_aws` registra INFO de metadados a cada chamada e ERROR com traceback em falha; `boto3`/`botocore` registram em DEBUG o corpo da requisição, com o texto do embedding; `urllib3` e `s3transfer` vêm junto. Todos ficam com nível fixo em WARNING (`BIBLIOTECAS_COM_NIVEL_FIXO`). O ERROR do `langchain_aws` passa e está nas divergências aceitas.
 
 ## Melhorias registradas, fora do escopo
 

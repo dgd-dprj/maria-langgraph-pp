@@ -112,6 +112,21 @@ def test_inicializadores_padrao_comecam_pelo_checkpointer() -> None:
     assert INICIALIZADORES_PADRAO[0] is inicializar_checkpointer
 
 
+def test_inicializadores_padrao_seguem_a_ordem_de_develop() -> None:
+    # Spec do módulo persistencia, teste 16: checkpointer e, depois, as três stores
+    # na ordem de app.ts:40-43. O fluxo_embeddings não entra no startup.
+    from maria.app import _preparar_esquema_perguntas
+    from maria.shared.atendimentos_db import obter_atendimentos_store
+    from maria.shared.fluxos_planejados_db import listar_fluxos_planejados
+
+    assert INICIALIZADORES_PADRAO == (
+        inicializar_checkpointer,
+        obter_atendimentos_store,
+        _preparar_esquema_perguntas,
+        listar_fluxos_planejados,
+    )
+
+
 async def test_nenhuma_criacao_de_checkpointer_na_primeira_requisicao(monkeypatch: pytest.MonkeyPatch) -> None:
     chamadas: list[str] = []
     original = checkpointer._criar_checkpointer

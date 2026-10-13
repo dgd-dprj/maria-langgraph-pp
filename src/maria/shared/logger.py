@@ -150,6 +150,10 @@ BIBLIOTECAS_COM_NIVEL_FIXO: tuple[str, ...] = (
     "httpx",
     "httpcore",
     "psycopg",
+    # langchain_aws: em INFO, "Successfully invoked model … ResponseMetadata" a
+    # cada embedding (só metadados). O ERROR "Error raised by inference endpoint"
+    # continua passando; develop não tinha essa linha (divergência registrada).
+    "langchain_aws",
 )
 
 
