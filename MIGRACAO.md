@@ -59,8 +59,8 @@ scripts/
 | # | Módulo | Issue | Estado |
 |---|---|---|---|
 | 1 | `fundacao` | #209 | mergeada (PR #213) |
-| 2 | `persistencia` | #216 | em tradução |
-| 3 | `integracoes` | — | spec escrita |
+| 2 | `persistencia` | #216 | mergeada (PR #218) |
+| 3 | `integracoes` | #219 | em tradução |
 | 4 | `ia` | — | spec escrita |
 | 5 | `subgrafos` | — | — |
 | 6 | `fluxos` | — | — |
@@ -170,6 +170,27 @@ scripts/
 - **`fechar_*()` em cada store**, chamado no `finally` do lifespan (`FINALIZADORES` em `app.py`): o pytest-asyncio cria um event loop por teste, e um pool memoizado de outro loop quebraria. Em develop, os pools nunca eram fechados.
 - **Embeddings:** um cliente `BedrockEmbeddings` por chamada, com o ambiente lido na hora, como develop. A troca de `\n` por espaço é feita antes da biblioteca, porque o `langchain-aws` Python troca `os.linesep`, que no Windows é `\r\n`. O corpo enviado é `{"inputText": ...}`, sem `dimensions` nem normalização, igual ao JS. O embedding falso de teste soma code units UTF-16, conferido contra um vetor calculado com o `charCodeAt` do JS.
 - **Logs de dependência (regra deste documento) para `langchain-aws`:** o próprio `langchain_aws` registra INFO de metadados a cada chamada e ERROR com traceback em falha; `boto3`/`botocore` registram em DEBUG o corpo da requisição, com o texto do embedding; `urllib3` e `s3transfer` vêm junto. Todos ficam com nível fixo em WARNING (`BIBLIOTECAS_COM_NIVEL_FIXO`). O ERROR do `langchain_aws` passa e está nas divergências aceitas.
+
+## Módulo integracoes (#219)
+
+- **Conexões simultâneas ao Verde sem limite (`max_connections=None`): limite ausente que ninguém escolheu.** O `fetch` de develop usa o pool global do undici, sem limite de conexões por origem, e a tradução reproduz isso no lugar do padrão de 100 do httpx. Nem em develop nem aqui alguém decidiu esse valor. O Verde é sistema da Defensoria com capacidade desconhecida, e o teto prático de chamadas simultâneas hoje vem do número de atendimentos simultâneos, não da biblioteca. **Aceito por fidelidade, não por desenho.** Se o Verde precisar de proteção, isso é decisão de produto, a tomar depois da migração.
+- **Prazo de conexão de 10 s, como o undici** (terceiro caso do padrão "parâmetro com nome familiar e semântica diferente", comentário 12 da #208). O `fetch` aborta a abertura da conexão em 10 s (`connectTimeout` do undici), bem antes do `AbortSignal` de 30 s. Medido no Node 24.21: 10,8 s. A tradução usa `httpx.Timeout(connect=10.0)`. Sem isso, com as 3 tentativas, um Verde que não aceita conexão levaria 90 s para virar falha de infra, contra cerca de 30 s em develop.
+
+- **Achados da tradução, além do que a spec previa** (spec e #219 atualizadas antes do PR):
+  1. `dados` como objeto, ou item `null` na lista de órgãos e de plantões, gera `TypeError` e 500 em develop (`verde.ts:479`, `:517`). A tradução lança nos mesmos casos.
+  2. O 1º item `null` de `messages` ou `statuses` do WhatsApp lança `TypeError` em develop (`whatsapp.ts:81`, `:115`). A spec dizia que a extração nunca lançava.
+  3. No corpo enviado ao Verde, `undefined` é chave ausente e `None` é `null`: **nada é removido antes de serializar**. A spec mandava remover `None` recursivamente, o que mudaria o envio de um `null` vindo do próprio Verde. Os módulos de cima devem representar o `undefined` de develop como chave ausente no estado, e não como `None`.
+- **Semântica de JS num auxiliar único** (`integracoes/_js.py`): `prop` (`o.k`, que lança em null), `opt` (`o?.k`), `coalesce` (`??`), `verdadeiro` (`{}` e `[]` são verdadeiros), `texto_template` (`${v}`: `true`, `null`, `undefined`) e `json_parse`/`json_stringify` com as regras do JSON de JS.
+- **Verificação por mutação:** a tradução ingênua de cada divergência (redirect, prazo de conexão, `True` na query, escape, POST com o corpo lido dentro do retry, remoção recursiva de `None`) foi aplicada no código, e o teste correspondente falhou em todos os casos.
+- **Corpo da resposta do Verde no log (comportamento de develop, reproduzido; em avaliação).** Em develop, o encaminhamento e o cadastro registram o corpo da resposta do Verde no sucesso e na falha (`verde.ts:645`, `:651`, `:718`, `:725`; `campo corpo`). No sucesso, pelo formato documentado, ele não tem dado pessoal. Na falha, é `{codigo, mensagem}` escrito pelo Verde, e **não foi verificado se alguma mensagem de erro do cadastro repete o CPF ou o nome enviados**. Apontado pela revisão automática de segurança dos commits. Reproduzido como em develop; a medição nos logs reais (sucesso e falha) e a decisão estão na [#220](https://github.com/dgd-dprj/maria-langgraph-pp/issues/220). **É a segunda rota de dado pessoal para o log encontrada na migração:** a primeira foi uma biblioteca registrando sozinha (achado "Logs de biblioteca em INFO", resolvido com `BIBLIOTECAS_COM_NIVEL_FIXO`); esta é o nosso código registrando a resposta de um terceiro, e o filtro de nível não a cobre, porque a linha sai pelo logger da aplicação. Para essa rota, a proteção só pode estar no que se decide registrar.
+
+## Técnica a repetir nos próximos módulos: verificação por mutação
+
+Um teste que passa prova que o código faz o esperado no caso testado. Não prova que o teste **pegaria** a tradução errada. Para cada divergência que a spec do módulo trata (o lugar onde a tradução ingênua muda o comportamento), aplique no código a versão ingênua, rode o teste correspondente e confirme que ele **falha**. Depois, restaure o código.
+
+- Usado no módulo integracoes: redirect, prazo de conexão, `True` na query string, escape de URL, POST com o corpo lido dentro do retry (encaminhamento e apenado) e remoção recursiva de `None`. Os sete testes falharam com a mutação.
+- **Se a mutação passar, examine a mutação antes do teste.** No integracoes, a primeira versão da mutação de `None` removia só no primeiro nível, e o `null` do teste estava aninhado. A mutação estava errada, não o teste. Corrigir o teste para "pegar" uma mutação mal escrita seria enfraquecê-lo.
+- O script é descartável (não entra no repositório), mas a lista de mutações e o resultado vão para a issue ou para o PR do módulo.
 
 ## Melhorias registradas, fora do escopo
 
