@@ -5,6 +5,10 @@ import { enviarMensagemWhatsapp, extrairMensagemWhatsapp, extrairStatusWhatsapp 
 
 const PALAVRA_CHAVE_SAIR = "#sair";
 const MENSAGEM_SAIU = "Conversa encerrada. Pode mandar uma mensagem nova quando quiser.";
+// Issue #225 — no bridge não há Tykhe para continuar os tipos de caso que
+// ela atende: a conversa encerra com esta orientação.
+const MENSAGEM_REDIRECIONADO =
+  "Esse assunto é atendido pelo aplicativo Defensoria RJ ou pelo telefone 129 (ligação gratuita). Por lá a equipe continua o seu atendimento.";
 const MENSAGEM_NADA_PARA_SAIR = "Você não tem nenhuma conversa em andamento. Pode mandar uma mensagem pra começar.";
 
 interface CorpoRespostaAtendimento {
@@ -12,6 +16,7 @@ interface CorpoRespostaAtendimento {
   tipoResposta?: string;
   opcoes?: string[];
   status?: string;
+  tipoCaso?: string;
   erro?: string;
 }
 
@@ -178,7 +183,9 @@ export function registrarRotaWebhookWhatsapp(app: FastifyInstance, apiKey: strin
         conversasAtivas.delete(mensagem.de);
       }
 
-      await enviarMensagemWhatsapp(mensagem.de, montarTextoResposta(corpo), chatId);
+      const texto =
+        corpo.status === "redirecionado" ? (corpo.tipoCaso === "sair" ? MENSAGEM_SAIU : MENSAGEM_REDIRECIONADO) : montarTextoResposta(corpo);
+      await enviarMensagemWhatsapp(mensagem.de, texto, chatId);
     });
 
     return reply.code(200).send({ ok: true });

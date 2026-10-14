@@ -208,3 +208,20 @@ test("POST /webhook/whatsapp: \"sim\" na confirmação de TTL continua o atendim
     process.env.MOCK_CLASSIFICACAO_FLOWID = original;
   }
 });
+
+// Issue #225 — no bridge não há Tykhe: um tipo que ela atende encerra a
+// conversa com orientação fixa e libera o número para um atendimento novo.
+test("POST /webhook/whatsapp: caso redirecionado para a Tykhe encerra a conversa e libera o número", async () => {
+  const original = process.env.MOCK_CLASSIFICACAO_FLOWID;
+  process.env.MOCK_CLASSIFICACAO_FLOWID = "tykhe:saude";
+  const numero = `test-wpp-redirecionado-${Date.now()}`;
+  _limparConversasAtivasDeTeste();
+  try {
+    const app = await montarApp();
+    const res = await app.inject({ method: "POST", url: "/webhook/whatsapp", payload: payloadTexto(numero, "preciso de um remédio") });
+    assert.equal(res.statusCode, 200);
+    assert.equal(_chatIdAtivoDeTeste(numero), undefined, "conversa encerrada: a próxima mensagem abre outra");
+  } finally {
+    process.env.MOCK_CLASSIFICACAO_FLOWID = original;
+  }
+});

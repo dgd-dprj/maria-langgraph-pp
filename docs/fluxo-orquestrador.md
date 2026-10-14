@@ -10,26 +10,41 @@ Usa 4 dos 6 módulos de `src/ia/` (`classificar`, `classificarFluxos`, `desambig
 
 ## Passo a passo
 
-1. **`classificar`** — 1ª rodada: busca por similaridade (embedding, `fluxo_embeddings`) no catálogo completo (implementados + planejados, `catalogoParaClassificacao()`), retorna até 10 candidatos (`CANDIDATOS_MAXIMOS`). Chama IA (`classificarFluxosPlausiveis`) pra filtrar quais desses candidatos são plausíveis de verdade a partir do relato. Rodadas seguintes: classifica de novo, mas só **dentro** do subconjunto que já sobrou — nunca alarga de volta pro catálogo todo.
+1. **`classificar`** — 1ª rodada: busca por similaridade (embedding, `fluxo_embeddings`) no catálogo de classificação (`catalogoParaClassificacao()`: 2 fluxos implementados + 7 tipos atendidos pela Tykhe, issue #225; os planejados só entram com `ORQUESTRADOR_INCLUIR_PLANEJADOS=true`), retorna até 10 candidatos (`CANDIDATOS_MAXIMOS`). Chama IA (`classificarFluxosPlausiveis`) pra filtrar quais desses candidatos são plausíveis de verdade a partir do relato. Rodadas seguintes: classifica de novo, mas só **dentro** do subconjunto que já sobrou — nunca alarga de volta pro catálogo todo.
 2. Decisão por quantos candidatos restaram (`depoisDeClassificar`):
-   - **0** → `nenhum` → nó `naoIdentificado` → `handoff_humano` (`motivoHandoff: nao_identificado`).
+   - **0** → `nenhum` → nó `naoIdentificado` → `redirecionado` com `tipoCaso: "outros"` (issue #225; antes era `handoff_humano`).
    - **1** → `um` → nó `identificado` → segue pra criar o atendimento nesse `flowId`.
    - **2+** → `muitos` → precisa desambiguar (próximo passo) — **a menos que já tenha esgotado `LIMITE_RODADAS` (5)**, aí também cai em `nenhum`/handoff (nunca fica perguntando pra sempre).
 3. **`prepararPerguntaDesambiguacao`** — antes de gerar pergunta por IA, checa se **todos** os candidatos restantes compartilham literalmente a mesma pergunta raiz do Verde (mesmo texto + mesmas opções, `buscarPerguntaRealCompartilhada`) — se sim, usa esse texto real (não gasta token de IA). Senão, gera pergunta por IA (`gerarPerguntaDesambiguacao`).
 4. **`pedirDesambiguacao`** — `interrupt()` pausa esperando a resposta da pessoa (`tipoResposta: "texto"` sempre — decisão deliberada: mostrar nomes internos dos candidatos como menu soava técnico, deixa responder com as próprias palavras). Resposta é concatenada no relato bruto (`mensagem`, auditoria completa) e volta pro `classificar`.
 5. A partir da 3ª rodada (`LIMITE_RODADAS_SUMARIZACAO`), o histórico vira resumo por IA (`sumarizarRelato`) + última resposta verbatim — evita mandar um relato bruto gigante pra classificação/desambiguação depois de várias idas e vindas.
-6. Quando identifica 1 fluxo: `buscarFluxo(flowIdEscolhido)` resolve pro grafo implementado de verdade OU pro grafo padrão (fluxo planejado sem implementação própria ainda) — dali em diante o tratamento é idêntico nos 2 casos. O total de tokens gastos na triagem (classificação + desambiguação) é repassado como ponto de partida do acumulador do fluxo escolhido (`dadosConhecidos.tokensGastos`) — não perde o custo da fase de identificação.
+6. Quando identifica um **tipo da Tykhe** (`src/fluxos/tiposTykhe.ts`): não cria atendimento; responde `status: "redirecionado"` + `tipoCaso` e a Tykhe continua (issue #225). Log: `orquestrador_redirecionado` com `tipoCaso`.
+7. Quando identifica 1 fluxo: `buscarFluxo(flowIdEscolhido)` resolve pro grafo implementado de verdade OU pro grafo padrão (fluxo planejado sem implementação própria ainda) — dali em diante o tratamento é idêntico nos 2 casos. O total de tokens gastos na triagem (classificação + desambiguação) é repassado como ponto de partida do acumulador do fluxo escolhido (`dadosConhecidos.tokensGastos`) — não perde o custo da fase de identificação.
 
 ## Regras de negócio
 
 | Regra | Valor | Por quê |
 |---|---|---|
 | Candidatos por rodada de retrieval | 10 | Mesmo valor de antes da issue #28. |
-| Limite de rodadas de desambiguação | 5 | Subiu de 3 (issue #43) — com 76 categorias no catálogo, relatos ambíguos entre categorias parecidas levam mais idas e vindas pra convergir. |
+| Limite de rodadas de desambiguação | 5 | Subiu de 3 (issue #43) — com 76 categorias no catálogo (na época), relatos ambíguos entre categorias parecidas levam mais idas e vindas pra convergir. |
 | Rodada em que começa a sumarizar | 3 | Issue #47 — histórico bruto cresce demais depois de algumas rodadas. |
 | `candidatosRestantes` nunca alarga de volta | — | Cada rodada de classificação só filtra dentro do que já sobrou, nunca reconsidera candidato já descartado. |
 | Pergunta usa texto real do Verde quando possível | — | Issue #32 — só quando **todos** os candidatos restantes compartilham a mesma pergunta raiz (mesmo texto + mesmas opções); senão, gera por IA. |
 | `tipoResposta` sempre `"texto"` na desambiguação | — | Decisão 2026-09-11 — nomes internos de categoria como menu de opção soava técnico pro usuário real. |
+
+## Tipos atendidos pela Tykhe (issue #225)
+
+| `tipoCaso` | Menu da Tykhe |
+|---|---|
+| `saude` | Questões de saúde |
+| `novo-processo` | Iniciar um novo processo |
+| `andamento-processo` | Ver andamento do processo |
+| `agendamentos` | Ver meus agendamentos |
+| `ajuda-app` | Ajuda APP Defensoria RJ |
+| `outros` | Outros (também o destino de relato não identificado) |
+| `sair` | Sair |
+
+Pessoa presa e violência doméstica continuam conduzidos pela Maria. Descrições usadas na classificação: `src/fluxos/tiposTykhe.ts`. No bridge do WhatsApp (sem Tykhe por trás), `redirecionado` encerra a conversa com uma orientação fixa (aplicativo Defensoria RJ ou 129).
 
 ## Contrato HTTP (resumo — ver `docs/contrato-tykhe.md` pro genérico)
 
