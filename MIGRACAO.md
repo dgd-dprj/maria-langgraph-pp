@@ -252,7 +252,7 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
   - `None` nos canais `complemento`, `logradouro`, `bairro`, `municipio` e `uf` quando develop grava `undefined`;
   - chave ausente dentro de `endereco` e do `dadosPessoa` do cadastro.
 - **Testes:**
-  - os 3 traduzidos de develop e 35 novos (com as variantes parametrizadas);
+  - os 3 traduzidos de develop e 25 novos, ou 48 casos ao todo com as variantes parametrizadas;
   - o corpo do POST `/pessoa` conferido pelo `cadastrar_pessoa` real com o transporte falso, sem nenhum `null` dentro de `endereco`.
 - **Conferência diferencial:** seis cenários do fluxo do CPF rodados no `identificarAssistido` de develop. O estado final bate com o que os testes afirmam: CPF conhecido, três tentativas, "não" ao retry, CPF digitado direto, falha de infra e confirmação.
 - **Verificação por mutação: 8 de 8 pegas:**
