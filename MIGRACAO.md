@@ -159,6 +159,10 @@ scripts/
 - **Onde aparece:** o `prepararPergunta` (achado T1 do ia) é devolvido direto pelos nós "preparar" de todos os fluxos. Também `{ ...preparado, rg: undefined }` em `pessoaPresa/graph.ts:222`, e qualquer `return { campo: algo?.x }` de nó.
 - **A distinção que a tradução precisa fazer:** chave **ausente** no objeto JS (não escrita, como `...(x !== undefined ? {x} : {})`) continua ausente; chave **presente com `undefined`** vira `None`. Os auxiliares de `shared/_js.py` já separam os dois casos: `AUSENTE` é o undefined que não vira chave, `None` é o null.
 - **Como testar:** cada nó traduzido que devolve chave com `undefined` em develop tem um teste que roda dois passos e confere que o valor do primeiro não sobrevive ao segundo.
+- **Limite da regra (aprovado em 2026-10-14): `None` nas chaves do canal; chave ausente dentro de objetos aninhados.** O que decide é como o JS chega ao JSON e ao checkpoint. No canal, o `undefined` é gravado e a chave permanece. Dentro de um objeto que vira JSON, ele desaparece. São dois comportamentos do mesmo valor, e tratá-los igual erraria em um dos dois.
+  - **Onde apareceu:** o `endereco` do subgrafo `coletarEndereco`, enviado inteiro no POST `/pessoa`. O `JSON.stringify` remove as chaves `undefined` (o `complemento` quase sempre é). Gravar `None` faria o Verde receber `"complemento": null`.
+  - **Em código:** dentro de objeto aninhado, a chave com `undefined` não é escrita (`AUSENTE` com `_js.definir`).
+  - **Como testar:** o objeto é conferido no ponto em que vira JSON. No subgrafos, é o corpo do POST, passando pelo `cadastrar_pessoa` real com o transporte falso.
 
 ## Divergências aceitas
 
@@ -233,6 +237,16 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
 - **Verificação por mutação: 10 de 10 pegas**: validação estrita, cliente sem `Config`, `max_attempts`, `usage_metadata` com `getattr`, parse sem `include_raw`, modelo fora da cota do SDK JS, `inferenceConfig` vazio mantido, `bind_tools`, `prepararPergunta` omitindo a chave e `extrair` caindo no fallback. A primeira versão da última mutação estava mal escrita: acrescentava uma chave a todo `parsed` e fazia falhar o teste errado. Foi corrigida antes de aceitar o resultado.
 - **Logs de dependência (regra deste documento):** nenhuma dependência nova de runtime. O `langchain_aws` registra em DEBUG a mensagem e o system prompt enviados ao Bedrock (`bedrock_converse.py`, "input message to bedrock"); fica barrado pelo nível fixo em WARNING. O `langsmith` e o seu cliente HTTP (`httpx2`, `httpcore2`) também estão no nível fixo.
 
+## Módulo subgrafos (#233)
+
+- Spec com duas medições feitas antes da tradução:
+  - a soma de tokens composta (#230);
+  - o `endereco` que vira JSON (o limite da regra de estado).
+- Diferenças de texto entre JS e Python tratadas por funções únicas em `shared/`:
+  - o `trim()` do JS remove U+FEFF e não remove `\x1c` a `\x1f`, o oposto do `strip()`;
+  - o `\D` sem a flag `u` só reconhece `0-9` ASCII;
+  - o complemento não usa NFD.
+
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
 Um teste que passa prova que o código faz o esperado no caso testado. Não prova que o teste **pegaria** a tradução errada. Para cada divergência que a spec do módulo trata (o lugar onde a tradução ingênua muda o comportamento), aplique no código a versão ingênua, rode o teste correspondente e confirme que ele **falha**. Depois, restaure o código.
@@ -245,7 +259,13 @@ Um teste que passa prova que o código faz o esperado no caso testado. Não prov
 
 - **Validação da saída estruturada da IA:** [#212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212), em dois passos (primeiro só medir, depois validar).
 - **Mensagem interna no 500:** [#210](https://github.com/dgd-dprj/maria-langgraph-pp/issues/210). **Motivo no 400 de validação:** [#211](https://github.com/dgd-dprj/maria-langgraph-pp/issues/211).
-- **Dupla contagem de tokens em subgrafo**, caracterizada e confirmada em develop (semente 150 termina em 300). É reproduzida como está; corrigir fica para depois do merge.
+- **Contagem de tokens em subgrafo: [#230](https://github.com/dgd-dprj/maria-langgraph-pp/issues/230).** A soma se compõe. Com a semente 150, o resultado é 300 com um subgrafo (2×), 450 com o aninhado (3×) e 900 com identificação seguida de cadastro (6×), medido em develop e no LangGraph Python. O custo registrado de violência doméstica com cadastro é 6× o real, e o fator muda de fluxo para fluxo. A tradução reproduz o comportamento; a correção vem depois, na base em Python.
+- **Endereço do cadastro não chega à Tykhe: [#231](https://github.com/dgd-dprj/maria-langgraph-pp/issues/231).** O encaminhamento não é afetado.
+- **Falha de infra no CEP vira "não encontrado": [#232](https://github.com/dgd-dprj/maria-langgraph-pp/issues/232).** É o mesmo mecanismo da #196.
+- **Subgrafos (achados A4 a A6 da spec):**
+  - "Confirma que seus dados são: você?" quando o Verde não traz o nome;
+  - nenhuma validação de CPF, data de nascimento, CEP ou UF;
+  - `respostaEhSim` copiada em 4 arquivos, enquanto o complemento normaliza sem NFD.
 - **Retry de POST ao Verde:** develop reenvia os POST em 5xx e em timeout antes dos cabeçalhos. O `POST /encaminhamento/encaminhar` não tem proteção contra duplicidade (o Swagger do Verde não documenta chave de idempotência). Não retentar o encaminhamento depois de enviado, ou consultar antes de reenviar.
 - **Consolidar os cinco pools Postgres** em um.
 - **Consolidar as instâncias do `ChatBedrockConverse`**: hoje uma por módulo de IA.
