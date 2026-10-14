@@ -1,0 +1,56 @@
+{
+  "metodo": "POST",
+  "caminho": "/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "corpo": {
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "relato longo"
+          }
+        ]
+      }
+    ],
+    "system": [
+      {
+        "text": "Você resume o relato de alguém buscando atendimento na Defensoria Pública do RJ.\nRegras: preserve os fatos relevantes pra identificar que tipo de caso é (pessoas envolvidas, situação, o que a pessoa quer) — resumo curto e objetivo, sem invenção de informação nova."
+      }
+    ],
+    "toolConfig": {
+      "tools": [
+        {
+          "toolSpec": {
+            "name": "extract",
+            "inputSchema": {
+              "json": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "resumo": {
+                    "type": "string",
+                    "description": "resumo curto e objetivo do relato até agora, preservando os fatos relevantes pra identificar que tipo de atendimento a pessoa precisa — sem perder detalhes que ajudem a classificação"
+                  }
+                },
+                "required": [
+                  "resumo"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "description": "A function available to call."
+          }
+        }
+      ],
+      "toolChoice": {
+        "tool": {
+          "name": "extract"
+        }
+      }
+    }
+  },
+  "t": 1791573010878
+}

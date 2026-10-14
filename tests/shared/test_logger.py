@@ -137,7 +137,9 @@ def test_debug_global_nao_libera_bibliotecas_com_conteudo_do_atendimento(capsys:
 def test_bibliotecas_com_nivel_fixo_cobrem_aws_http_e_banco() -> None:
     from maria.shared.logger import BIBLIOTECAS_COM_NIVEL_FIXO
 
-    assert {"botocore", "boto3", "urllib3", "s3transfer", "httpx", "httpcore", "psycopg"} <= set(BIBLIOTECAS_COM_NIVEL_FIXO)
+    esperadas = {"botocore", "boto3", "urllib3", "s3transfer", "httpx", "httpcore", "psycopg"}
+    esperadas |= {"langchain_aws", "langsmith", "httpx2", "httpcore2"}
+    assert esperadas <= set(BIBLIOTECAS_COM_NIVEL_FIXO)
 
 
 def test_bytes_sempre_em_utf8_mesmo_com_codificacao_local_diferente(capfdbinary: pytest.CaptureFixture[bytes]) -> None:

@@ -1,0 +1,131 @@
+"""Saída estruturada como em develop: `withStructuredOutput(schema, {includeRaw: true}).withRetry(...)`.
+
+Reproduz o `ChatBedrockConverse` do @langchain/aws 1.4.4, e NÃO o
+`with_structured_output` do langchain-aws Python:
+
+- **Sem validação.** O parser de develop (`chat_models.js:781-786`) devolve os
+  `args` da ferramenta como vieram; o zod só descreve a saída no prompt. Com
+  classe Pydantic, o Python validaria, e um id inventado viraria fallback.
+  A ausência de validação é defeito de develop reproduzido de propósito:
+  https://github.com/dgd-dprj/maria-langgraph-pp/issues/212
+- **Requisição idêntica.** O `toolConfig` vai pronto (a ordem das chaves do
+  `toolSpec` é a de develop), e o `inferenceConfig` vazio que o langchain-aws
+  Python acrescenta é removido: develop não envia nenhum.
+- **Falha de parse não dispara retry.** Vira `parsed: None` dentro da cadeia,
+  como o `withFallbacks` do `assembleStructuredOutputPipeline`; só erro do
+  modelo (HTTP) é retentado.
+"""
+
+from __future__ import annotations
+
+import os
+from typing import Any
+
+from botocore.exceptions import ClientError
+from langchain_aws import ChatBedrockConverse
+from langchain_core.messages import AIMessage
+from langchain_core.runnables import RunnableLambda
+
+from maria.shared import _js
+from maria.shared._js import AUSENTE
+from maria.shared.bedrock import CONFIG_BOTOCORE, cota_como_sdk_js
+from maria.shared.logger import serializar_erro
+
+# Absorve instabilidade passageira do Bedrock (throttle, timeout de rede) antes
+# de cair no fallback (issue #46). Em develop cada módulo declara o seu; o valor
+# é o mesmo nos seis.
+TENTATIVAS_RETRY_IA = 3
+
+NOME_FERRAMENTA = "extract"
+DESCRICAO_FERRAMENTA = "A function available to call."
+ESQUEMA_JSON = "https://json-schema.org/draft/2020-12/schema"
+
+
+class _ConverseComoDevelop(ChatBedrockConverse):
+    def _converse_params(self, **kwargs: Any) -> dict[str, Any]:
+        params = super()._converse_params(**kwargs)
+        # Sem temperatura nem maxTokens, o langchain-aws Python ainda manda
+        # "inferenceConfig": {}. develop não manda a chave.
+        if params.get("inferenceConfig") == {}:
+            del params["inferenceConfig"]
+        return params
+
+
+def criar_modelo() -> ChatBedrockConverse:
+    """Um por módulo, na importação, como cada `new ChatBedrockConverse` de develop."""
+    with cota_como_sdk_js():
+        return _ConverseComoDevelop(
+            model=os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
+            region_name=os.environ.get("AWS_REGION", "us-east-1"),
+            config=CONFIG_BOTOCORE,
+        )
+
+
+def esquema_objeto(propriedades: dict[str, Any], obrigatorias: list[str] | None) -> dict[str, Any]:
+    """JSON Schema que o zod-to-json-schema de develop gera para um `z.object`."""
+    esquema: dict[str, Any] = {"$schema": ESQUEMA_JSON, "type": "object", "properties": propriedades}
+    if obrigatorias is not None:
+        esquema["required"] = obrigatorias
+    esquema["additionalProperties"] = False
+    return esquema
+
+
+def _parsear(raw: Any) -> Any:
+    # O RunnableLambda de chat_models.js:782-785.
+    chamadas = getattr(raw, "tool_calls", None)
+    if not chamadas:
+        raise ValueError("No tool calls found in the response.")
+    for chamada in chamadas:
+        if chamada["name"] == NOME_FERRAMENTA:
+            return chamada["args"]
+    raise ValueError(f"No tool call found with name {NOME_FERRAMENTA}.")
+
+
+def _com_parsed(raw: Any) -> dict[str, Any]:
+    try:
+        parsed = _parsear(raw)
+    except Exception:
+        parsed = None
+    return {"raw": raw, "parsed": parsed}
+
+
+async def invocar_estruturado(modelo: ChatBedrockConverse, esquema: dict[str, Any], sistema: str, usuario: str) -> dict[str, Any]:
+    """Devolve `{raw, parsed}`; `parsed` é `None` quando a resposta não tem a ferramenta."""
+    tool_config = {
+        "tools": [{"toolSpec": {"name": NOME_FERRAMENTA, "inputSchema": {"json": esquema}, "description": DESCRICAO_FERRAMENTA}}],
+        "toolChoice": {"tool": {"name": NOME_FERRAMENTA}},
+    }
+    cadeia = (modelo.bind(tool_config=tool_config) | RunnableLambda(_com_parsed)).with_retry(stop_after_attempt=TENTATIVAS_RETRY_IA)
+    return await cadeia.ainvoke([("system", sistema), ("user", usuario)])
+
+
+def definir_tokens(saida: dict[str, Any], raw: Any) -> None:
+    """`tokensEntrada: uso?.input_tokens` etc.: chave ausente quando não há contagem.
+
+    `usage_metadata` é um dict (TypedDict) no Python: ler com getattr daria
+    ausente MESMO com a contagem presente (ponto 5 da #208).
+    """
+    uso = raw.usage_metadata if isinstance(raw, AIMessage) else AUSENTE
+    for chave, campo in (("tokensEntrada", "input_tokens"), ("tokensSaida", "output_tokens"), ("tokensTotal", "total_tokens")):
+        valor = _js.opt(uso, campo)
+        if valor is AUSENTE or valor is None:
+            saida.pop(chave, None)
+        else:
+            saida[chave] = valor
+
+
+def erro_para_log(erro: BaseException) -> dict[str, str]:
+    """O `err` do pino em develop, para um erro do Bedrock.
+
+    No SDK JS, `err.type` é o nome da exceção (`ThrottlingException`) e
+    `err.message` é a mensagem do Bedrock. No botocore tudo é `ClientError`, com
+    o código e a mensagem dentro de `response["Error"]` (decisão pendente 1 da
+    spec do ia, valor provisório). A mensagem é a do Bedrock, como em develop:
+    rota 2 da #220.
+    """
+    serializado = serializar_erro(erro)
+    if isinstance(erro, ClientError):
+        detalhe = erro.response.get("Error", {})
+        serializado["type"] = str(detalhe.get("Code", serializado["type"]))
+        serializado["message"] = str(detalhe.get("Message", serializado["message"]))
+    return serializado

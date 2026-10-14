@@ -149,6 +149,17 @@ scripts/
 
   **Decisão: `timeout=120.0`, provisório** (decisão em aberto na #208). É o padrão da AWS para o `ConnectionBorrowTimeout` do RDS Proxy, a melhor aproximação disponível do prazo em que o `pg` erraria em produção, onde a conexão passa pelo proxy. **Não é a resposta exata:** o `ConnectionBorrowTimeout` governa o empréstimo quando as conexões do proxy estão todas ocupadas, que não é exatamente o caso de banco indisponível; e a configuração real do proxy, que é do stack antigo, não foi conferida (o valor fica no grupo de destinos, `describe-db-proxy-target-groups`). O custo da escolha: com o pool cheio por mais de 120 s, o psycopg_pool erra onde o `pg` esperaria. Isso exige 10 consultas presas ao mesmo tempo no mesmo pool, o que com consultas de milissegundos é cenário teórico; o caso do banco fora é real. Um teste impede a volta do `inf`.
 
+## Regra de tradução de estado (vale para subgrafos, fluxos e orquestrador)
+
+**Onde develop devolve, como atualização de estado, um objeto com uma chave cujo valor é `undefined`, o Python escreve a chave com `None`. Nunca omite.**
+
+- **develop:** o LangGraph JS 1.4.12 grava o `undefined` no canal. O `_getUpdates` (`graph/state.js`) usa `Object.entries`, que mantém a chave, e o `LastValue.update` guarda o valor.
+- **Python:** no LangGraph 1.2.14, omitir a chave mantém o valor anterior, e `None` sobrescreve. Verificado com um grafo de dois nós: o primeiro grava `tokens: 18`; o segundo omite `tokens`, e o estado final continua com 18; com `tokens: None`, o estado final fica com `None`.
+- **Por que importa:** é diferença silenciosa. Omitir deixaria no estado o valor do passo anterior (o texto da pergunta anterior, os tokens dela) e o sistema exibiria a pergunta errada, sem erro nenhum.
+- **Onde aparece:** o `prepararPergunta` (achado T1 do ia) é devolvido direto pelos nós "preparar" de todos os fluxos. Também `{ ...preparado, rg: undefined }` em `pessoaPresa/graph.ts:222`, e qualquer `return { campo: algo?.x }` de nó.
+- **A distinção que a tradução precisa fazer:** chave **ausente** no objeto JS (não escrita, como `...(x !== undefined ? {x} : {})`) continua ausente; chave **presente com `undefined`** vira `None`. Os auxiliares de `shared/_js.py` já separam os dois casos: `AUSENTE` é o undefined que não vira chave, `None` é o null.
+- **Como testar:** cada nó traduzido que devolve chave com `undefined` em develop tem um teste que roda dois passos e confere que o valor do primeiro não sobrevive ao segundo.
+
 ## Divergências aceitas
 
 | Onde | develop | Python | Por que é aceita |
@@ -156,8 +167,10 @@ scripts/
 | Timeout do Bedrock | Sem timeout de requisição | 60 s de leitura do botocore | **Valor herdado do botocore, não escolhido.** 60 s é muito para quem espera no WhatsApp, mas ajustar seria mudança de produto disfarçada de migração |
 | Retry da leitura do corpo nos GET ao Verde | Timeout lendo o corpo vira 500 | É retentado | Retentar leitura é inofensivo |
 | Backoff do retry da IA | p-retry | tenacity | Mesmo número de tentativas; só a latência muda |
+| Resposta Converse sem `usage` | `viaIA: true`, sem tokens | `KeyError` no `langchain-aws`: 3 tentativas e fallback | **Aceita (2026-10-14).** O caminho só existe se a AWS violar o próprio contrato (`usage` é obrigatório na resposta Converse), e reproduzir develop exigiria interceptar a resposta dentro da biblioteca: código frágil para um cenário que não deveria acontecer. O teste 5b é a proteção |
+| Espera entre tentativas do SDK (Bedrock) | 100 ms de base (500 ms no throttling), com teto de 20 s | botocore: 1 s de base, com teto de 20 s | Mesmo número de requisições. Medido nos embeddings (#222), separando o tempo por camada: o SDK Python espera cerca de **40 s a mais por mensagem** (75 s contra 37 s no 429; 40 s contra 4 s no 500). **Correção de 2026-10-14:** esta linha dizia "14,7 min contra 12,6"; a diferença entre os totais vem quase toda do sorteio das esperas dos callers, que varia dezenas de segundos entre execuções. A referência para corrigir a #222 é a faixa medida, de 12,5 a 14,7 min |
 | `err.type` em erro do Bedrock | Nome da exceção do SDK | `ClientError` (a tradução usa o código AWS) | Nenhum painel nem alerta consulta `err.*` |
-| Linha de log em falha de embedding | Nenhuma linha da biblioteca | O `langchain_aws` registra em ERROR "Error raised by inference endpoint", com traceback | Só aparece em falha, não carrega o texto do embedding, e a ponte deixa passar ERROR de propósito. O INFO de cada chamada ("Successfully invoked model…", só metadados) é barrado pelo nível fixo |
+| Linha de log em falha de embedding | `console.error({ error: e })` cru no stderr, fora do pino, uma vez por chamada ao SDK (49 por consulta com o Bedrock fora, #222) | O `langchain_aws` registra em ERROR "Error raised by inference endpoint", com traceback, também uma vez por chamada ao SDK | **Corrigido em 2026-10-13:** este registro dizia que develop não tinha linha nenhuma, e tinha. A diferença é só de formato (envelope JSON contra objeto cru). A ponte deixa passar ERROR de propósito. A linha carrega a mensagem do Bedrock, que é a rota 2 da #220. O INFO de cada chamada ("Successfully invoked model…", só metadados) é barrado pelo nível fixo |
 
 ## Módulo persistencia (#216)
 
@@ -180,9 +193,45 @@ scripts/
   1. `dados` como objeto, ou item `null` na lista de órgãos e de plantões, gera `TypeError` e 500 em develop (`verde.ts:479`, `:517`). A tradução lança nos mesmos casos.
   2. O 1º item `null` de `messages` ou `statuses` do WhatsApp lança `TypeError` em develop (`whatsapp.ts:81`, `:115`). A spec dizia que a extração nunca lançava.
   3. No corpo enviado ao Verde, `undefined` é chave ausente e `None` é `null`: **nada é removido antes de serializar**. A spec mandava remover `None` recursivamente, o que mudaria o envio de um `null` vindo do próprio Verde. Os módulos de cima devem representar o `undefined` de develop como chave ausente no estado, e não como `None`.
-- **Semântica de JS num auxiliar único** (`integracoes/_js.py`): `prop` (`o.k`, que lança em null), `opt` (`o?.k`), `coalesce` (`??`), `verdadeiro` (`{}` e `[]` são verdadeiros), `texto_template` (`${v}`: `true`, `null`, `undefined`) e `json_parse`/`json_stringify` com as regras do JSON de JS.
+- **Semântica de JS num auxiliar único** (`shared/_js.py`; nasceu em `integracoes/` e foi movido para `shared/` antes do ia, que precisa da mesma semântica): `prop` (`o.k`, que lança em null), `opt` (`o?.k`), `coalesce` (`??`), `verdadeiro` (`{}` e `[]` são verdadeiros), `texto_template` (`${v}`: `true`, `null`, `undefined`) e `json_parse`/`json_stringify` com as regras do JSON de JS.
 - **Verificação por mutação:** a tradução ingênua de cada divergência (redirect, prazo de conexão, `True` na query, escape, POST com o corpo lido dentro do retry, remoção recursiva de `None`) foi aplicada no código, e o teste correspondente falhou em todos os casos.
 - **Corpo da resposta do Verde no log (comportamento de develop, reproduzido; em avaliação).** Em develop, o encaminhamento e o cadastro registram o corpo da resposta do Verde no sucesso e na falha (`verde.ts:645`, `:651`, `:718`, `:725`; `campo corpo`). No sucesso, pelo formato documentado, ele não tem dado pessoal. Na falha, é `{codigo, mensagem}` escrito pelo Verde, e **não foi verificado se alguma mensagem de erro do cadastro repete o CPF ou o nome enviados**. Apontado pela revisão automática de segurança dos commits. Reproduzido como em develop; a medição nos logs reais (sucesso e falha) e a decisão estão na [#220](https://github.com/dgd-dprj/maria-langgraph-pp/issues/220). **É a segunda rota de dado pessoal para o log encontrada na migração:** a primeira foi uma biblioteca registrando sozinha (achado "Logs de biblioteca em INFO", resolvido com `BIBLIOTECAS_COM_NIVEL_FIXO`); esta é o nosso código registrando a resposta de um terceiro, e o filtro de nível não a cobre, porque a linha sai pelo logger da aplicação. Para essa rota, a proteção só pode estar no que se decide registrar.
+
+## Correção do persistencia antes do ia: retry do Bedrock (2026-10-13)
+
+A releitura da spec do ia encontrou uma divergência **já mergeada** na `migration` (persistencia, `b2e7d7f`). Ela foi corrigida antes da tradução do ia, no primeiro commit da branch do módulo.
+
+- **develop:** o `BedrockEmbeddings` do JS empilha três camadas de retry: dois `AsyncCaller` com 6 retentativas cada (`embeddings.js:108` e `:73`) e o SDK com 3 tentativas. Com o Bedrock falso falhando sempre, foram 49 requisições (400), 147 (429) e 99 (500), com cerca de 13 minutos até desistir. Ninguém escolheu esses números: é defeito de produção, [#222](https://github.com/dgd-dprj/maria-langgraph-pp/issues/222).
+- **`migration` antes da correção:** nenhum caller, e o boto3 em modo `legacy` (5 tentativas): falha em segundos. **Diverge de develop**, e a régua é develop.
+- **Correção:** `shared/bedrock.py` (`CONFIG_BOTOCORE`, `cota_como_sdk_js`, `chamar_como_async_caller`), usado pelo persistencia agora e pelo ia na tradução. O teste `tests/shared/test_bedrock.py` fixa 49, 147 e 99 contra um Bedrock falso local.
+
+**Dois casos novos do padrão "parâmetro com nome familiar e semântica diferente"** (o quarto e o quinto foram encontrados juntos; o sexto, na medição):
+- **Quarto, "retry":** no JS, retry existe em três camadas, e no Python, em uma só. O `BedrockEmbeddings` Python não tem caller.
+- **Quinto, `max_attempts`:** no botocore, `max_attempts` conta as **retentativas**, e `max_attempts: 3` dá 4 requisições. O total de tentativas fica em `total_max_attempts`. A spec do ia prescrevia `max_attempts: 3`. **O erro estava na spec**, e o teste que conta requisições pegou.
+- **Sexto, cota de retentativas:** os dois SDKs têm uma cota de 500 fichas por cliente. O SDK JS cobra 10 por retentativa de 5xx; o botocore cobra 5 e reserva o 10 para timeout. Com 500 persistente, isso dá 99 requisições contra 147. A tradução troca a cota do cliente pela do JS (`cota_como_sdk_js`).
+
+No mesmo preparo, também aprovado na releitura:
+- `_js.py` sai de `integracoes/` e vai para `shared/`;
+- `langsmith` entra em `BIBLIOTECAS_COM_NIVEL_FIXO`, porque já vem instalado, como dependência transitiva do `langchain-core`, na versão 0.14.7;
+- `botocore-stubs` entra só no grupo `dev`, para o mypy strict.
+
+A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo) contra develop pega o que a leitura do nome não pega.** Os três casos só apareceram porque o teste conta requisições num servidor falso.
+
+**O padrão já contaminou a nossa própria especificação.** O `max_attempts: 3` não foi erro de tradução: estava escrito na spec do ia, revisada e aprovada. A spec descreve a configuração, e a configuração tem o mesmo problema de nome que a biblioteca. **Contar requisições vale mais que confiar na configuração**, inclusive na que nós mesmos escrevemos. Regra para os próximos módulos: todo parâmetro de retry, prazo ou limite traduzido tem um teste que mede o efeito (requisições contadas num servidor falso, tempo medido) contra o número de develop, e não um teste que só confere o valor passado à biblioteca.
+
+## Módulo ia (#223)
+
+- **Seis funções em `src/maria/ia/`**, sobre um núcleo comum (`_estruturado.py`) que reproduz o `withStructuredOutput(schema, {includeRaw: true}).withRetry({stopAfterAttempt: 3})` do `@langchain/aws` 1.4.4. A saída **não é validada** (#212): os `args` da ferramenta passam como vieram, e a falha de parse vira `parsed: None` sem disparar retry.
+- **Requisição Converse idêntica à de develop**, conferida por teste contra as 7 fixtures capturadas de develop (`tests/fixtures/ia/`), incluindo a ordem das chaves. Duas diferenças do `langchain-aws` 1.8.2 foram neutralizadas:
+  1. ele manda `"inferenceConfig": {}` quando não há temperatura nem `maxTokens`, e develop não manda a chave. A subclasse `_ConverseComoDevelop` remove o dicionário vazio;
+  2. o `bind_tools` reordena o `toolSpec`. O `toolConfig` vai pronto via `bind(tool_config=...)`, que o `langchain-aws` usa sem reformatar.
+- **Achados da tradução, além do que a spec previa** (spec e #223 atualizadas antes do PR):
+  1. **`undefined` gravado no estado** (virou regra geral: ver "Regra de tradução de estado"). O `prepararPergunta` é devolvido direto como atualização de estado, e o LangGraph JS grava `undefined` no canal (`Object.entries` mantém a chave; o `LastValue` guarda o valor). Em Python, `perguntaAtualTokensTotal` e `perguntaAtualTexto` vão **com `None`**, e não omitidos: omitir manteria o valor da pergunta anterior. As demais funções são desestruturadas pelos chamadores, e as chaves ausentes continuam ausentes, como diz a spec. **Regra para os módulos `fluxos` e `orquestrador`:** onde develop devolve um objeto com chave `undefined` como atualização de estado, o Python escreve `None`.
+  2. **`extrair` com resposta sem ferramenta não cai no fallback.** Espalhar `null` em JS não lança erro: o resultado é `{viaIA: true, ...tokens}`. Os campos próprios (`viaIA`, `tokens*`) sobrescrevem os do modelo. Os dois comportamentos foram confirmados em develop com o Bedrock falso.
+  3. **Resposta sem `usage`: divergência aceita (2026-10-14).** develop devolve `viaIA: true` sem tokens; o `langchain-aws` Python lança `KeyError('usage')`, a chamada é retentada 3 vezes e cai no fallback. O caminho só existe se o Bedrock violar o contrato: `usage` é obrigatório na resposta Converse (`ConverseResponse.required` no modelo de serviço do botocore). O teste 5b fixa o comportamento do Python. Reproduzir develop exigiria interceptar a resposta dentro do `langchain-aws`.
+  4. **`err.message`** dos logs de falha é a mensagem do Bedrock (`response["Error"]["Message"]`), como o `e.message` do SDK JS, e não o `str(ClientError)` do botocore. O `err.type` é o código AWS (decisão pendente 1 da spec, valor provisório).
+- **Verificação por mutação: 10 de 10 pegas**: validação estrita, cliente sem `Config`, `max_attempts`, `usage_metadata` com `getattr`, parse sem `include_raw`, modelo fora da cota do SDK JS, `inferenceConfig` vazio mantido, `bind_tools`, `prepararPergunta` omitindo a chave e `extrair` caindo no fallback. A primeira versão da última mutação estava mal escrita: acrescentava uma chave a todo `parsed` e fazia falhar o teste errado. Foi corrigida antes de aceitar o resultado.
+- **Logs de dependência (regra deste documento):** nenhuma dependência nova de runtime. O `langchain_aws` registra em DEBUG a mensagem e o system prompt enviados ao Bedrock (`bedrock_converse.py`, "input message to bedrock"); fica barrado pelo nível fixo em WARNING. O `langsmith` e o seu cliente HTTP (`httpx2`, `httpcore2`) também estão no nível fixo.
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 

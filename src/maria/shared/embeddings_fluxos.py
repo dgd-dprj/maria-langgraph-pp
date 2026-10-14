@@ -16,8 +16,10 @@ import time
 from collections.abc import Sequence
 from typing import Protocol, TypedDict
 
+from botocore.exceptions import ClientError
 from langchain_aws import BedrockEmbeddings
 
+from maria.shared.bedrock import CONFIG_BOTOCORE, chamar_como_async_caller, cota_como_sdk_js
 from maria.shared.logger import logger
 from maria.shared.pool import PoolAsync, criar_pool
 
@@ -40,11 +42,50 @@ CONCORRENCIA = 10
 
 def _cliente_embeddings() -> BedrockEmbeddings:
     # Um cliente por chamada, com o ambiente lido na hora, como develop
-    # (embeddingsFluxos.ts:26-31).
-    return BedrockEmbeddings(
-        model_id=os.environ.get("BEDROCK_EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0"),
-        region_name=os.environ.get("AWS_REGION", "us-east-1"),
-    )
+    # (embeddingsFluxos.ts:26-31). A cota de retentativas é por cliente, como
+    # no SDK JS: cada chamada começa com 500 fichas.
+    with cota_como_sdk_js():
+        return BedrockEmbeddings(
+            model_id=os.environ.get("BEDROCK_EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0"),
+            region_name=os.environ.get("AWS_REGION", "us-east-1"),
+            config=CONFIG_BOTOCORE,
+        )
+
+
+class ErroEmbeddingBedrock(Exception):
+    """O `new Error(...)` com que o `_embedText` de develop reembrulha o erro do SDK."""
+
+
+def _mensagem_do_sdk(erro: Exception) -> str:
+    # O `e.message` de uma exceção do SDK JS é a mensagem do Bedrock, sem o
+    # prefixo que o botocore põe em str(ClientError).
+    if isinstance(erro, ClientError):
+        return str(erro.response.get("Error", {}).get("Message", ""))
+    return str(erro)
+
+
+async def _embed_query_como_develop(cliente: BedrockEmbeddings, texto: str) -> list[float]:
+    """Reproduz `embedQuery` do @langchain/aws 1.4.4: DUAS camadas de AsyncCaller.
+
+    O `embedQuery` chama o caller (embeddings.js:108), e o `_embedText` chama de
+    novo (:73). Com o Bedrock falhando sempre: 7 × 7 = 49 chamadas ao SDK, cada
+    uma com até 3 tentativas do botocore, e de 8 a 17 minutos até desistir (medido em develop: 12,6 a 13,4; no Python, 12,5 a 14,7).
+    Ninguém escolheu esse número: é defeito de develop reproduzido de propósito,
+    registrado na #222. Não "corrija" aqui.
+    """
+
+    async def _embed_text() -> list[float]:
+        async def tentativa() -> list[float]:
+            try:
+                return await cliente.aembed_query(texto)
+            except Exception as erro:
+                # develop faz console.error({ error: e }) aqui; o equivalente é o
+                # logger.exception do próprio langchain_aws (ver o MIGRACAO.md).
+                raise ErroEmbeddingBedrock(f"An error occurred while embedding documents with Bedrock: {_mensagem_do_sdk(erro)}") from erro
+
+        return await chamar_como_async_caller(tentativa)
+
+    return await chamar_como_async_caller(_embed_text)
 
 
 def embedding_falso(texto: str) -> list[int]:
@@ -68,7 +109,7 @@ async def gerar_embedding(texto: str) -> list[float] | list[int]:
         return embedding_falso(texto)
     # O BedrockEmbeddings do JS troca "\n" por espaço; o do Python troca
     # os.linesep, que no Windows é "\r\n". A troca explícita não depende do SO.
-    return await _cliente_embeddings().aembed_query(texto.replace("\n", " "))
+    return await _embed_query_como_develop(_cliente_embeddings(), texto.replace("\n", " "))
 
 
 def similaridade_cosseno(a: Sequence[float], b: Sequence[float]) -> float:

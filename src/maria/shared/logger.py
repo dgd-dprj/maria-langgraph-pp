@@ -152,8 +152,17 @@ BIBLIOTECAS_COM_NIVEL_FIXO: tuple[str, ...] = (
     "psycopg",
     # langchain_aws: em INFO, "Successfully invoked model … ResponseMetadata" a
     # cada embedding (só metadados). O ERROR "Error raised by inference endpoint"
-    # continua passando; develop não tinha essa linha (divergência registrada).
+    # continua passando; develop registrava a mesma falha com um console.error
+    # cru no stderr, fora do pino (divergência de formato registrada).
     "langchain_aws",
+    # langsmith: dependência transitiva do langchain-core. Com o tracing
+    # desligado (#215) não envia nada, mas registra avisos próprios.
+    "langsmith",
+    # httpx2/httpcore2: o cliente HTTP do langsmith (loggers "httpx2" e
+    # "httpcore2.*"). Mesmo raciocínio do httpx: em DEBUG/INFO registram cada
+    # requisição. Tracing desligado hoje não garante amanhã (#215).
+    "httpx2",
+    "httpcore2",
 )
 
 
