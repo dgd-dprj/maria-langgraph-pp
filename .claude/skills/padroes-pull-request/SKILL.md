@@ -38,7 +38,7 @@ Closes #<numero>
 
 ## Diagrama explicativo (opcional)
 
-Mudança de fluxo/arquitetura/sequência pode ganhar diagrama no corpo do PR: gerar com o agente `diagram-specialist` (Mermaid), nunca commitar a fonte, subir o PNG pro bucket `s3://maria-langgraph-pp-docs-185327115563/diagramas/`, embutir a URL pública. Detalhe completo em [`docs/padroes-pull-request.md`](../../../docs/padroes-pull-request.md).
+Mudança de fluxo/arquitetura/sequência pode ganhar diagrama no corpo do PR, no guia de estilo do agente `diagram-specialist`: no corpo do PR, **Mermaid no texto** (bloco ` ```mermaid `); PNG publicado no bucket `s3://maria-langgraph-pp-docs-185327115563/diagramas/` para o que for para `docs/*.md`. Nunca commitar a fonte. Detalhe completo em [`docs/padroes-pull-request.md`](../../../docs/padroes-pull-request.md).
 
 ## Checklist antes de abrir
 

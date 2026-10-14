@@ -1,0 +1,53 @@
+# Formulário de [BUG] — mesmo padrão de docs/padroes-issues.md (estrutura
+# obrigatória + evidência e rastreabilidade). Proposto no "Kit Claude da Maria".
+name: "[BUG] Defeito"
+description: Comportamento errado em develop ou em produção
+title: "[BUG] "
+labels: ["bug"]
+body:
+  - type: textarea
+    id: contexto
+    attributes:
+      label: Contexto de Negócio
+      description: Por que isto importa para quem é atendido pela Maria.
+    validations:
+      required: true
+  - type: textarea
+    id: problema
+    attributes:
+      label: Declaração do Problema
+      description: O que acontece hoje. Cite arquivo:linha de develop (com o commit) e como foi verificado (leitura, execução, log). Marque o que não foi verificado.
+    validations:
+      required: true
+  - type: textarea
+    id: solucao
+    attributes:
+      label: Solução Esperada
+    validations:
+      required: true
+  - type: textarea
+    id: criterios
+    attributes:
+      label: Critérios de Aceitação
+      value: |
+        - [ ]
+    validations:
+      required: true
+  - type: textarea
+    id: bdd
+    attributes:
+      label: Cenários BDD
+      description: Sucesso e erro, em Gherkin.
+      render: gherkin
+  - type: textarea
+    id: diagrama
+    attributes:
+      label: Diagrama (opcional)
+      description: Bloco ```mermaid (guia de estilo do diagram-specialist) ou link do PNG publicado. Nunca com dado real de atendimento.
+  - type: checkboxes
+    id: cuidados
+    attributes:
+      label: Cuidados
+      options:
+        - label: Não há CPF, RG, nome, telefone nem relato real nesta issue
+          required: true

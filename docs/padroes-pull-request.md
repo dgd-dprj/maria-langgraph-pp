@@ -48,13 +48,14 @@ Decisões, débitos assumidos, prints.
 
 ## Diagrama explicativo (opcional)
 
-PR que muda fluxo de negócio, arquitetura ou sequência de integração pode se beneficiar de um diagrama no corpo:
+PR que muda fluxo de negócio, arquitetura ou sequência de integração pode se beneficiar de um diagrama no corpo. Mesmo guia de estilo do agente `diagram-specialist` (losango = decisão, paralelogramo = chamada externa, verde = sucesso, laranja = handoff/erro), dois caminhos:
 
-1. Gerar com o agente `diagram-specialist` (Mermaid, estilo fixo — losango = decisão, paralelogramo = chamada externa, verde = sucesso, vermelho = handoff/erro).
-2. **Nunca** commitar o `.mmd`/`.png` fonte no git — só o resultado publicado.
-3. Subir o PNG final pro bucket de docs: `aws s3 cp <nome>.png s3://maria-langgraph-pp-docs-185327115563/diagramas/<nome>.png --content-type image/png --region us-east-1`.
-4. Confirmar `200` na URL pública antes de referenciar (`curl -s -o /dev/null -w "%{http_code}\n" <url>`).
-5. Embutir no corpo do PR (ex: na seção "O que foi feito" ou "Observações"): `![descrição](https://maria-langgraph-pp-docs-185327115563.s3.amazonaws.com/diagramas/<nome>.png)`.
+- **A. Mermaid no texto (padrão no corpo do PR)** — bloco ` ```mermaid `; o GitHub desenha sozinho.
+- **B. PNG publicado no S3 (padrão para `docs/*.md`)** — quando o PR também atualiza documentação estável:
+  1. Gerar com o `diagram-specialist`; **nunca** commitar o `.mmd`/`.png` fonte no git.
+  2. Subir: `aws s3 cp <nome>.png s3://maria-langgraph-pp-docs-185327115563/diagramas/<nome>.png --content-type image/png --region us-east-1`.
+  3. Confirmar `200` na URL pública antes de referenciar (`curl -s -o /dev/null -w "%{http_code}\n" <url>`).
+  4. Embutir: `![descrição](https://maria-langgraph-pp-docs-185327115563.s3.amazonaws.com/diagramas/<nome>.png)`.
 
 ## Checklist antes de abrir
 
