@@ -20,6 +20,7 @@ pnpm test:integracao   # test-integracao/*.test.ts — chama IA real (Bedrock)
 | TTL de inatividade | `test/ttlInatividade.test.ts` | Confirmação de continuidade e expiração após `TTL_INATIVIDADE_HORAS` (issue #166) — usa `TTL_INATIVIDADE_HORAS=0` pra forçar expiração determinística, sem mockar `Date`. |
 | Orquestrador | `test/orquestrador.test.ts`, `src/orquestrador/graph.test.ts` | Classificação/desambiguação de relato livre. |
 | Auxiliares | `src/shared/*.test.ts` | `embeddingsFluxos`, `perguntasDb`, `tokensAcumulados` isolados. |
+| Store Postgres (opt-in) | `src/shared/atendimentosDb.postgres.test.ts` | Store `atendimentos` contra Postgres real (issue #217 — defeito que a store em memória escondia). Pulado sem `TEST_DATABASE_URL`; pra rodar: `docker run -d --rm --name pg-teste -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:16` e `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:55432/postgres pnpm test`. Nunca apontar pra banco de prod/release. |
 | Integração real com IA | `test-integracao/*.test.ts` | Chama Bedrock de verdade (classificar, desambiguar, extrair, parentesco, reescrever, sumarizar) — não roda no `pnpm test` normal nem no CI padrão, só sob demanda (custa tempo/dinheiro real). |
 
 ## Modo mock — por que os testes não tocam infra real

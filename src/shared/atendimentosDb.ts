@@ -55,7 +55,7 @@ interface RegistroEmMemoria {
 // memória — mesmo padrão de criarCheckpointer() (shared/checkpointer.ts).
 // Guarda os mesmos campos de atividade/TTL do Postgres (issue #166) — testes
 // de TTL usam TTL_INATIVIDADE_HORAS=0 pra forçar expiração sem mockar Date.
-function criarStoreEmMemoria(): AtendimentosStore {
+export function criarStoreEmMemoria(): AtendimentosStore {
   const mapa = new Map<string, RegistroEmMemoria>();
   return {
     async registrar(chatId, flowId) {
@@ -104,7 +104,7 @@ function criarStoreEmMemoria(): AtendimentosStore {
   };
 }
 
-async function criarStorePostgres(url: string): Promise<AtendimentosStore> {
+export async function criarStorePostgres(url: string): Promise<AtendimentosStore> {
   const pool = new Pool({ connectionString: url });
   await pool.query(`
     CREATE TABLE IF NOT EXISTS atendimentos (
@@ -218,11 +218,16 @@ async function criarStorePostgres(url: string): Promise<AtendimentosStore> {
       );
     },
     async resolverConfirmacaoTtlContinuar(chatId) {
+      // Issue #217 — RETURNING de um UPDATE devolve o valor DEPOIS da
+      // atualização (sempre NULL aqui, a coluna acabou de ser limpa). O valor
+      // antigo vem do subselect `anterior`, travado com FOR UPDATE pra 2
+      // confirmações simultâneas não lerem a mesma resposta pendente.
       const res = await pool.query<{ resposta_pendente_ttl: string | null }>(
-        `UPDATE atendimentos
+        `UPDATE atendimentos a
          SET aguardando_confirmacao_ttl = false, resposta_pendente_ttl = NULL, atualizado_em = now()
-         WHERE chat_id = $1
-         RETURNING resposta_pendente_ttl`,
+         FROM (SELECT chat_id, resposta_pendente_ttl FROM atendimentos WHERE chat_id = $1 FOR UPDATE) anterior
+         WHERE a.chat_id = anterior.chat_id
+         RETURNING anterior.resposta_pendente_ttl`,
         [chatId]
       );
       return res.rows[0]?.resposta_pendente_ttl ?? undefined;
