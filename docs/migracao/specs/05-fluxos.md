@@ -34,7 +34,7 @@ O `null` só entra por três portas: **Tykhe** (`dadosConhecidos`, qualquer cana
 | Canal | develop grava `undefined`? | O `null` entra? | Tradução | Por quê / o que mudaria |
 |---|---|---|---|---|
 | `cpf` | não | sim (Tykhe) | guarda por **presença da chave** | Distinguível. Item 0.1.2 |
-| `rg` | **sim** (`prepararPerguntaRgInvalido`, `pessoaPresa/graph.ts:206`) | sim (Tykhe; extração com `null` é omitida, `:94-97`) | `None` = `undefined`; guarda `is not None` | **Conflito, divergência aceita (decisão 1).** Com `dadosConhecidos.rg: null`, develop pula a pergunta e o Python pergunta. Aceito porque só acontece se a Tykhe mandar `rg: null`; a #240 vai restringir os campos. **Se a Tykhe passar a mandar `null`**, o atendimento pergunta o RG em vez de consultar `""`. Esse desfecho é melhor, mas é diferente |
+| `rg` | **sim** (`prepararPerguntaRgInvalido`, `pessoaPresa/graph.ts:206`) | sim (Tykhe; extração com `null` é omitida, `:94-97`) | `None` = `undefined`; guarda `is not None` | **Conflito, divergência aceita (decisão 1).** Com `dadosConhecidos.rg: null`, develop pula a primeira pergunta, valida `rg ?? ""`, que falha no formato, e pergunta "O RG deve conter apenas números. Qual o RG da pessoa presa? …". O Python faz a pergunta normal, "Qual o RG da pessoa presa? …". Aceito porque só acontece se a Tykhe mandar `rg: null`; a #240 vai restringir os campos. **Se a Tykhe passar a mandar `null`**, muda só o texto da primeira pergunta do RG; o resto do atendimento é igual. *(Corrigido na tradução, seção 8: a versão anterior dizia que develop consultava `""` no Verde, o que não acontece.)* |
 | `temProcesso`, `numeroProcesso`, `parentesco` | não (gravados só por resposta, extração ou classificação) | sim (Tykhe; extração mantém `null`, `:94-97` só omite `undefined`) | guarda por **presença da chave** | Distinguível. Com `temProcesso: null`, develop pula a pergunta e chega a `origem_processo_nao_suportada` (inventário, achado 6). Reproduzido e testado |
 | `encaminhamentoId` | **sim** (sucesso sem `dados.id`, `violenciaDomestica/graph.ts:297-298`) | sim, se o Verde mandar `"id": null` | `None` = `undefined`; `encaminhamentoId is not None` | **Conflito, divergência aceita (decisão 1).** Com `"id": null`, develop conclui com "Protocolo: null." e o Python vai para `falha_encaminhamento`. Aceito porque a Swagger declara `id` inteiro e não há registro de `null`. **Se o Verde passar a mandar `id: null`**, o desfecho vira falha em vez de concluído. Defeito vizinho: #238 |
 | `perguntaAtualTexto`, `perguntaAtualTokensTotal` | sim (`prepararPergunta`) | não (só o `reescrever` escreve; a Tykhe poderia, pela #240, mas o canal é reescrito a cada pergunta) | `None` = `undefined` | Já é assim no ia. Se a Tykhe pré-preencher, o valor some na primeira pergunta, igual a develop |
@@ -42,6 +42,7 @@ O `null` só entra por três portas: **Tykhe** (`dadosConhecidos`, qualquer cana
 | `dadosPessoa.enderecoDetalhado.{idUf,idBairro,idMunicipio}` (aninhado, `consultarCep`) | sim (`dadosCep` sem o id) | não (o Python de `consultar_cep` usa AUSENTE, `verde.py:387-389`) | chave **removida** do objeto | Develop sobrescreve com `undefined` uma chave que já existia, e o JSON e o checkpoint apagam. Não basta deixar de escrever |
 | `idLocalAtendimento` (argumento do encaminhamento) | sim (`orgao?.enderecos?.[0]?.idLocalAtendimento`) | sim (Verde) | **omitir** quando ausente, **`None`** quando `null` | O Python `DadosEncaminhamento` usa `in` (`verde.py:572`). Distinguível no ponto de leitura |
 | `mensagemFinal`, `motivoHandoff` | não (terminais que não gravam deixam a chave ausente) | sim (Tykhe) | **presença da chave** na rota | A rota usa `values.mensagemFinal ?? padrão`. Com `null` da Tykhe, cai no padrão nos dois. Sem divergência |
+| `cadastroErro` *(linha acrescentada na tradução, seção 8)* | não (só a mensagem do erro, `erro ?? "erro desconhecido"`) | sim (Tykhe) | guarda por **presença da chave**, no fluxo e no subgrafo `cadastro_pessoa` | Distinguível. Com `cadastroErro: null`, develop cadastra no Verde e vai para `falha_cadastro` **sem** perguntar a confirmação. O subgrafo mergeado testava `is not None` e fazia a pergunta a mais: corrigido em `65a976a` |
 
 ### 0.3 Develop andou: `4e695f2` → `0aecd98`
 
@@ -164,18 +165,76 @@ Nenhum log dentro de `src/fluxos`. A tradução não acrescenta nenhum.
 
 ## 7. Critérios de aceite
 
-- [ ] Correções da seção 0.1 em commits próprios, antes da tradução, dizendo que corrigem código mergeado.
-- [ ] 74 testes traduzidos e os novos da seção 6 passando sem rede.
-- [ ] Tabela da seção 0.2 com um teste por linha.
-- [ ] Mutações executadas, com o resultado no PR.
-- [ ] Conferência diferencial contra develop @ `0aecd98` registrada no PR.
-- [ ] `MIGRACAO.md` com o texto pendente (`migracao-specs/pendente-migracao-md-fluxos.md`) e a seção do módulo.
-- [ ] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes; jobs `test` e `imagem` verdes.
+- [x] Correções da seção 0.1 em commits próprios, antes da tradução, dizendo que corrigem código mergeado (`d5e5965`, `2403bab`; mais `65a976a` e `55eee00`, da seção 8).
+- [x] 74 testes traduzidos e os novos da seção 6 passando sem rede (74 + 74, `c5c18e9`).
+- [x] Tabela da seção 0.2 com um teste por linha.
+- [ ] Mutações executadas (27, todas pegas, seção 8), com o resultado no PR. *Falta: o PR.*
+- [ ] Conferência diferencial contra develop @ `0aecd98` (584 cenários, seção 8) registrada no PR. *Falta: o PR.*
+- [x] `MIGRACAO.md` com o texto pendente (`migracao-specs/pendente-migracao-md-fluxos.md`) e a seção do módulo.
+- [ ] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes (localmente: 398 passando); jobs `test` e `imagem` verdes. *Falta: o CI do PR, que também roda pela primeira vez os testes `postgres` do #226.*
+
+## 8. Achados da tradução (2026-10-14)
+
+Tradução em `6713498` (código e os 74 testes de develop) e `c5c18e9` (os 74 testes novos da seção 6). Suíte local: 398 passando.
+
+### 8.1 Conferência diferencial contra develop @ `0aecd98`
+
+Os mesmos cenários foram executados em develop (TypeScript, `node --import tsx`) e no Python, comparando byte a byte:
+- as perguntas (payload de cada interrupt);
+- os metadados;
+- os corpos e as URLs enviados ao Verde;
+- a exceção, quando há.
+
+O estado final também foi comparado, como objeto. Os cenários rodam em dois modos:
+- **mock:** o Verde do próprio código, sem token;
+- **http:** um Verde falso local, para os casos que o mock não cobre, como pessoa sem nome, `null` nos campos do apenado, CEP sem id, `id: null` no encaminhamento e plantão com id `null`.
+
+| Bloco | Cenários | Iguais | Divergência aceita | Diferentes |
+|---|---|---|---|---|
+| Caminhos principais, tabela 0.2, texto, exceções, tokens, lacuna do "Verde sem nome" | 89 | 87 | 2 (`rg: null`, `id: null`) | 0 |
+| Varredura: cada canal dos dois fluxos pré-preenchido pela Tykhe com `null`, `"x"`, `0`, `7`, `true`, `false`, `{}`, `[]` e `""` (#240) | 495 | 482 | 1 (`rg: null`) | 12 (8.3, D-1) |
+
+A varredura achou dois defeitos de tradução, já corrigidos, e uma divergência que espera decisão (8.3).
+
+### 8.2 Corrigido durante a tradução
+
+1. **`cadastroErro: null` da Tykhe (`65a976a`, corrige código mergeado em `80de7bb`).** Develop testa `!== undefined` num canal que nunca recebe `undefined`. Com `null`, cadastra a pessoa no Verde e vai para `falha_cadastro` **sem** perguntar a confirmação. O subgrafo `cadastro_pessoa` testava `is not None` e fazia a pergunta a mais. Passou a testar a presença da chave, e a linha entrou na tabela 0.2.
+2. **`texto_template` de objeto e lista (`55eee00`).** `${obj}` de JS dá `[object Object]`, e `${lista}` dá `join(",")`. O Python usava `str()`. Aparecia na mensagem de `falha_cadastro` com `cadastroErro` objeto ou lista.
+3. **Registro errado da divergência do `rg`** (tabela 0.2 e decisão 1, corrigidas aqui, no `MIGRACAO.md` e na #208). A versão anterior dizia que develop "pula a pergunta e consulta `""`". Na verdade, develop pula a primeira pergunta, `""` falha no formato do RG e ele pergunta "O RG deve conter apenas números…". O Python faz a pergunta normal. A diferença é só o texto da primeira pergunta do RG.
+
+### 8.3 Decisão pendente
+
+**D-1. Contador com valor que não é número, vindo da Tykhe** (`tentativasCpf`, `tentativasRg`, `tentativasProcesso`).
+
+- **develop:** `(t ?? 0) + 1` concatena texto. `"x"` vira `"x1"`, e a pergunta sai "tentativa x1 de 3". `"x1" >= 3` é falso, então o retry continua, com contagem sem sentido. Com `""`, vira `"1"`, depois `"11"`, e esgota na segunda tentativa.
+- **Python:** `TypeError` no `+ 1`. A rota responde 500.
+- **Alcance:** só acontece se a Tykhe mandar texto, objeto ou lista num contador interno. A #240 vai restringir os campos aceitos. `null`, número e booleano dão o mesmo resultado nos dois.
+- **Opções:**
+  - (a) aceitar como divergência registrada;
+  - (b) reproduzir o `+` e o `>=` do JS nos três contadores, o que inclui o `identificar_assistido` mergeado.
+- **Recomendação: (a).** O Python falha de forma visível onde develop segue com texto sem sentido. Reproduzir exigiria a semântica de coerção do JS em código de grafo, para um caso que a #240 elimina na origem.
+
+### 8.4 Verificação por mutação
+
+27 mutações, todas pegas. Três passaram na primeira rodada. Examinada cada uma, as três eram lacunas reais de teste, e não mutações mal escritas:
+- `strip()` em `normalizarSituacao`: nenhum caso tinha BOM ou `\x1c` na ponta de uma parte;
+- bypass do **preparar** por `is not None`: em `APP_ENV=test` o efeito não aparece no fluxo; com IA ligada, gastaria uma chamada ao Bedrock;
+- `rg` `None` nos metadados como `null`: o teste conferia o estado, e não os metadados.
+
+As três ganharam teste e passaram a ser pegas. A lista completa, com o teste que pega cada uma, vai no PR.
+
+### 8.5 Confirmado
+
+- **Lacuna herdada do subgrafos, fechada:** com o Verde devolvendo a pessoa sem nome, os dois fluxos, pelo orquestrador, perguntam "Confirma que seus dados são: você?". Com "Sim", concluem; com "Não", vão para `assistido_nao_confirmado`. É igual a develop (#236).
+- **Tokens (#230):** a semente de 150 vira 300 com identificação e 900 com cadastro, nos dois fluxos. O padrão repassa 150. É igual a develop.
+- **`TypeError`** de `null.toUpperCase()` com a mesma mensagem, e o curto-circuito do `&&`, que não lança quando a situação já está fora da lista.
+- **`"123\n"` é RG válido** nos dois lados: o `trim` do zod remove a quebra antes da regex. A spec (3.1) só citava o `$`.
+- **`fluxosPorId[id]`** com chave do protótipo (`"constructor"`) não é alcançável: a rota valida `flowId` com `format: "uuid"`.
 
 ## Decisões (fechadas em 2026-10-14)
 
 1. **`rg` e `encaminhamentoId`: divergências aceitas e registradas** (tabela 0.2). O motivo técnico é o **colapso de `undefined` e `null` em `None` num canal que recebe escrita externa**: develop grava `undefined` nesses canais e o `null` pode entrar de fora, então o Python não tem como distinguir os dois.
-   - **`rg`:** se a Tykhe passar a mandar `rg: null`, o atendimento pergunta o RG em vez de consultar `""`.
+   - **`rg`:** se a Tykhe passar a mandar `rg: null`, a primeira pergunta do RG sai com o texto normal, e não com "O RG deve conter apenas números…". *(Corrigido na tradução: a versão anterior dizia "em vez de consultar `""`"; a conferência diferencial mostrou que develop não consulta o Verde nesse caso.)*
    - **`encaminhamentoId`:** se o Verde passar a mandar `id: null`, o desfecho vira `falha_encaminhamento` em vez de concluir com "Protocolo: null.". **Isso evita mostrar um protocolo inválido à pessoa atendida**, o mesmo problema da #238.
 2. **Bypass do `cpf: null` no `identificar_assistido`: corrigido**, com o mesmo tratamento do `idPessoa` no `cadastro_pessoa`: guarda pela presença da chave e testes com o `null` da Tykhe. Commit próprio, que corrige código mergeado.
 3. **`metadadosSchema`: não traduzido.** Não tem consumidor em develop @ `0aecd98` (busca fora de `src/fluxos` vazia), e a rota declara `metadados` genérico (`rotas/atendimentos.ts`). Carregar código morto para o Python não faz sentido. A omissão fica registrada aqui e no `MIGRACAO.md`.

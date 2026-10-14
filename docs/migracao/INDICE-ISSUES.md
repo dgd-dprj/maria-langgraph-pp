@@ -16,7 +16,7 @@ Catálogo das issues ligadas à migração de TypeScript para Python (#208) e ao
 | 3 | [#219](https://github.com/dgd-dprj/maria-langgraph-pp/issues/219) | [TECH] | integracoes | Fechada | [#221](https://github.com/dgd-dprj/maria-langgraph-pp/pull/221) | Cliente do Verde e do WhatsApp com a semântica do `fetch` |
 | 4 | [#223](https://github.com/dgd-dprj/maria-langgraph-pp/issues/223) | [TECH] | ia | Fechada | [#224](https://github.com/dgd-dprj/maria-langgraph-pp/pull/224) | As seis funções do Bedrock, sem validação, e o retry dos embeddings |
 | 5 | [#233](https://github.com/dgd-dprj/maria-langgraph-pp/issues/233) | [TECH] | subgrafos | Fechada | [#235](https://github.com/dgd-dprj/maria-langgraph-pp/pull/235) | `identificar_assistido`, `cadastro_pessoa` e `coletar_endereco` |
-| 6 | [#241](https://github.com/dgd-dprj/maria-langgraph-pp/issues/241) | [TECH] | fluxos | Aberta | — | Violência doméstica, pessoa presa e padrão; branch com os 3 commits iniciais, tradução não iniciada |
+| 6 | [#241](https://github.com/dgd-dprj/maria-langgraph-pp/issues/241) | [TECH] | fluxos | Aberta | — | Violência doméstica, pessoa presa e padrão. Tradução feita na branch (74 testes de develop + 74 novos; diferencial com 584 cenários); aguardando revisão dos achados antes do PR, com a decisão D-1 em aberto |
 | 7 | — | — | orquestrador | sem issue | — | A abrir; a #225 pode mudar o escopo |
 | 8 | — | — | api | sem issue | — | A abrir; notas prontas (TTL do #234, `resume=""`, canais por ambiente) |
 | 9 | — | — | scripts | sem issue | — | A abrir |
