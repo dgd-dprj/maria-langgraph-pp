@@ -1,6 +1,7 @@
 import type { GrafoAtendimento } from "../rotas/atendimentos.js";
 import { listarFluxosPlanejados, buscarFluxoPlanejadoPorId, textoParaClassificacao } from "../shared/fluxosPlanejadosDb.js";
 import { grafo as grafoPessoaPresa } from "./pessoaPresa/graph.js";
+import { TIPOS_TYKHE } from "./tiposTykhe.js";
 import {
   metadadosSchemaPessoaPresa,
   extrairMetadadosPessoaPresa,
@@ -100,15 +101,18 @@ export async function buscarFluxo(fluxoId: string): Promise<FluxoConfig | undefi
   return planejado ? FLUXO_PADRAO : undefined;
 }
 
-// Catálogo COMPLETO pra classificação (ia/classificarFluxos.ts, via
-// rotas/orquestrador.ts) — implementados (fluxosPorId, com grafo de verdade)
-// + planejados (tabela fluxos_planejados, issue #26). A IA pode escolher um
-// planejado; buscarFluxo() resolve pro grafo padrão nesse caso (issue #21),
-// não mais handoff especial. Planejados usam textoParaClassificacao() —
-// combina descricao + palavrasChave (issue #19) no texto que a IA/embedding
-// realmente lê.
+// Catálogo de classificação do orquestrador (ia/classificarFluxos.ts, via
+// orquestrador/graph.ts). Issue #225: implementados (fluxosPorId, a Maria
+// conduz) + tipos que a Tykhe atende (fluxos/tiposTykhe.ts, a Maria só
+// identifica e devolve). Os planejados (tabela fluxos_planejados, issue #26)
+// saíram do catálogo, mas a tabela fica intacta e POST /atendimentos com o
+// flowId de um planejado continua rodando o grafo padrão (buscarFluxo).
+// ORQUESTRADOR_INCLUIR_PLANEJADOS=true volta a oferecê-los à classificação
+// (comportamento anterior), sem deploy de código.
 export async function catalogoParaClassificacao(): Promise<Array<{ id: string; nome: string; descricao: string }>> {
   const implementados = Object.entries(fluxosPorId).map(([id, cfg]) => ({ id, nome: cfg.nome, descricao: cfg.descricao }));
+  const tykhe = TIPOS_TYKHE.map((t) => ({ id: t.id, nome: t.nome, descricao: t.descricao }));
+  if (process.env.ORQUESTRADOR_INCLUIR_PLANEJADOS !== "true") return [...implementados, ...tykhe];
   const planejados = (await listarFluxosPlanejados()).map((f) => ({ id: f.id, nome: f.nome, descricao: textoParaClassificacao(f) }));
-  return [...implementados, ...planejados];
+  return [...implementados, ...tykhe, ...planejados];
 }

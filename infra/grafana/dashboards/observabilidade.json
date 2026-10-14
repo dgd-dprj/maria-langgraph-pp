@@ -258,7 +258,7 @@
               { "arn": "/ecs/maria-langgraph-pp/api", "name": "/ecs/maria-langgraph-pp/api" },
               { "arn": "/ecs/maria-langgraph-pp-release/api", "name": "/ecs/maria-langgraph-pp-release/api" }
             ],
-            "expression": "fields @log, rodada\n| filter evento = \"orquestrador_fluxo_identificado\" or evento = \"orquestrador_finalizado_sem_fluxo\"\n| fields replace(replace(@log, \"185327115563:/ecs/maria-langgraph-pp-release/api\", \"release\"), \"185327115563:/ecs/maria-langgraph-pp/api\", \"prod\") as ambiente\n| stats avg(rodada) as mediaRodadas, max(rodada) as maxRodadas by bin(1d), ambiente",
+            "expression": "fields @log, rodada\n| filter evento = \"orquestrador_fluxo_identificado\" or evento = \"orquestrador_finalizado_sem_fluxo\" or evento = \"orquestrador_redirecionado\"\n| fields replace(replace(@log, \"185327115563:/ecs/maria-langgraph-pp-release/api\", \"release\"), \"185327115563:/ecs/maria-langgraph-pp/api\", \"prod\") as ambiente\n| stats avg(rodada) as mediaRodadas, max(rodada) as maxRodadas by bin(1d), ambiente",
             "statsGroups": ["ambiente"],
             "refId": "A"
           }

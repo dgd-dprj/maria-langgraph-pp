@@ -2,6 +2,7 @@ import { randomUUID } from "node:crypto";
 import type { FastifyInstance } from "fastify";
 import { Command } from "@langchain/langgraph";
 import { buscarFluxo } from "../fluxos/index.js";
+import { TIPOS_TYKHE, tipoTykhePorCaso, tipoTykhePorId, type TipoTykhe } from "../fluxos/tiposTykhe.js";
 import { grafo as grafoOrquestrador } from "../orquestrador/graph.js";
 import { criarAtendimento, extrairInterruptDoInvoke } from "./atendimentos.js";
 
@@ -13,7 +14,13 @@ const respostaOrquestradorSchema = {
     resposta: { type: "string" },
     tipoResposta: { type: "string", enum: ["texto", "sim_nao", "opcoes"] },
     opcoes: { type: "array", items: { type: "string" } },
-    status: { type: "string", enum: ["em_andamento", "concluido", "handoff_humano"] },
+    status: { type: "string", enum: ["em_andamento", "concluido", "handoff_humano", "redirecionado"] },
+    tipoCaso: {
+      type: "string",
+      enum: TIPOS_TYKHE.map((t) => t.tipoCaso),
+      description:
+        "Issue #225 — só presente quando status:redirecionado: tipo de caso que a Tykhe atende com fluxo próprio. A Maria não cria atendimento; a Tykhe continua.",
+    },
     motivoHandoff: {
       type: "string",
       enum: ["nao_identificado"],
@@ -48,6 +55,21 @@ const respostaOrquestradorSchema = {
 
 const MENSAGEM_NAO_IDENTIFICADO =
   "Não consegui identificar como te ajudar a partir do que você escreveu. Vou encaminhar seu atendimento pra um atendente humano confirmar.";
+
+// Issue #225 — o caso é de um tipo que a Tykhe atende: não cria atendimento
+// na Maria, só devolve o tipo. Sem _links.responder (não há o que responder
+// aqui) e sem flowId/metadados; tokensGastos sempre presente, como nos
+// demais desfechos.
+function respostaRedirecionada(chatId: string, tipo: TipoTykhe, tokensGastos: { input: number; output: number; total: number } | undefined) {
+  return {
+    resposta: tipo.mensagem,
+    tipoResposta: "texto",
+    status: "redirecionado",
+    tipoCaso: tipo.tipoCaso,
+    tokensGastos: tokensGastos ?? { input: 0, output: 0, total: 0 },
+    _links: { self: { href: `/atendimentos/${chatId}` } },
+  };
+}
 
 function respostaHandoffSemFluxo(chatId: string, motivo: "nao_identificado") {
   return {
@@ -165,12 +187,24 @@ export function registrarRotaOrquestrador(app: FastifyInstance): void {
 
       const { statusFinal, flowIdEscolhido } = resultado as { statusFinal?: string; flowIdEscolhido?: string };
 
+      // Issue #225 — relato que não bate com nenhuma opção vai para "outros"
+      // da Tykhe (antes: handoff_humano direto). Mesmo evento de log de
+      // antes, para o painel de "não identificado" continuar contando.
       if (statusFinal !== "identificado" || !flowIdEscolhido) {
         req.log.info(
-          { chatId, evento: "orquestrador_finalizado_sem_fluxo", status: "concluido", destino: "atendimento_humano", tokensGastosTotal: tokensGastosRodada, rodada },
-          "orquestrador: fluxo não identificado, handoff_humano direto"
+          { chatId, evento: "orquestrador_finalizado_sem_fluxo", status: "concluido", destino: "tykhe", tipoCaso: "outros", tokensGastosTotal: tokensGastosRodada, rodada },
+          "orquestrador: fluxo não identificado, redirecionado para a Tykhe (outros)"
         );
-        return reply.code(200).send(respostaHandoffSemFluxo(chatId, "nao_identificado"));
+        return reply.code(200).send(respostaRedirecionada(chatId, tipoTykhePorCaso("outros"), tokensGastosConversa));
+      }
+
+      const tipoTykhe = tipoTykhePorId(flowIdEscolhido);
+      if (tipoTykhe) {
+        req.log.info(
+          { chatId, evento: "orquestrador_redirecionado", status: "concluido", destino: "tykhe", tipoCaso: tipoTykhe.tipoCaso, tokensGastosTotal: tokensGastosRodada, rodada },
+          "orquestrador: caso de um tipo atendido pela Tykhe, redirecionado"
+        );
+        return reply.code(200).send(respostaRedirecionada(chatId, tipoTykhe, tokensGastosConversa));
       }
 
       const fluxo = await buscarFluxo(flowIdEscolhido);

@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { montarApp } from "../src/app.js";
-import { ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA } from "../src/fluxos/index.js";
+import { catalogoParaClassificacao, ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA } from "../src/fluxos/index.js";
+import { TIPOS_TYKHE } from "../src/fluxos/tiposTykhe.js";
 import { adicionarPlanejadoDeTeste, removerPlanejadoDeTeste } from "../src/shared/fluxosPlanejadosDb.js";
 import { obterPerguntasStore, type PerguntaArvore } from "../src/shared/perguntasDb.js";
 import { randomUUID } from "node:crypto";
@@ -44,7 +45,9 @@ test("sem Authorization → 401 (rota protegida igual às demais)", async () => 
   assert.equal(res.statusCode, 401);
 });
 
-test("classificação não identifica nenhum fluxo → handoff_humano direto, sem flowId", async () => {
+// Issue #225 — o que não bate com nenhuma opção vai para "outros" da Tykhe
+// (antes era handoff_humano direto).
+test("classificação não identifica nenhum fluxo → redirecionado para a Tykhe como \"outros\", sem flowId", async () => {
   const original = process.env.MOCK_CLASSIFICACAO_FLOWID;
   delete process.env.MOCK_CLASSIFICACAO_FLOWID;
   try {
@@ -57,10 +60,10 @@ test("classificação não identifica nenhum fluxo → handoff_humano direto, se
     });
     const body = res.json();
     assert.equal(res.statusCode, 200);
-    assert.equal(body.status, "handoff_humano");
-    assert.equal(body.motivoHandoff, "nao_identificado");
+    assert.equal(body.status, "redirecionado");
+    assert.equal(body.tipoCaso, "outros");
     assert.equal(body.flowId, undefined);
-    assert.match(body.resposta, /Não consegui identificar/);
+    assert.deepEqual(body.tokensGastos, { input: 0, output: 0, total: 0 });
   } finally {
     process.env.MOCK_CLASSIFICACAO_FLOWID = original;
   }
@@ -82,6 +85,8 @@ test("classificação identifica fluxo PLANEJADO (sem código ainda) → grafo p
   await adicionarPlanejadoDeTeste(fluxoFalso);
   const original = process.env.MOCK_CLASSIFICACAO_FLOWID;
   process.env.MOCK_CLASSIFICACAO_FLOWID = fluxoFalso.id;
+  // Issue #225 — planejados só entram no catálogo com a chave ligada.
+  process.env.ORQUESTRADOR_INCLUIR_PLANEJADOS = "true";
   try {
     const app = await montarApp();
     const res = await app.inject({
@@ -97,6 +102,7 @@ test("classificação identifica fluxo PLANEJADO (sem código ainda) → grafo p
     assert.match(body.resposta, /sendo construíd/i);
   } finally {
     process.env.MOCK_CLASSIFICACAO_FLOWID = original;
+    delete process.env.ORQUESTRADOR_INCLUIR_PLANEJADOS;
     await removerPlanejadoDeTeste(fluxoFalso.id);
   }
 });
@@ -123,6 +129,7 @@ test("2 categorias planejadas diferentes usam o mesmo grafo padrão sem misturar
   await adicionarPlanejadoDeTeste(planejadoA);
   await adicionarPlanejadoDeTeste(planejadoB);
   const original = process.env.MOCK_CLASSIFICACAO_FLOWID;
+  process.env.ORQUESTRADOR_INCLUIR_PLANEJADOS = "true";
   try {
     const app = await montarApp();
     const chatA = novoChatId();
@@ -145,6 +152,7 @@ test("2 categorias planejadas diferentes usam o mesmo grafo padrão sem misturar
     assert.equal(getB.json().flowId, planejadoB.id, "GET do chatId B não deveria vazar o flowId de A");
   } finally {
     process.env.MOCK_CLASSIFICACAO_FLOWID = original;
+    delete process.env.ORQUESTRADOR_INCLUIR_PLANEJADOS;
     await removerPlanejadoDeTeste(planejadoA.id);
     await removerPlanejadoDeTeste(planejadoB.id);
   }
@@ -322,7 +330,7 @@ test("desambiguação com só 1 dos 2 candidatos tendo pergunta no banco → cai
 
 // Esgota o limite de rodadas de desambiguação (5, issue #43) sem convergir
 // pra 1 só → cai em handoff_humano em vez de perguntar pra sempre.
-test("ambiguidade que nunca resolve → esgota limite de rodadas → handoff_humano", async () => {
+test("ambiguidade que nunca resolve → esgota limite de rodadas → redirecionado como \"outros\"", async () => {
   const original = process.env.MOCK_CLASSIFICACAO_FLOWIDS;
   const originalSingular = process.env.MOCK_CLASSIFICACAO_FLOWID;
   process.env.MOCK_CLASSIFICACAO_FLOWIDS = `${ID_PESSOA_PRESA},${ID_VIOLENCIA_DOMESTICA}`;
@@ -348,8 +356,8 @@ test("ambiguidade que nunca resolve → esgota limite de rodadas → handoff_hum
 
     res = await app.inject({ method: "POST", url: BASE, payload: { chatId, resposta: "não esclarece" }, headers: AUTH });
     const body = res.json();
-    assert.equal(body.status, "handoff_humano", "esgotou as 5 rodadas, ainda ambíguo → desiste");
-    assert.equal(body.motivoHandoff, "nao_identificado");
+    assert.equal(body.status, "redirecionado", "esgotou as 5 rodadas, ainda ambíguo → desiste");
+    assert.equal(body.tipoCaso, "outros");
   } finally {
     process.env.MOCK_CLASSIFICACAO_FLOWIDS = original;
     process.env.MOCK_CLASSIFICACAO_FLOWID = originalSingular;
@@ -387,5 +395,54 @@ test("orquestrador seta viaOrquestrador — CPF encontrado pergunta confirmaçã
     assert.equal(res.json().status, "concluido");
   } finally {
     process.env.MOCK_CLASSIFICACAO_FLOWID = original;
+  }
+});
+
+// Issue #225 — tipos de caso que a Tykhe atende: a Maria só identifica e
+// devolve o tipo, sem criar atendimento.
+for (const tipo of TIPOS_TYKHE) {
+  test(`classificação identifica "${tipo.tipoCaso}" → redirecionado, sem criar atendimento`, async () => {
+    const original = process.env.MOCK_CLASSIFICACAO_FLOWID;
+    process.env.MOCK_CLASSIFICACAO_FLOWID = tipo.id;
+    try {
+      const app = await montarApp();
+      const chatId = novoChatId();
+      const res = await app.inject({ method: "POST", url: BASE, payload: { chatId, mensagem: "relato qualquer" }, headers: AUTH });
+      const body = res.json();
+      assert.equal(res.statusCode, 200);
+      assert.equal(body.status, "redirecionado");
+      assert.equal(body.tipoCaso, tipo.tipoCaso);
+      assert.equal(body.resposta, tipo.mensagem);
+      assert.equal(body.flowId, undefined);
+      assert.equal(body.metadados, undefined);
+      assert.equal(body._links.responder, undefined, "nada a responder na Maria depois de redirecionar");
+      assert.ok(body.tokensGastos, "tokensGastos sempre presente, como nos outros desfechos");
+
+      const get = await app.inject({ method: "GET", url: `/atendimentos/${chatId}`, headers: AUTH });
+      assert.equal(get.statusCode, 404, "nenhum atendimento é criado na Maria");
+    } finally {
+      process.env.MOCK_CLASSIFICACAO_FLOWID = original;
+    }
+  });
+}
+
+test("catálogo do orquestrador: 2 fluxos implementados + 7 tipos da Tykhe, sem planejados por padrão", async () => {
+  const catalogo = await catalogoParaClassificacao();
+  const ids = catalogo.map((c) => c.id);
+  assert.equal(catalogo.length, 9);
+  assert.ok(ids.includes(ID_PESSOA_PRESA) && ids.includes(ID_VIOLENCIA_DOMESTICA));
+  for (const t of TIPOS_TYKHE) assert.ok(ids.includes(t.id), t.id);
+});
+
+test("ORQUESTRADOR_INCLUIR_PLANEJADOS=true devolve os planejados ao catálogo", async () => {
+  const planejado = { id: "00000000-0000-0000-0000-0000000000c3", nome: "planejado-c", descricao: "c", idCategoriaAssuntoVerde: 88883, palavrasChave: [] };
+  await adicionarPlanejadoDeTeste(planejado);
+  process.env.ORQUESTRADOR_INCLUIR_PLANEJADOS = "true";
+  try {
+    const ids = (await catalogoParaClassificacao()).map((c) => c.id);
+    assert.ok(ids.includes(planejado.id));
+  } finally {
+    delete process.env.ORQUESTRADOR_INCLUIR_PLANEJADOS;
+    await removerPlanejadoDeTeste(planejado.id);
   }
 });
