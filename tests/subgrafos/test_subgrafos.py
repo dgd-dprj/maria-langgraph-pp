@@ -297,3 +297,50 @@ async def test_12_confirmacao_com_nome_e_resposta() -> None:
     c = await (await _identificar().iniciar({"cpf": "12345678901", "viaOrquestrador": True})).responder("Sim")
     assert c.perguntas[0]["pergunta"] == "Confirma que seus dados são: Pessoa de Teste (mock)?"
     assert (await c.estado())["confirmaAssistido"] is True
+
+
+# ---- regra de estado: null da Tykhe e do Verde (spec do fluxos, tabela 0.2) ----
+
+
+async def test_cpf_null_da_tykhe_pula_a_pergunta_como_em_develop() -> None:
+    # Executado em develop: {cpf: null} não pergunta o CPF, consulta "" (o mock
+    # encontra), tentativasCpf 1 e o cpf continua null. Develop nunca grava
+    # undefined em `cpf`, então só a ausência da chave pede a pergunta.
+    c = await _identificar().iniciar({"cpf": None, "viaOrquestrador": False})
+    estado = await c.estado()
+    assert c.perguntas == []
+    assert estado["cpf"] is None
+    assert estado["tentativasCpf"] == 1
+    assert estado["dadosPessoa"]["encontrado"] is True
+
+
+async def test_cpf_ausente_pergunta() -> None:
+    c = await _identificar().iniciar({"viaOrquestrador": False})
+    assert c.perguntas[0]["pergunta"] == "Qual o seu CPF? Informe apenas os números."
+
+
+async def test_cadastro_com_id_pessoa_null_do_verde_mantem_null(verde_real: TransporteFalso) -> None:
+    # Develop: o guarda do cadastro é `=== undefined`, então `"idPessoa": null`
+    # é sucesso e o dadosPessoa fica com idPessoa null (o JSON mantém o null).
+    import httpx
+
+    async def responder(requisicao: httpx.Request) -> httpx.Response:
+        if requisicao.url.path.endswith("/pessoa"):
+            return httpx.Response(201, json={"dados": {"idPessoa": None}})
+        return httpx.Response(
+            200,
+            json={
+                "dados": {
+                    "uf": {"id": 19, "sigla": "RJ"},
+                    "bairro": {"id": 1, "nome": "Centro"},
+                    "municipio": {"id": 2, "nome": "Rio"},
+                    "logradouro": "Rua A",
+                }
+            },
+        )
+
+    verde_real.tratador = responder
+    c = await (await _cadastro().iniciar({"cpf": "12345678901"})).responder("Fulano de Tal", "01/01/1990", "20000000", "10", "não")
+    estado = await c.estado()
+    assert estado["dadosPessoa"] == {"encontrado": True, "idPessoa": None, "nome": "Fulano de Tal"}
+    assert "cadastroErro" not in estado

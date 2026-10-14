@@ -43,7 +43,11 @@ def _tentativas(state: IdentificarAssistidoState) -> int:
 
 def cpf_veio_de_dados_conhecidos(state: IdentificarAssistidoState) -> bool:
     # Bypass só na tentativa 0: um retry não pode reusar o CPF que falhou.
-    return state.get("cpf") is not None and _tentativas(state) == 0
+    # `state.cpf !== undefined` de develop: develop nunca grava undefined em
+    # `cpf`, então a AUSÊNCIA da chave é o undefined, e `None` é um null vindo
+    # da Tykhe (dadosConhecidos), que em develop também pula a pergunta e
+    # consulta "" (regra de estado, tabela da spec do fluxos).
+    return "cpf" in state and _tentativas(state) == 0
 
 
 def texto_tentar_novamente(state: IdentificarAssistidoState) -> str:

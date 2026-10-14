@@ -72,10 +72,14 @@ async def cadastrar_pessoa(state: CadastroPessoaState) -> Atualizacao:
         return {"cadastroErro": _js.coalesce(resultado.get("erro"), "erro desconhecido")}
     # Mesmo formato que o identificar_assistido preenche quando encontra; sem
     # enderecoDetalhado (#231). Objeto aninhado: undefined de develop é chave
-    # ausente (regra de estado, MIGRACAO.md).
-    dados_pessoa: dict[str, Any] = {"encontrado": True}
-    for chave, valor in (("idPessoa", resultado.get("idPessoa")), ("nome", state.get("nome"))):
-        _js.definir(dados_pessoa, chave, _js.AUSENTE if valor is None else valor)
+    # ausente, e null continua null (regra de estado, MIGRACAO.md).
+    # - idPessoa: no sucesso, o Verde sempre traz a chave; `"idPessoa": null`
+    #   continua None, como o null de develop (o guarda lá é `=== undefined`).
+    # - nome: develop nunca grava undefined no canal; ausência da chave é o
+    #   undefined (não vai para o objeto), e None é null (vai como null).
+    dados_pessoa: dict[str, Any] = {"encontrado": True, "idPessoa": resultado.get("idPessoa")}
+    if "nome" in state:
+        dados_pessoa["nome"] = state["nome"]
     return {"dadosPessoa": dados_pessoa}
 
 
