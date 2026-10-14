@@ -28,7 +28,14 @@ Tipos: `[FEATURE]`, `[ENHANCEMENT]`, `[BUG]`, `[TECH]`.
 
 - **Cenários BDD** — sempre que houver comportamento descrito (sucesso + erro), formato Gherkin.
 - **Requisitos Não Funcionais**, **Dependências**, **Fora de Escopo**.
-- **Diagrama explicativo (opcional)** — fluxo/arquitetura/sequência pode ganhar diagrama: gerar com o agente `diagram-specialist` (Mermaid), nunca commitar a fonte, subir o PNG pro bucket `s3://maria-langgraph-pp-docs-185327115563/diagramas/`, embutir a URL pública na issue. Detalhe completo em [`docs/padroes-issues.md`](../../../docs/padroes-issues.md).
+- **Diagrama explicativo (opcional)** — fluxo/arquitetura/sequência pode ganhar diagrama, sempre no guia de estilo do agente `diagram-specialist`. Em issue: **Mermaid no texto** (bloco ` ```mermaid `, o GitHub desenha). PNG publicado no bucket `s3://maria-langgraph-pp-docs-185327115563/diagramas/` fica para `docs/*.md` e documentação estável. Dados de exemplo sempre fictícios. Detalhe em [`docs/padroes-issues.md`](../../../docs/padroes-issues.md).
+
+## Evidência e rastreabilidade (obrigatório em `[BUG]` e afirmações sobre o comportamento atual)
+
+- Toda afirmação com fonte: `arquivo:linha` em `develop @ <commit>`, execução (o quê, versão, data) ou link de documentação. O que não foi verificado é marcado **não verificado**.
+- Consulta de log sempre com **conferência manual** (um controle que prova que a consulta acha o que procura) — senão zero por ausência e zero por consulta errada parecem iguais.
+- Correção de issue publicada: comentário datado + marca "**Corrigido em AAAA-MM-DD:** …" no corpo. Nada some sem explicação.
+- Nenhum dado pessoal: só contagens e conclusões, nunca o conteúdo (CPF, RG, nome, telefone, relato, `chatId` de WhatsApp).
 
 ## Regras para o assistente de IA
 

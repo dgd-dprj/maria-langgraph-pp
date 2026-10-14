@@ -24,4 +24,6 @@ Contexto completo: [`README.md`](README.md) e [`docs/`](docs/). Fluxo de contrib
 
 ## Diagramas
 
-Fluxo/arquitetura/sequência: usar o agente `diagram-specialist` (Mermaid, estilo fixo). Nunca commitar `.mmd`/`.png` fonte — só subir o PNG final pro bucket acima e referenciar a URL.
+Fluxo/arquitetura/sequência: usar o guia de estilo do agente `diagram-specialist` (Mermaid, estilo fixo). Dois caminhos:
+- **Issues e PRs**: bloco ` ```mermaid ` no próprio texto (o GitHub desenha).
+- **`docs/*.md` e documentação estável**: PNG publicado no bucket acima, referenciado pela URL. Nunca commitar `.mmd`/`.png` fonte.
