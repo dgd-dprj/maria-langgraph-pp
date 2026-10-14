@@ -84,8 +84,11 @@ async def cadastrar_pessoa(state: CadastroPessoaState) -> Atualizacao:
 
 
 def depois_de_cadastrar(state: CadastroPessoaState) -> str:
-    # `state.cadastroErro !== undefined`
-    return "falhou" if state.get("cadastroErro") is not None else "sucesso"
+    # `state.cadastroErro !== undefined`. Develop nunca grava undefined no
+    # canal, então o undefined é a chave ausente, e um `cadastroErro: null` da
+    # Tykhe (dadosConhecidos, #240) também vai para "falhou", sem a confirmação
+    # (regra de estado, spec 05, tabela 0.2).
+    return "falhou" if "cadastroErro" in state else "sucesso"
 
 
 async def preparar_pergunta_confirma_assistido(state: CadastroPessoaState) -> Atualizacao:

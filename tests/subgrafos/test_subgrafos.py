@@ -344,3 +344,23 @@ async def test_cadastro_com_id_pessoa_null_do_verde_mantem_null(verde_real: Tran
     estado = await c.estado()
     assert estado["dadosPessoa"] == {"encontrado": True, "idPessoa": None, "nome": "Fulano de Tal"}
     assert "cadastroErro" not in estado
+
+
+async def test_cadastro_erro_null_da_tykhe_falha_sem_confirmacao_como_em_develop() -> None:
+    # Develop: `cadastroErro !== undefined` e o canal nunca recebe undefined, então
+    # um `cadastroErro: null` da Tykhe (#240) vai para "falhou" logo depois do
+    # POST, sem perguntar a confirmação. Conferido contra develop @ 0aecd98.
+    c = await (await _cadastro().iniciar({"cpf": "12345678901", "viaOrquestrador": True, "cadastroErro": None})).responder(
+        "Fulano de Tal", "01/01/1990", "20000000", "10", "não"
+    )
+    assert c.pendente is None, "não deveria perguntar a confirmação dos dados"
+    estado = await c.estado()
+    assert estado["cadastroErro"] is None
+    assert "confirmaAssistido" not in estado
+
+
+async def test_cadastro_sem_cadastro_erro_pergunta_a_confirmacao() -> None:
+    c = await (await _cadastro().iniciar({"cpf": "12345678901", "viaOrquestrador": True})).responder(
+        "Fulano de Tal", "01/01/1990", "20000000", "10", "não"
+    )
+    assert c.pendente is not None and c.pendente["pergunta"] == "Confirma que seus dados são: Fulano de Tal?"
