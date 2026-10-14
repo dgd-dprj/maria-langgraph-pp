@@ -88,3 +88,56 @@ test("confirma recomeçar → status expirado, chatId fica bloqueado (409) depoi
   assert.equal(bloqueado.statusCode, 409);
   assert.equal(bloqueado.json().erro, "atendimento expirado por inatividade — inicie um novo atendimento");
 });
+
+// Issue #227 — a confirmação aceitava só "true". Quem digitava "sim" (bridge
+// do WhatsApp, ou a Tykhe repassando o texto) tinha o atendimento expirado.
+
+async function abrirComConfirmacaoPendente(respostaOriginal: string) {
+  const app = await montarApp();
+  const chatId = novoChatId();
+  await app.inject({ method: "POST", url: BASE, payload: { chatId, flowId: FLOW_ID }, headers: AUTH });
+  process.env.TTL_INATIVIDADE_HORAS = "0";
+  try {
+    const confirmacao = await app.inject({ method: "POST", url: `${BASE}/respostas`, payload: { chatId, resposta: respostaOriginal }, headers: AUTH });
+    assert.equal(confirmacao.json().tipoResposta, "sim_nao");
+  } finally {
+    delete process.env.TTL_INATIVIDADE_HORAS;
+  }
+  return { app, chatId };
+}
+
+for (const confirmacao of ["sim", "Sim", "SIM", " s ", "quero continuar", "Continuar"]) {
+  test(`confirmação "${confirmacao}" → continua e processa a resposta original`, async () => {
+    const { app, chatId } = await abrirComConfirmacaoPendente("false");
+    const res = await app.inject({ method: "POST", url: `${BASE}/respostas`, payload: { chatId, resposta: confirmacao }, headers: AUTH });
+    const body = res.json();
+    assert.equal(res.statusCode, 200);
+    assert.equal(body.status, "handoff_humano");
+    assert.equal(body.metadados.motivoHandoff, "nao_e_vitima");
+  });
+}
+
+for (const confirmacao of ["não", "nao", "N", "Recomeçar"]) {
+  test(`confirmação "${confirmacao}" → expirado`, async () => {
+    const { app, chatId } = await abrirComConfirmacaoPendente("false");
+    const res = await app.inject({ method: "POST", url: `${BASE}/respostas`, payload: { chatId, resposta: confirmacao }, headers: AUTH });
+    assert.equal(res.statusCode, 200);
+    assert.equal(res.json().status, "expirado");
+  });
+}
+
+test("confirmação não reconhecida → pergunta de novo, sem expirar e sem perder a resposta original", async () => {
+  const { app, chatId } = await abrirComConfirmacaoPendente("false");
+
+  const repetida = await app.inject({ method: "POST", url: `${BASE}/respostas`, payload: { chatId, resposta: "meu marido me ameaçou ontem" }, headers: AUTH });
+  const corpoRepetida = repetida.json();
+  assert.equal(repetida.statusCode, 200);
+  assert.equal(corpoRepetida.status, "em_andamento");
+  assert.equal(corpoRepetida.tipoResposta, "sim_nao");
+  assert.match(corpoRepetida.resposta, /Já faz um tempo/);
+
+  const res = await app.inject({ method: "POST", url: `${BASE}/respostas`, payload: { chatId, resposta: "sim" }, headers: AUTH });
+  const body = res.json();
+  assert.equal(body.status, "handoff_humano");
+  assert.equal(body.metadados.motivoHandoff, "nao_e_vitima");
+});

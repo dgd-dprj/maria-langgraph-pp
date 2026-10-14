@@ -3,6 +3,7 @@ import type { FastifyBaseLogger, FastifyInstance } from "fastify";
 import { Command } from "@langchain/langgraph";
 import { buscarFluxo, ID_VIOLENCIA_DOMESTICA, type FluxoConfig } from "../fluxos/index.js";
 import { obterAtendimentosStore } from "../shared/atendimentosDb.js";
+import { normalizarResposta, respostaEhNao, respostaEhSim } from "../shared/respostaSimNao.js";
 
 // Issue #92 — SÓ no log interno (observabilidade), não no campo `status` da
 // resposta HTTP (esse continua exatamente como sempre foi, contrato com a
@@ -28,6 +29,10 @@ function ttlInatividadeHoras(): number {
   return Number(process.env.TTL_INATIVIDADE_HORAS ?? "24");
 }
 
+// Formas naturais de responder à confirmação de TTL além de sim/não (issue
+// #227), já normalizadas (sem acento, minúsculas — ver normalizarResposta).
+const CONTINUAR_TTL = new Set(["quero", "continuar", "quero continuar", "continua", "pode continuar"]);
+const RECOMECAR_TTL = new Set(["recomecar", "quero recomecar", "comecar de novo", "nao quero"]);
 const TEXTO_CONFIRMACAO_TTL = "Já faz um tempo desde sua última mensagem. Quer continuar de onde você parou?";
 const MENSAGEM_EXPIRADO =
   "Essa conversa expirou por inatividade. Pra continuar, inicie um novo atendimento.";
@@ -511,8 +516,20 @@ export function registrarRotasAtendimento(app: FastifyInstance): void {
       // Resposta a uma pergunta de confirmação de TTL ("quer continuar?"),
       // não a pergunta original de negócio.
       if (atividade?.aguardandoConfirmacaoTtl) {
-        const quisContinuar = body?.resposta === "true";
-        if (!quisContinuar) {
+        // Issue #227 — mesma tolerância dos nós sim_nao (shared/respostaSimNao.ts),
+        // mais as formas naturais desta pergunta específica. Antes era só
+        // `=== "true"`: quem digitava "sim" (bridge do WhatsApp, ou a Tykhe
+        // repassando o texto) tinha o atendimento encerrado como expirado.
+        const respostaConfirmacao = body?.resposta ?? "";
+        const quisContinuar = respostaEhSim(respostaConfirmacao) || CONTINUAR_TTL.has(normalizarResposta(respostaConfirmacao));
+        const quisRecomecar = respostaEhNao(respostaConfirmacao) || RECOMECAR_TTL.has(normalizarResposta(respostaConfirmacao));
+        if (!quisContinuar && !quisRecomecar) {
+          // Nem sim nem não (ex.: a pessoa mandou outro relato): pergunta de
+          // novo, sem expirar e sem perder a resposta original guardada.
+          req.log.info({ fluxoId, chatId, evento: "ttl_confirmacao_repetida" }, "resposta à confirmação de TTL não reconhecida — perguntando de novo");
+          return montarRespostaAtendimento(fluxo, fluxoId, chatId, { pergunta: TEXTO_CONFIRMACAO_TTL, tipo: "sim_nao" }, valoresAtuais);
+        }
+        if (quisRecomecar) {
           await store.concluir(chatId, { statusFinal: "expirado", destino: destinoDoLog(fluxoId, "expirado") });
           req.log.info({ fluxoId, chatId, evento: "atendimento_expirado" }, "atendimento marcado como expirado — pessoa optou por recomeçar");
           const respostaFinal = montarRespostaAtendimento(fluxo, fluxoId, chatId, undefined, { ...valoresAtuais, statusFinal: "expirado", mensagemFinal: MENSAGEM_EXPIRADO });

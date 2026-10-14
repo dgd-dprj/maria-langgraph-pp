@@ -14,20 +14,7 @@ import { criarCheckpointer } from "../../shared/checkpointer.js";
 import { grafo as subgrafoIdentificarAssistido } from "../../subgrafos/identificarAssistido/graph.js";
 import { grafo as subgrafoCadastroPessoa } from "../../subgrafos/cadastroPessoa/graph.js";
 import { MENSAGEM_FALHA_CADASTRO, MENSAGEM_CPF_NAO_ENCONTRADO, MENSAGEM_FALHA_ENCAMINHAMENTO, MENSAGEM_NAO_VITIMA, MENSAGEM_SEM_ORGAO_DISPONIVEL } from "./api.js";
-
-// Mesma tolerância de respostas sim_nao de fluxos/pessoaPresa/graph.ts — a
-// Tykhe às vezes repassa "Sim"/"Não" literal em vez de "true"/"false" (bug
-// real achado ao vivo 2026-08-31, ver respostaEhSim lá). Duplicado aqui (não
-// extraído pra shared/) porque é pequeno e específico o bastante — mesmo
-// racional de "repo pequeno não justifica abstração" usado em ia/extrair.ts.
-function respostaEhSim(resposta: string): boolean {
-  const normalizado = resposta
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim()
-    .toLowerCase();
-  return normalizado === "true" || normalizado === "sim" || normalizado === "s" || normalizado === "yes";
-}
+import { respostaEhSim } from "../../shared/respostaSimNao.js";
 
 // Issue #77 — reconhece processo digitado direto na pergunta "quer tentar
 // de novo?" (em vez de "Sim") pelo FORMATO, mesmo padrão de
