@@ -175,3 +175,36 @@ test("POST /webhook/whatsapp: \"#sair\" no meio de uma conversa marca statusFina
     process.env.MOCK_CLASSIFICACAO_FLOWID = original;
   }
 });
+
+// Issue #227 — no WhatsApp a pessoa digita a resposta da confirmação de TTL.
+// "sim" precisa continuar o atendimento, não expirar.
+test("POST /webhook/whatsapp: \"sim\" na confirmação de TTL continua o atendimento (não expira)", async () => {
+  const original = process.env.MOCK_CLASSIFICACAO_FLOWID;
+  process.env.MOCK_CLASSIFICACAO_FLOWID = ID_PESSOA_PRESA;
+  const numero = `test-wpp-ttl-sim-${Date.now()}`;
+  _limparConversasAtivasDeTeste();
+  try {
+    const app = await montarApp();
+    await app.inject({ method: "POST", url: "/webhook/whatsapp", payload: payloadTexto(numero, "quero saber de um parente preso") });
+    const chatId = _chatIdAtivoDeTeste(numero) as string;
+    assert.ok(chatId, "deveria ter aberto atendimento");
+
+    process.env.TTL_INATIVIDADE_HORAS = "0";
+    try {
+      await app.inject({ method: "POST", url: "/webhook/whatsapp", payload: payloadTexto(numero, "Amigo(a)") });
+    } finally {
+      delete process.env.TTL_INATIVIDADE_HORAS;
+    }
+    const store = await obterAtendimentosStore();
+    assert.equal((await store.buscarAtividade(chatId))?.aguardandoConfirmacaoTtl, true, "deveria estar esperando a confirmação de TTL");
+
+    const res = await app.inject({ method: "POST", url: "/webhook/whatsapp", payload: payloadTexto(numero, "sim") });
+    assert.equal(res.statusCode, 200);
+    const depois = await store.buscarAtividade(chatId);
+    assert.notEqual(depois?.statusFinal, "expirado");
+    assert.equal(depois?.aguardandoConfirmacaoTtl, false);
+    assert.equal(_chatIdAtivoDeTeste(numero), chatId, "a conversa deveria continuar no mesmo chatId");
+  } finally {
+    process.env.MOCK_CLASSIFICACAO_FLOWID = original;
+  }
+});

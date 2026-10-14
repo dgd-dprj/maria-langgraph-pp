@@ -3,6 +3,7 @@ import { type IdentificarAssistidoStateType, IdentificarAssistidoState } from ".
 import type { Pergunta } from "../../shared/types.js";
 import { consultarPessoaPorCpf } from "../../integracoes/verde.js";
 import { prepararPergunta } from "../../ia/reescrever.js";
+import { respostaEhSim } from "../../shared/respostaSimNao.js";
 
 // Issue #171 — subgrafo reaproveitável: pergunta CPF, consulta o Verde, dá
 // até 3 tentativas antes de desistir. Termina em 3 desfechos possíveis (o
@@ -18,15 +19,6 @@ import { prepararPergunta } from "../../ia/reescrever.js";
 
 function cpfFormatoValido(valor: string): boolean {
   return valor.replace(/\D/g, "").length === 11;
-}
-
-function respostaEhSim(resposta: string): boolean {
-  const normalizado = resposta
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim()
-    .toLowerCase();
-  return normalizado === "true" || normalizado === "sim" || normalizado === "s" || normalizado === "yes";
 }
 
 // Bypass só vale na tentativa 0 (mesmo racional de rgVeioDaExtracao em

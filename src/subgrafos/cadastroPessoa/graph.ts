@@ -4,6 +4,7 @@ import type { Pergunta } from "../../shared/types.js";
 import { cadastrarPessoa as cadastrarPessoaVerde } from "../../integracoes/verde.js";
 import { prepararPergunta } from "../../ia/reescrever.js";
 import { grafo as subgrafoColetarEndereco } from "../coletarEndereco/graph.js";
+import { respostaEhSim } from "../../shared/respostaSimNao.js";
 
 // Issue #171 — subgrafo reaproveitável: cadastra a pessoa no Verde
 // (POST /integra/pessoa) quando o CPF informado não tem cadastro ainda.
@@ -35,15 +36,6 @@ async function pedirDataNascimento(state: CadastroPessoaStateType): Promise<Part
     tipo: "texto",
   });
   return { dataNascimento: resposta };
-}
-
-function respostaEhSim(resposta: string): boolean {
-  const normalizado = resposta
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "")
-    .trim()
-    .toLowerCase();
-  return normalizado === "true" || normalizado === "sim" || normalizado === "s" || normalizado === "yes";
 }
 
 async function cadastrarPessoa(state: CadastroPessoaStateType): Promise<Partial<CadastroPessoaStateType>> {

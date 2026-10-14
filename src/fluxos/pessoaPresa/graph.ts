@@ -10,6 +10,7 @@ import { criarCheckpointer } from "../../shared/checkpointer.js";
 import { MENSAGEM_HANDOFF_SEM_NUMERO_PROCESSO, MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA, MENSAGEM_FALHA_CADASTRO } from "./api.js";
 import { grafo as subgrafoIdentificarAssistido } from "../../subgrafos/identificarAssistido/graph.js";
 import { grafo as subgrafoCadastroPessoa } from "../../subgrafos/cadastroPessoa/graph.js";
+import { respostaEhSim } from "../../shared/respostaSimNao.js";
 
 const ORIGEM_PROCESSO_SUPORTADA = "SEEU";
 
@@ -64,23 +65,6 @@ function dadosApenadoAtendidos(state: PessoaPresaStateType): boolean {
 // testes de roteamento abaixo.
 function extracaoLivreHabilitada(): boolean {
   return process.env.EXTRACAO_LIVRE_IA === "true";
-}
-
-// Normaliza a resposta de uma pergunta sim_nao. O contrato original previa
-// só "true"/"false" crus (a Tykhe manda isso) — mas na prática o fluxo dela
-// às vezes repassa o texto literal que o usuário digitou/clicou ("Sim"/
-// "Não", com acento/maiúscula variável), sem traduzir pra "true"/"false".
-// Achado ao vivo 2026-08-31: "Sim" literal caindo em `resposta === "true"`
-// vira false, confirmação de nome nega errado, manda pro handoff sem
-// motivo. Aceita as duas formas — tolerante ao cliente real, não só ao
-// contrato "correto" no papel.
-function respostaEhSim(resposta: string): boolean {
-  const normalizado = resposta
-    .normalize("NFD")
-    .replace(/[̀-ͯ]/g, "") // remove acentos (ã→a, ó→o...)
-    .trim()
-    .toLowerCase();
-  return normalizado === "true" || normalizado === "sim" || normalizado === "s" || normalizado === "yes";
 }
 
 // Pergunta livre no início do fluxo (opcional, ver extracaoLivreHabilitada)
