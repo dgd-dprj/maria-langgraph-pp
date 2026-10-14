@@ -6,12 +6,13 @@ rota, que migram no módulo api.
 
 import uuid
 from datetime import datetime
+from typing import Any
 
 import psycopg
 import pytest
 from psycopg.rows import TupleRow
 
-from maria.shared.atendimentos_db import obter_atendimentos_store
+from maria.shared.atendimentos_db import _StoreEmMemoria, obter_atendimentos_store
 
 pytestmark = pytest.mark.usefixtures("stores_limpas")
 
@@ -174,26 +175,45 @@ async def test_postgres_esquema_de_atendimentos(banco_de_negocio: psycopg.AsyncC
     }
 
 
-@pytest.mark.postgres
-async def test_postgres_resolver_confirmacao_ttl_devolve_none(banco_de_negocio: psycopg.AsyncConnection[TupleRow]) -> None:
-    # Spec, teste 18.
-    # A divergência é DELIBERADA e TEMPORÁRIA: reproduz develop @ 4e695f2, onde o
-    # RETURNING do UPDATE devolve o valor já limpo, e a resposta pendente da pessoa
-    # é descartada em produção.
-    # Defeito registrado em https://github.com/dgd-dprj/maria-langgraph-pp/issues/217
-    # Não "corrija" aqui: isso muda o comportamento de produção sem decisão
-    # registrada. A correção é feita naquela issue, que substitui este teste. Este
-    # teste é também a confirmação, contra Postgres real, do defeito da #217.
-    store = await obter_atendimentos_store()
-    chat_id = f"chat-ttl-{uuid.uuid4()}"
+# Issue #217, corrigida em develop pelo PR #226: os três testes abaixo são os de
+# src/shared/atendimentosDb.postgres.test.ts (develop @ 0aecd98), traduzidos.
+# Substituem o teste que fixava o defeito (RETURNING devolvendo NULL).
+
+
+async def _caminho_confirmacao_ttl(store: Any, resposta_original: str) -> tuple[str | None, Any]:
+    chat_id = f"teste-217-{uuid.uuid4()}"
     await store.registrar(chat_id, FLUXO_A)
-    await store.marcar_aguardando_confirmacao_ttl(chat_id, "123456789")
-    cursor = await banco_de_negocio.execute("SELECT resposta_pendente_ttl FROM atendimentos WHERE chat_id = %s", (chat_id,))
-    assert await cursor.fetchone() == ("123456789",)
+    await store.marcar_aguardando_confirmacao_ttl(chat_id, resposta_original)
+    devolvida = await store.resolver_confirmacao_ttl_continuar(chat_id)
+    return devolvida, await store.buscar_atividade(chat_id)
 
-    assert await store.resolver_confirmacao_ttl_continuar(chat_id) is None
 
-    cursor = await banco_de_negocio.execute(
-        "SELECT aguardando_confirmacao_ttl, resposta_pendente_ttl FROM atendimentos WHERE chat_id = %s", (chat_id,)
-    )
-    assert await cursor.fetchone() == (False, None)
+@pytest.mark.postgres
+async def test_postgres_resolver_confirmacao_ttl_devolve_a_resposta_guardada_e_limpa_a_coluna(
+    banco_de_negocio: psycopg.AsyncConnection[TupleRow],
+) -> None:
+    store = await obter_atendimentos_store()
+    devolvida, depois = await _caminho_confirmacao_ttl(store, "false")
+    assert devolvida == "false"
+    assert depois["aguardandoConfirmacaoTtl"] is False
+    assert "respostaPendente" not in depois
+
+
+@pytest.mark.postgres
+async def test_postgres_e_memoria_devolvem_o_mesmo_valor_na_confirmacao_de_ttl(
+    banco_de_negocio: psycopg.AsyncConnection[TupleRow],
+) -> None:
+    postgres = await obter_atendimentos_store()
+    memoria = _StoreEmMemoria()
+    for resposta in ("true", "false", "texto livre da pessoa", ""):
+        via_postgres = await _caminho_confirmacao_ttl(postgres, resposta)
+        via_memoria = await _caminho_confirmacao_ttl(memoria, resposta)
+        assert via_postgres[0] == via_memoria[0], repr(resposta)
+        assert via_postgres[1].get("respostaPendente") == via_memoria[1].get("respostaPendente")
+        assert via_postgres[1]["aguardandoConfirmacaoTtl"] == via_memoria[1]["aguardandoConfirmacaoTtl"]
+
+
+@pytest.mark.postgres
+async def test_postgres_chat_id_inexistente_devolve_none_sem_erro(banco_de_negocio: psycopg.AsyncConnection[TupleRow]) -> None:
+    store = await obter_atendimentos_store()
+    assert await store.resolver_confirmacao_ttl_continuar(f"teste-217-inexistente-{uuid.uuid4()}") is None

@@ -220,18 +220,19 @@ class _StorePostgres:
             )
 
     async def resolver_confirmacao_ttl_continuar(self, chat_id: str) -> str | None:
-        # DEFEITO DE PRODUÇÃO REPRODUZIDO DE PROPÓSITO (#217). O RETURNING de um
-        # UPDATE devolve o valor já atualizado, ou seja, sempre NULL: esta função
-        # devolve None, e a rota processa "" no lugar da resposta que a pessoa
-        # deu. É o comportamento de develop (atendimentosDb.ts:222-228) e fica até
-        # a correção da #217. Não corrigir aqui sem decisão registrada na #208.
+        # Issue #217, corrigida em develop pelo PR #226 (atendimentosDb.ts:221-234
+        # em develop @ 0aecd98): o RETURNING de um UPDATE devolve o valor DEPOIS da
+        # atualização (sempre NULL, a coluna acabou de ser limpa). O valor antigo
+        # vem do subselect `anterior`, travado com FOR UPDATE para duas
+        # confirmações simultâneas não lerem a mesma resposta pendente.
         async with self._pool.connection() as conexao:
             linha = await (
                 await conexao.execute(
-                    """UPDATE atendimentos
+                    """UPDATE atendimentos a
          SET aguardando_confirmacao_ttl = false, resposta_pendente_ttl = NULL, atualizado_em = now()
-         WHERE chat_id = %s
-         RETURNING resposta_pendente_ttl""",
+         FROM (SELECT chat_id, resposta_pendente_ttl FROM atendimentos WHERE chat_id = %s FOR UPDATE) anterior
+         WHERE a.chat_id = anterior.chat_id
+         RETURNING anterior.resposta_pendente_ttl""",
                     (chat_id,),
                 )
             ).fetchone()
