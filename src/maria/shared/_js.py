@@ -114,6 +114,9 @@ def trim_js(texto: str) -> str:
     return texto.strip(_ESPACOS_JS)
 
 
+# O `\s` das regex de JS é o mesmo conjunto do trim(). O `\s` do Python, não.
+CLASSE_ESPACO_JS: Final = f"[{_ESPACOS_JS}]"
+
 
 def _recusar_constante(nome: str) -> Any:
     # JSON.parse não aceita NaN nem Infinity; o json do Python aceita por padrão.
