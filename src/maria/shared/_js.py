@@ -98,6 +98,17 @@ def texto_template(valor: Any) -> str:
     return str(valor)
 
 
+# WhiteSpace e LineTerminator do ECMAScript (ECMA-262, seções 12.2 e 12.3): o que
+# String.prototype.trim() remove. Inclui U+FEFF (o BOM) e NÃO inclui os
+# separadores \x1c a \x1f, ao contrário do str.strip() do Python.
+_ESPACOS_JS = "\u0009\u000a\u000b\u000c\u000d                  　﻿"
+
+
+def trim_js(texto: str) -> str:
+    """`texto.trim()` de JS."""
+    return texto.strip(_ESPACOS_JS)
+
+
 def _recusar_constante(nome: str) -> Any:
     # JSON.parse não aceita NaN nem Infinity; o json do Python aceita por padrão.
     raise ValueError(f"Unexpected token in JSON: {nome}")
