@@ -239,13 +239,35 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
 
 ## Módulo subgrafos (#233)
 
-- Spec com duas medições feitas antes da tradução:
-  - a soma de tokens composta (#230);
-  - o `endereco` que vira JSON (o limite da regra de estado).
-- Diferenças de texto entre JS e Python tratadas por funções únicas em `shared/`:
-  - o `trim()` do JS remove U+FEFF e não remove `\x1c` a `\x1f`, o oposto do `strip()`;
-  - o `\D` sem a flag `u` só reconhece `0-9` ASCII;
-  - o complemento não usa NFD.
+- **Três subgrafos** em `src/maria/subgrafos/` (`identificar_assistido`, `cadastro_pessoa`, `coletar_endereco`), com os nomes de nó e de canal de develop. Os canais são compartilhados com os pais por nome, e os nomes em camelCase são o contrato.
+- **Spec com duas medições feitas antes da tradução:**
+  - a soma de tokens composta (#230): 2×, 3× e 6×, igual em develop e no LangGraph Python, sem código extra;
+  - o `endereco` que vira JSON, que deu origem ao limite da regra de estado.
+- **Diferenças de texto entre JS e Python, em funções únicas em `shared/`:**
+  - `trim_js` em `_js.py`, porque o `trim()` do JS remove U+FEFF e não remove `\x1c` a `\x1f`, o oposto do `strip()`;
+  - `resposta_eh_sim` em `respostas.py`, que substitui as quatro cópias de develop;
+  - `[^0-9]` no lugar de `\D`, porque o `\D` do JS sem a flag `u` só reconhece `0-9` ASCII;
+  - o complemento sem NFD, como em develop.
+- **Regra de estado aplicada:**
+  - `None` nos canais `complemento`, `logradouro`, `bairro`, `municipio` e `uf` quando develop grava `undefined`;
+  - chave ausente dentro de `endereco` e do `dadosPessoa` do cadastro.
+- **Testes:**
+  - os 3 traduzidos de develop e 35 novos (com as variantes parametrizadas);
+  - o corpo do POST `/pessoa` conferido pelo `cadastrar_pessoa` real com o transporte falso, sem nenhum `null` dentro de `endereco`.
+- **Conferência diferencial:** seis cenários do fluxo do CPF rodados no `identificarAssistido` de develop. O estado final bate com o que os testes afirmam: CPF conhecido, três tentativas, "não" ao retry, CPF digitado direto, falha de infra e confirmação.
+- **Verificação por mutação: 8 de 8 pegas:**
+  - `strip()` no lugar de `trim_js`;
+  - `\D`;
+  - normalização no complemento;
+  - complemento omitido no canal;
+  - `None` dentro de `endereco`;
+  - `"opcoes": None` nos interrupts de texto;
+  - subgrafo sem `tokensGastos` compartilhado;
+  - bypass do CPF ignorando `tentativasCpf`.
+- **Evidência do Verde (Swagger, 2026-10-14):**
+  - `CadastrarPessoaDTO` tem `endereco` com os 7 campos enviados;
+  - `GET /orgao/violencia-domestica` recebe só `indicacaoRO` e `idPessoa`, consulta pelo endereço cadastrado e devolve 422 sem endereço. Isso confirma que o encaminhamento não é afetado pela #231;
+  - "CEP não encontrado" é HTTP 400 (#232).
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
