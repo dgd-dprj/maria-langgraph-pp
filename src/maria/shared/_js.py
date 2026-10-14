@@ -95,6 +95,11 @@ def texto_template(valor: Any) -> str:
         return "true" if valor else "false"
     if isinstance(valor, float) and valor.is_integer() and abs(valor) < 1e21:
         return str(int(valor))
+    # Array.prototype.toString é join(","), com null e undefined como "".
+    if isinstance(valor, list):
+        return ",".join("" if item is None or item is AUSENTE else texto_template(item) for item in valor)
+    if isinstance(valor, dict):
+        return "[object Object]"
     return str(valor)
 
 
@@ -107,6 +112,7 @@ _ESPACOS_JS = "\u0009\u000a\u000b\u000c\u000d            �
 def trim_js(texto: str) -> str:
     """`texto.trim()` de JS."""
     return texto.strip(_ESPACOS_JS)
+
 
 
 def _recusar_constante(nome: str) -> Any:
