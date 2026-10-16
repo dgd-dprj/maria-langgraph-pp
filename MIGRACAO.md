@@ -346,6 +346,22 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
     - **contrato da Tykhe:** `docs/contrato-tykhe.md` não diz nada sobre `mensagem` vazia (conferido em develop @ `1157a6d`), então a resposta teria de vir da própria Tykhe;
     - **logs:** cada relato vazio deixa uma linha `[classificar] falha ao classificar (múltiplo)` com `err.message` igual a "Invalid message content: empty string. 'human' must contain non-empty content.". Contar essa mensagem no CloudWatch de produção mede o caso sem tocar em dado pessoal. A consulta exige acesso AWS autorizado.
 
+- **Mudança de desfecho que chega sem decisão com o próximo release (#242).** Ela é maior que a pergunta do relato vazio:
+
+  | Situação | Produção hoje (`main` @ `06f2157`) | Próximo release (develop @ `1157a6d`) |
+  |---|---|---|
+  | Relato não identificado | `handoff_humano` (`nao_identificado`): atendimento humano | `redirecionado` com `tipoCaso: "outros"`: orientação genérica da Tykhe ("Entendi. Vou te encaminhar para o atendimento de outros assuntos.") |
+  | **Relato vazio** (`mensagem: ""`) | `handoff_humano` | `outros`, **sem classificação nenhuma** |
+  | **Classificação que falha** (Bedrock fora, throttling esgotado, resposta sem ferramenta) | `handoff_humano` | `outros` |
+
+  - **O que o #242 decidiu:** que o relato não identificado vai para `outros` (#225).
+  - **O que ninguém decidiu:** o relato vazio e a falha da classificação também viram "não identificado" (`ids: []` no fallback do ia) e caem nessa regra junto. Hoje essas pessoas chegam a um atendente; depois do release, recebem orientação genérica.
+  - **A falha da classificação é o padrão da #196, da #232 e da #239:** falha de infraestrutura que vira desfecho de negócio.
+  - **Evidência:**
+    - o grafo terminando em `nao_identificado` com o relato vazio e com a classificação sem ferramenta foi **executado** na conferência diferencial (cenários `mensagem_vazia` e `classificar_sem_ferramenta`);
+    - o que a rota faz com isso em `main` e em develop foi **lido** (`rotas/orquestrador.ts` das duas branches), não executado.
+  - **Não é questão da migração:** a tradução reproduz develop. Se a contagem mostrar que acontece, vira **issue de produto**, porque é mudança de desfecho chegando sem decisão. A consulta de contagem está pronta no comentário da #208.
+
 ### O que falta para mandar para teste
 
 **Para ir a teste, faltam dois módulos: o orquestrador (#244) e o `api`.** O grafo do orquestrador **não tem porta de entrada HTTP sozinho**. A rota `POST /atendimentos/orquestrador` vive no módulo `api`, junto com:
