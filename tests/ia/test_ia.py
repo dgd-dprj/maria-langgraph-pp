@@ -353,3 +353,48 @@ def test_modulos_criam_o_modelo_com_a_config_e_a_cota_do_sdk_js() -> None:
             for h in cliente.meta.events._emitter._handlers.prefix_search("needs-retry.bedrock-runtime")
         ]
         assert any(isinstance(q, _CotaComoSdkJs) for q in quotas), modulo.__name__
+
+
+# ---- achados da conferência diferencial do orquestrador (#244) ------------------------
+
+
+async def test_mensagem_humana_vazia_nao_sai_e_cai_no_fallback(bedrock: BedrockFalso, capsys: pytest.CaptureFixture[str]) -> None:
+    # O @langchain/aws 1.4.4 recusa conteúdo humano vazio antes de enviar
+    # (message_inputs.ts:662): nenhuma requisição, e a função cai no fallback.
+    # Confirmado em develop @ 1157a6d com o relato "" do orquestrador.
+    bedrock.roteirizar(ferramenta({"idsPlausiveis": ["a"]}))
+    r = await classificar_multiplo_entre_opcoes("", "sistema", ["a", "b"])
+    assert r == {"ids": [], "viaIA": False}
+    assert bedrock.requisicoes == []
+    [linha] = [x for x in linhas_de_log(capsys) if x.get("level") == 50]
+    assert linha["err"]["message"] == "Invalid message content: empty string. 'human' must contain non-empty content."
+
+
+async def test_mensagem_humana_so_com_espaco_e_enviada(bedrock: BedrockFalso) -> None:
+    # A recusa é só para "" exato, como em develop.
+    bedrock.roteirizar(ferramenta({"idsPlausiveis": ["a"]}))
+    await classificar_multiplo_entre_opcoes(" ", "sistema", ["a", "b"])
+    assert len(bedrock.requisicoes) == 1
+
+
+@pytest.mark.parametrize(
+    ("ids", "enum_multiplo", "enum_unico"),
+    [
+        (["a", "a", "b"], ["a", "b"], ["nenhum", "a", "b"]),
+        (["a", "7", "b", "10", "07"], ["7", "10", "a", "b", "07"], ["7", "10", "nenhum", "a", "b", "07"]),
+        (["nenhum", "a"], ["nenhum", "a"], ["nenhum", "a"]),
+    ],
+)
+async def test_enum_como_o_z_enum_sem_repetidos_e_indices_primeiro(
+    bedrock: BedrockFalso, ids: list[str], enum_multiplo: list[str], enum_unico: list[str]
+) -> None:
+    # z.enum guarda as entradas num objeto: repetidos saem, e chaves que parecem
+    # índice de array ("7", "10"; "07" não) vêm primeiro, em ordem numérica.
+    bedrock.roteirizar(ferramenta({"idsPlausiveis": []}))
+    await classificar_multiplo_entre_opcoes("relato", "sistema", ids)
+    esquema = bedrock.requisicoes[-1].corpo["toolConfig"]["tools"][0]["toolSpec"]["inputSchema"]["json"]
+    assert esquema["properties"]["idsPlausiveis"]["items"]["enum"] == enum_multiplo
+    bedrock.roteirizar(ferramenta({"escolhaId": "nenhum"}))
+    await classificar_entre_opcoes("relato", "sistema", ids)
+    esquema = bedrock.requisicoes[-1].corpo["toolConfig"]["tools"][0]["toolSpec"]["inputSchema"]["json"]
+    assert esquema["properties"]["escolhaId"]["enum"] == enum_unico

@@ -42,6 +42,23 @@ class ResultadoClassificacaoMultipla(TypedDict):
     tokensTotal: NotRequired[int]
 
 
+def _indice_de_array(chave: str) -> bool:
+    """Chave que o JS trata como índice de array: inteiro canônico de 0 a 2³²-2."""
+    return chave.isascii() and chave.isdigit() and str(int(chave)) == chave and int(chave) < 2**32 - 1
+
+
+def _sem_repetidos(valores: list[str]) -> list[str]:
+    """O `enum` que o `z.enum([...])` de develop gera. O zod guarda as entradas
+    num objeto, e o JSON Schema sai de `Object.values`, então valem as duas regras
+    de ordem de propriedade do JS: valores repetidos saem (fica a 1ª ocorrência),
+    e chaves que parecem índice de array ("7") vêm primeiro, em ordem numérica.
+    Achados na conferência diferencial do orquestrador: com id repetido nos
+    candidatos, ou com um id numérico no catálogo, a lista crua mudaria o corpo
+    enviado ao Bedrock."""
+    unicos = list(dict.fromkeys(valores))
+    return sorted((v for v in unicos if _indice_de_array(v)), key=int) + [v for v in unicos if not _indice_de_array(v)]
+
+
 async def classificar_entre_opcoes(mensagem: str, sistema: str, ids: list[str]) -> ResultadoClassificacaoGenerica:
     try:
         if len(ids) == 0:
@@ -50,7 +67,8 @@ async def classificar_entre_opcoes(mensagem: str, sistema: str, ids: list[str]) 
             {
                 "escolhaId": {
                     "type": "string",
-                    "enum": ["nenhum", *ids],
+                    # z.enum descarta valores repetidos, mantendo a 1ª ocorrência.
+                    "enum": _sem_repetidos(["nenhum", *ids]),
                     "description": 'id do candidato que melhor atende, ou "nenhum" se não bater com confiança em nenhum',
                 }
             },
@@ -76,7 +94,7 @@ async def classificar_multiplo_entre_opcoes(mensagem: str, sistema: str, ids: li
             {
                 "idsPlausiveis": {
                     "type": "array",
-                    "items": {"type": "string", "enum": ids},
+                    "items": {"type": "string", "enum": _sem_repetidos(ids)},
                     "description": (
                         "ids de TODOS os candidatos que plausivelmente atendem ao relato — lista vazia se nenhum bater"
                         " com confiança, 1 item se for claro, vários se o relato for genuinamente ambíguo entre mais de um."

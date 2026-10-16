@@ -81,6 +81,21 @@ def _parsear(raw: Any) -> Any:
     raise ValueError(f"No tool call found with name {NOME_FERRAMENTA}.")
 
 
+MENSAGEM_HUMANO_VAZIO = "Invalid message content: empty string. 'human' must contain non-empty content."
+
+
+def _recusar_humano_vazio(mensagens: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """O @langchain/aws 1.4.4 recusa mensagem humana vazia ANTES de enviar
+    (`convertHumanMessageToConverseMessage`, `utils/message_inputs.ts:662`), dentro
+    do modelo e, portanto, dentro do retry: nenhuma requisição sai, e a função cai
+    no próprio fallback. O langchain-aws Python envia a mensagem vazia ao Bedrock.
+    Achado na conferência diferencial do orquestrador (relato `""`)."""
+    for papel, conteudo in mensagens:
+        if papel == "user" and conteudo == "":
+            raise ValueError(MENSAGEM_HUMANO_VAZIO)
+    return mensagens
+
+
 def _com_parsed(raw: Any) -> dict[str, Any]:
     try:
         parsed = _parsear(raw)
@@ -95,7 +110,9 @@ async def invocar_estruturado(modelo: ChatBedrockConverse, esquema: dict[str, An
         "tools": [{"toolSpec": {"name": NOME_FERRAMENTA, "inputSchema": {"json": esquema}, "description": DESCRICAO_FERRAMENTA}}],
         "toolChoice": {"tool": {"name": NOME_FERRAMENTA}},
     }
-    cadeia = (modelo.bind(tool_config=tool_config) | RunnableLambda(_com_parsed)).with_retry(stop_after_attempt=TENTATIVAS_RETRY_IA)
+    cadeia = (RunnableLambda(_recusar_humano_vazio) | modelo.bind(tool_config=tool_config) | RunnableLambda(_com_parsed)).with_retry(
+        stop_after_attempt=TENTATIVAS_RETRY_IA
+    )
     return await cadeia.ainvoke([("system", sistema), ("user", usuario)])
 
 
