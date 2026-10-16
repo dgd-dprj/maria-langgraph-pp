@@ -410,6 +410,20 @@ Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escr
 
 **Funciona.** Testado em 2026-10-09 com LangGraph CLI 0.4.33 (langgraph-api 0.15.4), no Windows (`langgraph dev` precisou do pacote `colorama` ali). Uma fábrica assíncrona (`async def criar_grafo(config)`) é registrada como assistant, e um run devolve o estado. O `langgraph.json` aponta para `criar_grafo` nos dois fluxos, mas esses arquivos só existem a partir do módulo `fluxos`: até lá, o Studio local não sobe.
 
+## Índice de issues: o canônico é o comentário da #208
+
+- **Índice canônico:** [comentário da #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856). Ele traz:
+  - todas as issues ligadas à migração;
+  - o estado no GitHub e a **situação explícita**: mergeada na migration; corrigida em develop e pendente na migration; aprovada, aguardando janela; aguardando decisão; aguardando dado externo;
+  - a data e o comando que gerou o índice.
+- **Cópias:** `docs/migracao/INDICE-ISSUES.md` (no repositório) e `migracao-specs/INDICE-ISSUES.md` (local). Se divergirem, vale o comentário.
+- **Rotina ao fim de cada módulo:**
+  1. fechar a issue com comentário;
+  2. apagar a branch;
+  3. **editar o comentário do índice**, com `gh api -X PATCH repos/dgd-dprj/maria-langgraph-pp/issues/comments/6222948856 -F body=@<arquivo>`;
+  4. atualizar as cópias.
+- **Por quê:** "fechada" no GitHub não quer dizer correção na `migration`. **Um índice desatualizado é pior que nenhum.**
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.

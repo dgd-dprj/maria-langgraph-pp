@@ -1,66 +1,78 @@
-# Índice de issues da migração
+# Índice de issues da migração (cópia)
 
-Catálogo das issues ligadas à migração de TypeScript para Python (#208) e aos achados da leitura de develop.
+> **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, ao fim de cada módulo.
 
-- **Fonte:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 100`, levantado em 2026-10-14. Os PRs vêm de `gh pr view`.
-- **Estado:** o do GitHub nessa data. "Fechada" não quer dizer que a correção chegou à `migration`; a coluna de situação diz onde cada uma está.
-- **Atualizar:** rodar o comando de novo e conferir as colunas de estado e de situação.
+**Gerado em:** 2026-10-16.
 
-## 1. Tradução por módulo e governança
+**Comando:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 300 --json number,title,state`. Os PRs vêm de `gh pr view <número>`. A coluna **Situação** é preenchida à mão a partir do `MIGRACAO.md` e das specs.
 
-| # | Issue | Tipo | Módulo | Estado | PR | Resumo |
-|---|---|---|---|---|---|---|
-| — | [#208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208) | [TECH] | governança | Aberta | — | Issue-mãe: régua, decisões, ordem dos módulos e registros da migração |
-| 1 | [#209](https://github.com/dgd-dprj/maria-langgraph-pp/issues/209) | [TECH] | fundação | Fechada | [#213](https://github.com/dgd-dprj/maria-langgraph-pp/pull/213) | Projeto Python, logger, pool, checkpointer, CI e imagem |
-| 2 | [#216](https://github.com/dgd-dprj/maria-langgraph-pp/issues/216) | [TECH] | persistencia | Fechada | [#218](https://github.com/dgd-dprj/maria-langgraph-pp/pull/218) | As quatro stores Postgres e em memória, e os embeddings |
-| 3 | [#219](https://github.com/dgd-dprj/maria-langgraph-pp/issues/219) | [TECH] | integracoes | Fechada | [#221](https://github.com/dgd-dprj/maria-langgraph-pp/pull/221) | Cliente do Verde e do WhatsApp com a semântica do `fetch` |
-| 4 | [#223](https://github.com/dgd-dprj/maria-langgraph-pp/issues/223) | [TECH] | ia | Fechada | [#224](https://github.com/dgd-dprj/maria-langgraph-pp/pull/224) | As seis funções do Bedrock, sem validação, e o retry dos embeddings |
-| 5 | [#233](https://github.com/dgd-dprj/maria-langgraph-pp/issues/233) | [TECH] | subgrafos | Fechada | [#235](https://github.com/dgd-dprj/maria-langgraph-pp/pull/235) | `identificar_assistido`, `cadastro_pessoa` e `coletar_endereco` |
-| 6 | [#241](https://github.com/dgd-dprj/maria-langgraph-pp/issues/241) | [TECH] | fluxos | Fechada | [#243](https://github.com/dgd-dprj/maria-langgraph-pp/pull/243) | Violência doméstica, pessoa presa e padrão (74 testes de develop + 74 novos; diferencial com 584 cenários; D-1 aceito como divergência) |
-| 7 | [#244](https://github.com/dgd-dprj/maria-langgraph-pp/issues/244) | [TECH] | orquestrador | Aberta | — | Grafo de classificação e desambiguação. Traz a parte de fluxos do #242 (#225). Base: develop @ `1157a6d` |
-| 8 | — | — | api | sem issue | — | A abrir; notas prontas (TTL do #234, `resume=""`, canais por ambiente) |
-| 9 | — | — | scripts | sem issue | — | A abrir |
-| 10 | — | — | documentacao | sem issue | — | A abrir; recebe o #229 de develop |
-| 11 | — | — | corte | sem issue | — | A abrir |
+**Este comentário é o índice canônico.** `docs/migracao/INDICE-ISSUES.md` e `migracao-specs/INDICE-ISSUES.md` são cópias. Ele é atualizado ao fim de cada módulo, junto com o fechamento da issue e a remoção da branch.
 
-## 2. Defeitos e achados da leitura de develop
+## Como ler a coluna Situação
 
-A coluna **Aguarda** diz quem precisa decidir ou agir antes de a issue andar. "Janela" quer dizer correção aprovada para depois do fim da migração, na base em Python (régua da #208).
+A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o código está. **"Fechada" no GitHub não significa que a correção chegou à `migration`.**
 
-| Issue | Tipo | Módulo afetado | Estado | Aguarda | Resumo |
+| Situação | Significado |
+|---|---|
+| **Mergeada na migration** | O código (tradução, ou correção trazida de develop) está na branch `migration` |
+| **Corrigida em develop, pendente na migration** | Develop tem a correção; a `migration` ainda não, e o módulo que a traz está indicado |
+| **Aprovada, aguardando janela** | Correção aprovada para depois do fim da migração, na base em Python (régua da #208: durante a migração, o Python reproduz develop) |
+| **Aguardando decisão** | Alguém precisa decidir; quem decide está indicado |
+| **Aguardando dado externo** | Falta informação de fora do repositório (Tykhe, CloudWatch, banco de produção) |
+| **Em andamento** | Módulo com branch aberta |
+| **A abrir** | Módulo ainda sem issue |
+
+## 1. Módulos da migração
+
+| # | Issue | Título curto | Tipo | GitHub | Situação |
 |---|---|---|---|---|---|
-| [#196](https://github.com/dgd-dprj/maria-langgraph-pp/issues/196) | [TECH] | integracoes | Fechada | — | Timeout do Verde gerava falso "não encontrado". Referência do padrão das #232 e #239 |
-| [#210](https://github.com/dgd-dprj/maria-langgraph-pp/issues/210) | [BUG] | api | Aberta | Janela | Erro 500 devolve ao cliente a mensagem interna da exceção |
-| [#211](https://github.com/dgd-dprj/maria-langgraph-pp/issues/211) | [ENHANCEMENT] | api | Aberta | Janela | Erro 400 de validação devolve corpo vazio, sem motivo para a Tykhe |
-| [#212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212) | [BUG] | ia, fluxos | Aberta | Lista nova em develop, depois na `migration` | Saída da IA sem validação. Lista de 8 parentescos alinhada ao SIPEN decidida pelo Ícaro (2026-10-16), mudança de comportamento; nunca causou problema em produção |
-| [#214](https://github.com/dgd-dprj/maria-langgraph-pp/issues/214) | [BUG] | governança do repositório | Aberta | Administração do repositório | `develop` e `main` sem proteção de branch |
-| [#215](https://github.com/dgd-dprj/maria-langgraph-pp/issues/215) | [TECH] | fundação, infra | Aberta | Decisão sobre o tracing | Chave do LangSmith injetada nos containers sem uso |
-| [#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217) | [BUG] | persistencia, api | Aberta | Merge do fluxos (#241) | TTL descartava a resposta guardada. Corrigida em develop pelo #226; trazida na branch do fluxos (`2403bab`) |
-| [#220](https://github.com/dgd-dprj/maria-langgraph-pp/issues/220) | [BUG] | integracoes, subgrafos, fluxos | Aberta | Janela + medição no CloudWatch | Corpo da resposta do Verde no log e mensagem do Verde mostrada à pessoa |
-| [#222](https://github.com/dgd-dprj/maria-langgraph-pp/issues/222) | [BUG] | persistencia, ia | Aberta | **Produto** (prazo) | Com o Bedrock fora, o embedding leva de 12,5 a 14,7 min e até 147 requisições |
-| [#227](https://github.com/dgd-dprj/maria-langgraph-pp/issues/227) | [BUG] | api | Aberta | Tradução do api | "Sim" digitado encerrava o atendimento no TTL. Corrigida em develop pelo #234 |
-| [#228](https://github.com/dgd-dprj/maria-langgraph-pp/issues/228) | [TECH] | api | Aberta | **Tykhe** (política de `chatId`) | O TTL da #166 nunca disparou em produção; hipótese: `chatId` novo a cada volta |
-| [#230](https://github.com/dgd-dprj/maria-langgraph-pp/issues/230) | [BUG] | subgrafos, fluxos | Aberta | Janela + medição | Tokens contados até 6× em violência doméstica com cadastro; erro desigual entre fluxos |
-| [#231](https://github.com/dgd-dprj/maria-langgraph-pp/issues/231) | [BUG] | subgrafos | Aberta | Janela | Quem acabou de se cadastrar volta para a Tykhe sem o endereço; o encaminhamento não é afetado |
-| [#232](https://github.com/dgd-dprj/maria-langgraph-pp/issues/232) | [BUG] | integracoes, subgrafos | Aberta | Janela | Falha de infra no CEP vira "não encontrado"; mesmo desfecho da #196, com mais desgaste |
-| [#236](https://github.com/dgd-dprj/maria-langgraph-pp/issues/236) | [BUG][LGPD] | subgrafos, fluxos | Aberta | **LGPD** (proteção de dados) | Nome do titular exposto a quem digita o CPF ou o RG; em violência doméstica, também o município do órgão. Prioridade máxima |
-| [#237](https://github.com/dgd-dprj/maria-langgraph-pp/issues/237) | [TECH] | integracoes, fluxos | Aberta | **Tykhe** (campos necessários) | `enderecoDetalhado` completo vai à Tykhe, mas o tipo declara só o CEP |
-| [#238](https://github.com/dgd-dprj/maria-langgraph-pp/issues/238) | [BUG] | fluxos | Aberta | Decisão de prazo (gravidade) | Encaminhamento criado no Verde e a pessoa ouve que falhou; já aconteceu com todos os encaminhamentos |
-| [#239](https://github.com/dgd-dprj/maria-langgraph-pp/issues/239) | [BUG] | integracoes, fluxos | Aberta | Janela + revisão das 9 chamadas ao Verde | Falha de infra na consulta de órgãos vira "ligue 129"; terceiro caso do padrão |
-| [#240](https://github.com/dgd-dprj/maria-langgraph-pp/issues/240) | [TECH] | api | Aberta | **Tykhe** (lista de campos) | `dadosConhecidos` aceita qualquer canal; `encaminhamentoId` pré-preenchido mostra protocolo falso |
+| — | #208 | Migração de TypeScript para Python (issue-mãe) | governança | Aberta | Em andamento: régua, decisões e registros |
+| 1 | #209 | Fundação | módulo | Fechada | **Mergeada na migration** (PR #213) |
+| 2 | #216 | persistencia | módulo | Fechada | **Mergeada na migration** (PR #218) |
+| 3 | #219 | integracoes | módulo | Fechada | **Mergeada na migration** (PR #221) |
+| 4 | #223 | ia | módulo | Fechada | **Mergeada na migration** (PR #224). Duas correções de tradução (mensagem vazia e `enum`) estão na branch da #244 |
+| 5 | #233 | subgrafos | módulo | Fechada | **Mergeada na migration** (PR #235) |
+| 6 | #241 | fluxos | módulo | Fechada | **Mergeada na migration** (PR #243) |
+| 7 | #244 | orquestrador | módulo | Aberta | **Em andamento**: tradução e conferência diferencial feitas (80 cenários, 79 iguais e 1 divergência aceita); PR a abrir |
+| 8 | — | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | — | **A abrir.** Sem ele, o orquestrador e os fluxos não têm porta HTTP; é pré-requisito para ir a teste |
+| 9 | — | scripts | módulo | — | A abrir |
+| 10 | — | documentacao | módulo | — | A abrir |
+| 11 | — | corte | módulo | — | A abrir |
 
-**Outra issue de develop que afeta módulos ainda não traduzidos:**
+## 2. Defeitos e achados de develop
 
-| Issue | Tipo | Módulo afetado | Estado | Aguarda | Resumo |
+| Issue | Título curto | Tipo | Módulo afetado | GitHub | Situação |
 |---|---|---|---|---|---|
-| [#225](https://github.com/dgd-dprj/maria-langgraph-pp/issues/225) | [FEATURE] | orquestrador, api | Aberta | Implementação em develop | Catálogo do orquestrador reduzido a 9 opções, com status `redirecionado` para a Tykhe |
+| #196 | Timeout do Verde vira falso "não encontrado" | defeito de develop | integracoes | Fechada | **Mergeada na migration** (corrigida em develop antes da base; traduzida no integracoes) |
+| #210 | Erro 500 devolve a mensagem interna da exceção | defeito de develop | api | Aberta | **Aprovada, aguardando janela** |
+| #211 | Erro 400 de validação sem motivo para a Tykhe | defeito de develop | api | Aberta | **Aprovada, aguardando janela** |
+| #212 | Saída da IA sem validação; lista de parentescos | defeito de develop | ia, fluxos | Aberta | **Aguardando decisão de implementação em develop.** A lista de 8 valores alinhada ao SIPEN foi decidida (Ícaro, 2026-10-16) e entra em develop primeiro; depois fica pendente na migration. A validação (passos 1 e 2) espera a janela |
+| #214 | `develop` e `main` sem proteção de branch | infra / governança | repositório | Aberta | **Aguardando decisão** (administração do repositório) |
+| #215 | Chave do LangSmith injetada sem uso | infra | fundação, infra | Aberta | **Aguardando decisão** (tracing) |
+| #217 | TTL descartava a resposta guardada | defeito de develop | persistencia, api | Aberta | **Mergeada na migration** (correção #226 de develop trazida no PR #243; verificada contra PostgreSQL 16.15) |
+| #220 | Corpo da resposta do Verde no log | defeito de develop (dado pessoal) | integracoes, subgrafos, fluxos | Aberta | **Aguardando dado externo** (medição no CloudWatch); a correção espera a janela |
+| #222 | Com o Bedrock fora, o embedding leva 13 min | defeito de develop | persistencia, ia | Aberta | **Aguardando decisão** (produto: prazo) |
+| #225 | Catálogo do orquestrador com os tipos da Tykhe | funcionalidade de develop | fluxos, orquestrador, api | Aberta | **Corrigida em develop (PR #242), pendente na migration.** A parte de fluxos está na branch da #244; a parte de rota entra no api |
+| #227 | "Sim" digitado encerrava o atendimento no TTL | defeito de develop | api | Aberta | **Corrigida em develop (PR #234), pendente na migration** (módulo api) |
+| #228 | TTL da #166 nunca disparou em produção | defeito de develop | api | Aberta | **Aguardando dado externo** (Tykhe: política de `chatId`) |
+| #230 | Tokens contados até 6× | defeito de develop | subgrafos, fluxos | Aberta | **Aprovada, aguardando janela** (e medição) |
+| #231 | Cadastro volta para a Tykhe sem o endereço | defeito de develop | subgrafos | Aberta | **Aprovada, aguardando janela** |
+| #232 | Falha de infra no CEP vira "não encontrado" | defeito de develop | integracoes, subgrafos | Aberta | **Aprovada, aguardando janela** |
+| #236 | Nome do titular exposto a quem digita o CPF ou o RG | **LGPD** | subgrafos, fluxos | Aberta | **Aguardando decisão** (proteção de dados). Prioridade máxima |
+| #237 | `enderecoDetalhado` inteiro vai à Tykhe | defeito de develop | integracoes, fluxos | Aberta | **Aguardando dado externo** (Tykhe: campos necessários) |
+| #238 | Encaminhamento criado e a pessoa ouve que falhou | defeito de develop | fluxos | Aberta | **Aguardando decisão** (prazo, pela gravidade) |
+| #239 | Falha de infra nos órgãos manda ligar 129 | defeito de develop | integracoes, fluxos | Aberta | **Aprovada, aguardando janela** (e revisão das 9 chamadas ao Verde) |
+| #240 | `dadosConhecidos` aceita qualquer canal | defeito de develop | api | Aberta | **Aguardando dado externo** (Tykhe: lista de campos) |
 
-## 3. PRs recentes de develop que impactam a migração
+## 3. PRs de develop que a migração precisa trazer
 
-São pull requests, e não issues. Pela régua, o que entra em develop antes de um módulo ser traduzido é traduzido com ele. O que entra depois é trazido para a `migration` em commit próprio.
+| PR | Título curto | Módulo afetado | Situação |
+|---|---|---|---|
+| #226 | Corrige a #217 | persistencia | **Mergeada na migration** (PR #243) |
+| #229 | Padrão de evidência e diagramas em issues | documentacao | **Corrigida em develop, pendente na migration** (módulo documentacao) |
+| #234 | Corrige a #227 | api | **Corrigida em develop, pendente na migration** (módulo api) |
+| #242 | Implementa a #225 | fluxos, orquestrador, api | **Corrigida em develop, pendente na migration**: fluxos na branch da #244; rota no api |
 
-| PR | Tipo | Módulo afetado | Estado | Situação na migração | Resumo |
-|---|---|---|---|---|---|
-| [#226](https://github.com/dgd-dprj/maria-langgraph-pp/pull/226) | fix | persistencia | Mergeado em develop (2026-10-14) | Trazido na branch do fluxos (`2403bab`); SQL ainda não executado contra Postgres, o que acontece no CI do PR | Corrige a #217: a resposta guardada é devolvida ao confirmar o TTL |
-| [#229](https://github.com/dgd-dprj/maria-langgraph-pp/pull/229) | docs | documentacao | Mergeado em develop (2026-10-14) | A trazer no módulo documentacao | Padrão de evidência em issues, diagramas Mermaid no texto, formulário `bug.yml` |
-| [#234](https://github.com/dgd-dprj/maria-langgraph-pp/pull/234) | fix | api (e fluxos sem mudança de comportamento) | Mergeado em develop (2026-10-14) | Entra na tradução do api; nos fluxos, só a importação de `respostaEhSim` muda | Corrige a #227: confirmação de TTL aceita "sim" e repete a pergunta quando não reconhece |
+**Pendências que ainda não têm issue:**
+- lista de parentescos nova em develop (#212);
+- A4 do orquestrador (pergunta real compartilhada sem uso; precisa do banco de produção).
