@@ -194,15 +194,15 @@ O estado final também foi comparado, como objeto. Os cenários rodam em dois mo
 | Caminhos principais, tabela 0.2, texto, exceções, tokens, lacuna do "Verde sem nome" | 89 | 87 | 2 (`rg: null`, `id: null`) | 0 |
 | Varredura: cada canal dos dois fluxos pré-preenchido pela Tykhe com `null`, `"x"`, `0`, `7`, `true`, `false`, `{}`, `[]` e `""` (#240) | 495 | 482 | 1 (`rg: null`) | 12 (8.3, D-1) |
 
-A varredura achou dois defeitos de tradução, já corrigidos, e uma divergência que espera decisão (8.3).
+A varredura achou dois defeitos de tradução, já corrigidos, e uma divergência, aceita em 2026-10-16 (8.3). Ela entrou no `MIGRACAO.md` como técnica a repetir no orquestrador e no api.
 
 ### 8.2 Corrigido durante a tradução
 
 1. **`cadastroErro: null` da Tykhe (`65a976a`, corrige código mergeado em `80de7bb`).** Develop testa `!== undefined` num canal que nunca recebe `undefined`. Com `null`, cadastra a pessoa no Verde e vai para `falha_cadastro` **sem** perguntar a confirmação. O subgrafo `cadastro_pessoa` testava `is not None` e fazia a pergunta a mais. Passou a testar a presença da chave, e a linha entrou na tabela 0.2.
 2. **`texto_template` de objeto e lista (`55eee00`).** `${obj}` de JS dá `[object Object]`, e `${lista}` dá `join(",")`. O Python usava `str()`. Aparecia na mensagem de `falha_cadastro` com `cadastroErro` objeto ou lista.
-3. **Registro errado da divergência do `rg`** (tabela 0.2 e decisão 1, corrigidas aqui, no `MIGRACAO.md` e na #208). A versão anterior dizia que develop "pula a pergunta e consulta `""`". Na verdade, develop pula a primeira pergunta, `""` falha no formato do RG e ele pergunta "O RG deve conter apenas números…". O Python faz a pergunta normal. A diferença é só o texto da primeira pergunta do RG.
+3. **Registro errado da divergência do `rg`** (tabela 0.2 e decisão 1, corrigidas aqui, no `MIGRACAO.md` e na #208). A versão anterior dizia que develop "pula a pergunta e consulta `""`". Na verdade, develop pula a primeira pergunta, `""` falha no formato do RG e ele pergunta "O RG deve conter apenas números…". O Python faz a pergunta normal. A diferença é só o texto da primeira pergunta do RG. É o terceiro caso de afirmação sobre desfecho inferida do código e não confirmada na execução, junto com o "conta como não" da #217 e a gravidade da #232 (`MIGRACAO.md`, "Padrão: afirmação sobre desfecho inferida do código, sem execução").
 
-### 8.3 Decisão pendente
+### 8.3 Decidido em 2026-10-16: divergência aceita
 
 **D-1. Contador com valor que não é número, vindo da Tykhe** (`tentativasCpf`, `tentativasRg`, `tentativasProcesso`).
 
@@ -212,7 +212,11 @@ A varredura achou dois defeitos de tradução, já corrigidos, e uma divergênci
 - **Opções:**
   - (a) aceitar como divergência registrada;
   - (b) reproduzir o `+` e o `>=` do JS nos três contadores, o que inclui o `identificar_assistido` mergeado.
-- **Recomendação: (a).** O Python falha de forma visível onde develop segue com texto sem sentido. Reproduzir exigiria a semântica de coerção do JS em código de grafo, para um caso que a #240 elimina na origem.
+- **Decisão: (a), aceita como divergência registrada** (tabela "Divergências aceitas" do `MIGRACAO.md`). **O Python falha mais cedo e mais alto que develop:** 500 na hora, onde develop seguiria o atendimento com a contagem sem sentido. Um 500 vindo da Tykhe com `TypeError` num `tentativas*` é este caso. Motivos:
+  - concatenar texto num contador é acidente de tipagem fraca, não comportamento desenhado;
+  - o caminho exige que a Tykhe viole o próprio contrato num campo numérico, e ela é cliente autenticado, não entrada de cidadão;
+  - a falha visível é melhor na prática que o atendimento seguir com contagem sem sentido.
+- Reproduzir o `+` e o `>=` em três lugares, incluindo código mergeado, espalharia coerção frouxa pelo Python para preservar algo que ninguém desenhou. A #240 elimina o caso na origem.
 
 ### 8.4 Verificação por mutação
 
@@ -238,6 +242,7 @@ As três ganharam teste e passaram a ser pegas. A lista completa, com o teste qu
    - **`encaminhamentoId`:** se o Verde passar a mandar `id: null`, o desfecho vira `falha_encaminhamento` em vez de concluir com "Protocolo: null.". **Isso evita mostrar um protocolo inválido à pessoa atendida**, o mesmo problema da #238.
 2. **Bypass do `cpf: null` no `identificar_assistido`: corrigido**, com o mesmo tratamento do `idPessoa` no `cadastro_pessoa`: guarda pela presença da chave e testes com o `null` da Tykhe. Commit próprio, que corrige código mergeado.
 3. **`metadadosSchema`: não traduzido.** Não tem consumidor em develop @ `0aecd98` (busca fora de `src/fluxos` vazia), e a rota declara `metadados` genérico (`rotas/atendimentos.ts`). Carregar código morto para o Python não faz sentido. A omissão fica registrada aqui e no `MIGRACAO.md`.
+4. **D-1, contador com texto vindo da Tykhe: divergência aceita (2026-10-16).** Ver 8.3. O Python falha mais cedo e mais alto (500), onde develop concatena e segue.
 
 **Diagramas da issue:** Mermaid em texto (caminho A), com o guia de estilo do `diagram-specialist`. Para issues da migração que mudam durante a tradução, o caminho A fica aceito; o PNG no S3 (caminho B) fica para a documentação estável em `docs/`.
 
