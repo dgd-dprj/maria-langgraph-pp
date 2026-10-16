@@ -128,6 +128,18 @@ async def nao_identificado(state: OrquestradorState) -> dict[str, Any]:
     return {"statusFinal": "nao_identificado"}
 
 
+def _resposta_normalizada(o: OpcaoPergunta) -> str:
+    """`o.resposta.trim().toUpperCase()`, com as exceções do JS quando a resposta
+    do banco não é texto (achado na varredura: `resposta` nula dava
+    AttributeError no Python e TypeError em develop)."""
+    resposta: Any = _js.prop(o, "resposta")
+    if resposta is None or resposta is _js.AUSENTE:
+        raise TypeError(f"Cannot read properties of {'null' if resposta is None else 'undefined'} (reading 'trim')")
+    if not isinstance(resposta, str):
+        raise TypeError("o.resposta.trim is not a function")
+    return _js.trim_js(resposta).upper()
+
+
 def mesmo_conjunto_de_opcoes(a: list[OpcaoPergunta], b: list[OpcaoPergunta]) -> bool:
     """Mesmo conjunto de respostas, sem depender de ordem (issue #32).
 
@@ -136,8 +148,8 @@ def mesmo_conjunto_de_opcoes(a: list[OpcaoPergunta], b: list[OpcaoPergunta]) -> 
     jeito, comparar posição a posição é comparar multiconjuntos."""
     if len(a) != len(b):
         return False
-    textos_a = sorted(_js.trim_js(o["resposta"]).upper() for o in a)
-    textos_b = sorted(_js.trim_js(o["resposta"]).upper() for o in b)
+    textos_a = sorted(_resposta_normalizada(o) for o in a)
+    textos_b = sorted(_resposta_normalizada(o) for o in b)
     return textos_a == textos_b
 
 

@@ -441,6 +441,41 @@ def test_7_ordem_fora_do_bmp_nao_muda_o_resultado() -> None:
     assert not mesmo_conjunto_de_opcoes(a, [{"id": 1, "resposta": "￿"}, {"id": 2, "resposta": "￿"}])  # type: ignore[arg-type]
 
 
+@pytest.mark.parametrize(
+    ("resposta", "mensagem"),
+    [
+        (None, "Cannot read properties of null (reading 'trim')"),
+        (5, "o.resposta.trim is not a function"),
+    ],
+)
+async def test_7_resposta_do_banco_que_nao_e_texto_lanca_como_develop(
+    modelo: Modelo, store: StoreFalsa, resposta: Any, mensagem: str
+) -> None:
+    # Achado na varredura (conferência diferencial): o Python dava AttributeError
+    # no strip; develop lança TypeError no .trim(). Confirmado em develop @ 1157a6d.
+    modelo.classificacoes = [{"ids": DOIS, "viaIA": True}]
+    for flow_id in DOIS:
+        r = _raiz("Q?", "a")
+        r["opcoes"][0]["resposta"] = resposta
+        store.raizes[flow_id] = r
+    with pytest.raises(TypeError) as erro:
+        await Conversa().iniciar()
+    assert str(erro.value) == mensagem
+
+
+async def test_relato_vazio_nao_chama_o_bedrock_e_nao_identifica(bedrock: BedrockFalso, monkeypatch: pytest.MonkeyPatch) -> None:
+    # Achado na conferência diferencial: o SDK JS recusa a mensagem humana vazia
+    # antes de enviar, e a classificação cai no fallback (nenhum candidato).
+    async def pool(mensagem: str, k: int, catalogo: Any) -> Any:
+        return list(catalogo)[:k]
+
+    monkeypatch.setattr(graph, "buscar_candidatos", pool)
+    bedrock.roteirizar(ferramenta({"idsPlausiveis": [ID_PESSOA_PRESA]}))
+    r = await Conversa().iniciar("")
+    assert r["statusFinal"] == "nao_identificado"
+    assert bedrock.requisicoes == []
+
+
 def test_7_trim_do_js_e_nao_o_strip() -> None:
     # trim() do JS remove U+FEFF e NÃO remove \x1c; strip() faz o contrário.
     assert mesmo_conjunto_de_opcoes([{"id": 1, "resposta": "﻿Sim"}], [{"id": 1, "resposta": "sim"}])
