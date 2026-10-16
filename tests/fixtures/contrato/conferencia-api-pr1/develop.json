@@ -1,0 +1,2172 @@
+[
+ {
+  "nome": "health",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"status\":\"ok\"}"
+ },
+ {
+  "nome": "health_head",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": ""
+ },
+ {
+  "nome": "fluxos",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "[{\"id\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"nome\":\"pessoa-presa\"},{\"id\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"nome\":\"violencia-domestica\"}]"
+ },
+ {
+  "nome": "fluxos_head",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": ""
+ },
+ {
+  "nome": "fluxos_query",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "[{\"id\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"nome\":\"pessoa-presa\"},{\"id\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"nome\":\"violencia-domestica\"}]"
+ },
+ {
+  "nome": "rota_inexistente",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"message\":\"Route GET:/nao-existe not found\",\"error\":\"Not Found\",\"statusCode\":404}"
+ },
+ {
+  "nome": "rota_inexistente_query",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"message\":\"Route GET:/nao-existe?x=1&y=2 not found\",\"error\":\"Not Found\",\"statusCode\":404}"
+ },
+ {
+  "nome": "barra_final",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"message\":\"Route GET:/fluxos/ not found\",\"error\":\"Not Found\",\"statusCode\":404}"
+ },
+ {
+  "nome": "dupla_barra",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"message\":\"Route GET://health not found\",\"error\":\"Not Found\",\"statusCode\":404}"
+ },
+ {
+  "nome": "metodo_errado",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"message\":\"Route GET:/atendimentos not found\",\"error\":\"Not Found\",\"statusCode\":404}"
+ },
+ {
+  "nome": "options",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"message\":\"Route OPTIONS:/health not found\",\"error\":\"Not Found\",\"statusCode\":404}"
+ },
+ {
+  "nome": "post_health",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"message\":\"Route POST:/health not found\",\"error\":\"Not Found\",\"statusCode\":404}"
+ },
+ {
+  "nome": "auth_sem_fluxos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"missing authorization header\"}"
+ },
+ {
+  "nome": "auth_sem_atendimentos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"missing authorization header\"}"
+ },
+ {
+  "nome": "auth_sem_bearer_fluxos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"invalid authorization header\"}"
+ },
+ {
+  "nome": "auth_sem_bearer_atendimentos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"invalid authorization header\"}"
+ },
+ {
+  "nome": "auth_bearer_minusculo_fluxos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"invalid authorization header\"}"
+ },
+ {
+  "nome": "auth_bearer_minusculo_atendimentos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"invalid authorization header\"}"
+ },
+ {
+  "nome": "auth_bearer_vazio_fluxos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"invalid authorization header\"}"
+ },
+ {
+  "nome": "auth_bearer_vazio_atendimentos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"invalid authorization header\"}"
+ },
+ {
+  "nome": "auth_bearer_espacos_fluxos",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "[{\"id\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"nome\":\"pessoa-presa\"},{\"id\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"nome\":\"violencia-domestica\"}]"
+ },
+ {
+  "nome": "auth_bearer_espacos_atendimentos",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-5",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-5\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "auth_chave_errada_fluxos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"invalid authorization header\"}"
+ },
+ {
+  "nome": "auth_chave_errada_atendimentos",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"invalid authorization header\"}"
+ },
+ {
+  "nome": "auth_bearer_duplo_espaco_fluxos",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "[{\"id\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"nome\":\"pessoa-presa\"},{\"id\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"nome\":\"violencia-domestica\"}]"
+ },
+ {
+  "nome": "auth_bearer_duplo_espaco_atendimentos",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-7",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-7\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "sem_auth_e_json_invalido",
+  "status": 401,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"error\":\"missing authorization header\"}"
+ },
+ {
+  "nome": "criar_vd",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-vd",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-vd\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "criar_vd_repetido",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-vd",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-vd\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "criar_pp_mesmo_chat",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "criar_pp",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-pp",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-pp\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "criar_flowid_inexistente",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"fluxo não encontrado — ver GET /fluxos\"}"
+ },
+ {
+  "nome": "criar_flowid_maiusculo",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"fluxo não encontrado — ver GET /fluxos\"}"
+ },
+ {
+  "nome": "criar_flowid_urn",
+  "status": 404,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"fluxo não encontrado — ver GET /fluxos\"}"
+ },
+ {
+  "nome": "criar_sem_chatid_development",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId obrigatório\"}"
+ },
+ {
+  "nome": "criar_chatid_vazio_development",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId obrigatório\"}"
+ },
+ {
+  "nome": "orq_sem_chatid_development",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId obrigatório\"}"
+ },
+ {
+  "nome": "criar_vd_cpf",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-11",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{\"cpf\":\"12345678901\"},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-11\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "criar_tokens_null_500",
+  "status": 500,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"statusCode\":500,\"error\":\"Internal Server Error\",\"message\":\"Cannot read properties of null (reading 'input')\"}"
+ },
+ {
+  "nome": "orq_identificado",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-orq-1",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-orq-1\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_identificado_repetido",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-orq-1",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-orq-1\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_nao_identificado",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-13\"}}}"
+ },
+ {
+  "nome": "orq_tykhe_saude",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de questões de saúde.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"saude\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-14\"}}}"
+ },
+ {
+  "nome": "orq_tykhe_sair",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Tudo bem. Quando precisar, é só chamar.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"sair\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-15\"}}}"
+ },
+ {
+  "nome": "orq_amb_1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Pra te ajudar melhor, qual dessas opções descreve o que você precisa?\",\"tipoResposta\":\"texto\",\"status\":\"em_andamento\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-amb\"},\"responder\":{\"href\":\"/atendimentos/orquestrador\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_amb_2",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Pra te ajudar melhor, qual dessas opções descreve o que você precisa?\",\"tipoResposta\":\"texto\",\"status\":\"em_andamento\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-amb\"},\"responder\":{\"href\":\"/atendimentos/orquestrador\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_amb_resolve",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-amb",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-amb\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_amb_depois_de_resolvido",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-amb",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-amb\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_resposta_sem_conversa",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-16\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_e_resposta",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-17\"}}}"
+ },
+ {
+  "nome": "orq_mesmo_chat_de_outro_fluxo",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_dados_conhecidos_cpf",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-18",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{\"cpf\":\"1\"},\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-18\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/15210625-ee41-4ec3-aefb-ff5976105990",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/15210625-ee41-4ec3-aefb-ff5976105990\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/x",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/x\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/0",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/0\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/7",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/7\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/true",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/true\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/false",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/false\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_objeto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_chatId_lista",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_chatId_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/a36bed6f-abc8-42a8-b5f5-f3ca41c69295",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/a36bed6f-abc8-42a8-b5f5-f3ca41c69295\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_ausente",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/9cb4ab30-5401-46c1-8ceb-06571c2ca4cd",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/9cb4ab30-5401-46c1-8ceb-06571c2ca4cd\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/y",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/y\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_lista2",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_chatId_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/1e-7",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/1e-7\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/12345678901234567000",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/12345678901234567000\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/1.5",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/1.5\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_chatId_objeto_cheio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_null",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_texto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_zero",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_sete",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_true",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_false",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_objeto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_lista",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_vazio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_ausente",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"flowId obrigatório\"}"
+ },
+ {
+  "nome": "atend_flowId_lista1",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_lista2",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_float_pequeno",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_inteiro_grande",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_float",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_flowId_objeto_cheio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_null",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_texto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_zero",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_sete",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_true",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_false",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-57",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-57\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_lista",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_vazio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_ausente",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-60",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-60\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_lista1",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_lista2",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_float_pequeno",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_inteiro_grande",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_float",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "atend_dadosConhecidos_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-66",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-66\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_chatId_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/4115bfea-7bbd-4e04-8908-3e07013d85d3",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/4115bfea-7bbd-4e04-8908-3e07013d85d3\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_chatId_texto",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_chatId_zero",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_chatId_sete",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_chatId_true",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_chatId_false",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_chatId_objeto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_chatId_lista",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_chatId_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/fe4b35aa-c04e-4424-9aa4-7fb19672959f",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/fe4b35aa-c04e-4424-9aa4-7fb19672959f\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_chatId_ausente",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/60c9a8e2-8f68-4444-8e7e-695437fa4e02",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/60c9a8e2-8f68-4444-8e7e-695437fa4e02\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_chatId_lista1",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_chatId_lista2",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_chatId_float_pequeno",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_chatId_inteiro_grande",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_chatId_float",
+  "status": 409,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"chatId já está em uso pelo flowId cabb2495-4e12-4f4a-9956-3d20649059bc\"}"
+ },
+ {
+  "nome": "orq_chatId_objeto_cheio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_mensagem_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-83",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-83\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-84",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-84\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-85",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-85\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-86",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-86\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-87",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-87\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-88",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-88\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_objeto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_mensagem_lista",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_mensagem_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-91",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-91\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_ausente",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"mensagem (1ª chamada) ou resposta (continuação de desambiguação) obrigatório\"}"
+ },
+ {
+  "nome": "orq_mensagem_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-93",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-93\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_lista2",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_mensagem_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-95",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-95\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-96",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-96\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-97",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-97\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_mensagem_objeto_cheio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_resposta_null",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"resposta não pode ser vazia\"}"
+ },
+ {
+  "nome": "orq_resposta_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-100\"}}}"
+ },
+ {
+  "nome": "orq_resposta_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-101\"}}}"
+ },
+ {
+  "nome": "orq_resposta_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-102\"}}}"
+ },
+ {
+  "nome": "orq_resposta_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-103\"}}}"
+ },
+ {
+  "nome": "orq_resposta_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-104\"}}}"
+ },
+ {
+  "nome": "orq_resposta_objeto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_resposta_lista",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_resposta_vazio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"resposta não pode ser vazia\"}"
+ },
+ {
+  "nome": "orq_resposta_ausente",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"erro\":\"mensagem (1ª chamada) ou resposta (continuação de desambiguação) obrigatório\"}"
+ },
+ {
+  "nome": "orq_resposta_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-109\"}}}"
+ },
+ {
+  "nome": "orq_resposta_lista2",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_resposta_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-111\"}}}"
+ },
+ {
+  "nome": "orq_resposta_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-112\"}}}"
+ },
+ {
+  "nome": "orq_resposta_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-113\"}}}"
+ },
+ {
+  "nome": "orq_resposta_objeto_cheio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_null",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_texto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_zero",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_sete",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_true",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_false",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-121",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-121\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_lista",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_vazio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_ausente",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-124",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-124\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_lista1",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_lista2",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_float_pequeno",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_inteiro_grande",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_float",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "orq_dadosConhecidos_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-130",
+  "corpo": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"metadados\":{},\"dadosColetados\":{},\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-130\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-131",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-131\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-132",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{\"cpf\":\"x\"},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-132\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-133",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-133\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-134",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-134\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-135",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-135\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-136",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-136\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-137",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-137\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_lista",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-138",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-138\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-139",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{\"cpf\":\"\"},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-139\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-140",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-140\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_lista2",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-141",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-141\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-142",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-142\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-143",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-143\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-144",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-144\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_cpf_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-145",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-145\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_null",
+  "status": 500,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"statusCode\":500,\"error\":\"Internal Server Error\",\"message\":\"Cannot read properties of null (reading 'input')\"}"
+ },
+ {
+  "nome": "dados_tokensGastos_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-147",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-147\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-148",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-148\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-149",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-149\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-150",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-150\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-151",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-151\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-152",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-152\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_lista",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-153",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-153\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-154",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-154\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-155",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-155\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_lista2",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-156",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-156\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-157",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-157\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-158",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-158\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-159",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-159\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokensGastos_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-160",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-160\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-161",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-161\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-162",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-162\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-163",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-163\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-164",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-164\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-165",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-165\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-166",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-166\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-167",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-167\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_lista",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-168",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-168\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-169",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-169\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-170",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-170\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_lista2",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-171",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-171\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-172",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-172\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-173",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-173\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-174",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-174\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_statusFinal_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-175",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-175\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-176",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-176\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-177",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-177\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-178",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-178\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-179",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-179\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-180",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-180\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-181",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-181\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-182",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-182\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_lista",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-183",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-183\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-184",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-184\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-185",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-185\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_lista2",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-186",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-186\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-187",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-187\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-188",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-188\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-189",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-189\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_mensagemFinal_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-190",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-190\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-191",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-191\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-192",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-192\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-193",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-193\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-194",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-194\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-195",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-195\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-196",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-196\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-197",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-197\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_lista",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-198",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-198\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-199",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-199\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-200",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-200\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_lista2",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-201",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-201\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-202",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-202\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-203",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-203\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-204",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-204\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_viaOrquestrador_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-205",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-205\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-206",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":null},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-206\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-207",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":\"x\"},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-207\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-208",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":0},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-208\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-209",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":7},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-209\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-210",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":true},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-210\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-211",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":false},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-211\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-212",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":{}},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-212\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_lista",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-213",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":[]},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-213\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-214",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":\"\"},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-214\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-215",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":[\"y\"]},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-215\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_lista2",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-216",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":[\"a\",\"b\"]},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-216\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-217",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":1e-7},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-217\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-218",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":12345678901234567000},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-218\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-219",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":1.5},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-219\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_ehVitima_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-220",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":{\"a\":1}},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-220\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-221",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":null},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-221\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-222",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":\"x\"},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-222\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-223",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":0},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-223\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-224",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":7},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-224\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-225",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":true},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-225\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-226",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":false},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-226\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-227",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":{}},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-227\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_lista",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-228",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":[]},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-228\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-229",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":\"\"},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-229\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-230",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":[\"y\"]},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-230\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_lista2",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-231",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":[\"a\",\"b\"]},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-231\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-232",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":1e-7},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-232\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-233",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":12345678901234567000},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-233\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-234",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":1.5},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-234\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_encaminhamentoId_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-235",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"encaminhamentoId\":{\"a\":1}},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-235\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-236",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-236\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-237",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-237\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_zero",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-238",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-238\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_sete",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-239",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-239\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_true",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-240",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-240\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_false",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-241",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-241\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_objeto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-242",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-242\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_lista",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-243",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-243\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_vazio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-244",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-244\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_lista1",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-245",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-245\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_lista2",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-246",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-246\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_float_pequeno",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-247",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-247\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_inteiro_grande",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-248",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-248\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_float",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-249",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-249\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_objeto_cheio",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-250",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-250\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokens_input_texto",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-251",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-251\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokens_parcial",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-252",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-252\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "dados_tokens_input_null",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-253",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-253\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "corpo_sem_corpo_sem_ct",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_null",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_lista",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_texto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_numero",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_vazio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_espacos",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_invalido",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_bom",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-bom",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-bom\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "corpo_json_proto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_constructor",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_json_chaves_duplicadas",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/d2",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/d2\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "corpo_json_nan",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_ct_charset",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-254",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-254\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "corpo_ct_maiusculo",
+  "status": 200,
+  "contentType": "application/json; charset=utf-8",
+  "location": "/atendimentos/conf-api-255",
+  "corpo": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/conf-api-255\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}"
+ },
+ {
+  "nome": "corpo_ct_texto",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_ct_texto_vazio",
+  "status": 400,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{}"
+ },
+ {
+  "nome": "corpo_ct_xml",
+  "status": 415,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"statusCode\":415,\"code\":\"FST_ERR_CTP_INVALID_MEDIA_TYPE\",\"error\":\"Unsupported Media Type\",\"message\":\"Unsupported Media Type\"}"
+ },
+ {
+  "nome": "corpo_ct_invalido",
+  "status": 415,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"statusCode\":415,\"code\":\"FST_ERR_CTP_INVALID_MEDIA_TYPE\",\"error\":\"Unsupported Media Type\",\"message\":\"Unsupported Media Type\"}"
+ },
+ {
+  "nome": "corpo_ct_vazio",
+  "status": 415,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"statusCode\":415,\"code\":\"FST_ERR_CTP_INVALID_MEDIA_TYPE\",\"error\":\"Unsupported Media Type\",\"message\":\"Unsupported Media Type\"}"
+ },
+ {
+  "nome": "corpo_ct_form",
+  "status": 415,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"statusCode\":415,\"code\":\"FST_ERR_CTP_INVALID_MEDIA_TYPE\",\"error\":\"Unsupported Media Type\",\"message\":\"Unsupported Media Type\"}"
+ },
+ {
+  "nome": "corpo_sem_ct_com_corpo",
+  "status": 415,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"statusCode\":415,\"code\":\"FST_ERR_CTP_INVALID_MEDIA_TYPE\",\"error\":\"Unsupported Media Type\",\"message\":\"Unsupported Media Type\"}"
+ },
+ {
+  "nome": "corpo_ct_json_patch",
+  "status": 415,
+  "contentType": "application/json; charset=utf-8",
+  "location": null,
+  "corpo": "{\"statusCode\":415,\"code\":\"FST_ERR_CTP_INVALID_MEDIA_TYPE\",\"error\":\"Unsupported Media Type\",\"message\":\"Unsupported Media Type\"}"
+ }
+]

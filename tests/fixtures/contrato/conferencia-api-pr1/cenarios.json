@@ -1,0 +1,3845 @@
+[
+ {
+  "nome": "health",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/health",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "health_head",
+  "bloco": "principal",
+  "metodo": "HEAD",
+  "caminho": "/health",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "fluxos",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "fluxos_head",
+  "bloco": "principal",
+  "metodo": "HEAD",
+  "caminho": "/fluxos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "fluxos_query",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos?a=1",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_inexistente",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/nao-existe",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_inexistente_query",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/nao-existe?x=1&y=2",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "barra_final",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos/",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "dupla_barra",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "//health",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "metodo_errado",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "options",
+  "bloco": "principal",
+  "metodo": "OPTIONS",
+  "caminho": "/health",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "post_health",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/health",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "auth_sem_fluxos",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "auth_sem_atendimentos",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-1\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "auth_sem_bearer_fluxos",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos",
+  "headers": {
+   "authorization": "chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "auth_sem_bearer_atendimentos",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-2\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "auth_bearer_minusculo_fluxos",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos",
+  "headers": {
+   "authorization": "bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "auth_bearer_minusculo_atendimentos",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-3\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "auth_bearer_vazio_fluxos",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos",
+  "headers": {
+   "authorization": "Bearer "
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "auth_bearer_vazio_atendimentos",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer ",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-4\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "auth_bearer_espacos_fluxos",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos",
+  "headers": {
+   "authorization": "Bearer   chave-conferencia  "
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "auth_bearer_espacos_atendimentos",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer   chave-conferencia  ",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-5\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "auth_chave_errada_fluxos",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos",
+  "headers": {
+   "authorization": "Bearer errada"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "auth_chave_errada_atendimentos",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer errada",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-6\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "auth_bearer_duplo_espaco_fluxos",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/fluxos",
+  "headers": {
+   "authorization": "Bearer  chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "auth_bearer_duplo_espaco_atendimentos",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer  chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-7\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "sem_auth_e_json_invalido",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{x",
+  "env": {}
+ },
+ {
+  "nome": "criar_vd",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-vd\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "criar_vd_repetido",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-vd\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "criar_pp_mesmo_chat",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-vd\",\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\"}",
+  "env": {}
+ },
+ {
+  "nome": "criar_pp",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pp\",\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\"}",
+  "env": {}
+ },
+ {
+  "nome": "criar_flowid_inexistente",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-8\",\"flowId\":\"00000000-0000-4000-8000-000000000000\"}",
+  "env": {}
+ },
+ {
+  "nome": "criar_flowid_maiusculo",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-9\",\"flowId\":\"CABB2495-4E12-4F4A-9956-3D20649059BC\"}",
+  "env": {}
+ },
+ {
+  "nome": "criar_flowid_urn",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-10\",\"flowId\":\"urn:uuid:cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "criar_sem_chatid_development",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {
+   "APP_ENV": "development"
+  }
+ },
+ {
+  "nome": "criar_chatid_vazio_development",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {
+   "APP_ENV": "development"
+  }
+ },
+ {
+  "nome": "orq_sem_chatid_development",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"mensagem\":\"oi\"}",
+  "env": {
+   "APP_ENV": "development"
+  }
+ },
+ {
+  "nome": "criar_vd_cpf",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-11\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": \"12345678901\", \"viaOrquestrador\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "criar_tokens_null_500",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-12\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": null}}",
+  "env": {}
+ },
+ {
+  "nome": "orq_identificado",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-orq-1\",\"mensagem\":\"meu filho está preso\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_identificado_repetido",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-orq-1\",\"mensagem\":\"de novo\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_nao_identificado",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-13\",\"mensagem\":\"texto\"}",
+  "env": {}
+ },
+ {
+  "nome": "orq_tykhe_saude",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-14\",\"mensagem\":\"remédio\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "tykhe:saude"
+  }
+ },
+ {
+  "nome": "orq_tykhe_sair",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-15\",\"mensagem\":\"tchau\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "tykhe:sair"
+  }
+ },
+ {
+  "nome": "orq_amb_1",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-amb\",\"mensagem\":\"ambíguo\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWIDS": "3df874f2-675a-4c43-9ec7-480f7c702f50,cabb2495-4e12-4f4a-9956-3d20649059bc"
+  }
+ },
+ {
+  "nome": "orq_amb_2",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-amb\",\"resposta\":\"r1\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWIDS": "3df874f2-675a-4c43-9ec7-480f7c702f50,cabb2495-4e12-4f4a-9956-3d20649059bc"
+  }
+ },
+ {
+  "nome": "orq_amb_resolve",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-amb\",\"resposta\":\"presa\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_amb_depois_de_resolvido",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-amb\",\"resposta\":\"mais\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_sem_conversa",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-16\",\"resposta\":\"oi\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_e_resposta",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-17\",\"mensagem\":\"a\",\"resposta\":\"b\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mesmo_chat_de_outro_fluxo",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-vd\",\"mensagem\":\"presa\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dados_conhecidos_cpf",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-18\",\"mensagem\":\"vd\",\"dadosConhecidos\":{\"cpf\": \"1\", \"tokensGastos\": {\"input\": 9, \"output\": 9, \"total\": 9}}}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "cabb2495-4e12-4f4a-9956-3d20649059bc"
+  }
+ },
+ {
+  "nome": "atend_chatId_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":null,\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"x\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":0,\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":7,\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":true,\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":false,\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":{},\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":[],\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_ausente",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":[\"y\"],\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":[\"a\", \"b\"],\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":1e-7,\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":12345678901234567890,\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":1.5,\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_chatId_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":{\"a\": 1},\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-35\",\"flowId\":null,\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-36\",\"flowId\":\"x\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-37\",\"flowId\":0,\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-38\",\"flowId\":7,\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-39\",\"flowId\":true,\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-40\",\"flowId\":false,\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-41\",\"flowId\":{},\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-42\",\"flowId\":[],\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-43\",\"flowId\":\"\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_ausente",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-44\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-45\",\"flowId\":[\"y\"],\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-46\",\"flowId\":[\"a\", \"b\"],\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-47\",\"flowId\":1e-7,\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-48\",\"flowId\":12345678901234567890,\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-49\",\"flowId\":1.5,\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_flowId_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-50\",\"flowId\":{\"a\": 1},\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-51\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":null}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-52\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-53\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":0}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-54\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":7}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-55\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":true}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-56\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":false}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-57\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-58\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":[]}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-59\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":\"\"}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_ausente",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-60\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-61\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":[\"y\"]}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-62\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":[\"a\", \"b\"]}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-63\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":1e-7}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-64\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":12345678901234567890}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-65\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":1.5}",
+  "env": {}
+ },
+ {
+  "nome": "atend_dadosConhecidos_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-66\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"a\": 1}}",
+  "env": {}
+ },
+ {
+  "nome": "orq_chatId_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":null,\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"x\",\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":0,\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":7,\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":true,\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":false,\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":{},\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":[],\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"\",\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_ausente",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":[\"y\"],\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":[\"a\", \"b\"],\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":1e-7,\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":12345678901234567890,\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":1.5,\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_chatId_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":{\"a\": 1},\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-83\",\"mensagem\":null}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-84\",\"mensagem\":\"x\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-85\",\"mensagem\":0}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-86\",\"mensagem\":7}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-87\",\"mensagem\":true}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-88\",\"mensagem\":false}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-89\",\"mensagem\":{}}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-90\",\"mensagem\":[]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-91\",\"mensagem\":\"\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_ausente",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-92\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-93\",\"mensagem\":[\"y\"]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-94\",\"mensagem\":[\"a\", \"b\"]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-95\",\"mensagem\":1e-7}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-96\",\"mensagem\":12345678901234567890}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-97\",\"mensagem\":1.5}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_mensagem_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-98\",\"mensagem\":{\"a\": 1}}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-99\",\"resposta\":null}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-100\",\"resposta\":\"x\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-101\",\"resposta\":0}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-102\",\"resposta\":7}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-103\",\"resposta\":true}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-104\",\"resposta\":false}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-105\",\"resposta\":{}}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-106\",\"resposta\":[]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-107\",\"resposta\":\"\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_ausente",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-108\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-109\",\"resposta\":[\"y\"]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-110\",\"resposta\":[\"a\", \"b\"]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-111\",\"resposta\":1e-7}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-112\",\"resposta\":12345678901234567890}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-113\",\"resposta\":1.5}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_resposta_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-114\",\"resposta\":{\"a\": 1}}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-115\",\"mensagem\":\"relato\",\"dadosConhecidos\":null}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-116\",\"mensagem\":\"relato\",\"dadosConhecidos\":\"x\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-117\",\"mensagem\":\"relato\",\"dadosConhecidos\":0}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-118\",\"mensagem\":\"relato\",\"dadosConhecidos\":7}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-119\",\"mensagem\":\"relato\",\"dadosConhecidos\":true}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-120\",\"mensagem\":\"relato\",\"dadosConhecidos\":false}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-121\",\"mensagem\":\"relato\",\"dadosConhecidos\":{}}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-122\",\"mensagem\":\"relato\",\"dadosConhecidos\":[]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-123\",\"mensagem\":\"relato\",\"dadosConhecidos\":\"\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_ausente",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-124\",\"mensagem\":\"relato\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-125\",\"mensagem\":\"relato\",\"dadosConhecidos\":[\"y\"]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-126\",\"mensagem\":\"relato\",\"dadosConhecidos\":[\"a\", \"b\"]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-127\",\"mensagem\":\"relato\",\"dadosConhecidos\":1e-7}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-128\",\"mensagem\":\"relato\",\"dadosConhecidos\":12345678901234567890}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-129\",\"mensagem\":\"relato\",\"dadosConhecidos\":1.5}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_dadosConhecidos_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-130\",\"mensagem\":\"relato\",\"dadosConhecidos\":{\"a\": 1}}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "dados_cpf_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-131\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": null}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-132\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": \"x\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-133\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": 0}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-134\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": 7}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-135\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-136\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": false}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-137\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": {}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-138\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": []}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-139\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": \"\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-140\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": [\"y\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-141\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": [\"a\", \"b\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-142\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": 1e-07}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-143\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": 1.2345678901234567e+19}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-144\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": 1.5}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_cpf_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-145\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": {\"a\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-146\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": null}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-147\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": \"x\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-148\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": 0}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-149\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": 7}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-150\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-151\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": false}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-152\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": {}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-153\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": []}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-154\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": \"\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-155\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": [\"y\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-156\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": [\"a\", \"b\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-157\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": 1e-07}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-158\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": 1.2345678901234567e+19}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-159\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": 1.5}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokensGastos_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-160\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": {\"a\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-161\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": null}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-162\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": \"x\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-163\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": 0}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-164\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": 7}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-165\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-166\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": false}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-167\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": {}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-168\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": []}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-169\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": \"\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-170\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": [\"y\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-171\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": [\"a\", \"b\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-172\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": 1e-07}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-173\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": 1.2345678901234567e+19}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-174\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": 1.5}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_statusFinal_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-175\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"statusFinal\": {\"a\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-176\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": null}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-177\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": \"x\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-178\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": 0}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-179\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": 7}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-180\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-181\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": false}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-182\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": {}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-183\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": []}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-184\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": \"\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-185\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": [\"y\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-186\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": [\"a\", \"b\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-187\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": 1e-07}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-188\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": 1.2345678901234567e+19}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-189\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": 1.5}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_mensagemFinal_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-190\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"mensagemFinal\": {\"a\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-191\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": null}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-192\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": \"x\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-193\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": 0}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-194\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": 7}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-195\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-196\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": false}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-197\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": {}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-198\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": []}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-199\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": \"\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-200\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": [\"y\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-201\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": [\"a\", \"b\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-202\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": 1e-07}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-203\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": 1.2345678901234567e+19}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-204\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": 1.5}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_viaOrquestrador_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-205\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"viaOrquestrador\": {\"a\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-206\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": null}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-207\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": \"x\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-208\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": 0}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-209\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": 7}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-210\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-211\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": false}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-212\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": {}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-213\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": []}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-214\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": \"\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-215\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": [\"y\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-216\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": [\"a\", \"b\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-217\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": 1e-07}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-218\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": 1.2345678901234567e+19}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-219\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": 1.5}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_ehVitima_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-220\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"ehVitima\": {\"a\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-221\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": null}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-222\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": \"x\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-223\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": 0}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-224\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": 7}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-225\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-226\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": false}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-227\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": {}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-228\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": []}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-229\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": \"\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-230\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": [\"y\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-231\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": [\"a\", \"b\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-232\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": 1e-07}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-233\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": 1.2345678901234567e+19}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-234\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": 1.5}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_encaminhamentoId_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-235\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"encaminhamentoId\": {\"a\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-236\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": null}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-237\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": \"x\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-238\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": 0}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-239\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": 7}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-240\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-241\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": false}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-242\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": {}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-243\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": []}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-244\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": \"\"}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-245\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": [\"y\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_lista2",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-246\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": [\"a\", \"b\"]}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_float_pequeno",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-247\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": 1e-07}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-248\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": 1.2345678901234567e+19}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-249\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": 1.5}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_perguntaAtualTexto_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-250\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"perguntaAtualTexto\": {\"a\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokens_input_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-251\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": {\"input\": \"x\", \"output\": 1, \"total\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokens_parcial",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-252\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": {\"input\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "dados_tokens_input_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-api-253\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"tokensGastos\": {\"input\": null, \"output\": 1, \"total\": 1}}}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_sem_corpo_sem_ct",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "null",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "[]",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "\"x\"",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_numero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "7",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_espacos",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "   ",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_invalido",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{x",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_bom",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "﻿{\"chatId\":\"conf-bom\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_proto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"__proto__\":{\"a\":1},\"chatId\":\"p\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_constructor",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"constructor\":{\"prototype\":{}},\"chatId\":\"q\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_chaves_duplicadas",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"d1\",\"chatId\":\"d2\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_json_nan",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":NaN}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_ct_charset",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json; charset=utf-8"
+  },
+  "corpo": "{\"chatId\":\"conf-api-254\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_ct_maiusculo",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "APPLICATION/JSON"
+  },
+  "corpo": "{\"chatId\":\"conf-api-255\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_ct_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "text/plain"
+  },
+  "corpo": "oi",
+  "env": {}
+ },
+ {
+  "nome": "corpo_ct_texto_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "text/plain"
+  },
+  "corpo": "",
+  "env": {}
+ },
+ {
+  "nome": "corpo_ct_xml",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/xml"
+  },
+  "corpo": "<a/>",
+  "env": {}
+ },
+ {
+  "nome": "corpo_ct_invalido",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "json"
+  },
+  "corpo": "{}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_ct_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": ""
+  },
+  "corpo": "{}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_ct_form",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/x-www-form-urlencoded"
+  },
+  "corpo": "a=1",
+  "env": {}
+ },
+ {
+  "nome": "corpo_sem_ct_com_corpo",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": "{\"chatId\":\"conf-api-256\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "corpo_ct_json_patch",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/merge-patch+json"
+  },
+  "corpo": "{}",
+  "env": {}
+ }
+]
