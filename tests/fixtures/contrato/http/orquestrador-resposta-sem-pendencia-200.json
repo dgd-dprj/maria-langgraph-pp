@@ -25,12 +25,17 @@
     "status": 200,
     "contentType": "application/json; charset=utf-8",
     "location": null,
-    "corpoBruto": "{\"resposta\":\"Não consegui identificar como te ajudar a partir do que você escreveu. Vou encaminhar seu atendimento pra um atendente humano confirmar.\",\"tipoResposta\":\"texto\",\"status\":\"handoff_humano\",\"motivoHandoff\":\"nao_identificado\",\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-orq-sem-estado\"}}}",
+    "corpoBruto": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-orq-sem-estado\"}}}",
     "corpo": {
-      "resposta": "Não consegui identificar como te ajudar a partir do que você escreveu. Vou encaminhar seu atendimento pra um atendente humano confirmar.",
+      "resposta": "Entendi. Vou te encaminhar para o atendimento de outros assuntos.",
       "tipoResposta": "texto",
-      "status": "handoff_humano",
-      "motivoHandoff": "nao_identificado",
+      "status": "redirecionado",
+      "tipoCaso": "outros",
+      "tokensGastos": {
+        "input": 0,
+        "output": 0,
+        "total": 0
+      },
       "_links": {
         "self": {
           "href": "/atendimentos/cap-orq-sem-estado"
