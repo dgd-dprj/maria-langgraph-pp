@@ -317,6 +317,28 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
   - A conferência diferencial principal roda com a variável ausente. O caminho com `"true"` é traduzido e entra como cenário secundário.
 - **Números de acerto medidos antes do #242 não são comparáveis aos de depois:** com 76 opções o problema era outro (spec 06, 0.1).
 
+- **Conferência diferencial contra develop @ `1157a6d` (2026-10-16):**
+  - 80 cenários: 29 principais, 45 da varredura e 6 secundários;
+  - 79 iguais; o único diferente é o D-1, já aceito;
+  - detalhes na spec 06, seção 10.
+- **Itens (lido) da spec:** 12 confirmados por execução e **nenhum corrigido**. 2 não dá para executar aqui (fila do pool com concorrência; A4, que precisa do banco de produção).
+  - **É a primeira spec em que a regra do desfecho (abaixo) foi aplicada desde o início.** Nenhuma afirmação sobre develop precisou de correção.
+  - **Mas a leitura não previu quatro diferenças**, e a varredura e a conferência acharam as quatro:
+    - relato vazio: o SDK JS recusa antes de enviar, e o Python enviava;
+    - o `enum` do `z.enum` sem repetidos;
+    - o `enum` com índices numéricos primeiro;
+    - `TypeError` na resposta nula da pergunta raiz.
+  - Três dessas estavam no **módulo ia, já mergeado** (`43e2b43`). **Acertar o que se afirma não é o mesmo que afirmar tudo:** marcar (lido) protege contra o erro de desfecho, e só a execução acha o que ninguém pensou em afirmar.
+- **Achados A1 a A3 confirmados por execução:**
+  - A1: o texto de fallback fala de opções que não existem;
+  - A2: o log da rodada não conta a sumarização;
+  - A3: id repetido leva a desambiguar entre o candidato e ele mesmo.
+- **Verificação por mutação:** 19 de 19.
+- **Ambiente da conferência:**
+  - pnpm 12.14.0 (a captura da #209 usou 12.10.1) e lockfile congelado;
+  - instalação sem `--ignore-scripts`, o que não muda nada, porque o `allowBuilds` de develop bloqueia o build do esbuild;
+  - **worktree em caminho curto (`%TEMP%\m1157a6d`):** no scratchpad, o caminho até o `esbuild.exe` passava de 260 caracteres, o MAX_PATH do Windows.
+
 ### O que falta para mandar para teste
 
 **Para ir a teste, faltam dois módulos: o orquestrador (#244) e o `api`.** O grafo do orquestrador **não tem porta de entrada HTTP sozinho**. A rota `POST /atendimentos/orquestrador` vive no módulo `api`, junto com:

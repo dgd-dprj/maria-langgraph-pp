@@ -210,12 +210,12 @@ Nenhum log dentro de `src/orquestrador`. Os logs `orquestrador_*` estão na rota
 
 ## 7. Critérios de aceite
 
-- [ ] Commit próprio, no começo da branch, trazendo o #242 para o fluxos (0.1) e dizendo que atualiza código mergeado.
-- [ ] 2 testes traduzidos e os novos da seção 6 passando sem rede.
-- [ ] Tabela da seção 0.2 com um teste por linha.
-- [ ] Conferência diferencial e varredura contra develop @ `1157a6d`, com o resultado no PR. **Todo item (lido) desta spec confirmado ou corrigido por execução**, com a correção registrada.
-- [ ] Mutações executadas, com a lista e o resultado no PR.
-- [ ] `MIGRACAO.md` com a seção do módulo.
+- [x] Commit próprio, no começo da branch, trazendo o #242 para o fluxos (0.1) e dizendo que atualiza código mergeado (`4669af1`).
+- [x] 2 testes traduzidos e os novos da seção 6 passando sem rede (`73a08ce`, mais os testes dos achados em `43e2b43` e `3bb7577`).
+- [x] Tabela da seção 0.2 com um teste por linha.
+- [ ] Conferência diferencial e varredura contra develop @ `1157a6d` (seção 10: 80 cenários, 79 iguais, 1 = D-1). **Itens (lido): 12 confirmados, 0 corrigidos, 2 não executáveis aqui.** *Falta: o resultado no PR.*
+- [ ] Mutações executadas (19 de 19, seção 10.5). *Falta: a lista e o resultado no PR.*
+- [x] `MIGRACAO.md` com a seção do módulo.
 - [ ] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes; jobs `test` e `imagem` verdes.
 
 ## 8. Decisões (aprovadas em 2026-10-16)
@@ -246,6 +246,64 @@ Nenhum log dentro de `src/orquestrador`. Os logs `orquestrador_*` estão na rota
 | A4 | (lido; a verificar no banco) **A pergunta real compartilhada (#32) pode ter ficado sem uso com o #242.** Ela só vale entre candidatos com pergunta raiz na tabela `perguntas`. Os 9 do catálogo padrão são 2 implementados e 7 da Tykhe, e os da Tykhe não têm pergunta raiz | `graph.ts:106-116` | Sem a variável, o caminho do banco pode nunca disparar. Não é defeito por si, mas é código que só os testes exercitam |
 
 Nenhum vira issue antes de ser executado na conferência diferencial (regra do `MIGRACAO.md`). Os confirmados vão para o `MIGRACAO.md`, em "Melhorias registradas", e os que tiverem efeito para a pessoa atendida ganham issue.
+
+**Execução (2026-10-16, seção 10):** A1, A2 e A3 confirmados. A4 continua a verificar no banco.
+
+## 10. Conferência diferencial e varredura (2026-10-16)
+
+### 10.1 Ambiente
+
+- **develop:** worktree destacado de `1157a6d`, `pnpm install --frozen-lockfile --config.minimum-release-age=0`. **Versões:** pnpm **12.14.0**, contra 12.10.1 da captura original da #209, e Node 24.19.0. Com o lockfile congelado, as dependências são as mesmas.
+  - **Desvio da receita da #209:** a instalação rodou **sem** `--ignore-scripts`. O `allowBuilds: esbuild: false` de develop já bloqueia o único build, então o resultado não muda. Fica registrado.
+  - **Caminho curto:** o worktree ficou em `%TEMP%\m1157a6d`, e não no scratchpad da sessão. No scratchpad, o caminho até o `esbuild.exe` do `tsx` passava de 260 caracteres (MAX_PATH do Windows), e o binário não foi gravado. Antes de rodar a conferência, os 2 testes do `graph.test.ts` de develop passaram nesse worktree.
+- **Bedrock falso, um por lado,** com a mesma regra determinística:
+  - a resposta depende só do tipo de chamada (classificação, desambiguação ou sumarização, pelo prompt de sistema) e do roteiro do cenário;
+  - o embedding do retrieval é o sha256 do texto;
+  - o SDK JS fala HTTP/2 (h2c), e o botocore, HTTP/1.1.
+- **Sem banco:** checkpointer, perguntas e planejados em memória, dos dois lados.
+- **O que se compara byte a byte:** o payload de cada interrupt, a exceção (tipo e mensagem), o corpo de cada chamada ao modelo, em ordem, e o multiconjunto de textos enviados ao embedding.
+- **Estado final:** comparado tratando o `undefined` de develop como o `None` do Python, que é a regra de estado.
+
+### 10.2 Resultado
+
+| Bloco | Cenários | Iguais | Diferentes |
+|---|---|---|---|
+| Principal (variável ausente, o caminho do release) | 29 | 29 | 0 |
+| Varredura: `idsPlausiveis`, itens de `idsPlausiveis`, `pergunta` e `resumo` com `null`, `"x"`, `0`, `7`, `true`, `false`, `{}`, `[]`, `""` e a chave ausente; pergunta raiz do banco com `null` e `""` | 45 | 44 | 1 (`resumo_null`: D-1, aceito) |
+| Secundário (`ORQUESTRADOR_INCLUIR_PLANEJADOS`) | 6 | 6 | 0 |
+| **Total** | **80** | **79** | **1** |
+
+### 10.3 Itens (lido): 12 confirmados, 0 corrigidos, 2 não executáveis aqui
+
+| Item | Resultado em develop |
+|---|---|
+| D-1, `resumo: null` (0.2 e seção 8) | **Confirmado.** Classificação e desambiguação recebem `"null\nr3"`, e a sumarização seguinte resume `"null\nr3"` |
+| `ids` ausente, `null` ou número (3.1) | **Confirmado.** `TypeError`: "Cannot read properties of undefined/null (reading 'map')" e "ids.map is not a function". Os booleanos também lançam |
+| `ids` string (3.1) | **Confirmado.** "ids.map is not a function", inclusive com `""` e com um id válido como string |
+| `ids` objeto (3.1) | **Confirmado** |
+| Item lista, objeto, `null` ou booleano (3.1) | **Confirmado.** O item é filtrado e o id válido segue |
+| Número `7` contra id `"7"` no catálogo (3.1) | **Confirmado.** `7` não acha e `"7"` acha. O cenário usa um planejado com id `"7"` |
+| Item repetido (3.1) | **Confirmado.** A desambiguação fica entre o candidato e ele mesmo |
+| `resumo` de outro tipo (3.1) | **Confirmado.** `7`, `true`, `false`, `0`, `[object Object]`; `[]` e `""` dão `"\nr3"` |
+| `pergunta` de outro tipo (3.1) | **Confirmado.** O valor vai cru no payload; `null` e ausente caem no texto padrão; `""` vai vazio |
+| A1, fallback "qual dessas opções" | **Confirmado** fora de `NODE_ENV=test`, com a desambiguação sem ferramenta |
+| A2, tokens da sumarização fora de `tokensGastosRodada` | **Confirmado.** Rodada = 36 (classificação + desambiguação); conversa = 162, com a sumarização |
+| A3, id repetido até a 5ª rodada | **Confirmado.** Termina em `nao_identificado`, com `rodada` 5 |
+| Fila do pool com atendimentos simultâneos (3.3) | **Não executado:** precisa de Postgres e de concorrência real |
+| A4, pergunta real sem uso | **Não executado:** precisa do banco de produção |
+
+### 10.4 Achados que nenhum item (lido) previa
+
+A leitura acertou tudo o que afirmou, mas **não previu quatro diferenças**, e as quatro estavam em pontos que a leitura não olhou. A varredura e a conferência acharam todas, e todas foram corrigidas:
+
+1. **Relato vazio (ia, já mergeado; `43e2b43`).** O `@langchain/aws` 1.4.4 recusa mensagem humana vazia antes de enviar (`message_inputs.ts:662`). Develop termina em `nao_identificado` sem nenhuma requisição. O Python mandava `""` ao Bedrock, e o desfecho dependeria do que o modelo respondesse.
+2. **`enum` com id repetido (ia, já mergeado; `43e2b43`).** O `z.enum` descarta repetidos no JSON Schema enviado, e o Python mandava a lista crua.
+3. **`enum` com id numérico (ia, já mergeado; `43e2b43`).** O `z.enum` guarda as entradas num objeto, e o JS põe primeiro as chaves que parecem índice de array (`"7"`, `"10"`). O resultado foi conferido executando o `z.enum` de develop. Hoje não tem efeito, porque os ids do catálogo são uuid e `tykhe:…`.
+4. **Resposta nula na pergunta raiz (orquestrador; `3bb7577`).** Develop lança `TypeError` no `.trim()`, e o Python dava `AttributeError`.
+
+### 10.5 Verificação por mutação
+
+**19 de 19 pegas:** as 15 da seção 6 e 4 novas, uma para cada achado de 10.4. O script e a conferência ficam fora do repositório, e a lista entra no PR.
 
 ## Dependências
 
