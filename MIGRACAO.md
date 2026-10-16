@@ -339,6 +339,13 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
   - instalação sem `--ignore-scripts`, o que não muda nada, porque o `allowBuilds` de develop bloqueia o build do esbuild;
   - **worktree em caminho curto (`%TEMP%\m1157a6d`):** no scratchpad, o caminho até o `esbuild.exe` passava de 260 caracteres, o MAX_PATH do Windows.
 
+- **Ponto para a spec do `api`: relato vazio no orquestrador.** Develop aceita `mensagem: ""` em `POST /atendimentos/orquestrador`. O SDK recusa a mensagem vazia, a classificação cai no fallback e a pessoa vai para `outros` (em produção, antes do #242, para `handoff_humano`) **sem classificação nenhuma**. A tradução reproduz isso. **O peso depende de uma pergunta ainda sem resposta: `mensagem: ""` chega a acontecer?**
+  - Se a Tykhe valida antes de enviar, é caminho morto, e o registro vira nota de rodapé.
+  - Se não valida, quem manda mensagem vazia vai para `outros` sem classificar, e o caso vira issue.
+  - **Onde está a resposta:**
+    - **contrato da Tykhe:** `docs/contrato-tykhe.md` não diz nada sobre `mensagem` vazia (conferido em develop @ `1157a6d`), então a resposta teria de vir da própria Tykhe;
+    - **logs:** cada relato vazio deixa uma linha `[classificar] falha ao classificar (múltiplo)` com `err.message` igual a "Invalid message content: empty string. 'human' must contain non-empty content.". Contar essa mensagem no CloudWatch de produção mede o caso sem tocar em dado pessoal. A consulta exige acesso AWS autorizado.
+
 ### O que falta para mandar para teste
 
 **Para ir a teste, faltam dois módulos: o orquestrador (#244) e o `api`.** O grafo do orquestrador **não tem porta de entrada HTTP sozinho**. A rota `POST /atendimentos/orquestrador` vive no módulo `api`, junto com:
