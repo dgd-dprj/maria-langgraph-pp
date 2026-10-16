@@ -10,6 +10,7 @@ Diferenças de forma, sem mudar o comportamento:
 
 from __future__ import annotations
 
+import os
 from collections.abc import Callable, Mapping
 from dataclasses import dataclass
 from typing import Any, TypedDict
@@ -19,6 +20,7 @@ from maria.fluxos.padrao import api as api_padrao
 from maria.fluxos.padrao.graph import obter_grafo as obter_grafo_padrao
 from maria.fluxos.pessoa_presa import api as api_pessoa_presa
 from maria.fluxos.pessoa_presa.graph import obter_grafo as obter_grafo_pessoa_presa
+from maria.fluxos.tipos_tykhe import TIPOS_TYKHE
 from maria.fluxos.violencia_domestica import api as api_violencia_domestica
 from maria.fluxos.violencia_domestica.graph import obter_grafo as obter_grafo_violencia_domestica
 from maria.shared.fluxos_planejados_db import buscar_fluxo_planejado_por_id, listar_fluxos_planejados, texto_para_classificacao
@@ -101,10 +103,18 @@ class OpcaoCatalogo(TypedDict):
 
 
 async def catalogo_para_classificacao() -> list[OpcaoCatalogo]:
-    """Implementados e depois planejados, nesta ordem. Os planejados usam
-    `texto_para_classificacao` (descrição mais palavras-chave, #19)."""
+    """Catálogo de classificação do orquestrador. Issue #225: implementados (a
+    Maria conduz) e depois os tipos que a Tykhe atende (`tipos_tykhe`, a Maria só
+    identifica e devolve), nesta ordem. Os planejados (#26) saíram do catálogo,
+    mas a tabela fica intacta e `buscar_fluxo` continua resolvendo um planejado
+    para o grafo padrão. `ORQUESTRADOR_INCLUIR_PLANEJADOS == "true"`, lido a cada
+    chamada, volta a oferecê-los, no fim, com `texto_para_classificacao` (#19)."""
     implementados: list[OpcaoCatalogo] = [{"id": id_, "nome": cfg.nome, "descricao": cfg.descricao} for id_, cfg in fluxos_por_id.items()]
+    tykhe: list[OpcaoCatalogo] = [{"id": t.id, "nome": t.nome, "descricao": t.descricao} for t in TIPOS_TYKHE]
+    # `!== "true"` de develop: comparação exata, sem caixa e sem outros valores.
+    if os.environ.get("ORQUESTRADOR_INCLUIR_PLANEJADOS") != "true":
+        return [*implementados, *tykhe]
     planejados: list[OpcaoCatalogo] = [
         {"id": f["id"], "nome": f["nome"], "descricao": texto_para_classificacao(f)} for f in await listar_fluxos_planejados()
     ]
-    return [*implementados, *planejados]
+    return [*implementados, *tykhe, *planejados]
