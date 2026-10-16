@@ -7,7 +7,7 @@ diferencial registrada no PR do módulo. Quando o Python diverge de propósito
 """
 
 import json
-from collections.abc import Callable
+from collections.abc import AsyncIterator, Callable
 from typing import Any
 
 import httpx
@@ -20,12 +20,18 @@ from maria.fluxos.pessoa_presa.api import extrair_metadados_pessoa_presa
 from maria.fluxos.pessoa_presa.graph import _construtor as construtor_pp
 from maria.fluxos.pessoa_presa.graph import normalizar_situacao, rg_formato_valido
 from maria.fluxos.pessoa_presa.graph import obter_grafo as obter_pp
+from maria.fluxos.tipos_tykhe import TIPOS_TYKHE, tipo_tykhe_por_caso, tipo_tykhe_por_id
 from maria.fluxos.violencia_domestica.api import extrair_metadados_violencia_domestica
 from maria.fluxos.violencia_domestica.graph import _construtor as construtor_vd
 from maria.fluxos.violencia_domestica.graph import numero_processo_formato_valido
 from maria.fluxos.violencia_domestica.graph import obter_grafo as obter_vd
 from maria.shared._js import json_stringify
-from maria.shared.fluxos_planejados_db import adicionar_planejado_de_teste, remover_planejado_de_teste, texto_para_classificacao
+from maria.shared.fluxos_planejados_db import (
+    FluxoPlanejado,
+    adicionar_planejado_de_teste,
+    remover_planejado_de_teste,
+    texto_para_classificacao,
+)
 from tests.fluxos.conftest import Fluxo, novo_config, pergunta
 from tests.integracoes.conftest import TransporteFalso
 
@@ -652,26 +658,87 @@ async def test_8_tokens_padrao_repassa_a_semente() -> None:
 # ---- catálogo (fluxos/index.ts) --------------------------------------------------------
 
 
-async def test_catalogo_buscar_fluxo_e_classificacao() -> None:
+_IDS_TYKHE = [
+    "tykhe:saude",
+    "tykhe:novo-processo",
+    "tykhe:andamento-processo",
+    "tykhe:agendamentos",
+    "tykhe:ajuda-app",
+    "tykhe:outros",
+    "tykhe:sair",
+]
+_PLANEJADO = "00000000-0000-0000-0000-0000000000c3"
+
+
+def _planejado_dados() -> FluxoPlanejado:
+    return {"id": _PLANEJADO, "nome": "planejado", "descricao": "desc", "idCategoriaAssuntoVerde": 1, "palavrasChave": ["a"]}
+
+
+@pytest.fixture
+async def planejado_cadastrado() -> AsyncIterator[str]:
+    await adicionar_planejado_de_teste(_planejado_dados())
+    try:
+        yield _PLANEJADO
+    finally:
+        await remover_planejado_de_teste(_PLANEJADO)
+
+
+async def test_catalogo_buscar_fluxo(planejado_cadastrado: str) -> None:
     assert (await buscar_fluxo(ID_PESSOA_PRESA)).nome == "pessoa-presa"  # type: ignore[union-attr]
     vd = await buscar_fluxo(ID_VIOLENCIA_DOMESTICA)
     assert vd is not None and vd.id_categoria_assunto_verde == 10113
     assert await buscar_fluxo("00000000-0000-0000-0000-00000000ffff") is None
-    planejado = "00000000-0000-0000-0000-0000000000c3"
-    await adicionar_planejado_de_teste(
-        {"id": planejado, "nome": "planejado", "descricao": "desc", "idCategoriaAssuntoVerde": 1, "palavrasChave": ["a"]}
-    )
-    try:
-        assert await buscar_fluxo(planejado) is FLUXO_PADRAO
-        catalogo = await catalogo_para_classificacao()
-        assert [c["id"] for c in catalogo[:2]] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA]
-        assert any(c["id"] == planejado for c in catalogo[2:])
-        item = next(c for c in catalogo if c["id"] == planejado)
-        assert item["descricao"] == texto_para_classificacao(
-            {"id": planejado, "nome": "planejado", "descricao": "desc", "idCategoriaAssuntoVerde": 1, "palavrasChave": ["a"]}
-        )
-    finally:
-        await remover_planejado_de_teste(planejado)
+    # #225: o planejado sai do catálogo, mas buscar_fluxo continua resolvendo.
+    assert await buscar_fluxo(planejado_cadastrado) is FLUXO_PADRAO
+
+
+async def test_catalogo_padrao_implementados_e_tykhe_sem_planejados(planejado_cadastrado: str, monkeypatch: pytest.MonkeyPatch) -> None:
+    # #242: com a variável ausente (o caminho do release), 9 opções.
+    monkeypatch.delenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", raising=False)
+    catalogo = await catalogo_para_classificacao()
+    assert [c["id"] for c in catalogo] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, *_IDS_TYKHE]
+    assert planejado_cadastrado not in [c["id"] for c in catalogo]
+
+
+async def test_catalogo_com_a_variavel_true_devolve_os_planejados_no_fim(
+    planejado_cadastrado: str, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", "true")
+    catalogo = await catalogo_para_classificacao()
+    assert [c["id"] for c in catalogo[:9]] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, *_IDS_TYKHE]
+    item = next(c for c in catalogo[9:] if c["id"] == planejado_cadastrado)
+    assert item["descricao"] == texto_para_classificacao(_planejado_dados())
+
+
+@pytest.mark.parametrize("valor", ["TRUE", "True", "1", "", " true"])
+async def test_catalogo_variavel_so_liga_com_true_exato(planejado_cadastrado: str, monkeypatch: pytest.MonkeyPatch, valor: str) -> None:
+    # `!== "true"` de develop: qualquer outro valor deixa os planejados de fora.
+    monkeypatch.setenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", valor)
+    catalogo = await catalogo_para_classificacao()
+    assert len(catalogo) == 9
+    assert planejado_cadastrado not in [c["id"] for c in catalogo]
+
+
+def test_tipos_tykhe_contrato_com_a_tykhe() -> None:
+    # tipoCaso e mensagem são contrato com a Tykhe (docs/contrato-tykhe.md). Os
+    # textos foram conferidos campo a campo contra develop @ 1157a6d.
+    assert [(t.id, t.tipo_caso, t.nome) for t in TIPOS_TYKHE] == [
+        ("tykhe:saude", "saude", "questoes-de-saude"),
+        ("tykhe:novo-processo", "novo-processo", "iniciar-novo-processo"),
+        ("tykhe:andamento-processo", "andamento-processo", "ver-andamento-do-processo"),
+        ("tykhe:agendamentos", "agendamentos", "ver-meus-agendamentos"),
+        ("tykhe:ajuda-app", "ajuda-app", "ajuda-app-defensoria-rj"),
+        ("tykhe:outros", "outros", "outros-assuntos"),
+        ("tykhe:sair", "sair", "sair"),
+    ]
+    assert tipo_tykhe_por_caso("outros").mensagem == "Entendi. Vou te encaminhar para o atendimento de outros assuntos."
+    assert tipo_tykhe_por_caso("sair").mensagem == "Tudo bem. Quando precisar, é só chamar."
+
+
+def test_tipos_tykhe_busca_por_id() -> None:
+    assert tipo_tykhe_por_id("tykhe:saude") is TIPOS_TYKHE[0]
+    assert tipo_tykhe_por_id("saude") is None
+    assert tipo_tykhe_por_id(ID_PESSOA_PRESA) is None
 
 
 async def test_3_mock_de_parentesco_vazio_passa_como_vazio_pelo_coalesce(monkeypatch: pytest.MonkeyPatch) -> None:

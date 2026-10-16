@@ -182,6 +182,7 @@ scripts/
 | Backoff do retry da IA | p-retry | tenacity | Mesmo número de tentativas; só a latência muda |
 | `rg` com `null` vindo da Tykhe (fluxos, #241) | `rg !== undefined`: pula a primeira pergunta; `""` falha no formato e ele pergunta "O RG deve conter apenas números…" | `None`: faz a pergunta normal do RG | **Colapso de `undefined` e `null` em `None` num canal que recebe escrita externa:** develop grava `undefined` em `rg` (`prepararPerguntaRgInvalido`) e a Tykhe pode mandar `null`. Só acontece se a Tykhe mandar `rg: null`; a #240 vai restringir os campos. **Se o `null` passar a entrar,** muda só o texto da primeira pergunta do RG. **Correção de 2026-10-14:** esta linha dizia que develop "consulta `""`" no Verde; a conferência diferencial mostrou que não consulta |
 | `encaminhamentoId` com `"id": null` vindo do Verde (fluxos, #241) | conclui com "Protocolo: null." | `falha_encaminhamento` | Mesmo colapso: develop grava `undefined` (sucesso sem `dados.id`) e o Verde poderia mandar `null`. A Swagger declara `id` inteiro, e não há registro de `null`. **Ir para falha evita mostrar um protocolo inválido à pessoa atendida**, o mesmo problema da #238. **Se o `null` passar a entrar,** o desfecho é falha em vez de concluído |
+| `resumo: null` vindo do modelo na sumarização (orquestrador, #244, spec 06 D-1) | (lido) guarda `null` em `resumoRelato`; o teste `=== undefined` falha e a classificação recebe `"null\n<última resposta>"`, sem o histórico anterior | `None` = `undefined`: trata como "ainda não sumarizou" e manda o histórico bruto | **Aceita (2026-10-16).** Mesmo colapso de `undefined` e `null` do `rg` e do `id`: develop grava `undefined` no canal (sumarização sem a chave) e o `null` entra pelo modelo (#212). O caminho exige que o modelo viole o schema (`resumo` é string obrigatória). O Python fica com o histórico, e develop o perde. **A confirmar na conferência diferencial**, como todo item (lido) |
 | Contador com texto vindo da Tykhe (`tentativasCpf`, `tentativasRg`, `tentativasProcesso`; fluxos, #241, spec 05 D-1) | `(t ?? 0) + 1` concatena: `"x"` vira `"x1"`, a pergunta sai "tentativa x1 de 3", `"x1" >= 3` é falso e o atendimento segue com contagem sem sentido | `TypeError` no `+ 1`: **a rota responde 500** | **Aceita (2026-10-16).** **O Python falha mais cedo e mais alto que develop:** onde develop segue o atendimento com texto no lugar do número, o Python para na hora com 500. **Quem investigar um 500 vindo da Tykhe com `TypeError` num `tentativas*` está diante deste caso:** a Tykhe mandou texto, objeto ou lista num contador em `dadosConhecidos`. Motivos: a concatenação é acidente de tipagem fraca, não comportamento desenhado; o caminho exige que a Tykhe, cliente autenticado e não entrada de cidadão, viole o próprio contrato num campo numérico; e a falha visível é melhor que o atendimento seguindo com contagem sem sentido. Reproduzir o `+` e o `>=` do JS nos três contadores, incluindo o `identificar_assistido` mergeado, espalharia coerção frouxa pelo Python. A #240 elimina o caso na origem. `null`, número e booleano dão o mesmo resultado nos dois |
 | Resposta Converse sem `usage` | `viaIA: true`, sem tokens | `KeyError` no `langchain-aws`: 3 tentativas e fallback | **Aceita (2026-10-14).** O caminho só existe se a AWS violar o próprio contrato (`usage` é obrigatório na resposta Converse), e reproduzir develop exigiria interceptar a resposta dentro da biblioteca: código frágil para um cenário que não deveria acontecer. O teste 5b é a proteção |
 | Espera entre tentativas do SDK (Bedrock) | 100 ms de base (500 ms no throttling), com teto de 20 s | botocore: 1 s de base, com teto de 20 s | Mesmo número de requisições. Medido nos embeddings (#222), separando o tempo por camada: o SDK Python espera cerca de **40 s a mais por mensagem** (75 s contra 37 s no 429; 40 s contra 4 s no 500). **Correção de 2026-10-14:** esta linha dizia "14,7 min contra 12,6"; a diferença entre os totais vem quase toda do sorteio das esperas dos callers, que varia dezenas de segundos entre execuções. A referência para corrigir a #222 é a faixa medida, de 12,5 a 14,7 min |
@@ -303,6 +304,79 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
   - **Lacuna herdada do subgrafos ("Verde sem nome") fechada,** ponta a ponta, nos dois fluxos, com "Sim" e com "Não", igual a develop.
 - **Diagramas nas issues da migração:** Mermaid no texto, com o guia de estilo do `diagram-specialist`, como o `docs/padroes-issues.md` de develop passou a recomendar (#229). O PNG no S3 fica para a documentação estável em `docs/`.
 
+## Módulo orquestrador (#244)
+
+- **Base: develop @ `1157a6d`**, com o #242 (#225) dentro. **A conferência diferencial roda contra essa base, e nunca contra `0aecd98`:** o catálogo caiu de 76 para 9 opções, e comparar com a base anterior seria comparar com um comportamento que não existe mais.
+- **#242 no fluxos mergeado:** `tiposTykhe.ts` e o novo `catalogoParaClassificacao` entram em commit próprio no começo da branch, como o #226 no fluxos (spec 06, D-2). A parte de rota (`redirecionado`, `tipoCaso`, o bridge do WhatsApp) fica no `api`.
+- **Divergência aceita:** `resumo: null` do modelo (D-1, tabela "Divergências aceitas").
+- **Primeira spec escrita com a regra do desfecho:** toda afirmação sobre develop está marcada como (lido) ou (executado), e cada (lido) vira cenário da conferência diferencial antes do PR.
+- **A varredura muda de porta:** aqui a Tykhe não pré-preenche o estado. As portas varridas são a saída do modelo (`idsPlausiveis`, `pergunta`, `resumo`) e a pergunta raiz do banco.
+- **`ORQUESTRADOR_INCLUIR_PLANEJADOS`: vale o padrão do código, desligada** (verificado em 2026-10-16). A variável não aparece no `ecs.tf` nem no `release.tf`, nem em `main` nem em `develop`, e por isso o catálogo tem 9 opções.
+  - **Produção** roda `main` @ `06f2157`, sem o #242: lá a variável não existe, e o catálogo é o antigo, de 76 opções.
+  - **Não foi verificada** a task definition em execução, porque uma variável posta à mão no console não aparece no Terraform. Conferir exigiria `aws ecs describe-task-definition`, que precisa de autorização.
+  - A conferência diferencial principal roda com a variável ausente. O caminho com `"true"` é traduzido e entra como cenário secundário.
+- **Números de acerto medidos antes do #242 não são comparáveis aos de depois:** com 76 opções o problema era outro (spec 06, 0.1).
+
+- **Conferência diferencial contra develop @ `1157a6d` (2026-10-16):**
+  - 80 cenários: 29 principais, 45 da varredura e 6 secundários;
+  - 79 iguais; o único diferente é o D-1, já aceito;
+  - detalhes na spec 06, seção 10.
+- **Itens (lido) da spec:** 12 confirmados por execução e **nenhum corrigido**. 2 não dá para executar aqui (fila do pool com concorrência; A4, que precisa do banco de produção).
+  - **É a primeira spec em que a regra do desfecho (abaixo) foi aplicada desde o início.** Nenhuma afirmação sobre develop precisou de correção.
+  - **Mas a leitura não previu quatro diferenças**, e a varredura e a conferência acharam as quatro:
+    - relato vazio: o SDK JS recusa antes de enviar, e o Python enviava;
+    - o `enum` do `z.enum` sem repetidos;
+    - o `enum` com índices numéricos primeiro;
+    - `TypeError` na resposta nula da pergunta raiz.
+  - Três dessas estavam no **módulo ia, já mergeado** (`43e2b43`). **Acertar o que se afirma não é o mesmo que afirmar tudo:** marcar (lido) protege contra o erro de desfecho, e só a execução acha o que ninguém pensou em afirmar.
+- **Achados A1 a A3 confirmados por execução:**
+  - A1: o texto de fallback fala de opções que não existem;
+  - A2: o log da rodada não conta a sumarização;
+  - A3: id repetido leva a desambiguar entre o candidato e ele mesmo.
+- **Verificação por mutação:** 19 de 19.
+- **Ambiente da conferência:**
+  - pnpm 12.14.0 (a captura da #209 usou 12.10.1) e lockfile congelado;
+  - instalação sem `--ignore-scripts`, o que não muda nada, porque o `allowBuilds` de develop bloqueia o build do esbuild;
+  - **worktree em caminho curto (`%TEMP%\m1157a6d`):** no scratchpad, o caminho até o `esbuild.exe` passava de 260 caracteres, o MAX_PATH do Windows.
+
+- **Ponto para a spec do `api`: relato vazio no orquestrador.** Develop aceita `mensagem: ""` em `POST /atendimentos/orquestrador`. O SDK recusa a mensagem vazia, a classificação cai no fallback e a pessoa vai para `outros` (em produção, antes do #242, para `handoff_humano`) **sem classificação nenhuma**. A tradução reproduz isso. **O peso depende de uma pergunta ainda sem resposta: `mensagem: ""` chega a acontecer?**
+  - Se a Tykhe valida antes de enviar, é caminho morto, e o registro vira nota de rodapé.
+  - Se não valida, quem manda mensagem vazia vai para `outros` sem classificar, e o caso vira issue.
+  - **Onde está a resposta:**
+    - **contrato da Tykhe:** `docs/contrato-tykhe.md` não diz nada sobre `mensagem` vazia (conferido em develop @ `1157a6d`), então a resposta teria de vir da própria Tykhe;
+    - **logs:** cada relato vazio deixa uma linha `[classificar] falha ao classificar (múltiplo)` com `err.message` igual a "Invalid message content: empty string. 'human' must contain non-empty content.". Contar essa mensagem no CloudWatch de produção mede o caso sem tocar em dado pessoal. A consulta exige acesso AWS autorizado.
+
+- **Mudança de desfecho que chega sem decisão com o próximo release (#242).** Ela é maior que a pergunta do relato vazio:
+
+  | Situação | Produção hoje (`main` @ `06f2157`) | Próximo release (develop @ `1157a6d`) |
+  |---|---|---|
+  | Relato não identificado | `handoff_humano` (`nao_identificado`): atendimento humano | `redirecionado` com `tipoCaso: "outros"`: orientação genérica da Tykhe ("Entendi. Vou te encaminhar para o atendimento de outros assuntos.") |
+  | **Relato vazio** (`mensagem: ""`) | `handoff_humano` | `outros`, **sem classificação nenhuma** |
+  | **Classificação que falha** (Bedrock fora, throttling esgotado, resposta sem ferramenta) | `handoff_humano` | `outros` |
+
+  - **O que o #242 decidiu:** que o relato não identificado vai para `outros` (#225).
+  - **O que ninguém decidiu:** o relato vazio e a falha da classificação também viram "não identificado" (`ids: []` no fallback do ia) e caem nessa regra junto. Hoje essas pessoas chegam a um atendente; depois do release, recebem orientação genérica.
+  - **A falha da classificação é o padrão da #196, da #232 e da #239:** falha de infraestrutura que vira desfecho de negócio.
+  - **Evidência:**
+    - o grafo terminando em `nao_identificado` com o relato vazio e com a classificação sem ferramenta foi **executado** na conferência diferencial (cenários `mensagem_vazia` e `classificar_sem_ferramenta`);
+    - o que a rota faz com isso em `main` e em develop foi **lido** (`rotas/orquestrador.ts` das duas branches), não executado.
+  - **Não é questão da migração:** a tradução reproduz develop. Se a contagem mostrar que acontece, vira **issue de produto**, porque é mudança de desfecho chegando sem decisão. A consulta de contagem está pronta no comentário da #208.
+
+### O que falta para mandar para teste
+
+**Para ir a teste, faltam dois módulos: o orquestrador (#244) e o `api`.** O grafo do orquestrador **não tem porta de entrada HTTP sozinho**. A rota `POST /atendimentos/orquestrador` vive no módulo `api`, junto com:
+- o `thread_id` `orquestrador:<chatId>`;
+- os desfechos `redirecionado` (com `tipoCaso`) e `handoff_humano`;
+- os logs `orquestrador_*`;
+- a entrega ao fluxo escolhido com os tokens;
+- o bridge do WhatsApp.
+
+O mesmo vale para os fluxos já mergeados: `POST /atendimentos` e as respostas também estão no `api`. **Com o orquestrador mergeado, o grafo funciona e tem testes, mas ninguém de fora consegue chamá-lo.** O teste de ponta a ponta, com a Tykhe ou o WhatsApp, começa depois do `api`.
+
+### Pendência fora do orquestrador: lista de parentescos nova (#212)
+
+Decisão de produto do Ícaro (2026-10-16): a lista passa a ter 8 valores, alinhados ao SIPEN. **É mudança de comportamento, não tradução.** Ela entra **em develop primeiro**, num PR próprio, e depois vem para a `migration` em commit próprio, como o #226 e o #242. Na `migration`, muda o módulo fluxos, já mergeado, e os testes que esperam "Ex-esposo(a)". Fica para depois do orquestrador, por prioridade do Ícaro.
+
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
 Um teste que passa prova que o código faz o esperado no caso testado. Não prova que o teste **pegaria** a tradução errada. Para cada divergência que a spec do módulo trata (o lugar onde a tradução ingênua muda o comportamento), aplique no código a versão ingênua, rode o teste correspondente e confirme que ele **falha**. Depois, restaure o código.
@@ -358,6 +432,20 @@ Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escr
 ## Resultado do `langgraph.json` com fábrica
 
 **Funciona.** Testado em 2026-10-09 com LangGraph CLI 0.4.33 (langgraph-api 0.15.4), no Windows (`langgraph dev` precisou do pacote `colorama` ali). Uma fábrica assíncrona (`async def criar_grafo(config)`) é registrada como assistant, e um run devolve o estado. O `langgraph.json` aponta para `criar_grafo` nos dois fluxos, mas esses arquivos só existem a partir do módulo `fluxos`: até lá, o Studio local não sobe.
+
+## Índice de issues: o canônico é o comentário da #208
+
+- **Índice canônico:** [comentário da #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856). Ele traz:
+  - todas as issues ligadas à migração;
+  - o estado no GitHub e a **situação explícita**: mergeada na migration; corrigida em develop e pendente na migration; aprovada, aguardando janela; aguardando decisão; aguardando dado externo;
+  - a data e o comando que gerou o índice.
+- **Cópias:** `docs/migracao/INDICE-ISSUES.md` (no repositório) e `migracao-specs/INDICE-ISSUES.md` (local). Se divergirem, vale o comentário.
+- **Rotina ao fim de cada módulo:**
+  1. fechar a issue com comentário;
+  2. apagar a branch;
+  3. **editar o comentário do índice**, com `gh api -X PATCH repos/dgd-dprj/maria-langgraph-pp/issues/comments/6222948856 -F body=@<arquivo>`;
+  4. atualizar as cópias.
+- **Por quê:** "fechada" no GitHub não quer dizer correção na `migration`. **Um índice desatualizado é pior que nenhum.**
 
 ## Pendências operacionais
 
