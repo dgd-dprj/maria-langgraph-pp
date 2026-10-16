@@ -164,6 +164,15 @@ scripts/
   - **Em código:** dentro de objeto aninhado, a chave com `undefined` não é escrita (`AUSENTE` com `_js.definir`).
   - **Como testar:** o objeto é conferido no ponto em que vira JSON. No subgrafos, é o corpo do POST, passando pelo `cadastrar_pessoa` real com o transporte falso.
 
+- **`undefined` × `null` (2026-10-14, #208):** Python não tem dois vazios.
+  - **Critério:** num canal que **nunca foi escrito**, a chave não aparece no estado Python. Verificado no LangGraph 1.2.14, no pai e no subgrafo. Disso saem três casos:
+    - canal em que develop nunca grava `undefined`: a **ausência da chave** é o `undefined`, e `None` é o `null`; os guardas usam a presença da chave;
+    - canal em que develop grava `undefined` e o `null` não entra: `None` é o `undefined`;
+    - canal em que develop grava `undefined` **e** o `null` entra: **conflito**, decidido caso a caso na spec do módulo.
+  - **Portas de entrada do `null`:** só três, a Tykhe (`dadosConhecidos`, #240), o Verde e o modelo (#212).
+  - **Regra de fechamento:** onde a tabela diz que o `null` não entra, ela diz **por quê** e **o que mudaria** se ele passasse a entrar. Tabela sem justificativa envelhece mal.
+  - **Lição do `idPessoa`:** a regra do objeto aninhado não estava errada; estava **incompleta**. Foi escrita olhando o `endereco`, onde o `null` não entra, e aplicada à resposta do Verde, onde entra. A regra completa: dentro de objeto aninhado, `undefined` vira chave ausente e `null` continua `null`. A correção do `cadastro_pessoa` e do bypass do CPF (código mergeado em `80de7bb`) está em `d5e5965`.
+
 ## Divergências aceitas
 
 | Onde | develop | Python | Por que é aceita |
@@ -171,6 +180,9 @@ scripts/
 | Timeout do Bedrock | Sem timeout de requisição | 60 s de leitura do botocore | **Valor herdado do botocore, não escolhido.** 60 s é muito para quem espera no WhatsApp, mas ajustar seria mudança de produto disfarçada de migração |
 | Retry da leitura do corpo nos GET ao Verde | Timeout lendo o corpo vira 500 | É retentado | Retentar leitura é inofensivo |
 | Backoff do retry da IA | p-retry | tenacity | Mesmo número de tentativas; só a latência muda |
+| `rg` com `null` vindo da Tykhe (fluxos, #241) | `rg !== undefined`: pula a primeira pergunta; `""` falha no formato e ele pergunta "O RG deve conter apenas números…" | `None`: faz a pergunta normal do RG | **Colapso de `undefined` e `null` em `None` num canal que recebe escrita externa:** develop grava `undefined` em `rg` (`prepararPerguntaRgInvalido`) e a Tykhe pode mandar `null`. Só acontece se a Tykhe mandar `rg: null`; a #240 vai restringir os campos. **Se o `null` passar a entrar,** muda só o texto da primeira pergunta do RG. **Correção de 2026-10-14:** esta linha dizia que develop "consulta `""`" no Verde; a conferência diferencial mostrou que não consulta |
+| `encaminhamentoId` com `"id": null` vindo do Verde (fluxos, #241) | conclui com "Protocolo: null." | `falha_encaminhamento` | Mesmo colapso: develop grava `undefined` (sucesso sem `dados.id`) e o Verde poderia mandar `null`. A Swagger declara `id` inteiro, e não há registro de `null`. **Ir para falha evita mostrar um protocolo inválido à pessoa atendida**, o mesmo problema da #238. **Se o `null` passar a entrar,** o desfecho é falha em vez de concluído |
+| Contador com texto vindo da Tykhe (`tentativasCpf`, `tentativasRg`, `tentativasProcesso`; fluxos, #241, spec 05 D-1) | `(t ?? 0) + 1` concatena: `"x"` vira `"x1"`, a pergunta sai "tentativa x1 de 3", `"x1" >= 3` é falso e o atendimento segue com contagem sem sentido | `TypeError` no `+ 1`: **a rota responde 500** | **Aceita (2026-10-16).** **O Python falha mais cedo e mais alto que develop:** onde develop segue o atendimento com texto no lugar do número, o Python para na hora com 500. **Quem investigar um 500 vindo da Tykhe com `TypeError` num `tentativas*` está diante deste caso:** a Tykhe mandou texto, objeto ou lista num contador em `dadosConhecidos`. Motivos: a concatenação é acidente de tipagem fraca, não comportamento desenhado; o caminho exige que a Tykhe, cliente autenticado e não entrada de cidadão, viole o próprio contrato num campo numérico; e a falha visível é melhor que o atendimento seguindo com contagem sem sentido. Reproduzir o `+` e o `>=` do JS nos três contadores, incluindo o `identificar_assistido` mergeado, espalharia coerção frouxa pelo Python. A #240 elimina o caso na origem. `null`, número e booleano dão o mesmo resultado nos dois |
 | Resposta Converse sem `usage` | `viaIA: true`, sem tokens | `KeyError` no `langchain-aws`: 3 tentativas e fallback | **Aceita (2026-10-14).** O caminho só existe se a AWS violar o próprio contrato (`usage` é obrigatório na resposta Converse), e reproduzir develop exigiria interceptar a resposta dentro da biblioteca: código frágil para um cenário que não deveria acontecer. O teste 5b é a proteção |
 | Espera entre tentativas do SDK (Bedrock) | 100 ms de base (500 ms no throttling), com teto de 20 s | botocore: 1 s de base, com teto de 20 s | Mesmo número de requisições. Medido nos embeddings (#222), separando o tempo por camada: o SDK Python espera cerca de **40 s a mais por mensagem** (75 s contra 37 s no 429; 40 s contra 4 s no 500). **Correção de 2026-10-14:** esta linha dizia "14,7 min contra 12,6"; a diferença entre os totais vem quase toda do sorteio das esperas dos callers, que varia dezenas de segundos entre execuções. A referência para corrigir a #222 é a faixa medida, de 12,5 a 14,7 min |
 | `err.type` em erro do Bedrock | Nome da exceção do SDK | `ClientError` (a tradução usa o código AWS) | Nenhum painel nem alerta consulta `err.*` |
@@ -181,7 +193,7 @@ scripts/
 - **Quatro stores traduzidas** (`atendimentos_db`, `perguntas_db`, `fluxos_planejados_db`, `embeddings_fluxos`), com o SQL **textualmente igual** ao de develop, salvo a sintaxe de parâmetro: 34 instruções conferidas por script, byte a byte, depois de normalizar `$n`, `%s` e `%(nome)s`. Onde develop reutiliza o mesmo `$n`, a tradução usa parâmetros nomeados.
 - **Divergências entre a store em memória e a Postgres, mantidas porque develop é assim:**
   1. `concluir` em memória grava só `statusFinal`; o Postgres grava também `destino`, `motivo_handoff`, `tokens_*` e `concluido_em`.
-  2. `resolver_confirmacao_ttl_continuar` devolve a resposta pendente em memória e `None` no Postgres: **defeito de produção, [#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217)**, fixado por teste com comentário apontando para a issue.
+  2. `resolver_confirmacao_ttl_continuar` devolve a resposta pendente em memória e `None` no Postgres: **defeito de produção, [#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217)**, fixado por teste com comentário apontando para a issue. **Atualizado em 2026-10-14:** corrigido em develop pelo PR #226 e trazido para a `migration` na branch do fluxos (#241), com o SQL e os três testes de develop. As duas stores agora devolvem o mesmo valor.
   3. `listar_perguntas_por_flow` ordena por `ordem` no Postgres e mantém a ordem de inserção em memória.
   4. `listar_fluxos_planejados` ordena por `id` no Postgres (`ORDER BY id`) e mantém a ordem de inserção em memória. Encontrada na tradução; não estava na spec.
 - **`fechar_*()` em cada store**, chamado no `finally` do lifespan (`FINALIZADORES` em `app.py`): o pytest-asyncio cria um event loop por teste, e um pool memoizado de outro loop quebraria. Em develop, os pools nunca eram fechados.
@@ -269,6 +281,28 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
   - `GET /orgao/violencia-domestica` recebe só `indicacaoRO` e `idPessoa`, consulta pelo endereço cadastrado e devolve 422 sem endereço. Isso confirma que o encaminhamento não é afetado pela #231;
   - "CEP não encontrado" é HTTP 400 (#232).
 
+## Limites conhecidos da verificação (2026-10-14, #208)
+
+- **Nenhum módulo teve revisão humana de código.** Vale para fundação, persistencia, integracoes, ia e subgrafos. As proteções são o CI, a verificação por mutação e a conferência diferencial contra develop. Elas pegam a tradução errada que alguém pensou em testar, mas não a premissa errada, o caminho que nenhum teste percorre ou o defeito que o próprio autor não enxerga. **Não substituem revisão humana.** Proposta: alguém do time revisa ao menos os módulos de grafo (`subgrafos`, `fluxos`, `orquestrador` e as rotas do `api`), de preferência antes do merge, olhando a regra de tradução de estado e os testes de "defeito reproduzido de propósito".
+- **Lacuna de teste herdada do subgrafos:** o caminho "Verde devolve a pessoa sem `nome`", que produz "Confirma que seus dados são: você?" (#236), foi testado só na função que monta o texto. A verificar no módulo fluxos, de ponta a ponta: violência doméstica e pessoa presa, pelo orquestrador, com "Sim" e com "Não", conferindo contra develop. **Fechada no fluxos (2026-10-14):** os quatro casos foram conferidos contra develop, com resultado igual, e têm teste (`test_7_*` em `tests/fluxos/test_spec_fluxos.py`).
+
+## Módulo fluxos (#241)
+
+- **Base: develop @ `0aecd98`**, porque develop andou desde `4e695f2`:
+  - **#226:** a correção da #217, trazida em `2403bab`;
+  - **#234:** `shared/respostaSimNao.ts`. A `respostaEhSim` tem o mesmo comportamento, então os subgrafos mergeados continuam fiéis. A confirmação de TTL entra no módulo `api`;
+  - **#229:** só documentação, com destino nos módulos documentacao e corte.
+- **`metadadosSchema` não é traduzido.** Não tem nenhum consumidor em develop @ `0aecd98`, e a rota declara `metadados` genérico (`additionalProperties: true`). Seria código morto no Python.
+- **Divergências aceitas:** `rg` e `encaminhamentoId` com `null`, e contador com texto vindo da Tykhe (D-1, aceita em 2026-10-16) (tabela "Divergências aceitas").
+- **Tradução (2026-10-14):** `6713498` (código e os 74 testes de develop) e `c5c18e9` (74 testes novos da spec 05). Suíte local: 398 passando. Achados na seção 8 da spec 05 (`docs/migracao/specs/05-fluxos.md`).
+  - **Conferência diferencial contra develop @ `0aecd98`:** 584 cenários, executados nos dois lados com o mesmo Verde (o mock do código ou um Verde falso local). Compara byte a byte as perguntas, os metadados e as requisições ao Verde. Resultado: 569 iguais, 3 divergências aceitas (`rg` e `id` com `null`) e 12 diferentes, todos do contador com texto (D-1, depois aceito como divergência).
+  - **Varredura de pré-preenchimento (#240):** cada canal dos dois fluxos recebeu, pela entrada, `null`, texto, número, booleano, `{}`, `[]` e `""`. Foi assim que apareceram as duas correções abaixo e o D-1. A técnica está descrita mais abaixo, para repetir no orquestrador e no api.
+  - **Código mergeado corrigido:** `cadastroErro: null` no `cadastro_pessoa` (`65a976a`). O teste passou a ser pela presença da chave, como manda a regra de estado, e a linha entrou na tabela 0.2.
+  - **`_js.texto_template`** passou a reproduzir `${obj}` (`[object Object]`) e `${lista}` (`join(",")`) (`55eee00`).
+  - **Verificação por mutação:** 27 mutações, todas pegas. As três que passaram na primeira rodada eram lacunas de teste e ganharam teste.
+  - **Lacuna herdada do subgrafos ("Verde sem nome") fechada,** ponta a ponta, nos dois fluxos, com "Sim" e com "Não", igual a develop.
+- **Diagramas nas issues da migração:** Mermaid no texto, com o guia de estilo do `diagram-specialist`, como o `docs/padroes-issues.md` de develop passou a recomendar (#229). O PNG no S3 fica para a documentação estável em `docs/`.
+
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
 Um teste que passa prova que o código faz o esperado no caso testado. Não prova que o teste **pegaria** a tradução errada. Para cada divergência que a spec do módulo trata (o lugar onde a tradução ingênua muda o comportamento), aplique no código a versão ingênua, rode o teste correspondente e confirme que ele **falha**. Depois, restaure o código.
@@ -276,6 +310,25 @@ Um teste que passa prova que o código faz o esperado no caso testado. Não prov
 - Usado no módulo integracoes: redirect, prazo de conexão, `True` na query string, escape de URL, POST com o corpo lido dentro do retry (encaminhamento e apenado) e remoção recursiva de `None`. Os sete testes falharam com a mutação.
 - **Se a mutação passar, examine a mutação antes do teste.** No integracoes, a primeira versão da mutação de `None` removia só no primeiro nível, e o `null` do teste estava aninhado. A mutação estava errada, não o teste. Corrigir o teste para "pegar" uma mutação mal escrita seria enfraquecê-lo.
 - O script é descartável (não entra no repositório), mas a lista de mutações e o resultado vão para a issue ou para o PR do módulo.
+
+## Técnica a repetir nos próximos módulos: varredura de pré-preenchimento
+
+**Repetir no orquestrador e no api.** É o método mais produtivo que apareceu na migração: no fluxos, achou dois itens que nenhuma leitura pegaria (o `cadastroErro: null` no `cadastro_pessoa` mergeado e o `texto_template` de objeto e lista) e o D-1.
+
+- **Como:** para cada canal que pode chegar de fora (hoje, o `dadosConhecidos` da Tykhe, #240), pré-preencha o canal com cada valor da lista `null`, texto (`"x"`), número (`0`, `7`), booleano (`true`, `false`), `{}`, `[]` e `""`. Rode o mesmo cenário em develop e no Python, com o mesmo Verde, e compare byte a byte as perguntas, os metadados, o que vai ao Verde e a exceção.
+- **Por que funciona:** a leitura do código segue o tipo declarado, e a varredura testa o que o tipo não impede. As divergências da migração se concentram justamente aí: `null` × `undefined`, coerção do JS e `str()` contra template literal.
+- **Tamanho no fluxos:** 495 dos 584 cenários da conferência diferencial (spec 05, seção 8.1).
+- **Como na mutação:** o script fica fora do repositório, e a contagem e o resultado vão para o PR do módulo.
+
+## Padrão: afirmação sobre desfecho inferida do código, sem execução
+
+Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escrita a partir da leitura do código, e a execução mostrou outra coisa. **O padrão é inferir o desfecho a partir do código em vez de rodar.**
+
+1. **#217, "conta como não":** a issue dizia que a resposta vazia na confirmação de TTL contava como "não". Ao rodar o LangGraph JS com `resume: ""`, o resultado foi `EmptyInputError` e 500, com o grafo parado na mesma pergunta (correção na #217, 2026-10-14).
+2. **#232, a gravidade: afirmação feita em revisão e corrigida antes de virar texto publicado.** Numa revisão em conversa, durante a spec do subgrafos, a falha de infra no CEP foi avaliada como "de gravidade menor que a da #196". A avaliação foi corrigida ao se confirmar que, na #196, o RG não encontrado leva a handoff, e não a atendimento errado. O desfecho das duas é o mesmo: handoff desnecessário por falha de infra (spec 04, decisão 2). Por isso a primeira avaliação não aparece no repositório nem na issue. **Diferente dos outros dois casos, o erro foi pego antes de ser publicado.** A #232 mantém uma ressalva: o desfecho só converge se a falha durar o atendimento inteiro.
+3. **`rg: null` no fluxos (#241):** o registro dizia que develop "pula a pergunta e consulta `""`" no Verde. A conferência diferencial mostrou que develop não consulta: `""` falha no formato e ele pergunta "O RG deve conter apenas números…" (spec 05, 8.2 item 3).
+
+**Regra a partir daqui:** a afirmação sobre desfecho (o que a pessoa vê, o que vai ao Verde, como o atendimento termina) só entra em issue, spec ou registro depois de executada, ou marcada explicitamente como **inferida da leitura, não executada**.
 
 ## Melhorias registradas, fora do escopo
 
@@ -299,6 +352,8 @@ Um teste que passa prova que o código faz o esperado no caso testado. Não prov
 2. **Nome do schema do checkpointer. Valor provisório: `checkpoint_py`** (`SCHEMA_CHECKPOINT` em `shared/checkpointer.py`). O schema separado foi aprovado na #208, mas o nome não tinha sido definido.
 3. **Threads `orquestrador:*` no corte:** decididas na issue do corte.
 4. **Token do Verde em release:** pré-requisito do corte (detalhes na #208).
+
+*A decisão 5 (contador com texto vindo da Tykhe, D-1) foi fechada em 2026-10-16: divergência aceita (tabela "Divergências aceitas").*
 
 ## Resultado do `langgraph.json` com fábrica
 
