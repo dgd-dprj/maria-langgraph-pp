@@ -16,8 +16,10 @@ JSON.stringify faz com undefined.
 
 from __future__ import annotations
 
+import decimal
 import json
 import math
+import re
 from typing import Any, Final
 
 
@@ -133,3 +135,110 @@ def json_stringify(valor: Any) -> str:
     """`JSON.stringify` para os corpos enviados: sem espaços e com UTF-8 cru.
     None vira null (como o null de JS); undefined é chave ausente no dict."""
     return json.dumps(valor, ensure_ascii=False, separators=(",", ":"), allow_nan=False)
+
+
+def numero_para_texto(numero: float | int) -> str:
+    """`String(n)` de JS (Number.prototype.toString, ECMA-262 6.1.6.1.20).
+
+    O `repr` do Python e o JS escolhem os mesmos dígitos (o menor que faz a ida e
+    volta), mas formatam diferente: `1e-07` contra `1e-7`, `nan` contra `NaN`,
+    `-0.0` contra `0`. Inteiros acima de 2**53 viram double, como no JS."""
+    if isinstance(numero, bool):
+        return "true" if numero else "false"
+    if isinstance(numero, int) and abs(numero) < 2**53:
+        return str(numero)
+    f = float(numero)
+    if math.isnan(f):
+        return "NaN"
+    if math.isinf(f):
+        return "Infinity" if f > 0 else "-Infinity"
+    if f == 0:
+        return "0"
+    sinal = "-" if f < 0 else ""
+    tupla = decimal.Decimal(repr(abs(f))).normalize().as_tuple()
+    digitos = "".join(str(d) for d in tupla.digits)
+    k = len(digitos)
+    n = k + int(tupla.exponent)
+    if k <= n <= 21:
+        texto = digitos + "0" * (n - k)
+    elif 0 < n <= 21:
+        texto = digitos[:n] + "." + digitos[n:]
+    elif -6 < n <= 0:
+        texto = "0." + "0" * (-n) + digitos
+    else:
+        e = n - 1
+        texto = digitos[0] + ("." + digitos[1:] if k > 1 else "") + "e" + ("+" if e >= 0 else "-") + str(abs(e))
+    return sinal + texto
+
+
+def string_js(valor: Any) -> str:
+    """`String(valor)` de JS. Lista é `join(",")`, com null e undefined como ""."""
+    if valor is AUSENTE:
+        return "undefined"
+    if valor is None:
+        return "null"
+    if isinstance(valor, str):
+        return valor
+    if isinstance(valor, bool | int | float):
+        return numero_para_texto(valor)
+    if isinstance(valor, list):
+        return ",".join("" if item is None or item is AUSENTE else string_js(item) for item in valor)
+    return "[object Object]"
+
+
+_LITERAL_DECIMAL = re.compile(r"[+-]?(?:\d+\.?\d*(?:[eE][+-]?\d+)?|\.\d+(?:[eE][+-]?\d+)?)")
+_LITERAL_PREFIXADO = re.compile(r"0([xXoObB])([0-9a-fA-F]+)")
+_BASES = {"x": 16, "o": 8, "b": 2}
+
+
+def numero_js(valor: Any) -> float:
+    """`Number(valor)` de JS. Texto com espaço nas pontas, `""`, `"0x10"` e
+    `"Infinity"` seguem o JS; o que não é número dá NaN, e não exceção."""
+    if valor is AUSENTE:
+        return math.nan
+    if valor is None:
+        return 0.0
+    if isinstance(valor, bool):
+        return 1.0 if valor else 0.0
+    if isinstance(valor, int | float):
+        return float(valor)
+    if isinstance(valor, list):
+        return numero_js(string_js(valor))
+    if not isinstance(valor, str):
+        return math.nan
+    texto = trim_js(valor)
+    if texto == "":
+        return 0.0
+    if texto in ("Infinity", "+Infinity"):
+        return math.inf
+    if texto == "-Infinity":
+        return -math.inf
+    prefixado = _LITERAL_PREFIXADO.fullmatch(texto)
+    if prefixado:
+        try:
+            return float(int(prefixado.group(2), _BASES[prefixado.group(1).lower()]))
+        except ValueError:
+            return math.nan
+    if _LITERAL_DECIMAL.fullmatch(texto):
+        return float(texto)
+    return math.nan
+
+
+def json_stringify_js(valor: Any) -> str:
+    """`JSON.stringify` com a formatação de número do JS (`1e-7`, `1e+21`) e
+    NaN/Infinity como null. undefined some num objeto e vira null numa lista."""
+    if valor is None or valor is AUSENTE:
+        return "null"
+    if isinstance(valor, bool):
+        return "true" if valor else "false"
+    if isinstance(valor, int | float):
+        f = float(valor)
+        return "null" if math.isnan(f) or math.isinf(f) else numero_para_texto(valor)
+    if isinstance(valor, str):
+        return json.dumps(valor, ensure_ascii=False)
+    if isinstance(valor, list):
+        return "[" + ",".join(json_stringify_js(item) for item in valor) + "]"
+    if isinstance(valor, dict):
+        partes = [f"{json.dumps(str(k), ensure_ascii=False)}:{json_stringify_js(v)}" for k, v in valor.items() if v is not AUSENTE]
+        return "{" + ",".join(partes) + "}"
+    return "null"
