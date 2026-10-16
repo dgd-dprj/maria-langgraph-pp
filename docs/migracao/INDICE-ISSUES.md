@@ -32,7 +32,7 @@ A coluna **Aguarda** diz quem precisa decidir ou agir antes de a issue andar. "J
 | [#196](https://github.com/dgd-dprj/maria-langgraph-pp/issues/196) | [TECH] | integracoes | Fechada | — | Timeout do Verde gerava falso "não encontrado". Referência do padrão das #232 e #239 |
 | [#210](https://github.com/dgd-dprj/maria-langgraph-pp/issues/210) | [BUG] | api | Aberta | Janela | Erro 500 devolve ao cliente a mensagem interna da exceção |
 | [#211](https://github.com/dgd-dprj/maria-langgraph-pp/issues/211) | [ENHANCEMENT] | api | Aberta | Janela | Erro 400 de validação devolve corpo vazio, sem motivo para a Tykhe |
-| [#212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212) | [BUG] | ia, fluxos | Aberta | **Ícaro** (lista do SIPEN) | Saída da IA sem validação; a lista de parentescos diverge do SIPEN (só 2 de 15 coincidem) |
+| [#212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212) | [BUG] | ia, fluxos | Aberta | Lista nova em develop, depois na `migration` | Saída da IA sem validação. Lista de 8 parentescos alinhada ao SIPEN decidida pelo Ícaro (2026-10-16), mudança de comportamento; nunca causou problema em produção |
 | [#214](https://github.com/dgd-dprj/maria-langgraph-pp/issues/214) | [BUG] | governança do repositório | Aberta | Administração do repositório | `develop` e `main` sem proteção de branch |
 | [#215](https://github.com/dgd-dprj/maria-langgraph-pp/issues/215) | [TECH] | fundação, infra | Aberta | Decisão sobre o tracing | Chave do LangSmith injetada nos containers sem uso |
 | [#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217) | [BUG] | persistencia, api | Aberta | Merge do fluxos (#241) | TTL descartava a resposta guardada. Corrigida em develop pelo #226; trazida na branch do fluxos (`2403bab`) |

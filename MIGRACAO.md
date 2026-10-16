@@ -311,6 +311,26 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
 - **Divergência aceita:** `resumo: null` do modelo (D-1, tabela "Divergências aceitas").
 - **Primeira spec escrita com a regra do desfecho:** toda afirmação sobre develop está marcada como (lido) ou (executado), e cada (lido) vira cenário da conferência diferencial antes do PR.
 - **A varredura muda de porta:** aqui a Tykhe não pré-preenche o estado. As portas varridas são a saída do modelo (`idsPlausiveis`, `pergunta`, `resumo`) e a pergunta raiz do banco.
+- **`ORQUESTRADOR_INCLUIR_PLANEJADOS`: vale o padrão do código, desligada** (verificado em 2026-10-16). A variável não aparece no `ecs.tf` nem no `release.tf`, nem em `main` nem em `develop`, e por isso o catálogo tem 9 opções.
+  - **Produção** roda `main` @ `06f2157`, sem o #242: lá a variável não existe, e o catálogo é o antigo, de 76 opções.
+  - **Não foi verificada** a task definition em execução, porque uma variável posta à mão no console não aparece no Terraform. Conferir exigiria `aws ecs describe-task-definition`, que precisa de autorização.
+  - A conferência diferencial principal roda com a variável ausente. O caminho com `"true"` é traduzido e entra como cenário secundário.
+- **Números de acerto medidos antes do #242 não são comparáveis aos de depois:** com 76 opções o problema era outro (spec 06, 0.1).
+
+### O que falta para mandar para teste
+
+**Para ir a teste, faltam dois módulos: o orquestrador (#244) e o `api`.** O grafo do orquestrador **não tem porta de entrada HTTP sozinho**. A rota `POST /atendimentos/orquestrador` vive no módulo `api`, junto com:
+- o `thread_id` `orquestrador:<chatId>`;
+- os desfechos `redirecionado` (com `tipoCaso`) e `handoff_humano`;
+- os logs `orquestrador_*`;
+- a entrega ao fluxo escolhido com os tokens;
+- o bridge do WhatsApp.
+
+O mesmo vale para os fluxos já mergeados: `POST /atendimentos` e as respostas também estão no `api`. **Com o orquestrador mergeado, o grafo funciona e tem testes, mas ninguém de fora consegue chamá-lo.** O teste de ponta a ponta, com a Tykhe ou o WhatsApp, começa depois do `api`.
+
+### Pendência fora do orquestrador: lista de parentescos nova (#212)
+
+Decisão de produto do Ícaro (2026-10-16): a lista passa a ter 8 valores, alinhados ao SIPEN. **É mudança de comportamento, não tradução.** Ela entra **em develop primeiro**, num PR próprio, e depois vem para a `migration` em commit próprio, como o #226 e o #242. Na `migration`, muda o módulo fluxos, já mergeado, e os testes que esperam "Ex-esposo(a)". Fica para depois do orquestrador, por prioridade do Ícaro.
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
