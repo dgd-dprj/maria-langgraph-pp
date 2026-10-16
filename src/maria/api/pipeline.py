@@ -141,7 +141,7 @@ def _parse_json(bruto: bytes) -> Any:
     if not bruto:
         raise ErroFastify(400, "FST_ERR_CTP_EMPTY_JSON_BODY", "Body cannot be empty when content-type is set to 'application/json'")
     texto = bruto.decode("utf-8", errors="replace")
-    if texto.startswith("﻿"):
+    if texto.startswith("\ufeff"):
         texto = texto[1:]
     try:
         return json.loads(texto, parse_int=_inteiro_js, parse_constant=_recusar_constante, object_pairs_hook=_objeto_seguro)
