@@ -34,6 +34,26 @@ O fluxos foi traduzido de `0aecd98`. O #242 entrou depois e mexe em código do *
 
 **Efeito no catálogo:** caiu de 76 opções para 9, por padrão. Os 2 fluxos implementados continuam primeiro, na mesma ordem.
 
+#### Números de acerto antes e depois do #242 não são comparáveis
+
+Com 76 opções, o orquestrador escolhia entre muitas categorias próximas do Verde, e a desambiguação existia para separá-las (o `LIMITE_RODADAS` subiu de 3 para 5 por isso, #43). Com 9, o problema é outro:
+- são 2 fluxos que a Maria conduz e 7 tipos amplos da Tykhe;
+- um deles, `outros`, é a saída para o que não se encaixa.
+
+**Qualquer número medido antes do #242 mede outro problema e não serve de referência para depois.** Isso vale para taxa de identificação, de "não identificado", número de rodadas, tokens por triagem e o que mais for. Comparar as duas fases como se fossem a mesma coisa daria uma conclusão errada. A régua da migração continua sendo develop @ `1157a6d`, já com o catálogo de 9.
+
+#### `ORQUESTRADOR_INCLUIR_PLANEJADOS` em cada ambiente (verificado em 2026-10-16)
+
+| Ambiente | Serviço ECS e branch publicada | Código | Variável |
+|---|---|---|---|
+| Produção | `api`, publicado de `main` (`deploy-prod.yml`) | `main` @ `06f2157` (2026-10-01), **sem o #242** | **não existe no código.** O catálogo é o antigo: implementados + planejados, 76 opções |
+| Release | `api-release`, publicado de `develop` (`deploy-release.yml`) | `develop` @ `1157a6d`, com o #242 | **ausente no `ecs.tf` e no `release.tf`** (nem em `main`, nem em `develop`): vale o padrão do código, **desligada**. Catálogo de 9 |
+
+- **Como foi verificado:** `git grep` em `infra/terraform/ecs.tf` e `release.tf` nas duas branches, e os gatilhos dos workflows de deploy.
+- **Não verificado:** a task definition em execução no ECS. Uma variável posta à mão no console não aparece no Terraform. Conferir exigiria `aws ecs describe-task-definition`, que não foi autorizado. O `terraform-drift.yml` existe para pegar esse tipo de diferença.
+- **Consequência para a tradução:** o caminho que vai a produção no próximo release é o **padrão, com a variável desligada** (9 opções). A conferência diferencial principal roda assim. O caminho com `"true"` é reproduzido, porque existe em develop e tem teste lá (`test/orquestrador.test.ts:437`), mas entra só como cenário secundário.
+- **Produção hoje não roda nenhuma das duas versões do catálogo de develop.** Até o próximo release de `main`, ela classifica entre 76 opções e faz `handoff_humano` no não identificado.
+
 ### 0.2 Regra de estado: `undefined` × `null`, caso a caso
 
 O orquestrador recebe menos entrada externa que os fluxos. **A Tykhe não pré-preenche o estado**: a rota só passa `{mensagem}` no primeiro invoke e a `resposta` no resume (`rotas/orquestrador.ts:154-157`), e o `dadosConhecidos` vai só para o fluxo escolhido. **O `null` entra por duas portas:**
@@ -166,7 +186,7 @@ Nenhum log dentro de `src/orquestrador`. Os logs `orquestrador_*` estão na rota
    - um candidato sem pergunta raiz → IA;
    - menos de 2 candidatos → IA.
 8. Catálogo (0.1): 9 opções na ordem certa; `"true"` inclui os planejados; `"TRUE"` e `"1"` não incluem; textos de `TIPOS_TYKHE` byte a byte com develop.
-9. **Conferência diferencial contra develop @ `1157a6d`**, com o #242 dentro (D-2), e nunca contra `0aecd98`, cujo catálogo tem 76 opções. Os mesmos cenários rodam nos dois lados, com o mesmo Bedrock falso e a mesma store, comparando byte a byte o payload de cada interrupt, o estado final, o texto enviado à classificação, à desambiguação e à sumarização em cada rodada, e a exceção. **Cada item (lido) desta spec vira cenário.**
+9. **Conferência diferencial contra develop @ `1157a6d`**, com o #242 dentro (D-2), e nunca contra `0aecd98`, cujo catálogo tem 76 opções. **Os cenários principais rodam com `ORQUESTRADOR_INCLUIR_PLANEJADOS` ausente**, que é o caminho do próximo release (0.1); os cenários com `"true"` são secundários. Os mesmos cenários rodam nos dois lados, com o mesmo Bedrock falso e a mesma store, comparando byte a byte o payload de cada interrupt, o estado final, o texto enviado à classificação, à desambiguação e à sumarização em cada rodada, e a exceção. **Cada item (lido) desta spec vira cenário.**
 10. **Varredura (técnica do `MIGRACAO.md`):**
     - **Saída do modelo:** cada saída (`idsPlausiveis`, `pergunta`, `resumo`) com `null`, texto, número, booleano, `{}`, `[]` e `""`, e com a chave ausente.
     - **Pergunta raiz do banco:** `textoPergunta` e `resposta` das opções com `null` e `""`.
