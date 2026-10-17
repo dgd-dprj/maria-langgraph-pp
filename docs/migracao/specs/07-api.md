@@ -298,7 +298,7 @@ A reescrita completa do README continua no módulo 10 (documentacao).
   2. **orquestrador e bridge.**
 - O primeiro já deixa os fluxos com porta HTTP. O segundo fecha o caminho para teste.
 
-## 10. Achados (lido; a confirmar na conferência)
+## 10. Achados
 
 | # | Achado | Onde | Efeito |
 |---|---|---|---|
@@ -307,6 +307,43 @@ A reescrita completa do README continua no módulo 10 (documentacao).
 | A3 | `dadosConhecidos.tokensGastos` vindo da Tykhe entra no reducer de soma | `atendimentos.ts:320`; `shared/tokensAcumulados.ts` | Com `null`, 500 (executado). Com texto ou objeto parcial, `NaN` em develop. Mesma família do #240 |
 | A4 | `TTL_INATIVIDADE_HORAS` inválido desliga o TTL em silêncio (`NaN`) | `atendimentos.ts:28-30` | Configuração errada sem nenhum sinal |
 | A5 | Relato vazio no orquestrador vai para `outros` sem classificação; em produção hoje, para `handoff_humano` | `orquestrador.ts:141-157` | Já registrado no `MIGRACAO.md`, com a consulta de contagem na #208 |
+
+### 10.1 Resultado do PR 1 (executado em 2026-10-16 e 2026-10-17)
+
+**Escopo:** pipeline, autenticação, erros, serialização, log de requisição, `/health`, `GET /fluxos`, `POST /atendimentos`, `POST /atendimentos/orquestrador`, `/docs` e `docs/rodar-localmente.md`.
+
+**Fixtures (D-1).** Regravadas contra `1157a6d` (commit `b8d6e64`): 2 HTTP e 2 linhas de log mudaram, todas pelo #242. **31 das 50 conferidas byte a byte no PR 1**, com os logs; **as 19 de `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` e `/webhook/whatsapp` ficam para o PR 2** (lista em `tests/api/test_contrato.py`, teste `test_escopo_do_pr1_tem_31_fixtures_e_o_pr2_19`).
+
+**Conferência diferencial e varredura: 343 cenários**, por inject em develop e por ASGI no Python, comparando status, content-type, Location, corpo byte a byte e as linhas de log (`tests/api/test_conferencia_pr1.py`):
+
+| Resultado | Cenários |
+|---|---|
+| Idênticos | 322 |
+| Idêntico por ASGI cru (`//health`: o httpx trata como host) | 1 |
+| Efeito da decisão 1 do fluxos (`metadados.encaminhamentoId: null` em develop, chave omitida no Python) | 1 |
+| `tokensGastos: null`: 500 nos dois, só a mensagem difere (#210) | 2 |
+| `tokensGastos` fora do formato: **proposta D-5** (abaixo) | 17 |
+
+**Achados da tradução, corrigidos neste PR:**
+
+1. **`resume` sem pergunta pendente** (fixture `orquestrador-resposta-sem-pendencia-200`): o LangGraph JS não executa nada; o Python, com `Command(resume=…)` numa thread sem checkpoint, rodava o grafo do começo. `_retomar` confere `aget_state` antes.
+2. **Corpo que não é UTF-8** (achado no teste do guia, 2026-10-17): o Fastify decodifica o corpo como UTF-8 (byte inválido vira U+FFFD) e confere o tamanho do texto decodificado com o Content-Length e com o limite de 1 MiB. Um acento em Latin-1 dá 400; o Python aceitava. 33 cenários novos em bytes crus, todos idênticos a develop, logs incluídos. **Como apareceu:** o curl do Git Bash no Windows entrega o argumento em Latin-1.
+3. **`AWS_PROFILE` de perfil inexistente** (achado no teste do guia, 2026-10-17): em develop (executado), a API sobe e cada chamada ao modelo cai no fallback (`outros`, `CredentialsProviderError` no log). O langchain-aws Python resolvia o perfil na importação, e a API nem subia. O cliente boto3 agora é criado no primeiro uso, com os mesmos argumentos. **Não afeta produção** (a task do ECS não define `AWS_PROFILE`), mas afeta quem copia o `.env` do guia sem trocar o nome do perfil.
+
+**Verificação por mutação: 29 de 31 pegas.** 24 do pipeline, da serialização, da validação e das rotas (23 pegas, executadas de novo em 2026-10-17 sobre o código final) e 7 das correções dos itens 2 e 3 (6 pegas). As duas que passam são equivalentes:
+- "inteiro grande exato": o `numero_para_texto` já converte, e a mutação não muda a saída;
+- "sem o limite pelo Content-Length declarado": a substituição nunca encolhe o corpo (cada trecho inválido de 1 a 3 bytes vira 3), então corpo cru acima do limite implica texto acima do limite. Só um Content-Length que mente distinguiria, e o uvicorn não deixa passar.
+
+A mutação "HEAD com corpo" passava porque o httpx descarta o corpo de HEAD; ganhou teste por ASGI cru (`tests/api/test_pipeline_asgi.py`).
+
+**Guia de rodar localmente**, testado em pasta limpa (Windows 10, `uv` 0.13.1, clone literal do GitHub em 2026-10-17):
+- **modo A** (`APP_ENV=test` com `MOCK_CLASSIFICACAO_FLOWID`): `/health`, `/fluxos`, `/docs` e o orquestrador devolvendo o `flowId` de pessoa presa;
+- **sem credencial AWS** e **com perfil inexistente**: a API sobe, e todo relato vira `outros` em cerca de 4 s, com a linha de nível 50 no log;
+- **modo B com credencial real: não testado**, por falta de acesso autorizado ao Bedrock nesta máquina.
+
+**D-5 (proposta, aguardando decisão): `dadosConhecidos.tokensGastos` fora do formato.** Executado em develop: com texto, número, booleano, objeto, lista ou objeto parcial, develop aceita, zera ou corrompe a contagem em silêncio (o `NaN` da soma vira `null` no checkpoint JSON e depois `0`; `"0x0"` vira `0` pelo `Number()`) e conclui com 200. O Python lança `TypeError` na criação: 500. **Recomendação: aceitar como divergência, no molde do D-1 do fluxos.** O Python falha mais cedo e mais alto; o caminho exige que a Tykhe viole o próprio contrato num campo numérico; a #240 elimina o caso na origem. Correção de registro: a primeira versão deste achado dizia que develop falhava na conclusão; a execução mostrou que não falha.
+
+**Divergência registrada, sem decisão pendente:** as linhas de subida do servidor são do uvicorn ("Uvicorn running on…"), e não do Fastify ("Server listening at…"). Nenhum painel consulta essas linhas.
 
 ## Dependências
 

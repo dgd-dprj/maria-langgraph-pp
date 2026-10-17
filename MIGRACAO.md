@@ -373,9 +373,29 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
 
 O mesmo vale para os fluxos já mergeados: `POST /atendimentos` e as respostas também estão no `api`. **Com o orquestrador mergeado, o grafo funciona e tem testes, mas ninguém de fora consegue chamá-lo.** O teste de ponta a ponta, com a Tykhe ou o WhatsApp, começa depois do `api`.
 
+**Atualização (2026-10-17):** o PR 1 do `api` (#246) dá porta HTTP à rota do orquestrador e à criação de atendimento. As respostas e o bridge vêm no PR 2.
+
 ### Pendência fora do orquestrador: lista de parentescos nova (#212)
 
 Decisão de produto do Ícaro (2026-10-16): a lista passa a ter 8 valores, alinhados ao SIPEN. **É mudança de comportamento, não tradução.** Ela entra **em develop primeiro**, num PR próprio, e depois vem para a `migration` em commit próprio, como o #226 e o #242. Na `migration`, muda o módulo fluxos, já mergeado, e os testes que esperam "Ex-esposo(a)". Fica para depois do orquestrador, por prioridade do Ícaro.
+
+## Módulo api (#246)
+
+Dois PRs (spec 07, D-4). Resultado completo do PR 1 na seção 10.1 da spec 07.
+
+- **PR 1:** pipeline na ordem do Fastify, autenticação, os sete formatos de erro, serialização pelo schema, log de requisição, `/health`, `GET /fluxos`, `POST /atendimentos`, `POST /atendimentos/orquestrador`, `/docs` e o guia [`docs/rodar-localmente.md`](docs/rodar-localmente.md). **Com ele, o orquestrador tem porta HTTP**, e o Ícaro consegue subir a API e ver o `flowId` escolhido. Ainda não dá para continuar a conversa.
+- **Fixtures:** 31 das 50 conferidas byte a byte no PR 1; as 19 de `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` e `/webhook/whatsapp` ficam para o PR 2.
+- **Conferência diferencial: 343 cenários**, 322 idênticos. Os 21 restantes são: 1 artefato do httpx (idêntico por ASGI cru), 1 efeito da decisão 1 do fluxos, 2 de #210 e 17 da proposta D-5.
+- **Mutação:** 29 de 31 pegas, e as 2 que passam são equivalentes.
+- **Três achados da tradução, corrigidos:**
+  - o `resume` sem pergunta pendente rodava o grafo do começo no Python;
+  - um corpo que não é UTF-8 era aceito no Python e dá 400 em develop;
+  - um `AWS_PROFILE` inexistente impedia a API Python de subir; em develop, ela sobe e cai no fallback.
+  
+  **Os dois últimos só apareceram ao testar o guia numa pasta limpa,** seguindo os comandos como alguém de fora: nenhum cenário da conferência mandava bytes inválidos, e nenhum teste subia a API com um perfil AWS errado. **Testar o guia de instalação faz parte da verificação, não da documentação.**
+- **D-5 (aguardando decisão):** `dadosConhecidos.tokensGastos` fora do formato. Develop zera ou corrompe a contagem em silêncio e responde 200; o Python responde 500. A recomendação é aceitar, no molde do D-1 do fluxos.
+- **Divergência registrada:** as linhas de subida são do uvicorn, e não do Fastify. Nenhum painel as consulta.
+- **PR 2:** `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` com o TTL e o 500 do `resume=""` (D-2), o bridge do WhatsApp e as 19 fixtures restantes.
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
@@ -418,6 +438,7 @@ Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escr
 - **Retry de POST ao Verde:** develop reenvia os POST em 5xx e em timeout antes dos cabeçalhos. O `POST /encaminhamento/encaminhar` não tem proteção contra duplicidade (o Swagger do Verde não documenta chave de idempotência). Não retentar o encaminhamento depois de enviado, ou consultar antes de reenviar.
 - **Consolidar os cinco pools Postgres** em um.
 - **Consolidar as instâncias do `ChatBedrockConverse`**: hoje uma por módulo de IA.
+- **Caracteres invisíveis literais no código-fonte:** um BOM literal no `pipeline.py` foi trocado pelo escape `"﻿"` (#246). Outros continuam em arquivos de teste antigos. Em `_js.py` são intencionais, mas o escape deixaria isso visível na revisão.
 - **Alerta do token do Verde:** o `verificar-token-verde.yml` falha todo dia por causa do token de release, e com isso deixou de alertar. Separar prod e release em execuções distintas.
 
 ## Decisões em aberto
