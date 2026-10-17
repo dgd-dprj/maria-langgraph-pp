@@ -69,9 +69,12 @@ jobs:
       - name: Build da imagem
         run: docker build -t maria:ci .
 
+      # Desde o módulo api (#246), a aplicação não sobe sem API_KEY, como em
+      # develop (app.ts:87). Em produção ela vem do secret do ECS; aqui, um valor
+      # fictício, que não autentica em lugar nenhum.
       - name: A imagem sobe e responde /health
         run: |
-          docker run -d --name maria -p 3001:3001 maria:ci
+          docker run -d --name maria -p 3001:3001 -e API_KEY=chave-ficticia-do-ci maria:ci
           for _ in $(seq 1 30); do
             if curl -sf http://localhost:3001/health; then
               docker logs maria
