@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import asyncio
 import random
+import threading
 from collections.abc import Awaitable, Callable, Iterator
 from contextlib import contextmanager
 from typing import Any
@@ -24,6 +25,8 @@ from botocore.retries import standard
 # Os prazos ficam nos padrões do botocore (60 s de conexão e de leitura):
 # herdados, não escolhidos (decisão 2 da revisão da spec do ia).
 CONFIG_BOTOCORE = Config(retries={"mode": "standard", "total_max_attempts": 3})
+
+_TRAVA_COTA = threading.RLock()
 
 # Classificação de erro do SDK JS (@smithy/core 3.33.3, submodules/retry).
 _CODIGOS_DE_THROTTLING_DO_SDK_JS = frozenset(
@@ -78,14 +81,17 @@ def cota_como_sdk_js() -> Iterator[None]:
     O botocore não expõe como trocar a cota de um cliente já criado; o
     `register_retry_handler` lê a classe pelo nome do módulo na criação. A troca
     vale só durante o bloco, que deve conter apenas a construção do cliente
-    (síncrona, na thread do event loop).
+    (síncrona). A trava existe porque o cliente do modelo de chat é criado no
+    primeiro uso, numa thread do executor (`_estruturado._ClienteTardio`): duas
+    trocas simultâneas restaurariam a classe errada.
     """
-    original = standard.RetryQuotaChecker
-    standard.RetryQuotaChecker = _CotaComoSdkJs  # type: ignore[misc]
-    try:
-        yield
-    finally:
-        standard.RetryQuotaChecker = original  # type: ignore[misc]
+    with _TRAVA_COTA:
+        original = standard.RetryQuotaChecker
+        standard.RetryQuotaChecker = _CotaComoSdkJs  # type: ignore[misc]
+        try:
+            yield
+        finally:
+            standard.RetryQuotaChecker = original  # type: ignore[misc]
 
 
 # maxRetries padrão do AsyncCaller do @langchain/core (async_caller.js:182).
