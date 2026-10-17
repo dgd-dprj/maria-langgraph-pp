@@ -2,7 +2,7 @@
 
 Guia para subir a API no seu computador e mandar um relato ao orquestrador, para ver qual `flowId` ele devolve. Não precisa de Postgres nem do Verde. Precisa de credencial AWS só para a classificação real.
 
-Os comandos foram testados numa pasta limpa no Windows 10 (PowerShell 5.1), em 2026-10-16, com `uv` 0.13.1 e Python 3.12. Use os blocos **PowerShell** no Windows e **bash** no macOS ou no Linux.
+Os comandos foram testados numa pasta limpa no Windows 10, em 2026-10-16, com `uv` 0.13.1 e Python 3.12: os blocos PowerShell no PowerShell 5.1, e os blocos bash no Git Bash. Use os blocos **PowerShell** no Windows e **bash** no macOS ou no Linux. No macOS e no Linux, os blocos bash não foram testados.
 
 > **O que já funciona:** `GET /health`, `GET /fluxos`, `POST /atendimentos` e `POST /atendimentos/orquestrador`.
 > **O que ainda não funciona:** responder às perguntas de um fluxo (`POST /atendimentos/respostas`) e consultar um atendimento (`GET /atendimentos/:chatId`). Isso entra no próximo PR do módulo api (#246). Por enquanto, dá para ver o fluxo escolhido e a primeira pergunta dele, mas não continuar a conversa.
@@ -152,6 +152,7 @@ curl -s -X POST http://127.0.0.1:3001/atendimentos/orquestrador \
   - no log aparece uma linha de nível 50 com `NoCredentialsError: Unable to locate credentials`.
 
   **Se todo relato vier como `outros`, confira a credencial antes de qualquer outra coisa.**
+- **Com `AWS_PROFILE` de um perfil que não existe** (por exemplo, `nome-do-seu-perfil` copiado sem trocar; testado em 2026-10-16): o comportamento é o mesmo do item anterior, e o log mostra `The config profile (nome-do-seu-perfil) could not be found`. Para listar os perfis configurados, use `aws configure list-profiles`.
 - **Com `APP_ENV=test`:** nada chama a AWS, e a classificação usa os `MOCK_*`.
 
 ## 7. Documentação das rotas
@@ -167,5 +168,6 @@ Com o servidor rodando, `http://127.0.0.1:3001/docs` abre o Swagger UI, com as r
 | `401` com `{"error":"invalid authorization header"}` | A chave no cabeçalho não é a do `.env`, ou falta o prefixo `Bearer ` (com B maiúsculo) |
 | `400` com `{"erro":"chatId obrigatório"}` | Fora de `APP_ENV=test`, todo pedido precisa de `chatId` |
 | `400` com `{}` | O corpo não é JSON válido, ou um campo veio com tipo errado (por exemplo, `mensagem` como objeto) |
+| `400` com `{}` só quando o relato tem acento, usando `curl` no Git Bash do Windows | O Git Bash entrega o texto ao `curl` em Latin-1, e a API (como a de develop) recusa corpo que não é UTF-8. No Windows, use o bloco PowerShell |
 | A porta 3001 está ocupada | Outro processo usa a porta. Encerre-o; a porta é fixa no código |
-| Todo relato vem como `outros` | Sem credencial AWS (seção 6), ou, no modo A, sem `MOCK_CLASSIFICACAO_FLOWID` |
+| Todo relato vem como `outros` | Sem credencial AWS ou com perfil inexistente (seção 6), ou, no modo A, sem `MOCK_CLASSIFICACAO_FLOWID` |
