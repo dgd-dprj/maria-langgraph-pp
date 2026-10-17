@@ -280,5 +280,47 @@ for nome, h, corpo in [
 ]:
     cen(f"corpo_{nome}", "POST", "/atendimentos", h, corpo, bloco=V)
 
-json.dump(cenarios, open(sys.argv[1], "w", encoding="utf-8"), ensure_ascii=False, indent=1)
+
+# corpo em bytes crus (corpo_hex): o que não é UTF-8. Achado no teste do guia de
+# rodar localmente: o curl do Git Bash no Windows manda "está" em Latin-1.
+def cen_bytes(nome, caminho, h, bruto):
+    cen(f"bytes_{nome}", "POST", caminho, h, None, bloco=V)
+    cenarios[-1]["corpo_hex"] = bruto.hex()
+
+
+def json_com(chat_id, trecho):
+    return b'{"chatId":"' + chat_id.encode() + b'","flowId":"' + VD.encode() + b'","dadosConhecidos":{"t":"' + trecho + b'"}}'
+
+
+TEXTO_H = {**AUTH, "content-type": "text/plain"}
+for nome, trecho in [
+    ("latin1", b"est\xe1"),
+    ("continuacao_solta", b"\x80"),
+    ("tres_bytes_truncado", b"\xe2\x82"),
+    ("overlong", b"\xc0\xaf"),
+    ("surrogate", b"\xed\xa0\x80"),
+    ("acima_10ffff", b"\xf4\x90\x80\x80"),
+    ("ff", b"\xff\xfe"),
+    ("quatro_truncado", b"\xf0\x9f\x98"),
+    ("utf8_valido", "está 😀".encode()),
+]:
+    cen_bytes(f"atend_{nome}", "/atendimentos", JSON_H, json_com(chat(), trecho))
+    cen_bytes(
+        f"orq_{nome}",
+        "/atendimentos/orquestrador",
+        JSON_H,
+        b'{"chatId":"' + chat().encode() + b'","mensagem":"' + trecho + b'"}',
+    )
+    cen_bytes(f"texto_{nome}", "/atendimentos", TEXTO_H, trecho)
+cen_bytes("json_invalido_e_latin1", "/atendimentos", JSON_H, b"{\xe1")
+cen_bytes("so_latin1", "/atendimentos", JSON_H, b"\xe1")
+# Limite de 1 MiB: o tamanho que conta é o do texto decodificado (byte inválido vira 3 bytes).
+LIMITE = 1_048_576
+base = json_com(chat(), b"")
+cen_bytes("limite_exato_ascii", "/atendimentos", JSON_H, base[:-3] + b"a" * (LIMITE - len(base)) + b'"}}')
+cen_bytes("limite_mais_um_ascii", "/atendimentos", JSON_H, base[:-3] + b"a" * (LIMITE - len(base) + 1) + b'"}}')
+cen_bytes("limite_estoura_so_decodificado", "/atendimentos", JSON_H, base[:-3] + b"\xe1" * (LIMITE - len(base)) + b'"}}')
+cen_bytes("limite_texto_estoura_decodificado", "/atendimentos", TEXTO_H, b"\xe1" * 400_000)
+
+json.dump(cenarios, open(sys.argv[1], "w", encoding="utf-8", newline="\n"), ensure_ascii=False, indent=1)
 print(len(cenarios), {b: sum(c["bloco"] == b for c in cenarios) for b in ("principal", "varredura")})

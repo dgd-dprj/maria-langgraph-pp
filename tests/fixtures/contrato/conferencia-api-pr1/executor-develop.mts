@@ -21,7 +21,8 @@ for (const c of cenarios) {
     antes[k] = process.env[k];
     process.env[k] = v;
   }
-  const r = await app.inject({ method: c.metodo, url: c.caminho, headers: c.headers, ...(c.corpo === null ? {} : { payload: c.corpo }) });
+  const payload = c.corpo_hex !== undefined ? { payload: Buffer.from(c.corpo_hex, "hex") } : c.corpo === null ? {} : { payload: c.corpo };
+  const r = await app.inject({ method: c.metodo, url: c.caminho, headers: c.headers, ...payload });
   for (const [k, v] of Object.entries(antes)) {
     if (v === undefined) delete process.env[k];
     else process.env[k] = v;

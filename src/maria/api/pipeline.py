@@ -15,7 +15,8 @@ develop @ 1157a6d:
    no pino não é);
 3. parser pelo `content-type`: `application/json` (sem caixa, com BOM aceito,
    `__proto__` recusado), `text/plain`; o resto, 415; corpo vazio ou JSON
-   inválido, 400;
+   inválido, 400; corpo que não é UTF-8, 400 (tamanho decodificado diferente
+   do Content-Length);
 4. validação do corpo (`validacao.py`), que roda mesmo sem corpo;
 5. o handler;
 6. a serialização pelo schema da rota para o status (`serializacao.py`).
@@ -30,6 +31,7 @@ from __future__ import annotations
 
 import hmac
 import json
+import math
 import re
 import time
 import traceback
@@ -42,7 +44,7 @@ from starlette.types import ASGIApp, Message, Receive, Scope, Send
 
 from maria.api.serializacao import Schema, serializar
 from maria.api.validacao import ErroValidacao, validar_corpo
-from maria.shared._js import AUSENTE, trim_js
+from maria.shared._js import AUSENTE, numero_js, trim_js
 from maria.shared.logger import logger
 
 CONTENT_TYPE_JSON = "application/json; charset=utf-8"
@@ -137,10 +139,9 @@ def _objeto_seguro(pares: list[tuple[str, Any]]) -> dict[str, Any]:
     return dict(pares)
 
 
-def _parse_json(bruto: bytes) -> Any:
-    if not bruto:
+def _parse_json(texto: str) -> Any:
+    if not texto:
         raise ErroFastify(400, "FST_ERR_CTP_EMPTY_JSON_BODY", "Body cannot be empty when content-type is set to 'application/json'")
-    texto = bruto.decode("utf-8", errors="replace")
     if texto.startswith("\ufeff"):
         texto = texto[1:]
     try:
@@ -166,14 +167,30 @@ def _ler_corpo(cabecalhos: dict[str, str], bruto: bytes) -> Any:
     principal = tipo.split(";", 1)[0].strip()
     if not _TIPO_MIDIA.fullmatch(principal):
         raise _erro_midia()
-    if len(bruto) > LIMITE_CORPO:
-        raise ErroFastify(413, "FST_ERR_CTP_BODY_TOO_LARGE", "Request body is too large")
     principal = principal.lower()
-    if principal == "application/json":
-        return _parse_json(bruto)
-    if principal == "text/plain":
-        return bruto.decode("utf-8", errors="replace")
-    raise _erro_midia()
+    if principal not in ("application/json", "text/plain"):
+        raise _erro_midia()
+    texto = _ler_texto(cabecalhos, bruto)
+    return _parse_json(texto) if principal == "application/json" else texto
+
+
+def _ler_texto(cabecalhos: dict[str, str], bruto: bytes) -> str:
+    """`rawBody` do Fastify com `asString`: o corpo é lido como UTF-8, e byte
+    inválido vira U+FFFD (3 bytes). O tamanho conferido com o limite e com o
+    Content-Length é o do texto decodificado, e não o dos bytes recebidos: um
+    corpo que não é UTF-8 (acento em Latin-1, por exemplo) dá 400
+    FST_ERR_CTP_INVALID_CONTENT_LENGTH. Achado no teste do guia de rodar
+    localmente (curl do Git Bash no Windows manda o argumento em Latin-1)."""
+    declarado = numero_js(cabecalhos["content-length"]) if "content-length" in cabecalhos else math.nan
+    if declarado > LIMITE_CORPO:
+        raise ErroFastify(413, "FST_ERR_CTP_BODY_TOO_LARGE", "Request body is too large")
+    texto = bruto.decode("utf-8", errors="replace")
+    recebido = len(texto.encode("utf-8"))
+    if recebido > LIMITE_CORPO:
+        raise ErroFastify(413, "FST_ERR_CTP_BODY_TOO_LARGE", "Request body is too large")
+    if not math.isnan(declarado) and recebido != declarado:
+        raise ErroFastify(400, "FST_ERR_CTP_INVALID_CONTENT_LENGTH", "Request body size did not match Content-Length")
+    return texto
 
 
 def _autenticar(cabecalhos: dict[str, str], chave_api: bytes) -> str | None:

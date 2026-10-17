@@ -1,7 +1,7 @@
 """Conferência diferencial do PR 1 do api, como teste de regressão.
 
 `tests/fixtures/contrato/conferencia-api-pr1/develop.json` guarda as respostas do
-app real de develop @ 1157a6d (`executor-develop.mts`, por inject) para os 310
+app real de develop @ 1157a6d (`executor-develop.mts`, por inject) para os 343
 cenários de `cenarios.json` (`gerar_cenarios.py`): caminhos principais e a
 varredura da entrada vinda de fora (cada campo de corpo com null, texto, número,
 booleano, objeto, lista, vazio, ausente, inteiro grande; content-type, corpo,
@@ -78,8 +78,8 @@ async def cliente_conferencia(monkeypatch: pytest.MonkeyPatch) -> Any:
             yield cliente
 
 
-def test_conferencia_tem_310_cenarios_e_as_saidas_de_develop() -> None:
-    assert len(CENARIOS) == len(DEVELOP) == 310
+def test_conferencia_tem_343_cenarios_e_as_saidas_de_develop() -> None:
+    assert len(CENARIOS) == len(DEVELOP) == 343
     assert [c["nome"] for c in CENARIOS] == [d["nome"] for d in DEVELOP]
 
 
@@ -90,7 +90,11 @@ async def test_conferencia_diferencial_contra_develop(cliente_conferencia: httpx
         with monkeypatch.context() as m:
             for k, v in env.items():
                 m.setenv(k, v)
-            conteudo = None if c["corpo"] is None else c["corpo"].encode("utf-8")
+            conteudo: bytes | None
+            if "corpo_hex" in c:
+                conteudo = bytes.fromhex(c["corpo_hex"])
+            else:
+                conteudo = None if c["corpo"] is None else c["corpo"].encode("utf-8")
             r = await cliente_conferencia.request(c["metodo"], c["caminho"], headers=c["headers"], content=conteudo)
         nome = c["nome"]
         if nome in CLIENTE_DE_TESTE:
