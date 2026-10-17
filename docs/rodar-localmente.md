@@ -2,6 +2,13 @@
 
 Guia para subir a API no seu computador e mandar um relato ao orquestrador, para ver qual `flowId` ele devolve. Não precisa de Postgres nem do Verde. Precisa de credencial AWS só para a classificação real.
 
+> **Leia antes de começar: a classificação real, com o Bedrock (modo B), não foi testada.** Quem escreveu este guia não tinha acesso autorizado ao Bedrock. Foi testado:
+> - a instalação;
+> - o modo A, sem AWS;
+> - o que acontece **sem** credencial ou com um perfil que não existe.
+>
+> **Comece pelo modo A.** Se ele funcionar, a instalação está certa. No modo B, se todo relato voltar como `outros`, o problema é a credencial ou o acesso ao Bedrock, e não a instalação. Confira o log (seção 6).
+
 Os comandos foram testados numa pasta limpa no Windows 10, em 2026-10-16, com `uv` 0.13.1 e Python 3.12: os blocos PowerShell no PowerShell 5.1, e os blocos bash no Git Bash. Use os blocos **PowerShell** no Windows e **bash** no macOS ou no Linux. No macOS e no Linux, os blocos bash não foram testados.
 
 > **O que já funciona:** `GET /health`, `GET /fluxos`, `POST /atendimentos` e `POST /atendimentos/orquestrador`.
@@ -23,6 +30,8 @@ cd maria-langgraph-pp
 git checkout migration
 uv sync
 ```
+
+> **Enquanto o PR do módulo api (#246) não for mergeado, a API não está na `migration`.** Nesse caso, troque a terceira linha por `git checkout refactor/246-api-python`. Para saber se a API já chegou à `migration`, veja se o arquivo `src/maria/api/pipeline.py` existe depois do `checkout`.
 
 O `uv sync` cria o ambiente em `.venv/` com as versões travadas no `uv.lock`. Se o Python 3.12 não estiver instalado, rode antes `uv python install 3.12`.
 
@@ -62,7 +71,7 @@ bash:
 printf 'API_KEY=troque-esta-chave\nAPP_ENV=development\nAWS_REGION=us-east-1\nAWS_PROFILE=nome-do-seu-perfil\nBEDROCK_MODEL_ID=us.anthropic.claude-haiku-4-5-20251001-v1:0\n' > .env
 ```
 
-> O modo B **não foi testado** por quem escreveu este guia, por falta de acesso autorizado ao Bedrock. Foi testado o que acontece **sem** credencial (seção 6).
+> Lembrete: o modo B **não foi testado** (veja o aviso no topo).
 
 ### Todas as variáveis
 

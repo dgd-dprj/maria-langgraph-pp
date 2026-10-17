@@ -184,6 +184,7 @@ scripts/
 | `encaminhamentoId` com `"id": null` vindo do Verde (fluxos, #241) | conclui com "Protocolo: null." | `falha_encaminhamento` | Mesmo colapso: develop grava `undefined` (sucesso sem `dados.id`) e o Verde poderia mandar `null`. A Swagger declara `id` inteiro, e não há registro de `null`. **Ir para falha evita mostrar um protocolo inválido à pessoa atendida**, o mesmo problema da #238. **Se o `null` passar a entrar,** o desfecho é falha em vez de concluído |
 | `resumo: null` vindo do modelo na sumarização (orquestrador, #244, spec 06 D-1) | (lido) guarda `null` em `resumoRelato`; o teste `=== undefined` falha e a classificação recebe `"null\n<última resposta>"`, sem o histórico anterior | `None` = `undefined`: trata como "ainda não sumarizou" e manda o histórico bruto | **Aceita (2026-10-16).** Mesmo colapso de `undefined` e `null` do `rg` e do `id`: develop grava `undefined` no canal (sumarização sem a chave) e o `null` entra pelo modelo (#212). O caminho exige que o modelo viole o schema (`resumo` é string obrigatória). O Python fica com o histórico, e develop o perde. **A confirmar na conferência diferencial**, como todo item (lido) |
 | Contador com texto vindo da Tykhe (`tentativasCpf`, `tentativasRg`, `tentativasProcesso`; fluxos, #241, spec 05 D-1) | `(t ?? 0) + 1` concatena: `"x"` vira `"x1"`, a pergunta sai "tentativa x1 de 3", `"x1" >= 3` é falso e o atendimento segue com contagem sem sentido | `TypeError` no `+ 1`: **a rota responde 500** | **Aceita (2026-10-16).** **O Python falha mais cedo e mais alto que develop:** onde develop segue o atendimento com texto no lugar do número, o Python para na hora com 500. **Quem investigar um 500 vindo da Tykhe com `TypeError` num `tentativas*` está diante deste caso:** a Tykhe mandou texto, objeto ou lista num contador em `dadosConhecidos`. Motivos: a concatenação é acidente de tipagem fraca, não comportamento desenhado; o caminho exige que a Tykhe, cliente autenticado e não entrada de cidadão, viole o próprio contrato num campo numérico; e a falha visível é melhor que o atendimento seguindo com contagem sem sentido. Reproduzir o `+` e o `>=` do JS nos três contadores, incluindo o `identificar_assistido` mergeado, espalharia coerção frouxa pelo Python. A #240 elimina o caso na origem. `null`, número e booleano dão o mesmo resultado nos dois |
+| `dadosConhecidos.tokensGastos` fora do formato `{input, output, total}` numéricos, vindo da Tykhe (api, #246, spec 07 D-5) | (executado) aceita e zera ou corrompe a contagem **em silêncio**: o `NaN` da soma vira `null` no checkpoint JSON e depois `0`; `"0x0"` vira `0` pelo `Number()`. O atendimento conclui com 200 | `TypeError` na criação do atendimento: **a rota responde 500** | **Aceita (2026-10-17), no molde do D-1 do fluxos. O Python falha mais cedo e mais alto que develop:** onde develop segue com a contagem de tokens corrompida, o Python para na criação com 500. **Quem investigar um 500 vindo da Tykhe com `TypeError` na soma de tokens está diante deste caso:** a Tykhe mandou `tokensGastos` com texto, lista, booleano ou objeto incompleto. Motivos: contagem corrompida em silêncio é pior que 500 visível; a Tykhe é cliente autenticado violando o próprio contrato; a #240 elimina o caso na origem. Com `null`, os dois lados já davam 500 (#210). São 17 cenários da conferência |
 | Resposta Converse sem `usage` | `viaIA: true`, sem tokens | `KeyError` no `langchain-aws`: 3 tentativas e fallback | **Aceita (2026-10-14).** O caminho só existe se a AWS violar o próprio contrato (`usage` é obrigatório na resposta Converse), e reproduzir develop exigiria interceptar a resposta dentro da biblioteca: código frágil para um cenário que não deveria acontecer. O teste 5b é a proteção |
 | Espera entre tentativas do SDK (Bedrock) | 100 ms de base (500 ms no throttling), com teto de 20 s | botocore: 1 s de base, com teto de 20 s | Mesmo número de requisições. Medido nos embeddings (#222), separando o tempo por camada: o SDK Python espera cerca de **40 s a mais por mensagem** (75 s contra 37 s no 429; 40 s contra 4 s no 500). **Correção de 2026-10-14:** esta linha dizia "14,7 min contra 12,6"; a diferença entre os totais vem quase toda do sorteio das esperas dos callers, que varia dezenas de segundos entre execuções. A referência para corrigir a #222 é a faixa medida, de 12,5 a 14,7 min |
 | `err.type` em erro do Bedrock | Nome da exceção do SDK | `ClientError` (a tradução usa o código AWS) | Nenhum painel nem alerta consulta `err.*` |
@@ -392,8 +393,8 @@ Dois PRs (spec 07, D-4). Resultado completo do PR 1 na seção 10.1 da spec 07.
   - um corpo que não é UTF-8 era aceito no Python e dá 400 em develop;
   - um `AWS_PROFILE` inexistente impedia a API Python de subir; em develop, ela sobe e cai no fallback.
   
-  **Os dois últimos só apareceram ao testar o guia numa pasta limpa,** seguindo os comandos como alguém de fora: nenhum cenário da conferência mandava bytes inválidos, e nenhum teste subia a API com um perfil AWS errado. **Testar o guia de instalação faz parte da verificação, não da documentação.**
-- **D-5 (aguardando decisão):** `dadosConhecidos.tokensGastos` fora do formato. Develop zera ou corrompe a contagem em silêncio e responde 200; o Python responde 500. A recomendação é aceitar, no molde do D-1 do fluxos.
+  **Os dois últimos só apareceram ao testar o guia numa pasta limpa** (técnica registrada abaixo).
+- **D-5, aceita em 2026-10-17:** `dadosConhecidos.tokensGastos` fora do formato. Develop zera ou corrompe a contagem em silêncio e responde 200; o Python falha mais cedo e mais alto, com 500. Está na tabela "Divergências aceitas".
 - **Divergência registrada:** as linhas de subida são do uvicorn, e não do Fastify. Nenhum painel as consulta.
 - **PR 2:** `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` com o TTL e o 500 do `resume=""` (D-2), o bridge do WhatsApp e as 19 fixtures restantes.
 
@@ -413,6 +414,26 @@ Um teste que passa prova que o código faz o esperado no caso testado. Não prov
 - **Por que funciona:** a leitura do código segue o tipo declarado, e a varredura testa o que o tipo não impede. As divergências da migração se concentram justamente aí: `null` × `undefined`, coerção do JS e `str()` contra template literal.
 - **Tamanho no fluxos:** 495 dos 584 cenários da conferência diferencial (spec 05, seção 8.1).
 - **Como na mutação:** o script fica fora do repositório, e a contagem e o resultado vão para o PR do módulo.
+
+## Técnica a repetir nos próximos módulos: testar o guia de uso numa pasta limpa
+
+**Vale tanto quanto a varredura e a mutação.** O guia de instalação e uso não é só documentação: executá-lo é parte da verificação.
+
+- **Como:**
+  - clone literal do repositório numa pasta nova;
+  - os comandos colados do guia, sem ajuste;
+  - o `.env` copiado ao pé da letra, inclusive os valores de exemplo;
+  - os dois shells que o guia cita;
+  - as credenciais da máquina escondidas, só para o processo.
+
+  Confira cada resposta e cada linha de log que o guia promete.
+- **Por que funciona:** os dois achados do PR 1 do api (#246) vieram dali, e **nenhum apareceria em teste**:
+  - **Latin-1:** veio de um `curl` real no Git Bash do Windows, que entrega o acento em Latin-1. A conferência só mandava UTF-8 válido.
+  - **`AWS_PROFILE`:** veio de copiar o `.env` ao pé da letra, com o perfil de exemplo, que não existe. Nenhum teste subia a API com um perfil errado.
+
+  São **defeitos de uso**, e só a execução encontra.
+- **Quando:** antes de abrir o PR de todo módulo que muda como a aplicação sobe, é configurada ou é chamada de fora. Depois de cada correção, o teste do guia roda de novo, da pasta limpa.
+- **No PR:** o que foi testado, onde (sistema, shell, versões) e **o que não foi testado**, dito no topo do guia.
 
 ## Padrão: afirmação sobre desfecho inferida do código, sem execução
 

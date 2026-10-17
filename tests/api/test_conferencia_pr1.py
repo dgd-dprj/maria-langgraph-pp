@@ -45,8 +45,8 @@ DIVERGENCIAS = {
 # dadosConhecidos.tokensGastos fora do formato {input, output, total} numéricos:
 # develop aceita e zera ou corrompe a contagem em silêncio (o NaN da soma vira null
 # no checkpoint JSON e depois 0; "0x0" vira 0 pelo Number()), e conclui com 200. O
-# Python lança TypeError na criação: 500. Proposta D-5 da spec 07 (mesmo molde do
-# D-1 do fluxos). Com null, os dois lados dão 500 e só a mensagem difere (#210).
+# Python lança TypeError na criação: 500, falhando mais cedo e mais alto. D-5 da
+# spec 07, divergência aceita em 2026-10-17 (mesmo molde do D-1 do fluxos). Com null, os dois lados dão 500 e só a mensagem difere (#210).
 TOKENS_500 = {
     c["nome"] for c in CENARIOS if c["nome"].startswith(("dados_tokensGastos_", "dados_tokens_")) or c["nome"] == "criar_tokens_null_500"
 }
@@ -101,7 +101,7 @@ async def test_conferencia_diferencial_contra_develop(cliente_conferencia: httpx
             continue
         if nome in TOKENS_500:
             if r.status_code != 500:
-                falhas.append(f"{nome}: esperado 500 (D-5), veio {r.status_code}")
+                falhas.append(f"{nome}: esperado 500 (D-5, divergência aceita), veio {r.status_code}")
             continue
         obtido = (r.status_code, r.headers.get("content-type"), _norm(r.headers.get("location")), _norm(r.content.decode("utf-8")))
         esperado = (d["status"], d["contentType"], _norm(d["location"]), _norm(d["corpo"]))

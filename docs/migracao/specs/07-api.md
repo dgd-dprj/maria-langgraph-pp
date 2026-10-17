@@ -263,6 +263,7 @@ Rotas, métodos, status, corpos, headers, `_links`, mensagens fixas, eventos e c
 | **D-2** | Reproduzir o 500. Aceitar `""` e contar como "não" é responder no lugar da pessoa atendida, sem ela saber |
 | **D-3** | Servir o `/docs` |
 | **D-4** | Dois PRs. O primeiro dá porta HTTP aos fluxos, que é o que o Ícaro precisa para testar |
+| **D-5** (2026-10-17) | `tokensGastos` fora do formato: divergência aceita, no molde do D-1 do fluxos. O Python falha mais cedo e mais alto (seção 10.1) |
 
 **Requisito novo (2026-10-16): rodar a API de fora.** O Ícaro vai rodar a API no computador dele, e o **PR 1** passa a incluir o mínimo para alguém de fora subir o serviço sem depender de quem fez a migração:
 - um documento próprio (`docs/rodar-localmente.md`, com link no README) com:
@@ -322,7 +323,7 @@ A reescrita completa do README continua no módulo 10 (documentacao).
 | Idêntico por ASGI cru (`//health`: o httpx trata como host) | 1 |
 | Efeito da decisão 1 do fluxos (`metadados.encaminhamentoId: null` em develop, chave omitida no Python) | 1 |
 | `tokensGastos: null`: 500 nos dois, só a mensagem difere (#210) | 2 |
-| `tokensGastos` fora do formato: **proposta D-5** (abaixo) | 17 |
+| `tokensGastos` fora do formato: **D-5, divergência aceita** (abaixo) | 17 |
 
 **Achados da tradução, corrigidos neste PR:**
 
@@ -341,7 +342,7 @@ A mutação "HEAD com corpo" passava porque o httpx descarta o corpo de HEAD; ga
 - **sem credencial AWS** e **com perfil inexistente**: a API sobe, e todo relato vira `outros` em cerca de 4 s, com a linha de nível 50 no log;
 - **modo B com credencial real: não testado**, por falta de acesso autorizado ao Bedrock nesta máquina.
 
-**D-5 (proposta, aguardando decisão): `dadosConhecidos.tokensGastos` fora do formato.** Executado em develop: com texto, número, booleano, objeto, lista ou objeto parcial, develop aceita, zera ou corrompe a contagem em silêncio (o `NaN` da soma vira `null` no checkpoint JSON e depois `0`; `"0x0"` vira `0` pelo `Number()`) e conclui com 200. O Python lança `TypeError` na criação: 500. **Recomendação: aceitar como divergência, no molde do D-1 do fluxos.** O Python falha mais cedo e mais alto; o caminho exige que a Tykhe viole o próprio contrato num campo numérico; a #240 elimina o caso na origem. Correção de registro: a primeira versão deste achado dizia que develop falhava na conclusão; a execução mostrou que não falha.
+**D-5 (aceita em 2026-10-17, no molde do D-1 do fluxos; registro em "Divergências aceitas" do `MIGRACAO.md`): `dadosConhecidos.tokensGastos` fora do formato. O Python falha mais cedo e mais alto que develop.** Motivos da decisão: contagem corrompida em silêncio é pior que 500 visível; a Tykhe é cliente autenticado violando o próprio contrato; a #240 elimina o caso na origem. Texto da proposta: Executado em develop: com texto, número, booleano, objeto, lista ou objeto parcial, develop aceita, zera ou corrompe a contagem em silêncio (o `NaN` da soma vira `null` no checkpoint JSON e depois `0`; `"0x0"` vira `0` pelo `Number()`) e conclui com 200. O Python lança `TypeError` na criação: 500. **Recomendação: aceitar como divergência, no molde do D-1 do fluxos.** O Python falha mais cedo e mais alto; o caminho exige que a Tykhe viole o próprio contrato num campo numérico; a #240 elimina o caso na origem. Correção de registro: a primeira versão deste achado dizia que develop falhava na conclusão; a execução mostrou que não falha.
 
 **Divergência registrada, sem decisão pendente:** as linhas de subida do servidor são do uvicorn ("Uvicorn running on…"), e não do Fastify ("Server listening at…"). Nenhum painel consulta essas linhas.
 
