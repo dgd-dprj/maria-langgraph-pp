@@ -377,6 +377,28 @@ async def test_mensagem_humana_so_com_espaco_e_enviada(bedrock: BedrockFalso) ->
     assert len(bedrock.requisicoes) == 1
 
 
+async def test_perfil_aws_inexistente_nao_impede_criar_o_modelo_e_cai_no_fallback_na_chamada(
+    bedrock: BedrockFalso, monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # Achado no teste do guia de rodar localmente (#246). develop @ 1157a6d, com
+    # AWS_PROFILE de um perfil que não existe: a API sobe, e a classificação cai no
+    # fallback com CredentialsProviderError no log. O langchain-aws Python resolvia
+    # o perfil na construção do modelo, e a API nem subia.
+    from maria.ia import _estruturado, classificar
+
+    monkeypatch.setenv("AWS_CONFIG_FILE", str(tmp_path / "nao-existe-config"))
+    monkeypatch.setenv("AWS_SHARED_CREDENTIALS_FILE", str(tmp_path / "nao-existe-credenciais"))
+    monkeypatch.setenv("AWS_PROFILE", "perfil-que-nao-existe")
+    modelo = _estruturado.criar_modelo()
+    monkeypatch.setattr(classificar, "modelo", modelo)
+    bedrock.roteirizar(ferramenta({"idsPlausiveis": ["a"]}))
+    r = await classificar_multiplo_entre_opcoes("relato", "sistema", ["a", "b"])
+    assert r == {"ids": [], "viaIA": False}
+    assert bedrock.requisicoes == []
+    [linha] = [x for x in linhas_de_log(capsys) if x.get("level") == 50]
+    assert "The config profile (perfil-que-nao-existe) could not be found" in linha["err"]["message"]
+
+
 @pytest.mark.parametrize(
     ("ids", "enum_multiplo", "enum_unico"),
     [

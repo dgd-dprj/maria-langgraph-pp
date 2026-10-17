@@ -1,9 +1,11 @@
-"""Interpretação das respostas sim/não digitadas, como em develop.
+"""Interpretação das respostas sim/não digitadas, como em develop (`shared/respostaSimNao.ts`, #234).
 
-Em develop, a mesma função `respostaEhSim` está copiada em quatro arquivos
-(`subgrafos/identificarAssistido/graph.ts:23-30`, `subgrafos/cadastroPessoa/graph.ts:40-47`,
-`fluxos/pessoaPresa/graph.ts:77-84` e `fluxos/violenciaDomestica/graph.ts:23-30`),
-com o texto idêntico. Aqui é uma só, usada pelos subgrafos e pelos fluxos.
+Usada pelos nós sim/não dos fluxos e subgrafos e pela confirmação de TTL do
+módulo api. O contrato com a Tykhe prevê "true"/"false" crus, mas na prática ela
+às vezes repassa o texto que a pessoa digitou ("Sim"/"Não", com acento e
+maiúscula variáveis; achado ao vivo em 2026-08-31), e o bridge do WhatsApp
+sempre repassa o texto digitado. Antes do #234, a mesma `respostaEhSim` estava
+copiada em quatro arquivos de develop, com o texto idêntico.
 """
 
 from __future__ import annotations
@@ -15,12 +17,21 @@ from maria.shared._js import trim_js
 
 _MARCAS_COMBINANTES = re.compile("[̀-ͯ]")
 
+_SIM = frozenset(("true", "sim", "s", "yes"))
+_NAO = frozenset(("false", "nao", "n", "no"))
+
+
+def normalizar_resposta(resposta: str) -> str:
+    """`normalize("NFD")`, remoção de U+0300 a U+036F (acentos), `trim()` e `toLowerCase()`."""
+    return trim_js(_MARCAS_COMBINANTES.sub("", unicodedata.normalize("NFD", resposta))).lower()
+
 
 def resposta_eh_sim(resposta: str) -> bool:
-    """`normalize("NFD")`, remoção de U+0300 a U+036F, `trim()` e `toLowerCase()`.
+    """Verdadeiro só para "true", "sim", "s" e "yes" depois de normalizar, por
+    igualdade exata. "sim." e "claro" são falsos, como em develop."""
+    return normalizar_resposta(resposta) in _SIM
 
-    Verdadeiro só para "true", "sim", "s" e "yes" depois disso, por igualdade
-    exata. "sim." e "claro" são falsos, como em develop.
-    """
-    normalizado = trim_js(_MARCAS_COMBINANTES.sub("", unicodedata.normalize("NFD", resposta))).lower()
-    return normalizado in ("true", "sim", "s", "yes")
+
+def resposta_eh_nao(resposta: str) -> bool:
+    """Verdadeiro só para "false", "nao", "n" e "no" depois de normalizar."""
+    return normalizar_resposta(resposta) in _NAO

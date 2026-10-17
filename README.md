@@ -21,6 +21,10 @@ Vai contribuir? Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) (fluxo de issue/branch/
 
 ## Rodando local
 
+**Versão Python (migração):** guia completo, testado numa pasta limpa, em [`docs/rodar-localmente.md`](docs/rodar-localmente.md).
+
+**Versão TypeScript (develop):**
+
 ```bash
 pnpm install
 echo "API_KEY=dev-local" > .env   # sem VERDE_JWT_TOKEN/DATABASE_URL, cai em modo mock (memória, sem Postgres/Verde real)

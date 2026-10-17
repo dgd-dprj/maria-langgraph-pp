@@ -2,7 +2,7 @@
 
 > **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, ao fim de cada módulo.
 
-**Gerado em:** 2026-10-16.
+**Gerado em:** 2026-10-16 (atualizado depois do merge do orquestrador, PR #245).
 
 **Comando:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 300 --json number,title,state`. Os PRs vêm de `gh pr view <número>`. A coluna **Situação** é preenchida à mão a partir do `MIGRACAO.md` e das specs.
 
@@ -30,11 +30,11 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | 1 | #209 | Fundação | módulo | Fechada | **Mergeada na migration** (PR #213) |
 | 2 | #216 | persistencia | módulo | Fechada | **Mergeada na migration** (PR #218) |
 | 3 | #219 | integracoes | módulo | Fechada | **Mergeada na migration** (PR #221) |
-| 4 | #223 | ia | módulo | Fechada | **Mergeada na migration** (PR #224). Duas correções de tradução (mensagem vazia e `enum`) estão na branch da #244 |
+| 4 | #223 | ia | módulo | Fechada | **Mergeada na migration** (PR #224; duas correções de tradução, mensagem vazia e `enum`, no PR #245) |
 | 5 | #233 | subgrafos | módulo | Fechada | **Mergeada na migration** (PR #235) |
 | 6 | #241 | fluxos | módulo | Fechada | **Mergeada na migration** (PR #243) |
-| 7 | #244 | orquestrador | módulo | Aberta | **Em andamento**: tradução e conferência diferencial feitas (80 cenários, 79 iguais e 1 divergência aceita); PR a abrir |
-| 8 | — | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | — | **A abrir.** Sem ele, o orquestrador e os fluxos não têm porta HTTP; é pré-requisito para ir a teste |
+| 7 | #244 | orquestrador | módulo | Fechada | **Mergeada na migration** (PR #245). Conferência diferencial: 80 cenários, 79 iguais e 1 divergência aceita |
+| 8 | #246 | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | Aberta | **Em andamento**, em dois PRs: o 1º dá porta HTTP aos fluxos e traz o guia para rodar localmente; o 2º traz o orquestrador e o bridge. Pré-requisito para ir a teste |
 | 9 | — | scripts | módulo | — | A abrir |
 | 10 | — | documentacao | módulo | — | A abrir |
 | 11 | — | corte | módulo | — | A abrir |
@@ -52,7 +52,7 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | #217 | TTL descartava a resposta guardada | defeito de develop | persistencia, api | Aberta | **Mergeada na migration** (correção #226 de develop trazida no PR #243; verificada contra PostgreSQL 16.15) |
 | #220 | Corpo da resposta do Verde no log | defeito de develop (dado pessoal) | integracoes, subgrafos, fluxos | Aberta | **Aguardando dado externo** (medição no CloudWatch); a correção espera a janela |
 | #222 | Com o Bedrock fora, o embedding leva 13 min | defeito de develop | persistencia, ia | Aberta | **Aguardando decisão** (produto: prazo) |
-| #225 | Catálogo do orquestrador com os tipos da Tykhe | funcionalidade de develop | fluxos, orquestrador, api | Aberta | **Corrigida em develop (PR #242), pendente na migration.** A parte de fluxos está na branch da #244; a parte de rota entra no api |
+| #225 | Catálogo do orquestrador com os tipos da Tykhe | funcionalidade de develop | fluxos, orquestrador, api | Aberta | **Corrigida em develop (PR #242), pendente na migration** só na parte de rota (módulo api); a parte de fluxos foi mergeada no PR #245 |
 | #227 | "Sim" digitado encerrava o atendimento no TTL | defeito de develop | api | Aberta | **Corrigida em develop (PR #234), pendente na migration** (módulo api) |
 | #228 | TTL da #166 nunca disparou em produção | defeito de develop | api | Aberta | **Aguardando dado externo** (Tykhe: política de `chatId`) |
 | #230 | Tokens contados até 6× | defeito de develop | subgrafos, fluxos | Aberta | **Aprovada, aguardando janela** (e medição) |
@@ -71,8 +71,9 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | #226 | Corrige a #217 | persistencia | **Mergeada na migration** (PR #243) |
 | #229 | Padrão de evidência e diagramas em issues | documentacao | **Corrigida em develop, pendente na migration** (módulo documentacao) |
 | #234 | Corrige a #227 | api | **Corrigida em develop, pendente na migration** (módulo api) |
-| #242 | Implementa a #225 | fluxos, orquestrador, api | **Corrigida em develop, pendente na migration**: fluxos na branch da #244; rota no api |
+| #242 | Implementa a #225 | fluxos, orquestrador, api | **Corrigida em develop, pendente na migration** só na rota (módulo api); fluxos mergeado no PR #245 |
 
 **Pendências que ainda não têm issue:**
 - lista de parentescos nova em develop (#212);
-- A4 do orquestrador (pergunta real compartilhada sem uso; precisa do banco de produção).
+- A4 do orquestrador (pergunta real compartilhada sem uso; precisa do banco de produção);
+- **aguardando dado externo:** contagem do relato vazio e da falha da classificação, que mudam de desfecho sem decisão no próximo release (`handoff_humano` → `outros`). A consulta está [na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6223132977); se a contagem mostrar que acontece, vira issue de produto.

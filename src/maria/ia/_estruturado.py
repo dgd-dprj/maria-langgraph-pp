@@ -19,10 +19,12 @@ Reproduz o `ChatBedrockConverse` do @langchain/aws 1.4.4, e NÃO o
 from __future__ import annotations
 
 import os
+import threading
 from typing import Any
 
 from botocore.exceptions import ClientError
 from langchain_aws import ChatBedrockConverse
+from langchain_aws.utils import create_aws_client
 from langchain_core.messages import AIMessage
 from langchain_core.runnables import RunnableLambda
 
@@ -51,14 +53,61 @@ class _ConverseComoDevelop(ChatBedrockConverse):
         return params
 
 
+class _ClienteTardio:
+    """Cliente boto3 criado no primeiro uso, e não na construção do modelo.
+
+    O langchain-aws Python cria o cliente (e resolve o perfil AWS) no validador
+    do `ChatBedrockConverse`, na importação do módulo: com `AWS_PROFILE` de um
+    perfil que não existe, a API nem sobe. O SDK JS de develop só resolve a
+    credencial na chamada: a API sobe, e cada chamada ao modelo falha e cai no
+    fallback (executado em develop @ 1157a6d: relato vira `outros`, com
+    `CredentialsProviderError` no log). Achado no teste do guia de rodar
+    localmente (#246). O cliente é o mesmo que o langchain-aws criaria, com os
+    mesmos argumentos; se a criação falha, a próxima chamada tenta de novo."""
+
+    def __init__(self, servico: str) -> None:
+        self._servico = servico
+        self._modelo: ChatBedrockConverse | None = None
+        self._cliente: Any = None
+        self._trava = threading.Lock()
+
+    def _criar(self) -> Any:
+        modelo = self._modelo
+        assert modelo is not None
+        with cota_como_sdk_js():
+            return create_aws_client(
+                service_name=self._servico,
+                region_name=modelo.region_name,
+                credentials_profile_name=modelo.credentials_profile_name,
+                aws_access_key_id=modelo.aws_access_key_id,
+                aws_secret_access_key=modelo.aws_secret_access_key,
+                aws_session_token=modelo.aws_session_token,
+                endpoint_url=modelo.endpoint_url,
+                config=modelo._get_effective_config(),
+                api_key=modelo.bedrock_api_key,
+            )
+
+    def __getattr__(self, nome: str) -> Any:
+        if nome.startswith("_"):
+            raise AttributeError(nome)
+        with self._trava:
+            if self._cliente is None:
+                self._cliente = self._criar()
+        return getattr(self._cliente, nome)
+
+
 def criar_modelo() -> ChatBedrockConverse:
     """Um por módulo, na importação, como cada `new ChatBedrockConverse` de develop."""
-    with cota_como_sdk_js():
-        return _ConverseComoDevelop(
-            model=os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
-            region_name=os.environ.get("AWS_REGION", "us-east-1"),
-            config=CONFIG_BOTOCORE,
-        )
+    cliente, controle = _ClienteTardio("bedrock-runtime"), _ClienteTardio("bedrock")
+    modelo = _ConverseComoDevelop(
+        model=os.environ.get("BEDROCK_MODEL_ID", "anthropic.claude-3-haiku-20240307-v1:0"),
+        region_name=os.environ.get("AWS_REGION", "us-east-1"),
+        config=CONFIG_BOTOCORE,
+        client=cliente,
+        bedrock_client=controle,
+    )
+    cliente._modelo = controle._modelo = modelo
+    return modelo
 
 
 def esquema_objeto(propriedades: dict[str, Any], obrigatorias: list[str] | None) -> dict[str, Any]:
