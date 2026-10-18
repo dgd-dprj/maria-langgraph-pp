@@ -12,21 +12,30 @@ ALB não responde enquanto o checkpointer e o schema de negócio não estiverem
 prontos. O teste `tests/test_app.py` prova essa sequência.
 
 Depois do checkpointer vêm as stores de negócio, na mesma sequência de
-`app.ts:40-43` em develop. As rotas de negócio chegam no módulo `api`.
+`app.ts:40-43` em develop. As rotas de negócio passam pelo `PipelineFastify`
+(`maria/api/pipeline.py`), que reproduz o contrato HTTP do Fastify.
 """
 
 from __future__ import annotations
 
+import asyncio
+import contextlib
+import os
 from collections.abc import AsyncIterator, Awaitable, Callable, Sequence
 from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
+from maria.api import atendimentos, basicas, orquestrador
+from maria.api.docs import registrar_docs
+from maria.api.pipeline import PipelineFastify
+from maria.fluxos import catalogo_para_classificacao
 from maria.integracoes.cliente_http import fechar_cliente_http
 from maria.shared.atendimentos_db import fechar_atendimentos_store, obter_atendimentos_store
 from maria.shared.checkpointer import fechar_checkpointer, inicializar_checkpointer
-from maria.shared.embeddings_fluxos import fechar_busca_fluxos
+from maria.shared.embeddings_fluxos import aquecer_catalogo, fechar_busca_fluxos
 from maria.shared.fluxos_planejados_db import fechar_fluxos_planejados_store, listar_fluxos_planejados
+from maria.shared.logger import logger
 from maria.shared.perguntas_db import fechar_perguntas_store, obter_perguntas_store
 
 Inicializador = Callable[[], Awaitable[object]]
@@ -60,26 +69,42 @@ FINALIZADORES: tuple[Inicializador, ...] = (
 )
 
 
-def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO) -> FastAPI:
+async def _pre_aquecer_catalogo() -> None:
+    """Issue #180 (`server.ts:16-18`): indexa o catálogo de embeddings logo depois de
+    subir, sem esperar a 1ª requisição do orquestrador e sem atrasar o /health."""
+    try:
+        await aquecer_catalogo(await catalogo_para_classificacao())
+    except Exception as erro:
+        # Fire-and-forget, como o .catch de server.ts: a falha só é registrada.
+        logger.error("[embeddingsFluxos] falha ao pré-aquecer catálogo no boot", err=erro)
+
+
+def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO, pre_aquecer: bool = True) -> FastAPI:
+    # Sem default silencioso: erra alto na subida, nunca sobe a API "aberta" (app.ts:86-87).
+    chave_api = os.environ.get("API_KEY")
+    if not chave_api:
+        raise RuntimeError("API_KEY obrigatório (.env local ou secret em produção)")
+
     @asynccontextmanager
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         for inicializar in inicializadores:
             await inicializar()
+        aquecimento = asyncio.create_task(_pre_aquecer_catalogo()) if pre_aquecer else None
         try:
             yield
         finally:
+            if aquecimento is not None:
+                aquecimento.cancel()
+                with contextlib.suppress(asyncio.CancelledError):
+                    await aquecimento
             for finalizar in FINALIZADORES:
                 await finalizar()
 
-    # /docs e /openapi.json chegam com as rotas, no módulo api, conferidos contra
-    # o contrato de develop. Até lá, nenhuma rota além do /health.
+    # O roteamento, a autenticação, os erros e a serialização das rotas de negócio
+    # (e do /health) ficam no PipelineFastify, com o contrato do Fastify de develop.
+    # O FastAPI fica com o lifespan e o /docs (spec 07, D-3).
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-
-    # Health check do target group do ALB. Sem efeito colateral e fora da
-    # autenticação: o ALB não manda Bearer token. O contrato exato (content-type,
-    # HEAD) é conferido contra as fixtures no módulo api.
-    @app.get("/health")
-    async def health() -> dict[str, str]:
-        return {"status": "ok"}
-
+    rotas = [*basicas.ROTAS, *atendimentos.ROTAS, *orquestrador.ROTAS]
+    registrar_docs(app, rotas)
+    app.add_middleware(PipelineFastify, rotas=rotas, chave_api=chave_api)
     return app
