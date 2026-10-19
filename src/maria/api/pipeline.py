@@ -91,6 +91,8 @@ class Contexto:
     injetar: Callable[[str, str, dict[str, str], Any], Awaitable[RespostaInjetada]] | None = None
     # A API_KEY com que o app subiu: o bridge a usa na chamada interna (`apiKey` de develop).
     chave_api: str = ""
+    # O método como chegou (HEAD, inclusive, na rota GET).
+    metodo: str = "GET"
 
 
 @dataclass
@@ -419,7 +421,8 @@ def _err_log(erro: BaseException) -> dict[str, Any]:
     # Propriedades próprias que o serializador de erro do pino acrescenta, quando a
     # exceção reproduz um erro de develop (por exemplo, o `name` do EmptyInputError).
     extras: dict[str, Any] = getattr(erro, "campos_log_js", {})
-    return {"type": type(erro).__name__, "message": str(erro), "stack": _pilha(erro), **extras}
+    tipo = next(c.__name__ for c in type(erro).__mro__ if not c.__name__.startswith("_"))
+    return {"type": tipo, "message": str(erro), "stack": _pilha(erro), **extras}
 
 
 class PipelineFastify:
@@ -502,6 +505,21 @@ class PipelineFastify:
                     send, 414, "FST_ERR_MAX_PARAM_LENGTH", f"'{caminho_decodificado}' is exceeding the max param length", cabeca
                 )
                 return
+        elif not delegado:
+            # Método sem nenhuma rota (PUT, PATCH…): o 404 vem do roteador de 404 do
+            # Fastify. Com URL malformada, ele responde 404 só com a linha "not found",
+            # sem as linhas de requisição (executado em develop @ 1157a6d).
+            try:
+                _sanitizar(url)
+            except UrlInvalida:
+                LogRequisicao(str(uuid.uuid4())).info(f"Route {metodo}:{url} not found")
+                corpo_404 = json.dumps(
+                    {"message": f"Route {metodo}:{url} not found", "error": "Not Found", "statusCode": 404},
+                    ensure_ascii=False,
+                    separators=(",", ":"),
+                )
+                await self._enviar(send, 404, corpo_404, {}, cabeca)
+                return
 
         req_id = str(uuid.uuid4())
         log = LogRequisicao(req_id)
@@ -557,6 +575,7 @@ class PipelineFastify:
                 consulta=entrada.consulta,
                 injetar=entrada.injetar,
                 chave_api=self.chave_api.decode(),
+                metodo=entrada.metodo,
             )
             resposta = await rota.handler(ctx)
             if resposta.texto is not None:

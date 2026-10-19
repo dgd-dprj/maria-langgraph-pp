@@ -22,7 +22,7 @@ from __future__ import annotations
 import asyncio
 import os
 import time
-from typing import Any
+from typing import Any, ClassVar
 
 from maria.api.pipeline import Contexto, ErroFastify, Resposta, RespostaInjetada, Rota
 from maria.integracoes.whatsapp import enviar_mensagem_whatsapp, extrair_mensagem_whatsapp, extrair_status_whatsapp
@@ -60,6 +60,15 @@ def limpar_conversas_ativas_de_teste() -> None:
     _travas.clear()
 
 
+class _ErroNode(TypeError):
+    """O TypeError [ERR_INVALID_ARG_TYPE] do Node: no log, `type` TypeError e o `code`."""
+
+    campos_log_js: ClassVar[dict[str, str]] = {"code": "ERR_INVALID_ARG_TYPE"}
+
+    def __repr__(self) -> str:  # pragma: no cover
+        return f"TypeError({self.args[0]!r})"
+
+
 def _obter_chat_id_ativo(numero: str) -> str:
     existente = _conversas_ativas.get(numero)
     if existente:
@@ -88,7 +97,13 @@ async def _get_webhook(ctx: Contexto) -> Resposta:
     if verify_token and modo == "subscribe" and token == verify_token:
         desafio = _js.coalesce(challenge, "")
         if not isinstance(desafio, str):
-            # `reply.send(array)` com o tipo text/plain: o Fastify recusa o payload.
+            # `hub.challenge` repetido vira lista, e `reply.send(lista)` com o tipo
+            # text/plain falha: no GET, o Fastify recusa o payload; no HEAD, o erro
+            # vem do Node ao calcular o tamanho (executado em develop @ 1157a6d).
+            if ctx.metodo == "HEAD":
+                raise _ErroNode(
+                    'The "string" argument must be of type string or an instance of Buffer or ArrayBuffer. Received an instance of Array'
+                )
             raise ErroFastify(
                 500, "FST_ERR_REP_INVALID_PAYLOAD_TYPE", "Attempted to send payload of invalid type 'object'. Expected a string or Buffer."
             )
@@ -120,6 +135,9 @@ async def _post_webhook(ctx: Contexto) -> Resposta:
 
 async def _processar(ctx: Contexto, de: str, texto: str) -> None:
     assert ctx.injetar is not None
+    if not isinstance(texto, str):
+        # `text.body` que não é texto (número, por exemplo): o `.trim()` de develop lança.
+        raise TypeError("mensagem.texto.trim is not a function")
     # "#sair": único jeito de encerrar uma conversa no meio. Reaproveita o
     # statusFinal "expirado" do TTL, com destino próprio ("saida_manual").
     if trim_js(texto).lower() == PALAVRA_CHAVE_SAIR:
