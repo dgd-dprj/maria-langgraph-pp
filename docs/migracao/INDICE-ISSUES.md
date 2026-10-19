@@ -1,12 +1,12 @@
 # Índice de issues da migração (cópia)
 
-> **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, ao fim de cada módulo.
+> **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, sempre que uma issue é aberta, muda de estado ou de escopo, ou um PR de módulo é mergeado.
 
-**Gerado em:** 2026-10-16 (atualizado depois do merge do orquestrador, PR #245).
+**Gerado em:** 2026-10-19 (atualizado depois do merge do PR 1 do api, #247, e da abertura da #248).
 
 **Comando:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 300 --json number,title,state`. Os PRs vêm de `gh pr view <número>`. A coluna **Situação** é preenchida à mão a partir do `MIGRACAO.md` e das specs.
 
-**Este comentário é o índice canônico.** `docs/migracao/INDICE-ISSUES.md` e `migracao-specs/INDICE-ISSUES.md` são cópias. Ele é atualizado ao fim de cada módulo, junto com o fechamento da issue e a remoção da branch.
+**Este comentário é o índice canônico.** `docs/migracao/INDICE-ISSUES.md` e `migracao-specs/INDICE-ISSUES.md` são cópias. Ele é atualizado sempre que uma issue é aberta, muda de estado ou de escopo, ou um PR de módulo é mergeado.
 
 ## Como ler a coluna Situação
 
@@ -34,7 +34,7 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | 5 | #233 | subgrafos | módulo | Fechada | **Mergeada na migration** (PR #235) |
 | 6 | #241 | fluxos | módulo | Fechada | **Mergeada na migration** (PR #243) |
 | 7 | #244 | orquestrador | módulo | Fechada | **Mergeada na migration** (PR #245). Conferência diferencial: 80 cenários, 79 iguais e 1 divergência aceita |
-| 8 | #246 | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | Aberta | **Em andamento**, em dois PRs: o 1º dá porta HTTP aos fluxos e traz o guia para rodar localmente; o 2º traz o orquestrador e o bridge. Pré-requisito para ir a teste |
+| 8 | #246 | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | Aberta | **Em andamento.** **PR 1 (#247) mergeado na migration em 2026-10-18** (merge `23b63e3`): pipeline, `/fluxos`, `POST /atendimentos`, `POST /atendimentos/orquestrador`, `/docs` e o guia de rodar localmente. **A issue continua aberta porque falta o PR 2:** `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` (com o TTL) e o bridge do WhatsApp, na branch `refactor/246-api-python`. Guia conferido em pasta limpa e modo B testado com o Bedrock em 2026-10-19 |
 | 9 | — | scripts | módulo | — | A abrir |
 | 10 | — | documentacao | módulo | — | A abrir |
 | 11 | — | corte | módulo | — | A abrir |
@@ -52,8 +52,8 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | #217 | TTL descartava a resposta guardada | defeito de develop | persistencia, api | Aberta | **Mergeada na migration** (correção #226 de develop trazida no PR #243; verificada contra PostgreSQL 16.15) |
 | #220 | Corpo da resposta do Verde no log | defeito de develop (dado pessoal) | integracoes, subgrafos, fluxos | Aberta | **Aguardando dado externo** (medição no CloudWatch); a correção espera a janela |
 | #222 | Com o Bedrock fora, o embedding leva 13 min | defeito de develop | persistencia, ia | Aberta | **Aguardando decisão** (produto: prazo) |
-| #225 | Catálogo do orquestrador com os tipos da Tykhe | funcionalidade de develop | fluxos, orquestrador, api | Aberta | **Corrigida em develop (PR #242), pendente na migration** só na parte de rota (módulo api); a parte de fluxos foi mergeada no PR #245 |
-| #227 | "Sim" digitado encerrava o atendimento no TTL | defeito de develop | api | Aberta | **Corrigida em develop (PR #234), pendente na migration** (módulo api) |
+| #225 | Catálogo do orquestrador com os tipos da Tykhe | funcionalidade de develop | fluxos, orquestrador, api | Aberta | **Corrigida em develop (PR #242), pendente na migration só no bridge do WhatsApp** (PR 2 do api). Fluxos e orquestrador mergeados no PR #245; a rota do orquestrador (`redirecionado`/`tipoCaso`), no PR #247 |
+| #227 | "Sim" digitado encerrava o atendimento no TTL | defeito de develop | api | Aberta | **Corrigida em develop (PR #234), pendente na migration** (PR 2 do api, rota de respostas). As funções `normalizar_resposta` e `resposta_eh_nao` já estão na migration |
 | #228 | TTL da #166 nunca disparou em produção | defeito de develop | api | Aberta | **Aguardando dado externo** (Tykhe: política de `chatId`) |
 | #230 | Tokens contados até 6× | defeito de develop | subgrafos, fluxos | Aberta | **Aprovada, aguardando janela** (e medição) |
 | #231 | Cadastro volta para a Tykhe sem o endereço | defeito de develop | subgrafos | Aberta | **Aprovada, aguardando janela** |
@@ -62,7 +62,8 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | #237 | `enderecoDetalhado` inteiro vai à Tykhe | defeito de develop | integracoes, fluxos | Aberta | **Aguardando dado externo** (Tykhe: campos necessários) |
 | #238 | Encaminhamento criado e a pessoa ouve que falhou | defeito de develop | fluxos | Aberta | **Aguardando decisão** (prazo, pela gravidade) |
 | #239 | Falha de infra nos órgãos manda ligar 129 | defeito de develop | integracoes, fluxos | Aberta | **Aprovada, aguardando janela** (e revisão das 9 chamadas ao Verde) |
-| #240 | `dadosConhecidos` aceita qualquer canal | defeito de develop | api | Aberta | **Aguardando dado externo** (Tykhe: lista de campos) |
+| #240 | `dadosConhecidos` aceita qualquer canal | defeito de develop | api | Aberta | **Aguardando dado externo** (Tykhe: lista de campos). Relacionada à D-5 do api (`tokensGastos` fora do formato) |
+| #248 | Falha ao chamar o Bedrock vira "não identificado" sem alerta | defeito de develop (observabilidade) | ia, orquestrador, corte (Grafana) | Aberta | **Aguardando decisão** (desfecho para a pessoa atendida e limiar do alerta). Mesmo padrão das #196, #232 e #239; incidente anterior na #200. Aberta em 2026-10-19, depois do teste do modo B |
 
 ## 3. PRs de develop que a migração precisa trazer
 
@@ -70,10 +71,11 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 |---|---|---|---|
 | #226 | Corrige a #217 | persistencia | **Mergeada na migration** (PR #243) |
 | #229 | Padrão de evidência e diagramas em issues | documentacao | **Corrigida em develop, pendente na migration** (módulo documentacao) |
-| #234 | Corrige a #227 | api | **Corrigida em develop, pendente na migration** (módulo api) |
-| #242 | Implementa a #225 | fluxos, orquestrador, api | **Corrigida em develop, pendente na migration** só na rota (módulo api); fluxos mergeado no PR #245 |
+| #234 | Corrige a #227 | api | **Corrigida em develop, pendente na migration** (PR 2 do api); `respostas.py` completo já na migration |
+| #242 | Implementa a #225 | fluxos, orquestrador, api | **Corrigida em develop, pendente na migration só no bridge do WhatsApp** (PR 2 do api); a rota do orquestrador entrou no PR #247 |
 
 **Pendências que ainda não têm issue:**
 - lista de parentescos nova em develop (#212);
 - A4 do orquestrador (pergunta real compartilhada sem uso; precisa do banco de produção);
-- **aguardando dado externo:** contagem do relato vazio e da falha da classificação, que mudam de desfecho sem decisão no próximo release (`handoff_humano` → `outros`). A consulta está [na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6223132977); se a contagem mostrar que acontece, vira issue de produto.
+- **aguardando dado externo:** contagem do relato vazio e da falha da classificação, que mudam de desfecho sem decisão no próximo release (`handoff_humano` → `outros`). A consulta está [na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6223132977); se a contagem mostrar que acontece, vira issue de produto;
+- **aguardando decisão (achado de 2026-10-19, teste do modo B):** com o catálogo de 9 opções do #242, um relato trabalhista ("não pagaram rescisão nem FGTS") vai para `novo-processo` da Tykhe (abrir caso novo na Defensoria). Antes, ia para o planejado "reclamação trabalhista", que respondia "Não atuamos em casos trabalhistas — procure o sindicato da sua categoria". O mesmo pode valer para os outros planejados com mensagem fixa (LOAS → DPU). Comportamento de develop, reproduzido na migration; decidir se vira issue de produto.
