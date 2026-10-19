@@ -246,14 +246,14 @@ Rotas, métodos, status, corpos, headers, `_links`, mensagens fixas, eventos e c
 
 ## 8. Critérios de aceite
 
-- [ ] Fixtures regravadas contra `1157a6d` (D-1), em commit próprio, com o diff explicado.
-- [ ] `respostas.py` completo (#234) em commit próprio.
-- [ ] 74 testes traduzidos e os novos da seção 6 passando sem rede.
-- [ ] As 50 fixtures HTTP e as 5 de log conferidas byte a byte.
-- [ ] Conferência diferencial e varredura (seção 7), com o resultado no PR e todo item (lido) confirmado ou corrigido.
-- [ ] Mutações executadas, com a lista e o resultado no PR.
-- [ ] `MIGRACAO.md` com a seção do módulo.
-- [ ] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes; jobs `test` e `imagem` verdes.
+- [x] Fixtures regravadas contra `1157a6d` (D-1), em commit próprio, com o diff explicado (`b8d6e64`, PR 1).
+- [x] `respostas.py` completo (#234) em commit próprio (`ad0fbb7`, PR 1).
+- [x] 74 testes traduzidos e os novos da seção 6 passando sem rede (PR 1 e PR 2).
+- [x] As 50 fixtures HTTP e as 5 de log conferidas byte a byte (PR 2, seção 10.2).
+- [x] Conferência diferencial e varredura (seção 7): 343 cenários no PR 1 e 313 no PR 2 (seções 10.1 e 10.2). Resultado no corpo do PR #250.
+- [x] Mutações executadas: 29 de 31 no PR 1, 27 de 28 no PR 2. Lista no corpo do PR #250.
+- [x] `MIGRACAO.md` com a seção do módulo.
+- [x] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes; jobs `test` e `imagem` verdes no PR #250 (2026-10-19, run `39279987284`: 932 testes na suíte padrão e 23 com Postgres).
 
 ## 9. Decisões (aprovadas em 2026-10-16)
 
@@ -345,6 +345,44 @@ A mutação "HEAD com corpo" passava porque o httpx descarta o corpo de HEAD; ga
 **D-5 (aceita em 2026-10-17, no molde do D-1 do fluxos; registro em "Divergências aceitas" do `MIGRACAO.md`): `dadosConhecidos.tokensGastos` fora do formato. O Python falha mais cedo e mais alto que develop.** Motivos da decisão: contagem corrompida em silêncio é pior que 500 visível; a Tykhe é cliente autenticado violando o próprio contrato; a #240 elimina o caso na origem. Texto da proposta: Executado em develop: com texto, número, booleano, objeto, lista ou objeto parcial, develop aceita, zera ou corrompe a contagem em silêncio (o `NaN` da soma vira `null` no checkpoint JSON e depois `0`; `"0x0"` vira `0` pelo `Number()`) e conclui com 200. O Python lança `TypeError` na criação: 500. **Recomendação: aceitar como divergência, no molde do D-1 do fluxos.** O Python falha mais cedo e mais alto; o caminho exige que a Tykhe viole o próprio contrato num campo numérico; a #240 elimina o caso na origem. Correção de registro: a primeira versão deste achado dizia que develop falhava na conclusão; a execução mostrou que não falha.
 
 **Divergência registrada, sem decisão pendente:** as linhas de subida do servidor são do uvicorn ("Uvicorn running on…"), e não do Fastify ("Server listening at…"). Nenhum painel consulta essas linhas.
+
+### 10.2 Resultado do PR 2 (executado em 2026-10-19)
+
+**Escopo:** `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` com o TTL (#166, #227, #234) e a guarda da D-2, o bridge do WhatsApp (`/webhook/whatsapp`, #198, #203, #225) e a seção 5.1 do guia. Commits `cea77ad` (código e testes de develop), `0003059` (conferência e testes novos) e `471a813` (guia), sobre `migration` @ `23b63e3`.
+
+**Fixtures:** as 50 conferidas byte a byte, com as linhas de log (as 19 do PR 2 incluídas), em `tests/api/test_contrato.py`.
+
+**Testes de develop:** os 74 traduzidos. Este PR completou os 33 que dependiam das rotas novas: 11 de `app`, 15 casos de `ttlInatividade`, 13 de `webhookWhatsapp`, 2 de `contratoTykhe`, 8 dos `http.test.ts` dos fluxos e o `viaOrquestrador` do orquestrador. Também entraram as conferências por `GET` marcadas no PR 1.
+
+**O roteador do Fastify foi reproduzido** (`pipeline.py`), porque o caminho decodificado pelo uvicorn não é o que o `find-my-way` 9.9.0 vê (executado em develop, sonda e código lido):
+- o caminho até `?` passa por `decodeURI`, que não decodifica os reservados (`/ ? # & = + $ , ; : @` e `%`); o parâmetro só decodifica esses depois, então `/atendimentos/a%2Fb` encontra o atendimento `a/b`;
+- `%` malformado dá 400 `FST_ERR_BAD_URL`, com `application/json` sem charset e **sem nenhuma linha de log**; parâmetro com mais de 100 unidades UTF-16 dá 414 `FST_ERR_MAX_PARAM_LENGTH`, também sem log;
+- num método sem nenhuma rota (PUT, por exemplo), a URL malformada dá 404 só com a linha "Route … not found";
+- a query segue o `fast-querystring` 1.1.2 (`+` vira espaço, chave repetida vira lista, escape inválido fica cru);
+- `hub.challenge` repetido vira lista, e o webhook responde 500 (`FST_ERR_REP_INVALID_PAYLOAD_TYPE` no GET; o `TypeError` do Node no HEAD).
+
+**Conferência diferencial e varredura: 313 cenários**, por inject em develop e por ASGI cru no Python, comparando status, content-type, Location, corpo byte a byte **e as linhas de log de cada cenário** (o executor de develop marca o início de cada cenário no próprio log):
+
+| Bloco | Cenários | Idênticos (resposta e log) |
+|---|---|---|
+| Caminhos principais (consulta, resposta, 409, orquestrador sem atendimento) | 36 | 36 |
+| TTL (cada forma de confirmar e de recomeçar; cada valor de `TTL_INATIVIDADE_HORAS`) | 92 | 92 |
+| Roteador | 79 | 68 |
+| Varredura de `POST /atendimentos/respostas` (cada campo com `null`, texto, número, booleano, `{}`, `[]`, `""`, ausente, inteiro grande; content-types e corpos inválidos) | 43 | 43 |
+| Webhook do WhatsApp (verificação, status de entrega, bridge, `#sair`, redirecionado, desambiguação, TTL) | 63 | 63 |
+
+**Os 11 restantes são artefato do inject, conferido com HTTP real:** num HEAD que dá 404, 400 ou 414, o `app.inject` de develop devolve o corpo, mas uma conexão HTTP de verdade com o servidor de develop não devolve, porque o Node descarta o corpo de toda resposta a HEAD. O Python faz como o servidor real. O teste de regressão (`tests/api/test_conferencia_pr2.py`) registra esses 11 como tal.
+
+**Correções que a conferência pediu**, todas no código deste PR: o 404 do método sem rota, o erro do HEAD com `challenge` repetido e o `TypeError` do `.trim()` quando `text.body` não é texto.
+
+**Verificação por mutação: 28 mutações, 27 pegas.** A que passa (ler o interrupt de qualquer tarefa, e não só da primeira, no `GET`) é equivalente nos grafos de hoje, que não têm dois nós interrompidos em paralelo. Três passaram na primeira rodada e eram lacunas reais de teste, que ganharam teste:
+- o `Math.round` (meio arredonda para cima, e o `round()` do Python vai para o par);
+- a fronteira exata do TTL (`horasInativo > TTL`, que com `TTL=0` e a resposta no mesmo milissegundo processa em vez de perguntar);
+- caminho com escape reservado e comum juntos (`a%2Fb%20c`), cenário novo da conferência, conferido em develop.
+
+**Guia (seção 5.1)**, testado em pasta limpa (clone da branch do PR 2, `uv sync`, modo A, PowerShell e Git Bash): responder e consultar devolveram exatamente a resposta esperada.
+
+**Achado de segurança A1:** a revisão automática de segurança do commit apontou de novo o webhook. É o mesmo achado da seção 10, registrado em privado; a tradução reproduz develop, e a correção segue pelo registro privado.
 
 ## Dependências
 

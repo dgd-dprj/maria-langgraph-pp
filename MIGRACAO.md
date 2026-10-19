@@ -396,7 +396,38 @@ Dois PRs (spec 07, D-4). Resultado completo do PR 1 na seção 10.1 da spec 07.
   **Os dois últimos só apareceram ao testar o guia numa pasta limpa** (técnica registrada abaixo).
 - **D-5, aceita em 2026-10-17:** `dadosConhecidos.tokensGastos` fora do formato. Develop zera ou corrompe a contagem em silêncio e responde 200; o Python falha mais cedo e mais alto, com 500. Está na tabela "Divergências aceitas".
 - **Divergência registrada:** as linhas de subida são do uvicorn, e não do Fastify. Nenhum painel as consulta.
-- **PR 2:** `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` com o TTL e o 500 do `resume=""` (D-2), o bridge do WhatsApp e as 19 fixtures restantes.
+- **PR 1 mergeado na `migration` em 2026-10-18** (#247, merge `23b63e3`). O guia foi conferido de novo em pasta limpa, já na `migration`, em 2026-10-19.
+- **PR 2 (2026-10-19), na branch `refactor/246-api-python`:** `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` com o TTL e o 500 do `resume=""` (D-2), e o bridge do WhatsApp. Resultado completo na seção 10.2 da spec 07.
+  - **As 50 fixtures** conferidas byte a byte, com as linhas de log; **os 74 testes de develop** traduzidos.
+  - **O roteador do Fastify foi reproduzido** sobre o caminho bruto, e não sobre o caminho que o uvicorn decodifica: `decodeURI` sem os reservados, o parâmetro com os reservados decodificados, `FST_ERR_BAD_URL` e `FST_ERR_MAX_PARAM_LENGTH` sem log, e a query do `fast-querystring`.
+  - **Conferência diferencial: 313 cenários**, comparando também as linhas de log de cada cenário: 302 idênticos. Os 11 restantes são HEAD de erro do roteador em que o `inject` devolve corpo e uma conexão HTTP real de develop não. Foi conferido, e o Python faz como o servidor real.
+  - **Mutação:** 27 de 28 pegas, e a que passa é equivalente nos grafos de hoje.
+  - **Guia, seção 5.1 (responder e consultar),** testado em pasta limpa.
+  - **PR #250 aberto em 2026-10-19; CI verde** nos jobs `test` e `imagem` (run `39279987284`: `ruff`, `ruff format --check`, `mypy` em 129 arquivos, 932 testes na suíte padrão e 23 com Postgres). O merge espera confirmação.
+- **Achados do teste do modo B (2026-10-19), registrados em issue:**
+  - **#248:** falha ao chamar o Bedrock vira "não identificado", sem alerta (repetição da #200);
+  - **#249:** com o catálogo de 9 opções do #242, causa trabalhista e BPC/LOAS perdem a orientação "não atuamos, procure…", com prazo antes do próximo release;
+  - **credencial de `aws login`:** exige `botocore[crt]`, agora no grupo `dev` (`f582150`).
+
+## Módulo scripts (#252)
+
+Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. A tradução não começou. Fonte: develop @ `1157a6d`.
+
+**O ponto que não existe em nenhum outro módulo:** os 74 fluxos planejados do seed são **transcritos**, e não traduzidos. Uma palavra-chave perdida não quebra teste nenhum. A verificação tem dois caminhos independentes:
+- o arquivo `.ts` de develop entra como fixture, com o id do blob git conferido no teste (`265f1df…`);
+- o Node extrai o JSON; um leitor próprio em Python lê a fixture;
+- o teste compara 74 ids únicos, o mesmo conjunto, o total de 1.744 palavras-chave e cada registro campo a campo.
+
+**Decisões (aprovadas em 2026-10-19):**
+- **D-1:** os 74 registros em `scripts/dados/fluxos_planejados.json`.
+- **D-2:** os scripts rodam com `uv run python scripts/<nome>.py`, fora do pacote e da imagem.
+- **D-3:** `logs-prod.sh` chama `npx --yes pino-pretty@13.1.3`. **Condição:** o script verifica antes do laço `node`, `npx`, o download do `pino-pretty` e `aws`, e diz o que falta, em vez de falhar com "command not found". Ferramenta de diagnóstico não pode falhar de forma obscura no meio de uma investigação.
+- **D-4:** num JSON inválido do Verde, a mensagem de erro sai no texto do Python, e não no do V8.
+
+**Achados:**
+- **B1 → #251:** a coleta apaga a árvore da categoria sem transação e sai com código 0 quando falha. É o padrão da #196 numa ferramenta de manutenção. Aberta antes da execução, por decisão: o comportamento está no código.
+- **B2:** o seed sobrescreve toda edição por SQL em `fluxos_planejados`. **Colide com a #249:** corrigir `mensagem_fixa` só no banco some no próximo seed. Registrado na #249. Issue própria em avaliação (proposta: `[TECH]`, qual é a fonte do dado).
+- **B3:** `logs-prod.sh` descarta o stderr do `aws`; credencial vencida fica em silêncio. A ausência do `aws` entra nas checagens da D-3; o resto fica para decisão.
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
@@ -434,6 +465,33 @@ Um teste que passa prova que o código faz o esperado no caso testado. Não prov
   São **defeitos de uso**, e só a execução encontra.
 - **Quando:** antes de abrir o PR de todo módulo que muda como a aplicação sobe, é configurada ou é chamada de fora. Depois de cada correção, o teste do guia roda de novo, da pasta limpa.
 - **No PR:** o que foi testado, onde (sistema, shell, versões) e **o que não foi testado**, dito no topo do guia.
+
+## Técnica a repetir nos próximos módulos: sondar a infraestrutura de develop
+
+**Mesma classe da varredura de pré-preenchimento:** a varredura testa o que o tipo declarado não impede; a sonda testa o que a infraestrutura faz sem que ninguém tenha especificado.
+
+- **O que apareceu no PR 2 do api (#246):** a sonda do roteador do Fastify contra develop mostrou comportamentos que nenhuma spec descrevia e nenhuma das 50 fixtures capturava:
+  - `%2F` vira `/` dentro do `chatId`, depois de casar a rota;
+  - um `%` malformado dá 400 `FST_ERR_BAD_URL` **sem nenhuma linha de log**;
+  - um parâmetro com mais de 100 unidades UTF-16 dá 414;
+  - num método sem rota, a URL malformada dá 404 só com a linha "not found".
+- **Por que importa:** são comportamentos de infraestrutura (roteador, parser, servidor HTTP). O código da aplicação não os mostra, e a biblioteca Python equivalente faz diferente: o uvicorn decodifica o caminho inteiro antes do roteamento.
+- **Como:**
+  1. Listar as camadas que a requisição atravessa antes do handler (roteador, decodificação de URL, query string, parser do corpo) e as entradas de borda de cada uma: escapes malformados, reservados codificados, caixa, barras extras, tamanhos-limite, chaves repetidas.
+  2. Rodar cada entrada contra o app real de develop e ler o código da biblioteca para entender a regra.
+  3. Transformar cada entrada em cenário da conferência diferencial, com a resposta e o log.
+- **Quando:** em todo módulo que recebe entrada de fora pela infraestrutura: rotas HTTP, webhooks, filas.
+
+## Princípio: ferramenta de teste não é o sistema
+
+**Divergência contra uma ferramenta de teste pede verificação contra o comportamento real antes de virar correção.**
+
+- **O caso (PR 2 do api, #246):** 11 cenários da conferência divergiram porque, num HEAD que dá 404, 400 ou 414, o `app.inject` de develop devolve o corpo, e o Python não.
+  - Aceitar a comparação teria levado o Python a reproduzir um artefato do `inject`.
+  - Antes de corrigir, a resposta foi conferida numa conexão HTTP real com o servidor de develop. Ali, o corpo não vai: o Node descarta o corpo de toda resposta a HEAD.
+  - O Python já fazia como o servidor real, e os 11 ficaram registrados como artefato, no teste de regressão e na spec 07.
+- **A regra:** a conferência compara o Python com uma **observação** de develop, e a observação passa por uma ferramenta: o `inject`, um transporte de teste, um mock. Quando a divergência pode estar na ferramenta, observe develop pelo caminho que a produção usa antes de mudar o Python.
+- **Sinais de que pode ser a ferramenta:** a diferença está em detalhe de protocolo (HEAD, cabeçalhos automáticos, codificação de URL, `content-length`), e não em regra de negócio. Ou a ferramenta pula uma camada que a produção atravessa.
 
 ## Padrão: afirmação sobre desfecho inferida do código, sem execução
 

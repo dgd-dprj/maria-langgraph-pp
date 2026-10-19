@@ -56,6 +56,15 @@ CORPO_CRIAR_ATENDIMENTO: Schema = {
     },
 }
 
+# rotas/atendimentos.ts:469-475
+CORPO_RESPOSTAS: Schema = {
+    "type": "object",
+    "properties": {
+        "chatId": {"type": "string"},
+        "resposta": {"type": "string", "description": '"true"/"false" pra sim_nao, texto livre pras demais'},
+    },
+}
+
 # rotas/fluxos.ts:4-7
 FLUXOS: Schema = {
     "type": "array",

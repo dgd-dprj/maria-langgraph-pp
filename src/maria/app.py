@@ -26,7 +26,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from maria.api import atendimentos, basicas, orquestrador
+from maria.api import atendimentos, basicas, orquestrador, webhook_whatsapp
 from maria.api.docs import registrar_docs
 from maria.api.pipeline import PipelineFastify
 from maria.fluxos import catalogo_para_classificacao
@@ -104,7 +104,7 @@ def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO,
     # (e do /health) ficam no PipelineFastify, com o contrato do Fastify de develop.
     # O FastAPI fica com o lifespan e o /docs (spec 07, D-3).
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-    rotas = [*basicas.ROTAS, *atendimentos.ROTAS, *orquestrador.ROTAS]
+    rotas = [*basicas.ROTAS, *atendimentos.ROTAS, *orquestrador.ROTAS, *webhook_whatsapp.ROTAS]
     registrar_docs(app, rotas)
     app.add_middleware(PipelineFastify, rotas=rotas, chave_api=chave_api)
     return app
