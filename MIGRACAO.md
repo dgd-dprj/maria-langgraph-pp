@@ -445,6 +445,33 @@ Um teste que passa prova que o código faz o esperado no caso testado. Não prov
 - **Quando:** antes de abrir o PR de todo módulo que muda como a aplicação sobe, é configurada ou é chamada de fora. Depois de cada correção, o teste do guia roda de novo, da pasta limpa.
 - **No PR:** o que foi testado, onde (sistema, shell, versões) e **o que não foi testado**, dito no topo do guia.
 
+## Técnica a repetir nos próximos módulos: sondar a infraestrutura de develop
+
+**Mesma classe da varredura de pré-preenchimento:** a varredura testa o que o tipo declarado não impede; a sonda testa o que a infraestrutura faz sem que ninguém tenha especificado.
+
+- **O que apareceu no PR 2 do api (#246):** a sonda do roteador do Fastify contra develop mostrou comportamentos que nenhuma spec descrevia e nenhuma das 50 fixtures capturava:
+  - `%2F` vira `/` dentro do `chatId`, depois de casar a rota;
+  - um `%` malformado dá 400 `FST_ERR_BAD_URL` **sem nenhuma linha de log**;
+  - um parâmetro com mais de 100 unidades UTF-16 dá 414;
+  - num método sem rota, a URL malformada dá 404 só com a linha "not found".
+- **Por que importa:** são comportamentos de infraestrutura (roteador, parser, servidor HTTP). O código da aplicação não os mostra, e a biblioteca Python equivalente faz diferente: o uvicorn decodifica o caminho inteiro antes do roteamento.
+- **Como:**
+  1. Listar as camadas que a requisição atravessa antes do handler (roteador, decodificação de URL, query string, parser do corpo) e as entradas de borda de cada uma: escapes malformados, reservados codificados, caixa, barras extras, tamanhos-limite, chaves repetidas.
+  2. Rodar cada entrada contra o app real de develop e ler o código da biblioteca para entender a regra.
+  3. Transformar cada entrada em cenário da conferência diferencial, com a resposta e o log.
+- **Quando:** em todo módulo que recebe entrada de fora pela infraestrutura: rotas HTTP, webhooks, filas.
+
+## Princípio: ferramenta de teste não é o sistema
+
+**Divergência contra uma ferramenta de teste pede verificação contra o comportamento real antes de virar correção.**
+
+- **O caso (PR 2 do api, #246):** 11 cenários da conferência divergiram porque, num HEAD que dá 404, 400 ou 414, o `app.inject` de develop devolve o corpo, e o Python não.
+  - Aceitar a comparação teria levado o Python a reproduzir um artefato do `inject`.
+  - Antes de corrigir, a resposta foi conferida numa conexão HTTP real com o servidor de develop. Ali, o corpo não vai: o Node descarta o corpo de toda resposta a HEAD.
+  - O Python já fazia como o servidor real, e os 11 ficaram registrados como artefato, no teste de regressão e na spec 07.
+- **A regra:** a conferência compara o Python com uma **observação** de develop, e a observação passa por uma ferramenta: o `inject`, um transporte de teste, um mock. Quando a divergência pode estar na ferramenta, observe develop pelo caminho que a produção usa antes de mudar o Python.
+- **Sinais de que pode ser a ferramenta:** a diferença está em detalhe de protocolo (HEAD, cabeçalhos automáticos, codificação de URL, `content-length`), e não em regra de negócio. Ou a ferramenta pula uma camada que a produção atravessa.
+
 ## Padrão: afirmação sobre desfecho inferida do código, sem execução
 
 Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escrita a partir da leitura do código, e a execução mostrou outra coisa. **O padrão é inferir o desfecho a partir do código em vez de rodar.**
