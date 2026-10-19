@@ -2,7 +2,7 @@
 
 > **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, sempre que uma issue é aberta, muda de estado ou de escopo, ou um PR de módulo é mergeado.
 
-**Gerado em:** 2026-10-19 (atualizado depois do merge do PR 1 do api, #247, e da abertura da #248 e da #249).
+**Gerado em:** 2026-10-19 (atualizado depois do merge do PR 1 do api, #247, da abertura da #248 e da #249, e com o PR 2 do api pronto na branch).
 
 **Comando:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 300 --json number,title,state`. Os PRs vêm de `gh pr view <número>`. A coluna **Situação** é preenchida à mão a partir do `MIGRACAO.md` e das specs.
 
@@ -34,7 +34,7 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | 5 | #233 | subgrafos | módulo | Fechada | **Mergeada na migration** (PR #235) |
 | 6 | #241 | fluxos | módulo | Fechada | **Mergeada na migration** (PR #243) |
 | 7 | #244 | orquestrador | módulo | Fechada | **Mergeada na migration** (PR #245). Conferência diferencial: 80 cenários, 79 iguais e 1 divergência aceita |
-| 8 | #246 | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | Aberta | **Em andamento.** **PR 1 (#247) mergeado na migration em 2026-10-18** (merge `23b63e3`): pipeline, `/fluxos`, `POST /atendimentos`, `POST /atendimentos/orquestrador`, `/docs` e o guia de rodar localmente. **A issue continua aberta porque falta o PR 2:** `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` (com o TTL) e o bridge do WhatsApp, na branch `refactor/246-api-python`. Guia conferido em pasta limpa e modo B testado com o Bedrock em 2026-10-19 |
+| 8 | #246 | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | Aberta | **Em andamento.** **PR 1 (#247) mergeado na migration em 2026-10-18** (merge `23b63e3`): pipeline, `/fluxos`, `POST /atendimentos`, `POST /atendimentos/orquestrador`, `/docs` e o guia de rodar localmente. **A issue continua aberta porque falta o PR 2**, pronto na branch `refactor/246-api-python` (2026-10-19), aguardando confirmação para abrir o PR: `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` (com o TTL) e o bridge do WhatsApp; 50 fixtures byte a byte, conferência com 313 cenários e mutação 27 de 28. Guia conferido em pasta limpa e modo B testado com o Bedrock em 2026-10-19 |
 | 9 | — | scripts | módulo | — | A abrir |
 | 10 | — | documentacao | módulo | — | A abrir |
 | 11 | — | corte | módulo | — | A abrir |

@@ -396,7 +396,17 @@ Dois PRs (spec 07, D-4). Resultado completo do PR 1 na seção 10.1 da spec 07.
   **Os dois últimos só apareceram ao testar o guia numa pasta limpa** (técnica registrada abaixo).
 - **D-5, aceita em 2026-10-17:** `dadosConhecidos.tokensGastos` fora do formato. Develop zera ou corrompe a contagem em silêncio e responde 200; o Python falha mais cedo e mais alto, com 500. Está na tabela "Divergências aceitas".
 - **Divergência registrada:** as linhas de subida são do uvicorn, e não do Fastify. Nenhum painel as consulta.
-- **PR 2:** `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` com o TTL e o 500 do `resume=""` (D-2), o bridge do WhatsApp e as 19 fixtures restantes.
+- **PR 1 mergeado na `migration` em 2026-10-18** (#247, merge `23b63e3`). O guia foi conferido de novo em pasta limpa, já na `migration`, em 2026-10-19.
+- **PR 2 (2026-10-19), na branch `refactor/246-api-python`:** `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` com o TTL e o 500 do `resume=""` (D-2), e o bridge do WhatsApp. Resultado completo na seção 10.2 da spec 07.
+  - **As 50 fixtures** conferidas byte a byte, com as linhas de log; **os 74 testes de develop** traduzidos.
+  - **O roteador do Fastify foi reproduzido** sobre o caminho bruto, e não sobre o caminho que o uvicorn decodifica: `decodeURI` sem os reservados, o parâmetro com os reservados decodificados, `FST_ERR_BAD_URL` e `FST_ERR_MAX_PARAM_LENGTH` sem log, e a query do `fast-querystring`.
+  - **Conferência diferencial: 313 cenários**, comparando também as linhas de log de cada cenário: 302 idênticos. Os 11 restantes são HEAD de erro do roteador em que o `inject` devolve corpo e uma conexão HTTP real de develop não. Foi conferido, e o Python faz como o servidor real.
+  - **Mutação:** 27 de 28 pegas, e a que passa é equivalente nos grafos de hoje.
+  - **Guia, seção 5.1 (responder e consultar),** testado em pasta limpa.
+- **Achados do teste do modo B (2026-10-19), registrados em issue:**
+  - **#248:** falha ao chamar o Bedrock vira "não identificado", sem alerta (repetição da #200);
+  - **#249:** com o catálogo de 9 opções do #242, causa trabalhista e BPC/LOAS perdem a orientação "não atuamos, procure…", com prazo antes do próximo release;
+  - **credencial de `aws login`:** exige `botocore[crt]`, agora no grupo `dev` (`f582150`).
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
