@@ -27,6 +27,11 @@ dev = [
     "pyyaml>=6.0",
     "types-pyyaml>=6.0",
     "botocore-stubs>=1.43.112",
+    # Credencial criada com `aws login` (guia de rodar localmente, modo B): o
+    # botocore só a lê com o awscrt. Sem ele, toda classificação falha e cai em
+    # "não identificado" (#248). Produção usa a role da task do ECS: fica fora
+    # da imagem (--no-dev).
+    "botocore[crt]>=1.43.112",
 ]
 
 [build-system]
