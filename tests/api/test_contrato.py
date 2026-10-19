@@ -11,8 +11,8 @@ Compara:
 - as linhas de log de cada requisição (as que têm `reqId`), sem `time`, `pid`,
   `hostname`, `reqId`, `responseTime`, o endereço do cliente e o `stack`.
 
-PR 1 do módulo api (#246): 31 das 50 fixtures. As 19 de `GET /atendimentos/:chatId`,
-`POST /atendimentos/respostas` e `/webhook/whatsapp` ficam para o PR 2.
+Módulo api (#246): as 31 fixtures do PR 1 e as 19 do PR 2 (`GET /atendimentos/:chatId`,
+`POST /atendimentos/respostas` e `/webhook/whatsapp`), as 50.
 """
 
 from __future__ import annotations
@@ -29,15 +29,6 @@ from maria.app import criar_app
 
 RAIZ = Path("tests/fixtures/contrato")
 CHAVE = "chave-de-captura"
-ROTAS_PR1 = {
-    ("GET", "/health"),
-    ("HEAD", "/health"),
-    ("GET", "/nao-existe"),
-    ("GET", "/fluxos"),
-    ("GET", "/fluxos/"),
-    ("POST", "/atendimentos"),
-    ("POST", "/atendimentos/orquestrador"),
-}
 VARIAVEIS_DE_INSTANCIA = ("MOCK_CLASSIFICACAO_FLOWID", "MOCK_CLASSIFICACAO_FLOWIDS", "TTL_INATIVIDADE_HORAS", "WHATSAPP_VERIFY_TOKEN")
 
 
@@ -52,14 +43,8 @@ for _f in FIXTURES:
     INSTANCIAS.setdefault(_f["instancia"]["nome"], []).append(_f)
 
 
-def _no_pr1(f: dict[str, Any]) -> bool:
-    req = f["requisicao"]
-    return (req["metodo"], req["caminho"].split("?")[0]) in ROTAS_PR1
-
-
-def test_escopo_do_pr1_tem_31_fixtures_e_o_pr2_19() -> None:
-    assert sum(_no_pr1(f) for f in FIXTURES) == 31
-    assert sum(not _no_pr1(f) for f in FIXTURES) == 19
+def test_as_50_fixtures_entram() -> None:
+    assert len(FIXTURES) == 50
 
 
 def _cabecalhos(f: dict[str, Any]) -> dict[str, str]:
@@ -138,15 +123,13 @@ async def instancia(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
 
 
 @pytest.mark.parametrize("instancia", sorted(INSTANCIAS), indirect=True)
-async def test_fixtures_do_pr1_byte_a_byte(
+async def test_fixtures_byte_a_byte(
     instancia: httpx.AsyncClient, request: pytest.FixtureRequest, capsys: pytest.CaptureFixture[str]
 ) -> None:
     nome: str = request.node.callspec.params["instancia"]
     gravados = _logs_da_gravacao(nome)
     falhas: list[str] = []
     for f in INSTANCIAS[nome]:
-        if not _no_pr1(f):
-            continue
         capsys.readouterr()
         req = f["requisicao"]
         r = await instancia.request(req["metodo"], req["caminho"], headers=_cabecalhos(f), content=_conteudo(f))

@@ -1,24 +1,61 @@
-"""Criação de atendimento (develop: `rotas/atendimentos.ts` @ 1157a6d).
+"""Rotas de atendimento (develop: `rotas/atendimentos.ts` @ 1157a6d).
 
-No PR 1 do módulo api entram só o núcleo `criar_atendimento`, que a rota do
-orquestrador usa quando o relato converge para um fluxo, e a rota
-`POST /atendimentos`. `GET /atendimentos/:chatId`, `POST /atendimentos/respostas`
-e o TTL entram no PR 2 (spec 07, D-4).
+`POST /atendimentos` e o núcleo `criar_atendimento`, que a rota do orquestrador
+usa, entraram no PR 1 do módulo api. `GET /atendimentos/:chatId` e
+`POST /atendimentos/respostas`, com o TTL de inatividade (#166, #227, #234),
+entram no PR 2 (spec 07, D-4).
 """
 
 from __future__ import annotations
 
+import math
 import os
 import uuid
 from collections.abc import Mapping
-from typing import Any
+from datetime import UTC, datetime
+from typing import Any, ClassVar
+
+from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
 from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
 from maria.shared import _js
-from maria.shared._js import AUSENTE
+from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
+from maria.shared.respostas import normalizar_resposta, resposta_eh_nao, resposta_eh_sim
+
+# Formas naturais de responder à confirmação de TTL além de sim/não (#227), já
+# normalizadas (sem acento, minúsculas: ver normalizar_resposta).
+CONTINUAR_TTL = frozenset(("quero", "continuar", "quero continuar", "continua", "pode continuar"))
+RECOMECAR_TTL = frozenset(("recomecar", "quero recomecar", "comecar de novo", "nao quero"))
+TEXTO_CONFIRMACAO_TTL = "Já faz um tempo desde sua última mensagem. Quer continuar de onde você parou?"
+MENSAGEM_EXPIRADO = "Essa conversa expirou por inatividade. Pra continuar, inicie um novo atendimento."
+
+
+class EmptyInputError(Exception):
+    """O erro do LangGraph JS para `new Command({ resume: "" })` (`pregel/loop.js:663`).
+
+    Decisão D-2 (spec 07): o LangGraph Python aceita `resume=""` e retoma o grafo
+    com uma resposta vazia, que numa pergunta sim/não conta como "não", sem
+    nenhum sinal. Develop responde 500. A guarda reproduz o 500, com a mesma
+    mensagem e o mesmo `name` no log."""
+
+    campos_log_js: ClassVar[dict[str, str]] = {"name": "EmptyInputError"}
+
+    def __init__(self) -> None:
+        super().__init__("Received empty Command input")
+
+
+def ttl_inatividade_horas() -> float:
+    """`Number(process.env.TTL_INATIVIDADE_HORAS ?? "24")`, lido a cada requisição:
+    "abc" é NaN (o TTL nunca dispara) e "" é 0 (dispara sempre), como no JS."""
+    return numero_js(os.environ.get("TTL_INATIVIDADE_HORAS", "24"))
+
+
+def _arredondar_js(valor: float) -> int:
+    # Math.round do JS: meio arredonda para cima (o round do Python vai para o par).
+    return math.floor(valor + 0.5)
 
 
 def destino_do_log(fluxo_id: str, status_final: Any) -> str | None:
@@ -130,6 +167,14 @@ async def criar_atendimento(
     resultado: dict[str, Any] = await grafo.ainvoke({**dados, "viaOrquestrador": via_orquestrador}, config)
 
     interrupt = extrair_interrupt(resultado)
+    await _registrar_rodada(fluxo_id, chat_id, interrupt, resultado, log)
+    corpo = montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt, resultado)
+    return Resposta(200, corpo, {"Location": f"/atendimentos/{chat_id}"})
+
+
+async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resultado: Mapping[str, Any], log: LogRequisicao) -> None:
+    """Log da pergunta enviada ou do desfecho e, no desfecho, a gravação em
+    `atendimentos` (#83, #90, #92). Mesmo trecho na criação e na resposta."""
     if interrupt is not None:
         log.info(
             "pergunta enviada",
@@ -141,32 +186,30 @@ async def criar_atendimento(
             viaIA=_js.coalesce(resultado.get("perguntaAtualViaIA"), False),
             tokensGastosTotal=resultado.get("perguntaAtualTokensTotal"),
         )
-    else:
-        status_final = resultado.get("statusFinal")
-        destino = destino_do_log(fluxo_id, status_final)
-        log.info(
-            "atendimento finalizado",
-            fluxoId=fluxo_id,
-            chatId=chat_id,
-            evento="atendimento_finalizado",
-            status="concluido",
-            destino=destino,
-            motivoHandoff=resultado.get("motivoHandoff"),
-            tokensGastos=resultado.get("tokensGastos"),
-        )
-        if _js.verdadeiro(status_final):
-            conclusao: dict[str, Any] = {"statusFinal": status_final}
-            for chave, valor in (
-                ("destino", destino),
-                ("motivoHandoff", resultado.get("motivoHandoff")),
-                ("tokensGastos", resultado.get("tokensGastos")),
-            ):
-                if valor is not None:
-                    conclusao[chave] = valor
-            await store.concluir(chat_id, ConclusaoAtendimento(**conclusao))  # type: ignore[typeddict-item]
-
-    corpo = montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt, resultado)
-    return Resposta(200, corpo, {"Location": f"/atendimentos/{chat_id}"})
+        return
+    status_final = resultado.get("statusFinal")
+    destino = destino_do_log(fluxo_id, status_final)
+    log.info(
+        "atendimento finalizado",
+        fluxoId=fluxo_id,
+        chatId=chat_id,
+        evento="atendimento_finalizado",
+        status="concluido",
+        destino=destino,
+        motivoHandoff=resultado.get("motivoHandoff"),
+        tokensGastos=resultado.get("tokensGastos"),
+    )
+    if _js.verdadeiro(status_final):
+        conclusao: dict[str, Any] = {"statusFinal": status_final}
+        for chave, valor in (
+            ("destino", destino),
+            ("motivoHandoff", resultado.get("motivoHandoff")),
+            ("tokensGastos", resultado.get("tokensGastos")),
+        ):
+            if valor is not None:
+                conclusao[chave] = valor
+        store = await obter_atendimentos_store()
+        await store.concluir(chat_id, ConclusaoAtendimento(**conclusao))  # type: ignore[typeddict-item]
 
 
 async def _post_atendimentos(ctx: Contexto) -> Resposta:
@@ -179,6 +222,138 @@ async def _post_atendimentos(ctx: Contexto) -> Resposta:
         return Resposta(404, {"erro": "fluxo não encontrado — ver GET /fluxos"})
     # 200, e não 201: a Tykhe só reconhece 200 como sucesso (pedido explícito).
     return await criar_atendimento(fluxo, fluxo_id, corpo.get("chatId", AUSENTE), corpo.get("dadosConhecidos", AUSENTE), ctx.log)
+
+
+async def _fluxo_do_chat(chat_id: Any) -> tuple[FluxoConfig, str] | Resposta:
+    """flowId pela tabela `atendimentos` (o chatId basta; decisão de 2026-09-02)."""
+    store = await obter_atendimentos_store()
+    fluxo_id = await store.buscar_flow_id(chat_id)
+    if not _js.verdadeiro(fluxo_id):
+        return Resposta(404, {"erro": "atendimento não encontrado"})
+    assert fluxo_id is not None
+    fluxo = await buscar_fluxo(fluxo_id)
+    if fluxo is None:
+        return Resposta(404, {"erro": "fluxo não encontrado — ver GET /fluxos"})
+    return fluxo, fluxo_id
+
+
+async def _get_atendimento(ctx: Contexto) -> Resposta:
+    """`GET /atendimentos/:chatId`: lê o checkpoint, sem avançar o fluxo."""
+    chat_id = ctx.parametros["chatId"]
+    achado = await _fluxo_do_chat(chat_id)
+    if isinstance(achado, Resposta):
+        return achado
+    fluxo, fluxo_id = achado
+    # fluxoId no configurable: é ele que correlaciona os logs de dentro dos nós.
+    config: Any = {"configurable": {"thread_id": chat_id, "fluxoId": fluxo_id}}
+    estado = await fluxo.obter_grafo().aget_state(config)
+    # `estado.tasks?.[0]?.interrupts?.[0]?.value`: só a primeira tarefa.
+    interrupt = estado.tasks[0].interrupts[0].value if estado.tasks and estado.tasks[0].interrupts else None
+    valores = dict(estado.values or {})
+    if not _js.verdadeiro(interrupt) and len(valores) == 0:
+        return Resposta(404, {"erro": "atendimento não encontrado"})
+    return Resposta(200, montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt, valores))
+
+
+def _expirado(fluxo: FluxoConfig, fluxo_id: str, chat_id: str, valores: Mapping[str, Any]) -> dict[str, Any]:
+    return montar_resposta_atendimento(
+        fluxo, fluxo_id, chat_id, None, {**valores, "statusFinal": "expirado", "mensagemFinal": MENSAGEM_EXPIRADO}
+    )
+
+
+async def _post_respostas(ctx: Contexto) -> Resposta:
+    """`POST /atendimentos/respostas`: avança o fluxo, com o TTL de inatividade
+    checado antes de tocar no grafo (#166). O checkpoint nunca sabe de
+    "expirado": isso é só controle da tabela `atendimentos`."""
+    corpo: dict[str, Any] = ctx.corpo
+    chat_id = corpo.get("chatId", AUSENTE)
+    if not _js.verdadeiro(chat_id):
+        return Resposta(400, {"erro": "chatId obrigatório"})
+    resposta = corpo.get("resposta", AUSENTE)
+    # #185: resposta vazia viraria Command(resume="") lá embaixo.
+    if not _js.verdadeiro(resposta):
+        return Resposta(400, {"erro": "resposta obrigatório"})
+    achado = await _fluxo_do_chat(chat_id)
+    if isinstance(achado, Resposta):
+        return achado
+    fluxo, fluxo_id = achado
+    store = await obter_atendimentos_store()
+
+    config: Any = {"configurable": {"thread_id": chat_id, "fluxoId": fluxo_id}}
+    grafo = fluxo.obter_grafo()
+    estado_anterior = await grafo.aget_state(config)
+    retomando = len(estado_anterior.next or ()) > 0
+    valores_atuais = dict(estado_anterior.values or {})
+
+    async def processar(texto: str) -> Resposta:
+        # A resposta vai como texto cru: nos sim_nao, a Tykhe manda "true"/"false".
+        if texto == "":
+            raise EmptyInputError()
+        resultado: dict[str, Any] = await grafo.ainvoke(Command(resume=texto), config)
+        await store.marcar_atividade(chat_id)
+        interrupt = extrair_interrupt(resultado)
+        await _registrar_rodada(fluxo_id, chat_id, interrupt, resultado, ctx.log)
+        return Resposta(200, montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt, resultado))
+
+    atividade = await store.buscar_atividade(chat_id)
+    if atividade is not None and atividade.get("statusFinal") == "expirado":
+        erro = {"erro": "atendimento expirado por inatividade — inicie um novo atendimento"}
+        return Resposta(409, {**erro, **_expirado(fluxo, fluxo_id, chat_id, valores_atuais)})
+
+    # Resposta à pergunta "quer continuar?", e não à pergunta de negócio.
+    if atividade is not None and atividade["aguardandoConfirmacaoTtl"]:
+        # #227: a tolerância dos nós sim_nao, mais as formas naturais desta pergunta.
+        quis_continuar = resposta_eh_sim(resposta) or normalizar_resposta(resposta) in CONTINUAR_TTL
+        quis_recomecar = resposta_eh_nao(resposta) or normalizar_resposta(resposta) in RECOMECAR_TTL
+        if not quis_continuar and not quis_recomecar:
+            # Nem sim nem não: pergunta de novo, sem expirar e sem perder a resposta guardada.
+            ctx.log.info(
+                "resposta à confirmação de TTL não reconhecida — perguntando de novo",
+                fluxoId=fluxo_id,
+                chatId=chat_id,
+                evento="ttl_confirmacao_repetida",
+            )
+            pergunta = {"pergunta": TEXTO_CONFIRMACAO_TTL, "tipo": "sim_nao"}
+            return Resposta(200, montar_resposta_atendimento(fluxo, fluxo_id, chat_id, pergunta, valores_atuais))
+        if quis_recomecar:
+            destino = destino_do_log(fluxo_id, "expirado")
+            conclusao: ConclusaoAtendimento = {"statusFinal": "expirado"}
+            if destino is not None:
+                conclusao["destino"] = destino
+            await store.concluir(chat_id, conclusao)
+            ctx.log.info(
+                "atendimento marcado como expirado — pessoa optou por recomeçar",
+                fluxoId=fluxo_id,
+                chatId=chat_id,
+                evento="atendimento_expirado",
+            )
+            return Resposta(200, _expirado(fluxo, fluxo_id, chat_id, valores_atuais))
+        # Continuar: processa a resposta ORIGINAL guardada quando a confirmação foi pedida.
+        original = _js.coalesce(await store.resolver_confirmacao_ttl_continuar(chat_id), "")
+        ctx.log.info("resposta recebida (retomada após confirmação de TTL)", fluxoId=fluxo_id, chatId=chat_id, evento="resposta_recebida")
+        return await processar(original)
+
+    if not retomando:
+        # Já concluiu: 409 com os dados coletados, como um GET.
+        erro = {"erro": "atendimento já foi concluído — nada esperando resposta"}
+        return Resposta(409, {**erro, **montar_resposta_atendimento(fluxo, fluxo_id, chat_id, None, valores_atuais)})
+
+    # Passou o TTL desde a última atividade: pergunta antes, guardando a resposta.
+    horas_inativo = (datetime.now(UTC) - atividade["atualizadoEm"]).total_seconds() / 3600 if atividade is not None else 0.0
+    if horas_inativo > ttl_inatividade_horas():
+        await store.marcar_aguardando_confirmacao_ttl(chat_id, resposta)
+        ctx.log.info(
+            "TTL de inatividade excedido — perguntando se quer continuar",
+            fluxoId=fluxo_id,
+            chatId=chat_id,
+            evento="ttl_confirmacao_solicitada",
+            horasInativo=_arredondar_js(horas_inativo),
+        )
+        pergunta = {"pergunta": TEXTO_CONFIRMACAO_TTL, "tipo": "sim_nao"}
+        return Resposta(200, montar_resposta_atendimento(fluxo, fluxo_id, chat_id, pergunta, valores_atuais))
+
+    ctx.log.info("resposta recebida", fluxoId=fluxo_id, chatId=chat_id, evento="resposta_recebida")
+    return await processar(resposta)
 
 
 ROTAS: tuple[Rota, ...] = (
@@ -194,6 +369,28 @@ ROTAS: tuple[Rota, ...] = (
             409: esquemas.ERRO_ATENDIMENTOS,
         },
         resumo="Cria um atendimento novo (1ª pergunta do fluxo)",
+        tags=("atendimentos",),
+    ),
+    Rota(
+        "GET",
+        "/atendimentos/:chatId",
+        _get_atendimento,
+        respostas={200: esquemas.RESPOSTA_ATENDIMENTO, 404: esquemas.ERRO_ATENDIMENTOS},
+        resumo="Consulta o estado atual (sem avançar o fluxo)",
+        tags=("atendimentos",),
+    ),
+    Rota(
+        "POST",
+        "/atendimentos/respostas",
+        _post_respostas,
+        corpo=esquemas.CORPO_RESPOSTAS,
+        respostas={
+            200: esquemas.RESPOSTA_ATENDIMENTO,
+            400: esquemas.ERRO_ATENDIMENTOS,
+            404: esquemas.ERRO_ATENDIMENTOS,
+            409: esquemas.ERRO_ATENDIMENTOS,
+        },
+        resumo="Envia uma resposta, avança o fluxo pra próxima pergunta (ou conclui)",
         tags=("atendimentos",),
     ),
 )
