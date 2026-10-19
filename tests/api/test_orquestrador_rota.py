@@ -2,10 +2,9 @@
 POST /atendimentos/orquestrador. A classificação fica no mock
 (`MOCK_CLASSIFICACAO_FLOWID`/`FLOWIDS`), e `APP_ENV=test` nunca chama o Bedrock.
 
-PR 1: 22 dos 23 testes de develop (os 7 tipos da Tykhe contam um por tipo). O de
-`viaOrquestrador` (#189/#191) responde pelo `POST /atendimentos/respostas` e entra
-no PR 2; nos que continuam com um `GET /atendimentos/:chatId`, essa parte também
-entra no PR 2 (marcado em cada teste).
+Os 23 testes de develop (os 7 tipos da Tykhe contam um por tipo): 22 no PR 1 do
+api e, no PR 2, o de `viaOrquestrador` (#189/#191), que responde pelo
+`POST /atendimentos/respostas`, e as conferências por `GET /atendimentos/:chatId`.
 """
 
 import uuid
@@ -96,7 +95,10 @@ async def test_duas_categorias_planejadas_nao_misturam_estado(
         assert res_b.json()["flowId"] == b["id"]
         assert res_a.json()["status"] == "concluido"
         assert res_b.json()["status"] == "concluido"
-        # PR 2: o GET /atendimentos/:chatId de cada um não vaza o flowId do outro.
+        get_a = await cliente.get(f"/atendimentos/{res_a.json()['_links']['self']['href'].rsplit('/', 1)[1]}", headers=auth)
+        get_b = await cliente.get(f"/atendimentos/{res_b.json()['_links']['self']['href'].rsplit('/', 1)[1]}", headers=auth)
+        assert get_a.json()["flowId"] == a["id"], "o GET do chatId A não vaza o flowId de B"
+        assert get_b.json()["flowId"] == b["id"], "o GET do chatId B não vaza o flowId de A"
     finally:
         await remover_planejado_de_teste(a["id"])
         await remover_planejado_de_teste(b["id"])
@@ -106,15 +108,17 @@ async def test_identifica_pessoa_presa_cria_atendimento_com_flow_id(
     cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", ID_PESSOA_PRESA)
-    r = await cliente.post(
-        BASE, json={"chatId": novo_chat_id(), "mensagem": "meu marido foi preso, queria saber do processo dele"}, headers=auth
-    )
+    chat_id = novo_chat_id()
+    r = await cliente.post(BASE, json={"chatId": chat_id, "mensagem": "meu marido foi preso, queria saber do processo dele"}, headers=auth)
     corpo = r.json()
     assert r.status_code == 200
     assert corpo["status"] == "em_andamento"
     assert corpo["flowId"] == ID_PESSOA_PRESA
     assert "número do processo" in corpo["resposta"]
-    # PR 2: o GET /atendimentos/:chatId devolve a mesma pergunta.
+    # Dali em diante é o mesmo atendimento: o GET resolve pela tabela chatId→flowId.
+    get = await cliente.get(f"/atendimentos/{chat_id}", headers=auth)
+    assert get.status_code == 200
+    assert get.json()["resposta"] == corpo["resposta"]
 
 
 async def test_chat_id_de_outro_flow_id_409(cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
@@ -204,7 +208,8 @@ async def test_tipo_da_tykhe_redireciona_sem_criar_atendimento(
     cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch, tipo: TipoTykhe
 ) -> None:
     monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", tipo.id)
-    r = await cliente.post(BASE, json={"chatId": novo_chat_id(), "mensagem": "relato qualquer"}, headers=auth)
+    chat_id = novo_chat_id()
+    r = await cliente.post(BASE, json={"chatId": chat_id, "mensagem": "relato qualquer"}, headers=auth)
     corpo = r.json()
     assert r.status_code == 200
     assert corpo["status"] == "redirecionado"
@@ -214,7 +219,8 @@ async def test_tipo_da_tykhe_redireciona_sem_criar_atendimento(
     assert "metadados" not in corpo
     assert "responder" not in corpo["_links"], "nada a responder na Maria depois de redirecionar"
     assert corpo["tokensGastos"], "tokensGastos sempre presente"
-    # PR 2: o GET /atendimentos/:chatId responde 404 (nenhum atendimento criado).
+    get = await cliente.get(f"/atendimentos/{chat_id}", headers=auth)
+    assert get.status_code == 404, "nenhum atendimento é criado na Maria"
 
 
 async def test_catalogo_com_2_implementados_e_7_tipos_da_tykhe() -> None:
@@ -232,3 +238,26 @@ async def test_variavel_true_devolve_os_planejados(monkeypatch: pytest.MonkeyPat
         assert fluxo["id"] in [c["id"] for c in await catalogo_para_classificacao()]
     finally:
         await remover_planejado_de_teste(fluxo["id"])
+
+
+async def test_via_orquestrador_cpf_encontrado_pergunta_confirmacao_189_191(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Quem entra pelo orquestrador ganha a confirmação de dados (#189); quem chama
+    # POST /atendimentos direto (a Tykhe) não. Mesmo CPF, mesmo mock.
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", ID_VIOLENCIA_DOMESTICA)
+    monkeypatch.delenv("MOCK_CLASSIFICACAO_FLOWIDS", raising=False)
+    chat_id = novo_chat_id()
+    await cliente.post(BASE, json={"chatId": chat_id, "mensagem": "sou vítima de violência doméstica"}, headers=auth)
+
+    async def responder(resposta: str) -> httpx.Response:
+        return await cliente.post("/atendimentos/respostas", json={"chatId": chat_id, "resposta": resposta}, headers=auth)
+
+    await responder("true")  # é vítima
+    await responder("false")  # sem processo
+    r_cpf = await responder("true")  # tem RO; sem CPF pré-preenchido: pergunta
+    assert "Qual o seu CPF" in r_cpf.json()["resposta"]
+    r_confirma = await responder("11111111111")
+    assert "Confirma que seus dados são" in r_confirma.json()["resposta"], "via orquestrador pergunta a confirmação"
+    r = await responder("sim")
+    assert r.json()["status"] == "concluido"

@@ -1,8 +1,8 @@
 """Traduzido de `test/contratoTykhe.test.ts` (develop @ 1157a6d, issue #117): o
 "envelope" que a Tykhe consome (status, tipoResposta, opcoes, resposta, _links).
 
-PR 1: os 2 casos de 1ª pergunta. Os 2 de "concluído" passam por
-`POST /atendimentos/respostas` e entram no PR 2.
+PR 1 do api: os 2 casos de 1ª pergunta. PR 2: os 2 de "concluído", que passam
+por `POST /atendimentos/respostas`.
 """
 
 from itertools import count
@@ -45,3 +45,28 @@ async def test_violencia_domestica_primeira_pergunta(cliente: httpx.AsyncClient,
     )
     assert r.status_code == 200
     assert_contrato_tykhe(r.json(), "violência doméstica, 1ª pergunta")
+
+
+async def _responder(cliente: httpx.AsyncClient, auth: dict[str, str], chat_id: str, resposta: str) -> httpx.Response:
+    return await cliente.post("/atendimentos/respostas", json={"chatId": chat_id, "resposta": resposta}, headers=auth)
+
+
+async def test_pessoa_presa_concluido_handoff_sem_processo(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+    chat_id = f"teste-contrato-pp-fim-{next(_ids)}"
+    await cliente.post("/atendimentos", json={"chatId": chat_id, "flowId": ID_PESSOA_PRESA}, headers=auth)
+    await _responder(cliente, auth, chat_id, "false")  # sem processo
+    await _responder(cliente, auth, chat_id, "11111111111")  # RG (o mock acha)
+    await _responder(cliente, auth, chat_id, "true")  # confirma o nome
+    r = await _responder(cliente, auth, chat_id, "mae")  # parentesco: conclui direto (#191, rota direta = Tykhe)
+    assert r.status_code == 200
+    assert r.json()["status"] == "handoff_humano"
+    assert_contrato_tykhe(r.json(), "pessoa presa, concluído")
+
+
+async def test_violencia_domestica_concluido_handoff_nao_e_vitima(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+    chat_id = f"teste-contrato-vd-fim-{next(_ids)}"
+    await cliente.post("/atendimentos", json={"chatId": chat_id, "flowId": ID_VIOLENCIA_DOMESTICA}, headers=auth)
+    r = await _responder(cliente, auth, chat_id, "false")  # não é vítima
+    assert r.status_code == 200
+    assert r.json()["status"] == "handoff_humano"
+    assert_contrato_tykhe(r.json(), "violência doméstica, concluído")
