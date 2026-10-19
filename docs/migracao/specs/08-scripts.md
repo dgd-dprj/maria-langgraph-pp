@@ -222,7 +222,7 @@ O laço em si não muda.
 | Id | Achado | Origem | Proposta |
 |---|---|---|---|
 | **B1** | O crawler apaga a árvore do flow antes de varrer, sem transação, e sai com código 0 quando uma categoria falha. Uma falha na primeira chamada deixa a categoria sem árvore; uma falha no meio, com a árvore parcial. O resumo diz que a categoria "pode ser categoria sem árvore no Verde", misturando falha de infraestrutura com ausência esperada: o padrão da #196. O único leitor em atendimento lê só a raiz (`src/orquestrador/graph.ts:106-116`), e com o catálogo do #242 o efeito na conversa deve ser nenhum hoje (lido); volta se os planejados voltarem ao catálogo (#249, opções 1 e 3) | lido, `:80`, `:170-191` | **Issue #251** (`[BUG]`, aberta em 2026-10-19, sem esperar a execução). A tradução reproduz; a conferência executa os desfechos e comenta na #251 |
-| **B2** | O seed grava `mensagem_fixa = NULL` nos 72 registros sem mensagem e sobrescreve `nome`, `descricao` e `palavras_chave`. Rodar o seed de novo num banco editado à mão desfaz as edições. O comentário de `:103` diz que a tabela "passa a ser editada por SQL". **Colide com a #249:** uma correção feita editando `mensagem_fixa` no banco some no próximo seed, e a #22 foi entregue justamente mudando só o seed (`6806952`) | lido, `:149-154` | Reproduzir. **Registrado na #249** (comentário de 2026-10-19, com critério de aceitação proposto) e no README. Issue própria: em avaliação (seção 10.1) |
+| **B2** | O seed grava `mensagem_fixa = NULL` nos 72 registros sem mensagem e sobrescreve `nome`, `descricao` e `palavras_chave`. Rodar o seed de novo num banco editado à mão desfaz as edições. O comentário de `:103` diz que a tabela "passa a ser editada por SQL". **Colide com a #249:** uma correção feita editando `mensagem_fixa` no banco some no próximo seed, e a #22 foi entregue justamente mudando só o seed (`6806952`) | lido, `:149-154` | Reproduzir. **Registrado na #249** (comentário de 2026-10-19, com critério de aceitação proposto) e no README. **Issue própria: #253** (`[TECH]`, seção 10.1) |
 | **B3** | `logs-prod.sh` manda o stderr do `aws logs tail` para `/dev/null`. Credencial expirada, perfil errado ou `aws` ausente não mostram nada: o script fica em silêncio, como se não houvesse log | lido, `logs-prod.sh:8` | A ausência do `aws` entra nas checagens da D-3. Mostrar o erro da credencial muda o laço e fica para decisão |
 
 ### 10.1 B2: vale issue própria?
@@ -231,10 +231,10 @@ O laço em si não muda.
 - toda edição por SQL (palavras-chave, descrição, mensagem) some no próximo seed e não existe na cópia de recuperação;
 - toda mudança feita só no seed precisa de um seed novo para chegar ao banco, e esse seed desfaz as edições por SQL.
 
-A decisão que a issue pediria: qual é a fonte (o arquivo ou o banco) e como uma mudança chega à outra. **Não aberta:** aguarda confirmação.
+A decisão que a issue pede: qual é a fonte (o arquivo ou o banco) e como uma mudança chega à outra. **Aberta como #253 em 2026-10-19**, por decisão do usuário: a #249 provavelmente será resolvida editando `mensagem_fixa` no banco, e quem fizer isso perde a correção no próximo seed sem entender por quê.
 
 ## Dependências
 
 - `migration` com o api (#246) mergeado. O módulo não depende do api, mas a branch sai da `migration` mais recente.
 - develop @ `1157a6d`, com o worktree em `%TEMP%\m1157a6d` para a extração e a conferência.
-- Issues afetadas: #20, #26 (origem dos scripts), #249 (mensagens fixas do seed; colisão do B2) e #251 (B1).
+- Issues afetadas: #20, #26 (origem dos scripts), #249 (mensagens fixas do seed; colisão do B2), #251 (B1) e #253 (B2).
