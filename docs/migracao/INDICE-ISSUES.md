@@ -2,7 +2,7 @@
 
 > **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, sempre que uma issue é aberta, muda de estado ou de escopo, ou um PR de módulo é mergeado.
 
-**Gerado em:** 2026-10-19 (atualizado depois do merge do PR 1 do api, #247, da abertura da #248 e da #249, e com o PR 2 do api pronto na branch).
+**Gerado em:** 2026-10-19 (atualizado com o PR 2 do api aberto, #250, e a abertura da #251 e da #252).
 
 **Comando:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 300 --json number,title,state`. Os PRs vêm de `gh pr view <número>`. A coluna **Situação** é preenchida à mão a partir do `MIGRACAO.md` e das specs.
 
@@ -34,8 +34,8 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | 5 | #233 | subgrafos | módulo | Fechada | **Mergeada na migration** (PR #235) |
 | 6 | #241 | fluxos | módulo | Fechada | **Mergeada na migration** (PR #243) |
 | 7 | #244 | orquestrador | módulo | Fechada | **Mergeada na migration** (PR #245). Conferência diferencial: 80 cenários, 79 iguais e 1 divergência aceita |
-| 8 | #246 | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | Aberta | **Em andamento.** **PR 1 (#247) mergeado na migration em 2026-10-18** (merge `23b63e3`): pipeline, `/fluxos`, `POST /atendimentos`, `POST /atendimentos/orquestrador`, `/docs` e o guia de rodar localmente. **A issue continua aberta porque falta o PR 2**, pronto na branch `refactor/246-api-python` (2026-10-19), aguardando confirmação para abrir o PR: `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` (com o TTL) e o bridge do WhatsApp; 50 fixtures byte a byte, conferência com 313 cenários e mutação 27 de 28. Guia conferido em pasta limpa e modo B testado com o Bedrock em 2026-10-19 |
-| 9 | — | scripts | módulo | — | A abrir |
+| 8 | #246 | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | Aberta | **Em andamento.** **PR 1 (#247) mergeado na migration em 2026-10-18** (merge `23b63e3`): pipeline, `/fluxos`, `POST /atendimentos`, `POST /atendimentos/orquestrador`, `/docs` e o guia de rodar localmente. **A issue continua aberta porque falta o PR 2: #250, aberto em 2026-10-19** (branch `refactor/246-api-python`), **CI verde** (jobs `test` e `imagem`, 2026-10-19), aguardando a confirmação do merge: `GET /atendimentos/:chatId`, `POST /atendimentos/respostas` (com o TTL) e o bridge do WhatsApp; 50 fixtures byte a byte, conferência com 313 cenários e mutação 27 de 28. Guia conferido em pasta limpa e modo B testado com o Bedrock em 2026-10-19 |
+| 9 | #252 | scripts | módulo | Aberta | **Spec 08 aprovada em 2026-10-19; tradução não começou.** Branch `refactor/252-scripts-python`. Os 74 planejados viram arquivo de dados, verificado contra o literal de develop (fixture com id do blob conferido e dois leitores independentes). Achados: B1 (#251), B2 (colisão do seed com a #249) e B3 (`logs-prod.sh` silencioso sem credencial) |
 | 10 | — | documentacao | módulo | — | A abrir |
 | 11 | — | corte | módulo | — | A abrir |
 
@@ -64,7 +64,8 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | #239 | Falha de infra nos órgãos manda ligar 129 | defeito de develop | integracoes, fluxos | Aberta | **Aprovada, aguardando janela** (e revisão das 9 chamadas ao Verde) |
 | #240 | `dadosConhecidos` aceita qualquer canal | defeito de develop | api | Aberta | **Aguardando dado externo** (Tykhe: lista de campos). Relacionada à D-5 do api (`tokensGastos` fora do formato) |
 | #248 | Falha ao chamar o Bedrock vira "não identificado" sem alerta | defeito de develop (observabilidade) | ia, orquestrador, corte (Grafana) | Aberta | **Aguardando decisão** (desfecho para a pessoa atendida e limiar do alerta). Mesmo padrão das #196, #232 e #239; incidente anterior na #200. Aberta em 2026-10-19, depois do teste do modo B |
-| #249 | Com o #242, trabalhista e BPC/LOAS perdem a orientação "não atuamos, procure…" | defeito de develop (orientação errada à pessoa atendida) | orquestrador, fluxos | Aberta | **Aguardando decisão, com prazo: antes do próximo release de develop para `main`.** Produção (`main`) ainda dá a orientação certa da #22. Alcance pelo seed: 2 dos 74 planejados têm mensagem fixa (o banco de produção não foi consultado). Caso trabalhista executado; LOAS lido |
+| #249 | Com o #242, trabalhista e BPC/LOAS perdem a orientação "não atuamos, procure…" | defeito de develop (orientação errada à pessoa atendida) | orquestrador, fluxos | Aberta | **Aguardando decisão, com prazo: antes do próximo release de develop para `main`.** Produção (`main`) ainda dá a orientação certa da #22. Alcance pelo seed: 2 dos 74 planejados têm mensagem fixa (o banco de produção não foi consultado). Caso trabalhista executado; LOAS lido. **Colisão com o seed** (B2 do scripts): corrigir `mensagem_fixa` só no banco some no próximo seed; registrado na issue em 2026-10-19 |
+| #251 | Coleta da árvore do Verde apaga a categoria antes de varrer e sai com código 0 quando falha | defeito de develop (ferramenta de manutenção) | scripts | Aberta | **Aguardando decisão** (corrigir em develop ou na base em Python). Mesmo padrão da #196: falha de infraestrutura vira "categoria sem árvore". Lido; a conferência do scripts (#252) executa. Efeito na conversa hoje deve ser nenhum (catálogo do #242); volta se os planejados voltarem ao catálogo (#249) |
 
 ## 3. PRs de develop que a migração precisa trazer
 
@@ -78,4 +79,5 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 **Pendências que ainda não têm issue:**
 - lista de parentescos nova em develop (#212);
 - A4 do orquestrador (pergunta real compartilhada sem uso; precisa do banco de produção);
+- **aguardando confirmação (B2 do scripts, spec 08, seção 10.1):** o seed de `fluxos_planejados` sobrescreve toda edição feita por SQL, e as duas fontes do mesmo dado não têm regra de qual vale. Avaliação: vale issue `[TECH]` própria;
 - **aguardando dado externo:** contagem do relato vazio e da falha da classificação, que mudam de desfecho sem decisão no próximo release (`handoff_humano` → `outros`). A consulta está [na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6223132977); se a contagem mostrar que acontece, vira issue de produto.

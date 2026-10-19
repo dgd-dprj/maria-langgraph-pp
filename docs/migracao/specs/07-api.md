@@ -250,10 +250,10 @@ Rotas, métodos, status, corpos, headers, `_links`, mensagens fixas, eventos e c
 - [x] `respostas.py` completo (#234) em commit próprio (`ad0fbb7`, PR 1).
 - [x] 74 testes traduzidos e os novos da seção 6 passando sem rede (PR 1 e PR 2).
 - [x] As 50 fixtures HTTP e as 5 de log conferidas byte a byte (PR 2, seção 10.2).
-- [x] Conferência diferencial e varredura (seção 7): 343 cenários no PR 1 e 313 no PR 2 (seções 10.1 e 10.2). *Falta: o resultado no corpo do PR 2.*
-- [x] Mutações executadas: 29 de 31 no PR 1, 27 de 28 no PR 2. *Falta: a lista no corpo do PR 2.*
+- [x] Conferência diferencial e varredura (seção 7): 343 cenários no PR 1 e 313 no PR 2 (seções 10.1 e 10.2). Resultado no corpo do PR #250.
+- [x] Mutações executadas: 29 de 31 no PR 1, 27 de 28 no PR 2. Lista no corpo do PR #250.
 - [x] `MIGRACAO.md` com a seção do módulo.
-- [ ] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes (localmente, 932 passando); jobs `test` e `imagem` verdes. *Falta: o CI do PR 2.*
+- [x] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes; jobs `test` e `imagem` verdes no PR #250 (2026-10-19, run `39279987284`: 932 testes na suíte padrão e 23 com Postgres).
 
 ## 9. Decisões (aprovadas em 2026-10-16)
 

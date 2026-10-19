@@ -403,10 +403,31 @@ Dois PRs (spec 07, D-4). Resultado completo do PR 1 na seção 10.1 da spec 07.
   - **Conferência diferencial: 313 cenários**, comparando também as linhas de log de cada cenário: 302 idênticos. Os 11 restantes são HEAD de erro do roteador em que o `inject` devolve corpo e uma conexão HTTP real de develop não. Foi conferido, e o Python faz como o servidor real.
   - **Mutação:** 27 de 28 pegas, e a que passa é equivalente nos grafos de hoje.
   - **Guia, seção 5.1 (responder e consultar),** testado em pasta limpa.
+  - **PR #250 aberto em 2026-10-19; CI verde** nos jobs `test` e `imagem` (run `39279987284`: `ruff`, `ruff format --check`, `mypy` em 129 arquivos, 932 testes na suíte padrão e 23 com Postgres). O merge espera confirmação.
 - **Achados do teste do modo B (2026-10-19), registrados em issue:**
   - **#248:** falha ao chamar o Bedrock vira "não identificado", sem alerta (repetição da #200);
   - **#249:** com o catálogo de 9 opções do #242, causa trabalhista e BPC/LOAS perdem a orientação "não atuamos, procure…", com prazo antes do próximo release;
   - **credencial de `aws login`:** exige `botocore[crt]`, agora no grupo `dev` (`f582150`).
+
+## Módulo scripts (#252)
+
+Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. A tradução não começou. Fonte: develop @ `1157a6d`.
+
+**O ponto que não existe em nenhum outro módulo:** os 74 fluxos planejados do seed são **transcritos**, e não traduzidos. Uma palavra-chave perdida não quebra teste nenhum. A verificação tem dois caminhos independentes:
+- o arquivo `.ts` de develop entra como fixture, com o id do blob git conferido no teste (`265f1df…`);
+- o Node extrai o JSON; um leitor próprio em Python lê a fixture;
+- o teste compara 74 ids únicos, o mesmo conjunto, o total de 1.744 palavras-chave e cada registro campo a campo.
+
+**Decisões (aprovadas em 2026-10-19):**
+- **D-1:** os 74 registros em `scripts/dados/fluxos_planejados.json`.
+- **D-2:** os scripts rodam com `uv run python scripts/<nome>.py`, fora do pacote e da imagem.
+- **D-3:** `logs-prod.sh` chama `npx --yes pino-pretty@13.1.3`. **Condição:** o script verifica antes do laço `node`, `npx`, o download do `pino-pretty` e `aws`, e diz o que falta, em vez de falhar com "command not found". Ferramenta de diagnóstico não pode falhar de forma obscura no meio de uma investigação.
+- **D-4:** num JSON inválido do Verde, a mensagem de erro sai no texto do Python, e não no do V8.
+
+**Achados:**
+- **B1 → #251:** a coleta apaga a árvore da categoria sem transação e sai com código 0 quando falha. É o padrão da #196 numa ferramenta de manutenção. Aberta antes da execução, por decisão: o comportamento está no código.
+- **B2:** o seed sobrescreve toda edição por SQL em `fluxos_planejados`. **Colide com a #249:** corrigir `mensagem_fixa` só no banco some no próximo seed. Registrado na #249. Issue própria em avaliação (proposta: `[TECH]`, qual é a fonte do dado).
+- **B3:** `logs-prod.sh` descarta o stderr do `aws`; credencial vencida fica em silêncio. A ausência do `aws` entra nas checagens da D-3; o resto fica para decisão.
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
