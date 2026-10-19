@@ -2,7 +2,7 @@
 
 > **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, sempre que uma issue é aberta, muda de estado ou de escopo, ou um PR de módulo é mergeado.
 
-**Gerado em:** 2026-10-19 (atualizado depois do merge do PR 1 do api, #247, e da abertura da #248).
+**Gerado em:** 2026-10-19 (atualizado depois do merge do PR 1 do api, #247, e da abertura da #248 e da #249).
 
 **Comando:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 300 --json number,title,state`. Os PRs vêm de `gh pr view <número>`. A coluna **Situação** é preenchida à mão a partir do `MIGRACAO.md` e das specs.
 
@@ -64,6 +64,7 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | #239 | Falha de infra nos órgãos manda ligar 129 | defeito de develop | integracoes, fluxos | Aberta | **Aprovada, aguardando janela** (e revisão das 9 chamadas ao Verde) |
 | #240 | `dadosConhecidos` aceita qualquer canal | defeito de develop | api | Aberta | **Aguardando dado externo** (Tykhe: lista de campos). Relacionada à D-5 do api (`tokensGastos` fora do formato) |
 | #248 | Falha ao chamar o Bedrock vira "não identificado" sem alerta | defeito de develop (observabilidade) | ia, orquestrador, corte (Grafana) | Aberta | **Aguardando decisão** (desfecho para a pessoa atendida e limiar do alerta). Mesmo padrão das #196, #232 e #239; incidente anterior na #200. Aberta em 2026-10-19, depois do teste do modo B |
+| #249 | Com o #242, trabalhista e BPC/LOAS perdem a orientação "não atuamos, procure…" | defeito de develop (orientação errada à pessoa atendida) | orquestrador, fluxos | Aberta | **Aguardando decisão, com prazo: antes do próximo release de develop para `main`.** Produção (`main`) ainda dá a orientação certa da #22. Alcance pelo seed: 2 dos 74 planejados têm mensagem fixa (o banco de produção não foi consultado). Caso trabalhista executado; LOAS lido |
 
 ## 3. PRs de develop que a migração precisa trazer
 
@@ -77,5 +78,4 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 **Pendências que ainda não têm issue:**
 - lista de parentescos nova em develop (#212);
 - A4 do orquestrador (pergunta real compartilhada sem uso; precisa do banco de produção);
-- **aguardando dado externo:** contagem do relato vazio e da falha da classificação, que mudam de desfecho sem decisão no próximo release (`handoff_humano` → `outros`). A consulta está [na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6223132977); se a contagem mostrar que acontece, vira issue de produto;
-- **aguardando decisão (achado de 2026-10-19, teste do modo B):** com o catálogo de 9 opções do #242, um relato trabalhista ("não pagaram rescisão nem FGTS") vai para `novo-processo` da Tykhe (abrir caso novo na Defensoria). Antes, ia para o planejado "reclamação trabalhista", que respondia "Não atuamos em casos trabalhistas — procure o sindicato da sua categoria". O mesmo pode valer para os outros planejados com mensagem fixa (LOAS → DPU). Comportamento de develop, reproduzido na migration; decidir se vira issue de produto.
+- **aguardando dado externo:** contagem do relato vazio e da falha da classificação, que mudam de desfecho sem decisão no próximo release (`handoff_humano` → `outros`). A consulta está [na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6223132977); se a contagem mostrar que acontece, vira issue de produto.
