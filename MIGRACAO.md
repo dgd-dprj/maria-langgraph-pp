@@ -440,6 +440,22 @@ Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. Fonte: de
 - **O que foi conferido:** por leitura, o modelo, as dimensões (1024), o cast `::vector`, o `k` e o SQL de ordenação do pgvector. Executado contra um Bedrock falso, com a flag `ORQUESTRADOR_INCLUIR_PLANEJADOS=true` (83 opções): o mesmo texto decodificado nas 84 chamadas, o mesmo modelo e os mesmos cabeçalhos, e os mesmos 10 candidatos na mesma ordem (busca em memória). O JSON do corpo difere só na forma (o JS compacto e em UTF-8 cru, o Python com espaço e escapes `\u`).
 - **O que não foi exercitado:** a ordenação no pgvector, os vetores reais do Titan e a cobertura da busca. Se a #249 devolver os planejados ao catálogo, esse caminho passa a ser o primeiro filtro de toda classificação de uma vez; a #256 pede medir a cobertura antes.
 
+## Módulo documentacao (#258)
+
+Spec 09 (`docs/migracao/specs/09-documentacao.md`), aprovada em 2026-10-20 com as decisões D-1 a D-5. Fonte: develop @ `1157a6d`.
+
+**Primeiro, o que develop mudou (D-1):** os quatro commits de documentação de develop posteriores ao nascimento da `migration` (#229, #242, #234, #226) entraram num commit próprio, antes da reescrita (`814395b`).
+
+**A reescrita descreve o repositório como ele passa a ser:** `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `docs/` e `.claude/`. As referências históricas ficam (D-2): decisões datadas, incidentes e números de issue; trecho histórico que cita a versão TypeScript vai numa seção marcada `> **Registro histórico`.
+
+**A verificação é executada, e não só lida:**
+- `tests/test_documentacao.py`: links e caminhos citados existem; referência à versão TypeScript só em registro histórico; o conjunto de variáveis lidas pelo código é o da tabela do README (28: as 25 do código e as 3 do SDK da AWS).
+- Os guias seguidos num clone limpo, no Windows (resultado na seção 10 da spec). O `docs/novo-fluxo.md` foi seguido de verdade, com um fluxo de exemplo numa branch descartável: os testes do fluxo passaram, e **a suíte quebrou em 12 testes que fixam o catálogo**, o que o guia não dizia (C7, decisão em aberto 6).
+
+**`APP_ENV` (C4, decidido em 2026-10-20):** dois comportamentos, e não três. Só `test` muda alguma coisa; `development` e ausente são o comportamento de produção, em develop e aqui. O critério da #208 que pedia três foi corrigido.
+
+**Diagramas (D-4):** o `orquestrador.png` desenha o relato não identificado como handoff, como antes do #242, também em develop (C1, registrado na #249). `orquestrador`, `padrao-comum-ia` e `mapa-modulos-ia` foram trocados por Mermaid no próprio doc. Gerar e gravar os PNGs novos no S3 é escrita na AWS e fica fora do módulo.
+
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
 Um teste que passa prova que o código faz o esperado no caso testado. Não prova que o teste **pegaria** a tradução errada. Para cada divergência que a spec do módulo trata (o lugar onde a tradução ingênua muda o comportamento), aplique no código a versão ingênua, rode o teste correspondente e confirme que ele **falha**. Depois, restaure o código.
@@ -621,6 +637,8 @@ Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o
    - **PENDÊNCIA, antes de escolher o valor: medir no Linux quanto o `pg` leva para devolver erro a quem pede conexão com o banco fora do ar**, e o mesmo para o pool Python. Não pode ser medido no Windows, onde a recusa da conexão leva cerca de 2 s e o libpq não a percebe. As sondas estão prontas: `.sonda/pool-banco-fora.mts` no worktree de develop (o `pg`, mesmo `new Pool({ connectionString })` das stores) e uma sonda Python com o prazo real do código. Medir nos dois casos: conexão recusada (porta fechada) e pacote descartado (host que não responde).
    - **O que a medição decide:** se o `pg` devolve o erro em segundos e o Python espera 120 s, a tradução piorou, e é **correção de migração**, com commit próprio na `migration`. Se o `pg` também fica pendurado, é **defeito herdado**, registrado como melhoria. Isso muda quem decide e com que urgência. O rascunho da issue espera essa medição.
 
+6. **Como as respostas gravadas evoluem depois do corte** (achado C7 da spec 09). `tests/fixtures/contrato/` guarda respostas gravadas contra a versão TypeScript, conferidas byte a byte. Registrar um fluxo novo muda `GET /fluxos` e quebra 6 desses testes (e mais 6 com a lista esperada no código). Depois do corte não há versão TypeScript para regravar. Opções: editar a fixture à mão a cada mudança de contrato, com o motivo no PR; ou congelar as fixtures como registro da tradução e mover a conferência do contrato vivo para testes escritos. Sem valor provisório: até a decisão, o `docs/novo-fluxo.md` pede combinar no PR.
+
 *A decisão 5 (contador com texto vindo da Tykhe, D-1) foi fechada em 2026-10-16: divergência aceita (tabela "Divergências aceitas").*
 
 ## Resultado do `langgraph.json` com fábrica
@@ -634,6 +652,7 @@ Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o
   - o estado no GitHub e a **situação explícita**: mergeada na migration; corrigida em develop e pendente na migration; aprovada, aguardando janela; aguardando decisão; aguardando dado externo;
   - a data e o comando que gerou o índice.
 - **Cópias:** `docs/migracao/INDICE-ISSUES.md` (no repositório) e `migracao-specs/INDICE-ISSUES.md` (local). Se divergirem, vale o comentário.
+- **A cópia do repositório anda na branch do módulo seguinte** (achado C3 da spec 09): entre o merge de um módulo e a branch do próximo, a cópia na `migration` fica atrás do comentário. Depois do último módulo, a atualização vai num commit próprio na `migration`.
 - **Rotina ao fim de cada módulo:**
   1. fechar a issue com comentário;
   2. apagar a branch;

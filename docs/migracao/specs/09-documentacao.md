@@ -190,6 +190,25 @@ A documentação também passa por verificação executada:
 | **C3** | O índice de issues do repositório fica desatualizado entre o merge de um módulo e a branch do seguinte | lido (a regra da cópia na branch de trabalho) | Registrar no `MIGRACAO.md`, na seção do índice, que a cópia do repositório anda na branch do módulo seguinte |
 | **C4** | **O `APP_ENV` tem dois comportamentos, e não três.** As 15 leituras em `src/maria/` comparam só com `"test"`; `development` e ausente fazem o mesmo. O critério da #208 pede "os três valores e o efeito de cada um", e o `docs/rodar-localmente.md` diz que `development` liga a "IA real", o que também vale para ausente. Develop é igual: as 10 comparações de `NODE_ENV` em `src/` são com `"test"`, e um comentário de develop diz "obrigatório (produção E desenvolvimento); só NODE_ENV=test relaxa". A tradução reproduziu certo; só a documentação promete três | executado nos dois lados | **Decidido em 2026-10-20:** documentar os dois comportamentos que existem e corrigir o critério da #208. Documentar comportamento que não existe é pior que não documentar. Se `development` deve ter efeito próprio, é mudança de comportamento, fora da régua |
 
+| **C5** | O `docs/arquitetura.md` (igual em develop) diz que o release é roteado pelo header `X-Maria-App`. Pelo Terraform, o CloudFront do release injeta `X-Maria-Env: release` (`release.tf`); `X-Maria-App` é o header do Grafana (`grafana.tf`) | lido (Terraform) | Corrigido no doc |
+| **C6** | O mesmo doc diz que o release usa "dado real do Verde (homolog)". Os comentários do `release.tf` dizem o contrário: o release foi criado para testar com o Verde de **produção** ("quando a credencial chegar"), e o `prod` aponta para a homologação. Os valores reais estão nos segredos e não foram lidos | lido (Terraform) | Doc segue o Terraform, sem citar URL. Conferir os segredos de cada ambiente é leitura na AWS, a fazer no corte |
+| **C7** | **Registrar um fluxo novo quebra 12 testes**, e 6 deles conferem `GET /fluxos` contra respostas gravadas da versão TypeScript (`tests/fixtures/contrato/`). Depois do corte não há versão TypeScript para regravar: toda evolução do contrato exige editar a fixture à mão | executado (guia seguido, seção 10) | O guia diz quais são. **Decisão em aberto:** como as fixtures gravadas evoluem depois do corte |
+| **C8** | O README tinha só a forma bash do `.env` (`printf`) e a verificação com `&&`; nenhum dos dois existe no Windows PowerShell 5.1 | executado | Forma PowerShell e nota acrescentadas |
+| **C9** | Os 2 testes do `publish-grafana` falham, em vez de serem pulados, quando o `bash` do PATH é o do WSL sem distribuição funcionando | executado | Registrado no `docs/testes.md`; é do ambiente |
+| **C10** | O `pessoa-presa.png` não desenha os subgrafos do #183 quando o atendimento vem pelo orquestrador. Vale para develop também | executado (PNG conferido) | Registrado; o PNG fica até ser regerado (D-4) |
+
+## 10. Resultado da execução dos guias (2026-10-20)
+
+Num clone limpo da branch (`a015172`), no Windows 11 com PowerShell 5.1:
+
+| Guia | O que foi executado | Resultado |
+|---|---|---|
+| README, "Rodando local" | `uv sync` (4 s); o `.env` mínimo; o servidor; `/health`, `GET /fluxos`, `POST /atendimentos`, `POST /atendimentos/orquestrador`, `/docs` | Tudo 200. O `printf` não existe no PowerShell (C8). Com o `.env` mínimo, o orquestrador devolve `redirecionado`/`outros`, como a tabela diz |
+| README e `docs/testes.md`, verificação | ruff, format, mypy, a suíte padrão | Verde, menos os 2 testes do C9 (falham também sem a mudança). O `&&` não existe no PowerShell 5.1 (C8) |
+| `docs/testes.md`, Postgres | o `docker run` do guia e `pytest -m postgres` | 25 passaram |
+| `docs/testes.md`, integração | não executado | chama o Bedrock com custo real |
+| `docs/novo-fluxo.md` | um fluxo de exemplo (1 pergunta sim/não), só com o guia e os arquivos que ele aponta: pasta, registro, `langgraph.json`, teste do grafo, teste HTTP, doc com link no README | Os testes do fluxo passaram (3 do grafo, 1 HTTP) e o teste de documentação cobriu o doc novo. **A suíte inteira quebrou em 12 testes que fixam o catálogo (C7)**, e o guia não avisava. Faltava também o `resposta_eh_sim`. Ambos corrigidos no guia. O diagrama não foi gerado: gravar no S3 é escrita na AWS |
+
 ## Dependências
 
 - `migration` @ `437dee0`: todos os módulos de código.
