@@ -13,7 +13,7 @@ src/maria/fluxos/<nome>/
 ```
 
 - `state.py` — uma classe `TypedDict` com `total=False`: todo campo que o grafo precisa lembrar entre pausas (`interrupt()`) vira uma chave. Os nomes dos canais ficam em `camelCase` (`statusFinal`, `mensagemFinal`): são os mesmos nomes que a API devolve e que a versão TypeScript gravava. Além dos campos do fluxo, todo fluxo tem `statusFinal`, `mensagemFinal`, os três `perguntaAtual*` (escritos pelo `preparar_pergunta`) e `tokensGastos: CanalTokensGastos` (`src/maria/shared/tokens_acumulados.py`). Ver `src/maria/fluxos/pessoa_presa/state.py` e `src/maria/fluxos/violencia_domestica/state.py`.
-- `graph.py` — o desenho do grafo É a documentação executável do fluxo de negócio (ver `docs/arquitetura.md`, seção "Por que LangGraph"). Cada pergunta é um par de nós: "preparar" (chama `preparar_pergunta`, de `src/maria/ia/reescrever.py`, 1 vez) e "pedir" (lê `perguntaAtualTexto` e pausa em `interrupt({"pergunta": ..., "tipo": "sim_nao" | "texto"})`) — ver `docs/ia.md`, seção `reescrever.py`, sobre por que a IA não pode ficar no nó que pausa. Decisões usam `add_conditional_edges`. O grafo termina gravando `statusFinal` (`"concluido"` ou `"handoff_humano"`). O construtor fica no nível do módulo e **não é compilado na importação**: o módulo termina com a fábrica, que compila na primeira chamada com o checkpointer da aplicação:
+- `graph.py` — o desenho do grafo É a documentação executável do fluxo de negócio (ver `docs/arquitetura.md`, seção "Por que LangGraph"). Cada pergunta é um par de nós: "preparar" (chama `preparar_pergunta`, de `src/maria/ia/reescrever.py`, 1 vez) e "pedir" (lê `perguntaAtualTexto` e pausa em `interrupt({"pergunta": ..., "tipo": "sim_nao" | "texto"})`; a resposta de uma pergunta sim/não vira booleano com `resposta_eh_sim`, de `src/maria/shared/respostas.py`) — ver `docs/ia.md`, seção `reescrever.py`, sobre por que a IA não pode ficar no nó que pausa. Decisões usam `add_conditional_edges`. O grafo termina gravando `statusFinal` (`"concluido"` ou `"handoff_humano"`). O construtor fica no nível do módulo e **não é compilado na importação**: o módulo termina com a fábrica, que compila na primeira chamada com o checkpointer da aplicação:
 
   ```python
   _fabrica = FabricaGrafo(_construtor)  # de maria.fluxos._fabrica
@@ -98,6 +98,13 @@ O registro já basta para o fluxo aparecer em `GET /fluxos`, aceitar `POST /aten
 - `tests/api/test_fluxos_http.py` — via cliente HTTP sobre o ASGI (fixtures `cliente` e `auth` de `tests/api/conftest.py`), cobre conteúdo/texto de pergunta específico deste fluxo (a mecânica genérica de rota já é coberta por `tests/api/test_app.py`, não duplicar aqui).
 
 Rodar só os testes do fluxo: `uv run pytest tests/fluxos/test_<nome>.py`. Antes do PR, a verificação inteira (`docs/testes.md`).
+
+### O que o registro muda em outros testes
+
+Registrar o fluxo muda a resposta de `GET /fluxos` e o catálogo do orquestrador, e **12 testes que fixam esses dois valores falham** (conferido seguindo este guia com um fluxo de exemplo, 2026-10-20):
+
+- **Listas esperadas no código** — `tests/api/test_app.py` (`GET /fluxos`), `tests/api/test_orquestrador_rota.py` e `tests/fluxos/test_spec_fluxos.py` (o catálogo com os 2 fluxos e os 7 tipos da Tykhe). Atualize a lista esperada para incluir o fluxo novo.
+- **Respostas gravadas contra a versão TypeScript** — `tests/fixtures/contrato/http/`, `tests/fixtures/contrato/conferencia-api-pr1/` e `tests/fixtures/contrato/conferencia-api-pr2/` guardam o corpo de `GET /fluxos` com os 2 fluxos, e são conferidas byte a byte por `tests/api/test_contrato.py`, `tests/api/test_conferencia_pr1.py` e `tests/api/test_conferencia_pr2.py`. A versão TypeScript não existe mais para regravar: a resposta gravada precisa ser editada à mão, e o PR diz por quê. **Como essas fixtures evoluem depois do corte ainda não está decidido** (#208); até a decisão, não edite a fixture sem combinar no PR.
 
 Ver `docs/testes.md` pra convenção geral.
 

@@ -20,6 +20,10 @@ printf 'API_KEY=troque-esta-chave\nAPP_ENV=test\n' > .env   # modo de teste: IA 
 uv run python -m maria.main                                   # http://localhost:3001
 ```
 
+No PowerShell, a segunda linha é `Set-Content -Path .env -Encoding ascii -Value "API_KEY=troque-esta-chave`nAPP_ENV=test"`.
+
+Nesse modo, o orquestrador manda todo relato para `outros`; para simular uma classificação, acrescente `MOCK_CLASSIFICACAO_FLOWID` (ver o guia).
+
 `GET /docs` abre o Swagger UI com o contrato HTTP completo.
 
 ## Variáveis de ambiente
@@ -64,6 +68,8 @@ Um teste ([`tests/test_documentacao.py`](tests/test_documentacao.py)) confere qu
 ```bash
 uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest
 ```
+
+O Windows PowerShell 5.1 não tem `&&`: rode os quatro comandos um por vez.
 
 A suíte padrão não precisa de banco nem de rede (`APP_ENV=test`, Verde e Bedrock simulados). Dois marcadores ficam de fora dela: `postgres` (contra um Postgres real com pgvector; roda na segunda etapa do CI) e `integracao` (chama o Bedrock e o Verde de verdade; só manual). Detalhes em [`docs/testes.md`](docs/testes.md).
 

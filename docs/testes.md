@@ -10,7 +10,7 @@ uv run pytest -m postgres              # contra um Postgres real com pgvector (p
 uv run pytest -m integracao            # chama o Bedrock de verdade (custo real; precisa de credencial AWS)
 ```
 
-A verificação completa antes de um PR é `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`.
+A verificação completa antes de um PR é `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest` (no Windows PowerShell 5.1, que não tem `&&`, um comando por vez).
 
 ## Camadas
 
@@ -35,7 +35,7 @@ Os testes espelham `src/maria/` (`tests/<pasta>/test_*.py`).
 
 **Store Postgres.** Os testes marcados `postgres` precisam de `DATABASE_URL` apontando para um Postgres 16 com pgvector, e apagam as tabelas de negócio antes de cada teste. **Nunca apontar para banco de produção ou de release.** Localmente, com Docker: `docker run -d --rm --name pg-teste -e POSTGRES_USER=maria -e POSTGRES_PASSWORD=maria -e POSTGRES_DB=maria -p 55432:5432 pgvector/pgvector:pg16` e `DATABASE_URL=postgresql://maria:maria@localhost:55432/maria uv run pytest -m postgres`. A issue #217 mostrou por que isso importa: um defeito que a store em memória escondia.
 
-**Windows.** `tests/conftest.py` troca o loop de eventos pelo `WindowsSelectorEventLoopPolicy`, porque o psycopg assíncrono não funciona com o loop padrão do Windows. O CI e a imagem são Linux. Alguns testes precisam de um `sh` POSIX ou do comportamento de rede do Linux e são pulados no Windows; no CI, nada é pulado.
+**Windows.** `tests/conftest.py` troca o loop de eventos pelo `WindowsSelectorEventLoopPolicy`, porque o psycopg assíncrono não funciona com o loop padrão do Windows. O CI e a imagem são Linux. Alguns testes precisam de um `sh` POSIX ou do comportamento de rede do Linux e são pulados no Windows; no CI, nada é pulado. Exceção: os 2 testes do `publish-grafana` (`tests/test_workflows.py`) só são pulados quando não há `bash` no PATH. Se o `bash` encontrado for o do WSL sem uma distribuição funcionando, eles **falham** em vez de serem pulados; a falha é do ambiente, não do código.
 
 ## O que NÃO existe ainda
 
