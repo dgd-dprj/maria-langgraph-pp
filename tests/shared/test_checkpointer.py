@@ -96,7 +96,7 @@ async def test_search_path_e_fixado_em_cada_conexao_nova_pelo_configure_do_pool(
     from maria.shared import pool as modulo_pool
 
     monkeypatch.setenv("DATABASE_URL", "postgresql://usuario@host-falso/banco")
-    monkeypatch.setattr(modulo_pool, "AsyncConnectionPool", _PoolFalso)
+    monkeypatch.setattr(modulo_pool, "PoolComoPg", _PoolFalso)
     monkeypatch.setattr(checkpointer, "AsyncPostgresSaver", _SaverFalso)
     monkeypatch.setattr(psycopg.AsyncConnection, "connect", _conectar)
 
