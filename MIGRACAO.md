@@ -520,12 +520,36 @@ Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escr
 - **Caracteres invisíveis literais no código-fonte:** um BOM literal no `pipeline.py` foi trocado pelo escape `"﻿"` (#246). Outros continuam em arquivos de teste antigos. Em `_js.py` são intencionais, mas o escape deixaria isso visível na revisão.
 - **Alerta do token do Verde:** o `verificar-token-verde.yml` falha todo dia por causa do token de release, e com isso deixou de alertar. Separar prod e release em execuções distintas.
 
+## Prazos: a conexão com o banco e as chamadas ao Verde são assuntos diferentes
+
+Trocar um prazo pelo outro é o mesmo erro do padrão "parâmetro com nome familiar e semântica diferente" (comentário 12 da #208). Registro de 2026-10-20, depois de uma confusão na investigação do B5 (#255): um valor de 10 s, usado só numa sonda descartável para não esperar 120 s, foi relatado sem dizer de onde vinha.
+
+**Conexão com o Postgres. Requisito: banco fora do ar falha rápido.**
+
+| Prazo | Valor | Onde | Situação |
+|---|---|---|---|
+| Espera de quem pede conexão ao pool | 120 s | `src/maria/shared/pool.py:55` (`ESPERA_POR_CONEXAO_S`) | **Provisório, decisão em aberto 5.** É o prazo que vale no caminho da API: medido em 2026-10-20, a consulta desiste no prazo do pool mesmo com o libpq preso tentando conectar. Com o banco fora, cada requisição espera o prazo inteiro, porque o psycopg_pool não avisa quem espera. O `pg` de develop devolve o erro na hora quando a conexão é recusada |
+| Abrir a conexão (`connect_timeout` do libpq) | ausente | conexões diretas, fora do pool: o `CREATE SCHEMA` do checkpointer no boot (`shared/checkpointer.py`), o seed e as fixtures de teste | Igual ao `pg` de develop, que também não tem prazo por padrão (`connect_timeout: 0`, `pg/lib/defaults.js:78`). No Linux, a conexão recusada falha na hora; um pacote descartado espera o prazo do TCP do sistema. **No Windows, o libpq não percebe a conexão recusada e espera sem limite** (medido: `socket` puro recusado em 2,1 s, `psycopg.connect` preso por mais de 150 s): afeta só o desenvolvimento local |
+
+**Chamadas HTTP ao Verde. Requisito: o Verde lento não vira "não encontrado" (#196).**
+
+| Prazo | Valor | Onde | Origem |
+|---|---|---|---|
+| Total de cada tentativa, inclusive a leitura do corpo | 30 s | `src/maria/integracoes/verde.py:55` (`TIMEOUT_VERDE_S`), aplicado com `asyncio.timeout_at` em `:170`, `:176` e `:188` | #196: um RG real voltou "não encontrado" com o Verde de homologação levando 13,5 s e o prazo antigo de 20 s |
+| Abrir a conexão TCP | 10 s | `src/maria/integracoes/cliente_http.py:34` (`connect=10.0`) | `connectTimeout` do undici, medido no módulo integracoes. Corre dentro dos 30 s, e não no lugar deles |
+| Total de cada chamada do script de coleta | 20 s | `scripts/coletar_arvore_perguntas_verde.py` (`TIMEOUT_MS`) | Reproduz o script de develop, que a #196 não alterou. Mesmo risco da #196 numa ferramenta de manutenção (ver #251) |
+
 ## Decisões em aberto
 
 1. **Major do Postgres de produção. Valor provisório: 16**, na imagem `pgvector/pgvector:pg16` do CI. A conferir com `SELECT version()` no RDS (do stack antigo). Se for outra, o ajuste é uma linha no `ci.yml`.
 2. **Nome do schema do checkpointer. Valor provisório: `checkpoint_py`** (`SCHEMA_CHECKPOINT` em `shared/checkpointer.py`). O schema separado foi aprovado na #208, mas o nome não tinha sido definido.
 3. **Threads `orquestrador:*` no corte:** decididas na issue do corte.
 4. **Token do Verde em release:** pré-requisito do corte (detalhes na #208).
+5. **Espera por conexão do pool. Valor provisório: 120 s** (`ESPERA_POR_CONEXAO_S` em `shared/pool.py`). Requisito registrado em 2026-10-20: banco fora do ar deve falhar rápido. Com 120 s, uma pessoa no WhatsApp pode ficar até 120 s sem resposta durante uma queda do banco. O `connect_timeout` não resolve isso, porque não limita quem espera o pool (seção "Prazos").
+   - **Como chegamos em 120 s:** aproximação do `ConnectionBorrowTimeout` do RDS Proxy (padrão da AWS), pensada para o **pool cheio com o banco no ar**. O caso de **banco indisponível** nunca foi avaliado com esse número: é outro problema no mesmo parâmetro, o padrão "parâmetro com nome familiar e semântica diferente" outra vez (a acrescentar à lista do comentário 12 da #208).
+   - **Lido em develop:** no `pg-pool` 3.14, cada consulta sem conexão livre abre um cliente próprio (`index.js:235`), e o erro de conexão vai direto para quem pediu (`index.js:283`), sem prazo no meio.
+   - **PENDÊNCIA, antes de escolher o valor: medir no Linux quanto o `pg` leva para devolver erro a quem pede conexão com o banco fora do ar**, e o mesmo para o pool Python. Não pode ser medido no Windows, onde a recusa da conexão leva cerca de 2 s e o libpq não a percebe. As sondas estão prontas: `.sonda/pool-banco-fora.mts` no worktree de develop (o `pg`, mesmo `new Pool({ connectionString })` das stores) e uma sonda Python com o prazo real do código. Medir nos dois casos: conexão recusada (porta fechada) e pacote descartado (host que não responde).
+   - **O que a medição decide:** se o `pg` devolve o erro em segundos e o Python espera 120 s, a tradução piorou, e é **correção de migração**, com commit próprio na `migration`. Se o `pg` também fica pendurado, é **defeito herdado**, registrado como melhoria. Isso muda quem decide e com que urgência. O rascunho da issue espera essa medição.
 
 *A decisão 5 (contador com texto vindo da Tykhe, D-1) foi fechada em 2026-10-16: divergência aceita (tabela "Divergências aceitas").*
 

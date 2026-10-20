@@ -29,6 +29,7 @@ from dotenv import load_dotenv
 
 from maria.fluxos import fluxos_por_id
 from maria.shared._js import trim_js
+from maria.shared.checkpointer import fechar_checkpointer, inicializar_checkpointer
 from maria.shared.fluxos_planejados_db import FluxoPlanejado
 
 DADOS = Path(__file__).resolve().parent / "dados" / "fluxos_planejados.json"
@@ -112,10 +113,14 @@ async def seed(dados: list[FluxoPlanejado]) -> None:
     print(f"seed concluído: {len(dados)} fluxos planejados inseridos/atualizados em fluxos_planejados")
 
 
-def main() -> int:
-    load_dotenv()
+async def _executar() -> int:
+    # Em develop, importar src/fluxos/index.js já cria o checkpointer (top-level await nos
+    # grafos), antes de qualquer guarda do seed: loga o aviso do MemorySaver, ou conecta o
+    # PostgresSaver e cria as tabelas de checkpoint. Uma falha aqui não passa pelo
+    # "seed falhou:": o processo morre com a pilha e código 1 (spec 08, achado B5).
+    await inicializar_checkpointer()
     try:
-        asyncio.run(seed(carregar_dados()))
+        await seed(carregar_dados())
     except Exception as erro:
         # `console.error("seed falhou:", erro)` do Node: primeira linha `<nome>: <mensagem>`,
         # seguida da pilha. A pilha é a do Python (spec 08, D-4).
@@ -123,7 +128,14 @@ def main() -> int:
         print(f"seed falhou: {nome}: {erro}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         return 1
+    finally:
+        await fechar_checkpointer()
     return 0
+
+
+def main() -> int:
+    load_dotenv()
+    return asyncio.run(_executar())
 
 
 if __name__ == "__main__":

@@ -5,6 +5,11 @@ o arquivo de dados real não muda.
 """
 
 import copy
+import json
+import os
+import subprocess
+import sys
+from pathlib import Path
 
 import psycopg
 import pytest
@@ -88,17 +93,59 @@ def test_sem_database_url(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Captur
     monkeypatch.setenv("DATABASE_URL", "")  # definida e vazia: o load_dotenv não a substitui
     assert seed_mod.main() == 1
     captura = capsys.readouterr()
-    assert captura.out == ""
+    # B5: como em develop, o checkpointer nasce antes da guarda do seed e loga o aviso do MemorySaver.
+    (linha,) = captura.out.splitlines()
+    assert json.loads(linha)["level"] == 40
+    assert json.loads(linha)["msg"] == "[checkpoint] DATABASE_URL ausente — usando MemorySaver (não persiste)"
     assert captura.err.splitlines()[0] == "seed falhou: Error: DATABASE_URL obrigatório pra rodar o seed"
 
 
+def _checkpointer_falso(monkeypatch: pytest.MonkeyPatch, ordem: list[str], erro: Exception | None = None) -> None:
+    async def inicializar() -> None:
+        ordem.append("checkpointer")
+        if erro is not None:
+            raise erro
+
+    async def fechar() -> None:
+        ordem.append("fechar checkpointer")
+
+    monkeypatch.setattr(seed_mod, "inicializar_checkpointer", inicializar)
+    monkeypatch.setattr(seed_mod, "fechar_checkpointer", fechar)
+
+
 def test_valida_antes_de_conectar(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], dados: list[FluxoPlanejado]) -> None:
+    # Ordem de develop: checkpointer (na importação dos fluxos), validar(), e só então a conexão do seed.
+    ordem: list[str] = []
+    _checkpointer_falso(monkeypatch, ordem)
     monkeypatch.setenv("DATABASE_URL", "postgresql://ninguem@127.0.0.1:1/nada")
     monkeypatch.setattr(seed_mod, "carregar_dados", lambda: dados[:73])
     assert seed_mod.main() == 1
+    assert ordem == ["checkpointer", "fechar checkpointer"]
     assert capsys.readouterr().err.splitlines()[0] == (
         "seed falhou: Error: esperava 74 registros no seed, achou 73 — dado mudou? confirmar antes de seguir"
     )
+
+
+def test_falha_do_checkpointer_escapa_sem_o_prefixo(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    # B5: em develop, a falha vem do top-level await da importação, fora do `.catch` do seed.
+    ordem: list[str] = []
+    _checkpointer_falso(monkeypatch, ordem, ConnectionRefusedError("connect ECONNREFUSED 127.0.0.1:1"))
+    monkeypatch.setenv("DATABASE_URL", "postgresql://ninguem@127.0.0.1:1/nada")
+    with pytest.raises(ConnectionRefusedError):
+        seed_mod.main()
+    assert ordem == ["checkpointer"]
+    assert "seed falhou" not in capsys.readouterr().err
+
+
+@pytest.mark.skipif(sys.platform == "win32", reason="o libpq do Windows não percebe a conexão recusada sem connect_timeout")
+def test_banco_inalcancavel_morre_na_hora_sem_o_prefixo() -> None:
+    # B5 de ponta a ponta, com o processo de verdade, como o `node scripts/seedFluxosPlanejados.ts` de develop.
+    env = {**os.environ, "DATABASE_URL": "postgresql://ninguem@127.0.0.1:1/nada"}
+    script = Path(seed_mod.__file__)
+    r = subprocess.run([sys.executable, str(script)], env=env, capture_output=True, text=True, timeout=60, check=False)
+    assert r.returncode == 1
+    assert "seed falhou" not in r.stderr
+    assert "OperationalError" in r.stderr
 
 
 @pytest.mark.postgres
