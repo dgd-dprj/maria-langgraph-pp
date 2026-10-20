@@ -625,6 +625,28 @@ Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o
 
 **Registro de cada rodada:** a data, a versão (TypeScript ou Python), e para cada caso os campos de depuração do fluxo da Tykhe e o texto que chegou ao WhatsApp. Uma diferença na parte fixa entre as duas rodadas é falha da troca; na parte da IA, é variação a anotar.
 
+### O histórico num rollback (registrado em 2026-10-20)
+
+Duas coisas diferentes:
+
+**1. Retomar a conversa: não é viável, e fica como está.** As duas versões serializam o checkpoint de forma incompatível, e por isso a versão Python grava no schema `checkpoint_py`, e não nas tabelas que a versão TypeScript usa em `public`. Depois de um rollback, a versão TypeScript não enxerga as conversas que a Python começou.
+
+**2. O histórico para análise sobrevive.** Um rollback troca a imagem e não mexe no banco: as tabelas de `checkpoint_py` continuam lá, com o estado de cada conversa conduzida pela versão Python.
+
+> **⚠ Não limpar o `checkpoint_py` num rollback achando que é resíduo.** É o único lugar com o estado completo das conversas da versão Python. Apagá-lo é uma decisão separada, com o descarte desses dados tratado como tal: eles contêm dado pessoal (CPF, nome, relato).
+
+**A tabela `atendimentos` é compartilhada e um rollback não a afeta** (conferido no código das duas versões, 2026-10-20):
+- o `CREATE TABLE`, os `ALTER TABLE` e o `UPDATE` de desfecho são idênticos em `src/maria/shared/atendimentos_db.py` e no `atendimentosDb.ts` de develop @ `1157a6d`;
+- as duas gravam no schema padrão: o pool da `atendimentos` não fixa `search_path` (só o do checkpointer fixa `checkpoint_py`);
+- as duas leem o `DATABASE_URL` da mesma chave do mesmo segredo de cada ambiente (`ecs.tf`, `release.tf`). Que o valor seja o mesmo antes e depois da troca não foi lido no segredo: a conferir na janela.
+
+É ela que importa para análise: guarda o fluxo, o desfecho (`status_final`, `destino`, `motivo_handoff`), os tokens e as datas, e alimenta os painéis. As linhas gravadas pela versão Python continuam valendo depois de um rollback, no mesmo formato.
+
+**O que se perde, ou fica incompleto, para análise num rollback:**
+- **O desfecho dos atendimentos em andamento na hora do rollback.** A `atendimentos` só recebe desfecho e tokens no `concluir()`. Uma conversa que a versão Python começou e não terminou fica com a linha sem `status_final` e sem tokens. O que a versão TypeScript faz quando essa pessoa manda a próxima mensagem não foi executado. Se ela concluir, grava o desfecho dela, sem os tokens das rodadas da Python. O estado até ali continua no `checkpoint_py`, para recuperação manual.
+- **Os tokens das rodadas já feitas nessas conversas.** Ficam acumulados no estado (`tokensGastos`), ou seja, no `checkpoint_py`, e não na tabela.
+- **Os desfechos do orquestrador nunca estiveram na `atendimentos`**, em nenhuma das duas versões: a rota do orquestrador só cria a linha quando identifica um fluxo da Maria. `redirecionado`/`tipoCaso` e as rodadas de desambiguação ficam nos logs e no checkpoint (`orquestrador:<chatId>`). Os logs do CloudWatch não dependem da versão. As conversas da versão Python continuam no `checkpoint_py`. Não é perda causada pelo rollback, mas quem analisar o orquestrador precisa saber que a tabela não o cobre.
+
 ## Decisões em aberto
 
 1. **Major do Postgres de produção. Valor provisório: 16**, na imagem `pgvector/pgvector:pg16` do CI. A conferir com `SELECT version()` no RDS (do stack antigo). Se for outra, o ajuste é uma linha no `ci.yml`.
