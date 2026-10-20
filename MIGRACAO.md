@@ -411,7 +411,9 @@ Dois PRs (spec 07, D-4). Resultado completo do PR 1 na seção 10.1 da spec 07.
 
 ## Módulo scripts (#252)
 
-Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. A tradução não começou. Fonte: develop @ `1157a6d`.
+Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. Fonte: develop @ `1157a6d`. Tradução feita em 2026-10-19 e 2026-10-20: a extração dos 74 registros, o seed e a coleta.
+
+**Conferência contra develop (2026-10-20): 64 cenários, 62 idênticos.** Os dois crawlers rodam como processo, contra o mesmo Verde falso por HTTP, e a comparação cobre o stdout (com o log pino), o stderr, o código de saída, as chamadas ao Verde na ordem e o que foi gravado. Os 2 restantes são o texto do erro do parser de JSON (V8 contra Python), a divergência aceita na D-4. A primeira rodada parou no 32º cenário porque o sistema passou a recusar a criação de processos (e o Git Bash da máquina perdeu o `usr\bin\bash.exe`); a segunda rodou os 33 restantes com pausa entre eles e gravação a cada cenário.
 
 **O ponto que não existe em nenhum outro módulo:** os 74 fluxos planejados do seed são **transcritos**, e não traduzidos. Uma palavra-chave perdida não quebra teste nenhum. A verificação tem dois caminhos independentes:
 - o arquivo `.ts` de develop entra como fixture, com o id do blob git conferido no teste (`265f1df…`);
@@ -428,6 +430,13 @@ Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. A traduç
 - **B1 → #251:** a coleta apaga a árvore da categoria sem transação e sai com código 0 quando falha. É o padrão da #196 numa ferramenta de manutenção. Aberta antes da execução, por decisão: o comportamento está no código.
 - **B2:** o seed sobrescreve toda edição por SQL em `fluxos_planejados`. **Colide com a #249:** corrigir `mensagem_fixa` só no banco some no próximo seed. Registrado na #249. **Issue própria: #253** (`[TECH]`, aberta em 2026-10-19 por decisão do usuário): qual é a fonte do dado. A #249 e a #253 se referenciam.
 - **B3:** `logs-prod.sh` descarta o stderr do `aws`; credencial vencida fica em silêncio. A ausência do `aws` entra nas checagens da D-3; o resto fica para decisão.
+- **B4:** a palavra-chave `"sofri preconceito` (planejado "direitos e diversidade") tem uma aspa solta em develop. Achado pelo leitor estrito da extração. Reproduzido; cosmético, sem issue.
+- **B5 → #255:** importar os fluxos inicializa o checkpointer (o ponto 1 da #208, em develop). Nos scripts: uma linha de log extra, as tabelas de checkpoint criadas no banco de destino e a morte sem o próprio prefixo de erro, antes das guardas. A fundação Python já tinha desfeito o acoplamento, então os scripts Python reproduzem o efeito com uma chamada explícita.
+
+**Busca vetorial do orquestrador: traduzida e conferida, mas não em uso em produção (#256).** Quem avaliar a confiança da migração precisa saber que esse trecho não foi exercitado em execução real.
+- **Por que não roda:** com o catálogo de 9 opções do #242 e `k` 10, `buscar_candidatos` devolve o catálogo inteiro sem calcular embedding. Executado em 2026-10-20: 0 chamadas ao Bedrock nos dois lados. O boot ainda indexa as 9 descrições (lido).
+- **O que foi conferido:** por leitura, o modelo, as dimensões (1024), o cast `::vector`, o `k` e o SQL de ordenação do pgvector. Executado contra um Bedrock falso, com a flag `ORQUESTRADOR_INCLUIR_PLANEJADOS=true` (83 opções): o mesmo texto decodificado nas 84 chamadas, o mesmo modelo e os mesmos cabeçalhos, e os mesmos 10 candidatos na mesma ordem (busca em memória). O JSON do corpo difere só na forma (o JS compacto e em UTF-8 cru, o Python com espaço e escapes `\u`).
+- **O que não foi exercitado:** a ordenação no pgvector, os vetores reais do Titan e a cobertura da busca. Se a #249 devolver os planejados ao catálogo, esse caminho passa a ser o primeiro filtro de toda classificação de uma vez; a #256 pede medir a cobertura antes.
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
