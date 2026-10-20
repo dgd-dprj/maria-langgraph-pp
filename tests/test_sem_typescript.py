@@ -51,8 +51,7 @@ def _javascript_no_disco() -> set[str]:
 def test_nenhum_typescript_ou_javascript_fora_da_lista_manter() -> None:
     fora = sorted(_javascript_no_disco() - set(MANTER))
     assert not fora, (
-        "arquivos TypeScript/JavaScript fora de MANTER (merge mal resolvido? "
-        f"se precisam ficar, entram em MANTER com o motivo): {fora}"
+        f"arquivos TypeScript/JavaScript fora de MANTER (merge mal resolvido? se precisam ficar, entram em MANTER com o motivo): {fora}"
     )
 
 
