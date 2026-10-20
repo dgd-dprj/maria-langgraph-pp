@@ -403,7 +403,7 @@ Dois PRs (spec 07, D-4). Resultado completo do PR 1 na seção 10.1 da spec 07.
   - **Conferência diferencial: 313 cenários**, comparando também as linhas de log de cada cenário: 302 idênticos. Os 11 restantes são HEAD de erro do roteador em que o `inject` devolve corpo e uma conexão HTTP real de develop não. Foi conferido, e o Python faz como o servidor real.
   - **Mutação:** 27 de 28 pegas, e a que passa é equivalente nos grafos de hoje.
   - **Guia, seção 5.1 (responder e consultar),** testado em pasta limpa.
-  - **PR #250 aberto em 2026-10-19; CI verde** nos jobs `test` e `imagem` (run `39279987284`: `ruff`, `ruff format --check`, `mypy` em 129 arquivos, 932 testes na suíte padrão e 23 com Postgres). O merge espera confirmação.
+  - **PR #250 aberto em 2026-10-19; CI verde** nos jobs `test` e `imagem` (run `39279987284`: `ruff`, `ruff format --check`, `mypy` em 129 arquivos, 932 testes na suíte padrão e 23 com Postgres). Mergeado em 2026-10-19 (merge `0bd610d`), com a confirmação do usuário; #246 fechada à mão, branch apagada. **Com ele, o api está completo:** dá para testar por HTTP o fluxo inteiro (classificar, criar, responder às perguntas até a conclusão e consultar o atendimento), e não só a classificação.
 - **Achados do teste do modo B (2026-10-19), registrados em issue:**
   - **#248:** falha ao chamar o Bedrock vira "não identificado", sem alerta (repetição da #200);
   - **#249:** com o catálogo de 9 opções do #242, causa trabalhista e BPC/LOAS perdem a orientação "não atuamos, procure…", com prazo antes do próximo release;
@@ -411,7 +411,11 @@ Dois PRs (spec 07, D-4). Resultado completo do PR 1 na seção 10.1 da spec 07.
 
 ## Módulo scripts (#252)
 
-Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. A tradução não começou. Fonte: develop @ `1157a6d`.
+Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. Fonte: develop @ `1157a6d`. Tradução feita em 2026-10-19 e 2026-10-20: a extração dos 74 registros, o seed e a coleta.
+
+**Conferência contra develop (2026-10-20): 64 cenários, 62 idênticos.** Os dois crawlers rodam como processo, contra o mesmo Verde falso por HTTP, e a comparação cobre o stdout (com o log pino), o stderr, o código de saída, as chamadas ao Verde na ordem e o que foi gravado. Os 2 restantes são o texto do erro do parser de JSON (V8 contra Python), a divergência aceita na D-4. A primeira rodada parou no 32º cenário porque o sistema passou a recusar a criação de processos (e o Git Bash da máquina perdeu o `usr\bin\bash.exe`); a segunda rodou os 33 restantes com pausa entre eles e gravação a cada cenário.
+
+**Mutações:** 6 de 6 na extração. No seed e na coleta, 22 de 23 nos testes de unidade, e a restante (`ON CONFLICT DO NOTHING`) é pega pelo teste com Postgres no CI. A 1ª rodada tinha pegado 19: três passavam **por falta de caso, e não por ausência de divergência**. `[]` e `{}` são verdadeiros no JS e falsos no Python, e os testes só usavam `"false"` e `0`, que coincidem por acaso. E a fronteira da profundidade só era conferida pela mensagem, que é a mesma com `>` e `>=`. Lição para os próximos módulos: na varredura de verdade do JS, incluir sempre lista e objeto vazios, e numa fronteira testar o valor exato dos dois lados.
 
 **O ponto que não existe em nenhum outro módulo:** os 74 fluxos planejados do seed são **transcritos**, e não traduzidos. Uma palavra-chave perdida não quebra teste nenhum. A verificação tem dois caminhos independentes:
 - o arquivo `.ts` de develop entra como fixture, com o id do blob git conferido no teste (`265f1df…`);
@@ -426,8 +430,15 @@ Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. A traduç
 
 **Achados:**
 - **B1 → #251:** a coleta apaga a árvore da categoria sem transação e sai com código 0 quando falha. É o padrão da #196 numa ferramenta de manutenção. Aberta antes da execução, por decisão: o comportamento está no código.
-- **B2:** o seed sobrescreve toda edição por SQL em `fluxos_planejados`. **Colide com a #249:** corrigir `mensagem_fixa` só no banco some no próximo seed. Registrado na #249. Issue própria em avaliação (proposta: `[TECH]`, qual é a fonte do dado).
+- **B2:** o seed sobrescreve toda edição por SQL em `fluxos_planejados`. **Colide com a #249:** corrigir `mensagem_fixa` só no banco some no próximo seed. Registrado na #249. **Issue própria: #253** (`[TECH]`, aberta em 2026-10-19 por decisão do usuário): qual é a fonte do dado. A #249 e a #253 se referenciam.
 - **B3:** `logs-prod.sh` descarta o stderr do `aws`; credencial vencida fica em silêncio. A ausência do `aws` entra nas checagens da D-3; o resto fica para decisão.
+- **B4:** a palavra-chave `"sofri preconceito` (planejado "direitos e diversidade") tem uma aspa solta em develop. Achado pelo leitor estrito da extração. Reproduzido; cosmético, sem issue.
+- **B5 → #255:** importar os fluxos inicializa o checkpointer (o ponto 1 da #208, em develop). Nos scripts: uma linha de log extra, as tabelas de checkpoint criadas no banco de destino e a morte sem o próprio prefixo de erro, antes das guardas. A fundação Python já tinha desfeito o acoplamento, então os scripts Python reproduzem o efeito com uma chamada explícita.
+
+**Busca vetorial do orquestrador: traduzida e conferida, mas não em uso em produção (#256).** Quem avaliar a confiança da migração precisa saber que esse trecho não foi exercitado em execução real.
+- **Por que não roda:** com o catálogo de 9 opções do #242 e `k` 10, `buscar_candidatos` devolve o catálogo inteiro sem calcular embedding. Executado em 2026-10-20: 0 chamadas ao Bedrock nos dois lados. O boot ainda indexa as 9 descrições (lido).
+- **O que foi conferido:** por leitura, o modelo, as dimensões (1024), o cast `::vector`, o `k` e o SQL de ordenação do pgvector. Executado contra um Bedrock falso, com a flag `ORQUESTRADOR_INCLUIR_PLANEJADOS=true` (83 opções): o mesmo texto decodificado nas 84 chamadas, o mesmo modelo e os mesmos cabeçalhos, e os mesmos 10 candidatos na mesma ordem (busca em memória). O JSON do corpo difere só na forma (o JS compacto e em UTF-8 cru, o Python com espaço e escapes `\u`).
+- **O que não foi exercitado:** a ordenação no pgvector, os vetores reais do Titan e a cobertura da busca. Se a #249 devolver os planejados ao catálogo, esse caminho passa a ser o primeiro filtro de toda classificação de uma vez; a #256 pede medir a cobertura antes.
 
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
@@ -520,12 +531,95 @@ Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escr
 - **Caracteres invisíveis literais no código-fonte:** um BOM literal no `pipeline.py` foi trocado pelo escape `"﻿"` (#246). Outros continuam em arquivos de teste antigos. Em `_js.py` são intencionais, mas o escape deixaria isso visível na revisão.
 - **Alerta do token do Verde:** o `verificar-token-verde.yml` falha todo dia por causa do token de release, e com isso deixou de alertar. Separar prod e release em execuções distintas.
 
+## Prazos: a conexão com o banco e as chamadas ao Verde são assuntos diferentes
+
+Trocar um prazo pelo outro é o mesmo erro do padrão "parâmetro com nome familiar e semântica diferente" (comentário 12 da #208). Registro de 2026-10-20, depois de uma confusão na investigação do B5 (#255): um valor de 10 s, usado só numa sonda descartável para não esperar 120 s, foi relatado sem dizer de onde vinha.
+
+**Conexão com o Postgres. Requisito: banco fora do ar falha rápido.**
+
+| Prazo | Valor | Onde | Situação |
+|---|---|---|---|
+| Espera de quem pede conexão ao pool | 120 s | `src/maria/shared/pool.py:55` (`ESPERA_POR_CONEXAO_S`) | **Provisório, decisão em aberto 5.** É o prazo que vale no caminho da API: medido em 2026-10-20, a consulta desiste no prazo do pool mesmo com o libpq preso tentando conectar. Com o banco fora, cada requisição espera o prazo inteiro, porque o psycopg_pool não avisa quem espera. O `pg` de develop devolve o erro na hora quando a conexão é recusada |
+| Abrir a conexão (`connect_timeout` do libpq) | ausente | conexões diretas, fora do pool: o `CREATE SCHEMA` do checkpointer no boot (`shared/checkpointer.py`), o seed e as fixtures de teste | Igual ao `pg` de develop, que também não tem prazo por padrão (`connect_timeout: 0`, `pg/lib/defaults.js:78`). No Linux, a conexão recusada falha na hora; um pacote descartado espera o prazo do TCP do sistema. **No Windows, o libpq não percebe a conexão recusada e espera sem limite** (medido: `socket` puro recusado em 2,1 s, `psycopg.connect` preso por mais de 150 s; numa rodada de mutações do seed, a conexão direta a uma porta fechada levou 2 min 10 s até o teste falhar): afeta só o desenvolvimento local. **Não é o prazo do pool:** são conexões que não passam por ele |
+
+**Chamadas HTTP ao Verde. Requisito: o Verde lento não vira "não encontrado" (#196).**
+
+| Prazo | Valor | Onde | Origem |
+|---|---|---|---|
+| Total de cada tentativa, inclusive a leitura do corpo | 30 s | `src/maria/integracoes/verde.py:55` (`TIMEOUT_VERDE_S`), aplicado com `asyncio.timeout_at` em `:170`, `:176` e `:188` | #196: um RG real voltou "não encontrado" com o Verde de homologação levando 13,5 s e o prazo antigo de 20 s |
+| Abrir a conexão TCP | 10 s | `src/maria/integracoes/cliente_http.py:34` (`connect=10.0`) | `connectTimeout` do undici, medido no módulo integracoes. Corre dentro dos 30 s, e não no lugar deles |
+| Total de cada chamada do script de coleta | 20 s | `scripts/coletar_arvore_perguntas_verde.py` (`TIMEOUT_MS`) | Reproduz o script de develop, que a #196 não alterou. Mesmo risco da #196 numa ferramenta de manutenção (ver #251) |
+
+## Plano de corte: a troca de versão no release (combinado em 2026-10-20)
+
+**Quando a `migration` entrar em `develop`, o `deploy-release.yml` sobe a versão Python no release sozinho, no push.** O endereço que o fluxo da Tykhe chama não muda, e o comportamento muda de uma vez. Por isso a troca tem momento combinado.
+
+### Qual ambiente a Tykhe chama (executado em 2026-10-20)
+
+O fluxo "Orquestrador" da Tykhe chama `https://d2urkrsd5u4rck.cloudfront.net`. **É o release**, por evidência, e não pela informação repassada:
+- o `GET /docs/json` público desse endereço traz `redirecionado` e `tipoCaso`, que são do #242;
+- o #242 está em `develop` (3 ocorrências de `tipoCaso` em `src/`) e não está em `main` (0 ocorrências; o último merge em `main` é de 2026-10-01);
+- o release faz deploy no push para `develop` (`deploy-release.yml`), e a produção no push para `main` (`deploy-prod.yml`).
+
+**A chave de API desse fluxo é o `API_KEY` do segredo `maria-langgraph-pp-release/app`**, e não o de `maria-langgraph-pp-prod/app`. Assumir o ambiente errado significaria gravar a chave no segredo errado, ou trocar a de produção achando que era a do release.
+
+### Quem consome a chave do release
+
+| Possível consumidor | Usa a chave? | Se a chave for trocada |
+|---|---|---|
+| Fluxo "Orquestrador" da Tykhe (3 nós de Chamada API) | sim | quebra até os cabeçalhos serem atualizados |
+| Workflows do GitHub (deploys, Grafana, verificação do token do Verde) | não; o único segredo de API nos workflows é o `GRAFANA_API_TOKEN` | nada |
+| Health check do ALB | não; `/health` não exige chave | nada |
+| Bridge do WhatsApp do release | sim, a chave da própria API, lida quando o container sobe | se ajusta no novo deploy |
+| Testes do repositório | não; chave fixa de teste, sem rede | nada |
+| **Fora do repositório:** outros fluxos da Tykhe, coleções do Postman, scripts de quem testa | **não dá para saber pelo código** | quebram até serem atualizados |
+
+**O risco real está fora do repositório.** "A Tykhe é o único consumidor esperado" (`docs/contrato-tykhe.md`) é intenção documentada, e não inventário. Antes de trocar a chave, perguntar ao Ícaro e a quem administra a Tykhe quem mais usa a chave do release.
+
+**Troca da chave (ficou exposta num arquivo):** gerar a nova; gravar no campo `API_KEY` do segredo do release, mantendo os outros campos; novo deploy do serviço `api-release`; atualizar a Tykhe logo em seguida (entre o deploy e a atualização, as chamadas recebem 401). **Na mesma janela da troca de versão**, para quem testa parar uma vez só.
+
+### A janela
+
+1. Merge da `migration` em `develop` numa janela anunciada, fora do horário de teste.
+2. Nada de teste na Tykhe durante o deploy do release.
+3. **Conversas em andamento se perdem na troca.** O checkpoint do Python fica no schema `checkpoint_py`, porque as duas serializações são incompatíveis. Quem estiver no meio de um atendimento ou de uma desambiguação recomeça a conversa. O destino das threads em andamento é a decisão em aberto 3.
+4. O roteiro abaixo, **duas vezes**: antes do merge, contra a versão TypeScript, para registrar a linha de base; e logo depois do deploy, contra a versão Python.
+
+### Roteiro de conferência: 4 casos, no próprio fluxo da Tykhe, pelo WhatsApp de teste
+
+Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o que é **fixo** (código, sem IA) e o que **depende da IA** (a classificação e o texto da pergunta de desambiguação). **Se uma parte fixa não bater, é falha. Se só uma parte da IA mudar, compare com a linha de base do TypeScript, e não com este texto.** Os campos são os do fluxo da Tykhe: `StatusFluxo` (status), `TipoFluxo` (flowId), `TipoResposta`, `tipoCaso` e `RespostaFluxo` (resposta).
+
+**Caso 1. Fluxo da Maria identificado.** Relato: *"Meu companheiro me ameaçou ontem à noite e quebrou meu celular. Tenho medo de voltar pra casa."*
+- **Depende da IA:** a classificação escolher violência doméstica. Não executado com o Bedrock real para este relato.
+- **Fixo, se escolher:** `StatusFluxo` = `em_andamento`; `TipoFluxo` = `cabb2495-4e12-4f4a-9956-3d20649059bc`; `TipoResposta` = `sim_nao`; a pergunta é **"Você é a vítima de violência doméstica?"**, com as opções Sim e Não (executado na API Python em 2026-10-19, com a classificação simulada).
+
+**Caso 2. Redirecionado para a Tykhe.** Relato: *"Fui mandado embora da empresa onde trabalhei três anos e eles não pagaram minha rescisão nem o FGTS. O que eu faço pra receber?"*
+- **Depende da IA, já medido:** na API Python com o Bedrock real (2026-10-19, duas vezes): `redirecionado`, `tipoCaso` = `novo-processo`.
+- **Fixo, dado o `tipoCaso`:** `StatusFluxo` = `redirecionado`; sem `TipoFluxo`; `RespostaFluxo` = **"Entendi. Vou te encaminhar para o atendimento de abertura de um novo caso."**
+- **Atenção:** este é o defeito da #249 (deveria orientar a procurar o sindicato). Se a #249 for corrigida antes da troca, o esperado muda para o que ela decidir.
+
+**Caso 3. Desambiguação.** Relato: *"Meu marido foi preso semana passada depois de uma briga lá em casa e eu não sei o que fazer."* Depois, a resposta: *"Quero saber onde ele está preso e como visitar."*
+- **Fixo, na 1ª resposta, se a IA achar o relato ambíguo:** `StatusFluxo` = `em_andamento` e **sem `TipoFluxo`**. O fluxo da Tykhe vai para "Orquestrador (rodadas seguintes)", e a 2ª chamada sai com o campo `resposta`, no mesmo chat.
+- **Fixo, nas rodadas seguintes:** em no máximo 5 respostas a conversa sai da desambiguação, identificada ou redirecionada. Na 6ª, a API devolve `redirecionado`, `tipoCaso` = `outros`, **"Entendi. Vou te encaminhar para o atendimento de outros assuntos."**
+- **Depende da IA:** se o relato é tido como ambíguo, o texto da pergunta e para onde a 2ª resposta leva (o esperado é pessoa presa, `TipoFluxo` = `3df874f2-675a-4c43-9ec7-480f7c702f50`).
+
+**Caso 4. Conversa até o fim.** Num chat novo, o relato do caso 1. À pergunta "Você é a vítima de violência doméstica?", responder **Não**. Depois, mandar mais uma mensagem qualquer no mesmo chat.
+- **Fixo:** `StatusFluxo` = `handoff_humano`; `RespostaFluxo` = **"Esse atendimento é destinado apenas para quem é vítima da violência. Vou encaminhar você para um atendente humano."** (fixture `violencia-domestica-handoff-nao-vitima-200`, gravada contra develop @ `1157a6d`).
+- **Fixo, na mensagem seguinte:** a API responde **409** (atendimento já concluído). No fluxo da Tykhe, cai no grupo "Falha", porque a Chamada API só tem a saída "falhou" (fixture `erro-atendimento-ja-concluido-409`).
+
+**Registro de cada rodada:** a data, a versão (TypeScript ou Python), e para cada caso os campos de depuração do fluxo da Tykhe e o texto que chegou ao WhatsApp. Uma diferença na parte fixa entre as duas rodadas é falha da troca; na parte da IA, é variação a anotar.
+
 ## Decisões em aberto
 
 1. **Major do Postgres de produção. Valor provisório: 16**, na imagem `pgvector/pgvector:pg16` do CI. A conferir com `SELECT version()` no RDS (do stack antigo). Se for outra, o ajuste é uma linha no `ci.yml`.
 2. **Nome do schema do checkpointer. Valor provisório: `checkpoint_py`** (`SCHEMA_CHECKPOINT` em `shared/checkpointer.py`). O schema separado foi aprovado na #208, mas o nome não tinha sido definido.
 3. **Threads `orquestrador:*` no corte:** decididas na issue do corte.
 4. **Token do Verde em release:** pré-requisito do corte (detalhes na #208).
+5. **Espera por conexão do pool. Valor provisório: 120 s** (`ESPERA_POR_CONEXAO_S` em `shared/pool.py`). Requisito registrado em 2026-10-20: banco fora do ar deve falhar rápido. Com 120 s, uma pessoa no WhatsApp pode ficar até 120 s sem resposta durante uma queda do banco. O `connect_timeout` não resolve isso, porque não limita quem espera o pool (seção "Prazos").
+   - **Como chegamos em 120 s:** aproximação do `ConnectionBorrowTimeout` do RDS Proxy (padrão da AWS), pensada para o **pool cheio com o banco no ar**. O caso de **banco indisponível** nunca foi avaliado com esse número: é outro problema no mesmo parâmetro, o padrão "parâmetro com nome familiar e semântica diferente" outra vez (a acrescentar à lista do comentário 12 da #208).
+   - **Lido em develop:** no `pg-pool` 3.14, cada consulta sem conexão livre abre um cliente próprio (`index.js:235`), e o erro de conexão vai direto para quem pediu (`index.js:283`), sem prazo no meio.
+   - **PENDÊNCIA, antes de escolher o valor: medir no Linux quanto o `pg` leva para devolver erro a quem pede conexão com o banco fora do ar**, e o mesmo para o pool Python. Não pode ser medido no Windows, onde a recusa da conexão leva cerca de 2 s e o libpq não a percebe. As sondas estão prontas: `.sonda/pool-banco-fora.mts` no worktree de develop (o `pg`, mesmo `new Pool({ connectionString })` das stores) e uma sonda Python com o prazo real do código. Medir nos dois casos: conexão recusada (porta fechada) e pacote descartado (host que não responde).
+   - **O que a medição decide:** se o `pg` devolve o erro em segundos e o Python espera 120 s, a tradução piorou, e é **correção de migração**, com commit próprio na `migration`. Se o `pg` também fica pendurado, é **defeito herdado**, registrado como melhoria. Isso muda quem decide e com que urgência. O rascunho da issue espera essa medição.
 
 *A decisão 5 (contador com texto vindo da Tykhe, D-1) foi fechada em 2026-10-16: divergência aceita (tabela "Divergências aceitas").*
 
