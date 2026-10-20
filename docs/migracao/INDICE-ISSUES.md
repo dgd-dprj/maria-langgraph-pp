@@ -2,7 +2,7 @@
 
 > **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, sempre que uma issue é aberta, muda de estado ou de escopo, ou um PR de módulo é mergeado.
 
-**Gerado em:** 2026-10-20 (atualizado com a abertura da #255 e da #256 e a conferência completa do módulo scripts, #252).
+**Gerado em:** 2026-10-20 (atualizado com o PR do módulo scripts aberto, #257, e a abertura da #255 e da #256).
 
 **Comando:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 300 --json number,title,state`. Os PRs vêm de `gh pr view <número>`. A coluna **Situação** é preenchida à mão a partir do `MIGRACAO.md` e das specs.
 
@@ -35,7 +35,7 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | 6 | #241 | fluxos | módulo | Fechada | **Mergeada na migration** (PR #243) |
 | 7 | #244 | orquestrador | módulo | Fechada | **Mergeada na migration** (PR #245). Conferência diferencial: 80 cenários, 79 iguais e 1 divergência aceita |
 | 8 | #246 | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | Fechada | **Mergeada na migration** (PR #247, merge `23b63e3`; PR #250, merge `0bd610d`, 2026-10-19). Fluxo completo por HTTP: classificar, criar, responder às perguntas até a conclusão, consultar o atendimento, TTL e bridge do WhatsApp. 50 fixtures byte a byte; conferência com 343 + 313 cenários; bridge não testado com a Meta de verdade |
-| 9 | #252 | scripts | módulo | Aberta | **Em andamento.** Spec 08 aprovada em 2026-10-19; branch `refactor/252-scripts-python`. Tradução feita: os 74 planejados extraídos e verificados contra o literal de develop (6 de 6 mutações pegas), o seed e a coleta. Conferência contra develop: 64 cenários, 62 idênticos e 2 com a diferença prevista na D-4. Falta o `logs-prod.sh` (D-3), o README, as mutações do seed e da coleta, e o PR. Achados: B1 (#251), B2 (#253), B3 (`logs-prod.sh` silencioso sem credencial), B4 (aspa solta numa palavra-chave, cosmético) e B5 (#255) |
+| 9 | #252 | scripts | módulo | Aberta | **Em andamento: PR #257 aberto em 2026-10-20**, aguardando o CI e a confirmação do merge. Os 74 planejados extraídos e verificados contra o literal de develop (6 de 6 mutações); o seed, a coleta e o `logs-prod.sh` (D-3). Conferência contra develop: 64 cenários, 62 idênticos e 2 da D-4. Mutações do seed e da coleta: 22 de 23, a restante pega no CI. Achados: B1 (#251), B2 (#253), B3 (`logs-prod.sh` silencioso sem credencial), B4 (aspa solta, cosmético) e B5 (#255); a busca vetorial inativa (#256) |
 | 10 | — | documentacao | módulo | — | A abrir |
 | 11 | — | corte | módulo | — | A abrir |
 
