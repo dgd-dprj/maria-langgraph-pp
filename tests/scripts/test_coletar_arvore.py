@@ -236,6 +236,38 @@ async def test_assunto_encontrado_como_texto_false_conta_como_verdadeiro() -> No
     assert len(await store.listar_assuntos_por_flow("flow-a")) == 5
 
 
+@pytest.mark.parametrize("valor", [[], {}])
+async def test_assunto_encontrado_lista_ou_objeto_vazio_conta_como_verdadeiro(valor: Any) -> None:
+    # Verdade do JS: `[]` e `{}` são verdadeiros; no Python, bool([]) e bool({}) são falsos.
+    folha: Resposta = (200, {"dados": {"assuntoEncontrado": valor, "idAssunto": 502}})
+    rotas: dict[str, Resposta] = {**ARVORE_9001, "/assunto/consultar-item-arvore?idItemCategoria=22": folha}
+    await _crawlear(rotas)
+    store = await obter_perguntas_store()
+    assert len(await store.listar_assuntos_por_flow("flow-a")) == 5
+
+
+async def test_pergunta_lista_vazia_conta_como_pergunta() -> None:
+    # `if (!pergunta)` com `pergunta: []`: no JS a lista vazia é verdadeira, e o nó é gravado.
+    no_lista: Resposta = (200, {"dados": {"pergunta": [], "respostas": []}})
+    rotas: dict[str, Resposta] = {**ARVORE_9001, "/assunto/consultar-item-arvore?idItemCategoria=22": no_lista}
+    await _crawlear(rotas)
+    store = await obter_perguntas_store()
+    textos: list[Any] = [p["textoPergunta"] for p in await store.listar_perguntas_por_flow("flow-a")]
+    assert textos.count([]) == 1
+
+
+async def test_profundidade_no_limite_passa() -> None:
+    # Profundidade 12 é permitida (`profundidade > 12` só falha na 13ª).
+    rotas: dict[str, Resposta] = {"/assunto/consultar-item-arvore?idCategoria=9001": _no("NÍVEL 0", (1, "segue"))}
+    for nivel in range(1, 12):
+        rotas[f"/assunto/consultar-item-arvore?idItemCategoria={nivel}"] = _no(f"NÍVEL {nivel}", (nivel + 1, "segue"))
+    rotas["/assunto/consultar-item-arvore?idItemCategoria=12"] = _folha(502)
+    rotas["/assunto/502"] = _detalhe("Assunto 502")
+    await _crawlear(rotas)
+    store = await obter_perguntas_store()
+    assert len(await store.listar_perguntas_por_flow("flow-a")) == 12
+
+
 async def test_no_sem_pergunta() -> None:
     rotas = {**ARVORE_9001, "/assunto/consultar-item-arvore?idItemCategoria=22": (200, {"dados": {"pergunta": "", "respostas": []}})}
     assert await _falha(rotas) == 'nó sem pergunta e sem assuntoEncontrado em "categoria a" ({"idItemCategoria":22})'
