@@ -2,7 +2,7 @@
 
 > **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, sempre que uma issue é aberta, muda de estado ou de escopo, ou um PR de módulo é mergeado.
 
-**Gerado em:** 2026-10-20 (atualizado com o PR do módulo scripts aberto, #257, e a abertura da #255 e da #256).
+**Gerado em:** 2026-10-20 (atualizado com a abertura da #258, módulo documentacao, e a correção do critério do `APP_ENV` na #208).
 
 **Comando:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 300 --json number,title,state`. Os PRs vêm de `gh pr view <número>`. A coluna **Situação** é preenchida à mão a partir do `MIGRACAO.md` e das specs.
 
@@ -35,8 +35,8 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | 6 | #241 | fluxos | módulo | Fechada | **Mergeada na migration** (PR #243) |
 | 7 | #244 | orquestrador | módulo | Fechada | **Mergeada na migration** (PR #245). Conferência diferencial: 80 cenários, 79 iguais e 1 divergência aceita |
 | 8 | #246 | api (rotas, inclusive `/atendimentos/orquestrador`) | módulo | Fechada | **Mergeada na migration** (PR #247, merge `23b63e3`; PR #250, merge `0bd610d`, 2026-10-19). Fluxo completo por HTTP: classificar, criar, responder às perguntas até a conclusão, consultar o atendimento, TTL e bridge do WhatsApp. 50 fixtures byte a byte; conferência com 343 + 313 cenários; bridge não testado com a Meta de verdade |
-| 9 | #252 | scripts | módulo | Aberta | **Em andamento: PR #257 aberto em 2026-10-20**, aguardando o CI e a confirmação do merge. Os 74 planejados extraídos e verificados contra o literal de develop (6 de 6 mutações); o seed, a coleta e o `logs-prod.sh` (D-3). Conferência contra develop: 64 cenários, 62 idênticos e 2 da D-4. Mutações do seed e da coleta: 22 de 23, a restante pega no CI. Achados: B1 (#251), B2 (#253), B3 (`logs-prod.sh` silencioso sem credencial), B4 (aspa solta, cosmético) e B5 (#255); a busca vetorial inativa (#256) |
-| 10 | — | documentacao | módulo | — | A abrir |
+| 9 | #252 | scripts | módulo | Fechada | **Mergeada na migration** (PR #257, merge `437dee0`, 2026-10-20). Os 74 planejados transcritos e verificados contra o literal de develop; o seed, a coleta e o `logs-prod.sh` (D-3). Conferência: 64 cenários, 62 idênticos e 2 da D-4. Mutações: 22 de 23, a restante pega no CI. Achados: #251, #253, #255 e #256 |
+| 10 | #258 | documentacao | módulo | Aberta | **Em andamento.** Spec 09 aprovada em 2026-10-20; branch `refactor/258-documentacao-python`. Traz primeiro os 4 commits de documentação de develop (#229, #242, #234, #226); reescreve o README e `docs/` com as referências históricas preservadas; verificação executada (links, variáveis do código contra a tabela, comandos numa pasta limpa, `novo-fluxo.md` seguido de verdade). Achados: C1 (o diagrama do orquestrador desenha o mundo de antes do #242, em develop também; ver #249), C2 (11 variáveis sem documentação), C4 (o `APP_ENV` tem dois comportamentos, não três; critério da #208 corrigido) |
 | 11 | — | corte | módulo | — | A abrir |
 
 ## 2. Defeitos e achados de develop
