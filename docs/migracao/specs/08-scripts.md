@@ -192,13 +192,13 @@ Develop não tem teste destes scripts. Todos os testes abaixo são novos.
 
 - [x] `scripts/dados/fluxos_planejados.json` extraído e verificado (2.3) em commit próprio, antes da tradução: 21 testes, e 6 de 6 mutações pegas (palavra-chave a menos, acento em NFD, `mensagemFixa: null`, registros trocados, espaço no fim, fixture com um byte a mais).
 - [x] Os dois scripts traduzidos (`8daa072`, `db9a56f`); `scripts/` incluído no `mypy` (`files`) e no `ruff`.
-- [x] Testes da seção 6 passando localmente. *Falta: o teste 4 (Postgres) e os do `logs-prod.sh`, que só rodam no CI.*
+- [x] Testes da seção 6 passando: localmente, e no CI os que só rodam lá (o teste 4 com Postgres e os do `logs-prod.sh`).
 - [x] Conferência da seção 7: 64 cenários, 62 idênticos e 2 da D-4 (seção 10.2).
 - [x] Mutações executadas: 6 de 6 na extração; 22 de 23 no seed e na coleta, e a restante é pega pelo teste com Postgres no CI (seção 10.2). *Falta: a lista no corpo do PR.*
 - [x] `scripts/README.md` com os comandos novos, os pré-requisitos do `logs-prod.sh` (D-3) e os avisos da #251, da #253 (colisão com a #249) e da #255 (`f3e7b6c`).
 - [x] `logs-prod.sh` com as checagens prévias da D-3, testadas com `PATH` sem `node`, sem `npx`, sem `aws` e com o download falhando (`f3e7b6c`). *Os testes rodam no CI; no Windows são pulados.*
 - [x] `MIGRACAO.md` com a seção do módulo; o índice de issues e a #208 atualizados.
-- [ ] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes (localmente: sim, fora os 2 testes de `test_workflows.py`, que dependem do Git Bash, quebrado nesta máquina); os jobs `test` e `imagem` verdes. *Falta: o CI do PR.*
+- [x] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes; os jobs `test` e `imagem` verdes no PR #257 (2026-10-20, run `39469175976`, commit `3bca0cb`): 1019 testes na suíte padrão, **sem nenhum pulado** (os do `logs-prod.sh` e o do banco inalcançável rodaram no Linux), e 25 com Postgres, inclusive o que pega a mutação `ON CONFLICT DO NOTHING`.
 
 ## 9. Decisões (aprovadas em 2026-10-19)
 
