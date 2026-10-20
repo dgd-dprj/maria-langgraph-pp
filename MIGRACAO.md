@@ -175,6 +175,15 @@ scripts/
   - **Regra de fechamento:** onde a tabela diz que o `null` não entra, ela diz **por quê** e **o que mudaria** se ele passasse a entrar. Tabela sem justificativa envelhece mal.
   - **Lição do `idPessoa`:** a regra do objeto aninhado não estava errada; estava **incompleta**. Foi escrita olhando o `endereco`, onde o `null` não entra, e aplicada à resposta do Verde, onde entra. A regra completa: dentro de objeto aninhado, `undefined` vira chave ausente e `null` continua `null`. A correção do `cadastro_pessoa` e do bypass do CPF (código mergeado em `80de7bb`) está em `d5e5965`.
 
+## As respostas gravadas são evidência, não teste de regressão (decidido em 2026-10-20)
+
+**Não edite nada em `tests/fixtures/contrato/`.** Nem quando um teste falhar por causa de uma mudança legítima de contrato.
+
+- **O que elas são:** respostas HTTP e linhas de log gravadas com a versão TypeScript rodando de verdade (as 50 da #209, gravadas em develop @ `4e695f2`, e as das conferências do `api`). Elas **provam que o Python devolve o que o TypeScript devolvia**. É evidência da tradução, e tem valor só enquanto for exatamente o que o servidor real devolveu.
+- **Por que não editar:** a versão TypeScript não existe mais para regravar. Uma fixture editada à mão deixa de ser observação e passa a ser opinião. Depois de três edições, ninguém sabe mais o que veio do servidor real e o que foi escrito. A evidência some sem aviso.
+- **O contrato atual é conferido por testes escritos:** asserções explícitas sobre status, corpo e campos, como as de `tests/api/test_app.py`. Uma mudança de contrato muda o teste escrito, e o PR diz por quê.
+- **Quando uma mudança legítima quebra a conferência contra a fixture** (o primeiro caso conhecido é um fluxo novo mudando `GET /fluxos`, achado C7 da spec 09): o caso sai da conferência, sem tocar na fixture, e o comportamento novo ganha um teste escrito. O mecanismo para tirar o caso da conferência (por exemplo, uma lista de casos aposentados, com o motivo e o PR de cada um) é definido no primeiro PR que precisar dele. A fixture continua no repositório, intacta.
+
 ## Divergências aceitas
 
 | Onde | develop | Python | Por que é aceita |
@@ -287,6 +296,9 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
 
 ## Limites conhecidos da verificação (2026-10-14, #208)
 
+- **Decisão de 2026-10-20: a migração é validada por teste em homologação, e não por revisão humana de código.** O Ícaro aprova e mergeia. **A ausência de revisão humana foi decisão consciente, e não lacuna.** Quem avaliar a confiança da migração precisa saber o que foi feito e o que não foi:
+  - **feito:** CI em todo PR (ruff, mypy strict, a suíte padrão, a suíte com Postgres e a imagem Docker); verificação por mutação em todos os módulos de código; conferência diferencial contra develop, cenário a cenário, nos dois lados; as respostas e os logs gravados de develop conferidos byte a byte; os guias de uso executados em pasta limpa; teste em homologação, com o roteiro de 4 casos rodado antes do merge na versão TypeScript, como linha de base, e depois na Python;
+  - **não feito:** leitura do código por outra pessoa. O que isso deixa passar está no parágrafo abaixo, escrito antes da decisão e mantido como está.
 - **Nenhum módulo teve revisão humana de código.** Vale para fundação, persistencia, integracoes, ia e subgrafos. As proteções são o CI, a verificação por mutação e a conferência diferencial contra develop. Elas pegam a tradução errada que alguém pensou em testar, mas não a premissa errada, o caminho que nenhum teste percorre ou o defeito que o próprio autor não enxerga. **Não substituem revisão humana.** Proposta: alguém do time revisa ao menos os módulos de grafo (`subgrafos`, `fluxos`, `orquestrador` e as rotas do `api`), de preferência antes do merge, olhando a regra de tradução de estado e os testes de "defeito reproduzido de propósito".
 - **Lacuna de teste herdada do subgrafos:** o caminho "Verde devolve a pessoa sem `nome`", que produz "Confirma que seus dados são: você?" (#236), foi testado só na função que monta o texto. A verificar no módulo fluxos, de ponta a ponta: violência doméstica e pessoa presa, pelo orquestrador, com "Sim" e com "Não", conferindo contra develop. **Fechada no fluxos (2026-10-14):** os quatro casos foram conferidos contra develop, com resultado igual, e têm teste (`test_7_*` em `tests/fluxos/test_spec_fluxos.py`).
 
@@ -442,6 +454,22 @@ Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. Fonte: de
 - **O que foi conferido:** por leitura, o modelo, as dimensões (1024), o cast `::vector`, o `k` e o SQL de ordenação do pgvector. Executado contra um Bedrock falso, com a flag `ORQUESTRADOR_INCLUIR_PLANEJADOS=true` (83 opções): o mesmo texto decodificado nas 84 chamadas, o mesmo modelo e os mesmos cabeçalhos, e os mesmos 10 candidatos na mesma ordem (busca em memória). O JSON do corpo difere só na forma (o JS compacto e em UTF-8 cru, o Python com espaço e escapes `\u`).
 - **O que não foi exercitado:** a ordenação no pgvector, os vetores reais do Titan e a cobertura da busca. Se a #249 devolver os planejados ao catálogo, esse caminho passa a ser o primeiro filtro de toda classificação de uma vez; a #256 pede medir a cobertura antes.
 
+## Módulo documentacao (#258)
+
+Spec 09 (`docs/migracao/specs/09-documentacao.md`), aprovada em 2026-10-20 com as decisões D-1 a D-5. Fonte: develop @ `1157a6d`.
+
+**Primeiro, o que develop mudou (D-1):** os quatro commits de documentação de develop posteriores ao nascimento da `migration` (#229, #242, #234, #226) entraram num commit próprio, antes da reescrita (`814395b`).
+
+**A reescrita descreve o repositório como ele passa a ser:** `README.md`, `CLAUDE.md`, `CONTRIBUTING.md`, `docs/` e `.claude/`. As referências históricas ficam (D-2): decisões datadas, incidentes e números de issue; trecho histórico que cita a versão TypeScript vai numa seção marcada `> **Registro histórico`.
+
+**A verificação é executada, e não só lida:**
+- `tests/test_documentacao.py`: links e caminhos citados existem; referência à versão TypeScript só em registro histórico; o conjunto de variáveis lidas pelo código é o da tabela do README (28: as 25 do código e as 3 do SDK da AWS).
+- Os guias seguidos num clone limpo, no Windows (resultado na seção 10 da spec). O `docs/novo-fluxo.md` foi seguido de verdade, com um fluxo de exemplo numa branch descartável: os testes do fluxo passaram, e **a suíte quebrou em 12 testes que fixam o catálogo**, o que o guia não dizia (C7, decisão em aberto 6).
+
+**`APP_ENV` (C4, decidido em 2026-10-20):** dois comportamentos, e não três. Só `test` muda alguma coisa; `development` e ausente são o comportamento de produção, em develop e aqui. O critério da #208 que pedia três foi corrigido.
+
+**Diagramas (D-4):** o `orquestrador.png` desenha o relato não identificado como handoff, como antes do #242, também em develop (C1, registrado na #249). `orquestrador`, `padrao-comum-ia` e `mapa-modulos-ia` foram trocados por Mermaid no próprio doc. Gerar e gravar os PNGs novos no S3 é escrita na AWS e fica fora do módulo.
+
 ## Técnica a repetir nos próximos módulos: verificação por mutação
 
 Um teste que passa prova que o código faz o esperado no caso testado. Não prova que o teste **pegaria** a tradução errada. Para cada divergência que a spec do módulo trata (o lugar onde a tradução ingênua muda o comportamento), aplique no código a versão ingênua, rode o teste correspondente e confirme que ele **falha**. Depois, restaure o código.
@@ -554,6 +582,21 @@ Trocar um prazo pelo outro é o mesmo erro do padrão "parâmetro com nome famil
 
 ## Plano de corte: a troca de versão no release (combinado em 2026-10-20)
 
+> **Corrigido em 2026-10-20, no fim do dia: não há release em uso.** O Ícaro informou que não usa o release, e a validação deixa de depender dele. O texto abaixo, escrito antes da informação, fica como estava. Valem as observações:
+> - **O release está parado.** O token do Verde no segredo dele venceu em 04/10, e ninguém o usa. O deploy automático dele continua acontecendo (houve um em 2026-10-20, 17:31, com o #254 do Dependabot), mas não serve de validação.
+> - **O endereço que o fluxo de teste da Tykhe chamava** (`d2urkrsd5u4rck.cloudfront.net`) continua sendo o release pela evidência (o `tipoCaso` do #242 no `/docs/json`). Se a Tykhe usada de verdade chama a produção, o merge da `migration` em `develop` não muda o que a Tykhe vê; a troca que importa é a de `main`, e a linha de base, o roteiro e a troca da chave de API passam a ser da produção. **A confirmar com o Ícaro, antes do merge.**
+> - **O teste em homologação passou a ser local:** as duas versões rodando na máquina de desenvolvimento, contra o Verde de homologação, com o token e o client id de teste (válidos até 29/10). Ver a seção "Teste local contra a homologação do Verde".
+
+## Teste local contra a homologação do Verde (desde 2026-10-20)
+
+Substitui o "teste em homologação" pelo release, que não está em uso.
+
+- **Como:** `teste-tykhe/verde_homolog_duas_versoes.py` (fora do repositório) sobe a versão TypeScript (develop @ `1157a6d`) e a Python, uma de cada vez, e roda os mesmos cenários pela API nas duas. O Verde fica atrás de um **proxy local que só deixa passar GET e o `POST /apenado`** (consulta por RG) e recusa qualquer outro POST: nada é gravado na homologação. O proxy registra o método, o caminho, o corpo, o status e o formato da resposta, sem o token.
+- **Primeira rodada (executada em 2026-10-20):** 3 cenários (processo digitado com pontuação, RG, CPF), **idênticos nas duas versões**, inclusive as 3 chamadas ao Verde (método, caminho, escape, corpo, status e formato da resposta). Nenhuma chamada bloqueada. A consulta de CEP e o cadastro não foram exercidos.
+- **Incidente da primeira rodada, resolvido em 2026-10-20:** o RG inventado `000000000` devolveu um registro, e a pergunta de confirmação trouxe um nome completo. **O Ícaro confirmou em 2026-10-20 que a homologação do Verde tem dados de teste, e não de pessoas reais: não houve exposição de dado pessoal.** O comportamento é o da #236, nas duas versões, e em produção, onde os dados são reais, continua sendo o que a issue descreve (evidência registrada lá, sem o nome). Os arquivos locais com o nome foram apagados.
+- **Mascaramento:** desde então, o executor mascara todo texto que pode vir do Verde (sequências de palavras em maiúsculas viram `[DADO DO VERDE]`) antes de imprimir ou gravar. A comparação entre as versões continua usando o texto inteiro, só em memória.
+- ~~**Suspenso até a resposta do Ícaro sobre dados reais na homologação:** qualquer teste que envolva nome, CPF ou RG.~~ **Liberado em 2026-10-20, com a confirmação do Ícaro:** a homologação tem dados de teste. O mascaramento continua no executor, porque não custa nada e protege se alguém apontar o executor para outro ambiente por engano. **A gravação na homologação também foi liberada em 2026-10-20:** o cadastro de pessoa com endereço e o encaminhamento voltam ao escopo dos testes. O proxy passa a deixar passar esses dois POST, e só eles, e nunca aponta para o Verde de produção.
+
 **Quando a `migration` entrar em `develop`, o `deploy-release.yml` sobe a versão Python no release sozinho, no push.** O endereço que o fluxo da Tykhe chama não muda, e o comportamento muda de uma vez. Por isso a troca tem momento combinado.
 
 ### Qual ambiente a Tykhe chama (executado em 2026-10-20)
@@ -585,7 +628,7 @@ O fluxo "Orquestrador" da Tykhe chama `https://d2urkrsd5u4rck.cloudfront.net`. *
 1. Merge da `migration` em `develop` numa janela anunciada, fora do horário de teste.
 2. Nada de teste na Tykhe durante o deploy do release.
 3. **Conversas em andamento se perdem na troca.** O checkpoint do Python fica no schema `checkpoint_py`, porque as duas serializações são incompatíveis. Quem estiver no meio de um atendimento ou de uma desambiguação recomeça a conversa. O destino das threads em andamento é a decisão em aberto 3.
-4. O roteiro abaixo, **duas vezes**: antes do merge, contra a versão TypeScript, para registrar a linha de base; e logo depois do deploy, contra a versão Python.
+4. O roteiro abaixo, **duas vezes**: antes do merge, contra a versão TypeScript, para registrar a linha de base; e logo depois do deploy, contra a versão Python. **A rodada na versão TypeScript é pré-condição do merge:** sem a linha de base, toda diferença vira discussão sobre se já era assim.
 
 ### Roteiro de conferência: 4 casos, no próprio fluxo da Tykhe, pelo WhatsApp de teste
 
@@ -611,6 +654,28 @@ Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o
 
 **Registro de cada rodada:** a data, a versão (TypeScript ou Python), e para cada caso os campos de depuração do fluxo da Tykhe e o texto que chegou ao WhatsApp. Uma diferença na parte fixa entre as duas rodadas é falha da troca; na parte da IA, é variação a anotar.
 
+### O histórico num rollback (registrado em 2026-10-20)
+
+Duas coisas diferentes:
+
+**1. Retomar a conversa: não é viável, e fica como está.** As duas versões serializam o checkpoint de forma incompatível, e por isso a versão Python grava no schema `checkpoint_py`, e não nas tabelas que a versão TypeScript usa em `public`. Depois de um rollback, a versão TypeScript não enxerga as conversas que a Python começou.
+
+**2. O histórico para análise sobrevive.** Um rollback troca a imagem e não mexe no banco: as tabelas de `checkpoint_py` continuam lá, com o estado de cada conversa conduzida pela versão Python.
+
+> **⚠ Não limpar o `checkpoint_py` num rollback achando que é resíduo.** É o único lugar com o estado completo das conversas da versão Python. Apagá-lo é uma decisão separada, com o descarte desses dados tratado como tal: eles contêm dado pessoal (CPF, nome, relato).
+
+**A tabela `atendimentos` é compartilhada e um rollback não a afeta** (conferido no código das duas versões, 2026-10-20):
+- o `CREATE TABLE`, os `ALTER TABLE` e o `UPDATE` de desfecho são idênticos em `src/maria/shared/atendimentos_db.py` e no `atendimentosDb.ts` de develop @ `1157a6d`;
+- as duas gravam no schema padrão: o pool da `atendimentos` não fixa `search_path` (só o do checkpointer fixa `checkpoint_py`);
+- as duas leem o `DATABASE_URL` da mesma chave do mesmo segredo de cada ambiente (`ecs.tf`, `release.tf`). Que o valor seja o mesmo antes e depois da troca não foi lido no segredo: a conferir na janela.
+
+É ela que importa para análise: guarda o fluxo, o desfecho (`status_final`, `destino`, `motivo_handoff`), os tokens e as datas, e alimenta os painéis. As linhas gravadas pela versão Python continuam valendo depois de um rollback, no mesmo formato.
+
+**O que se perde, ou fica incompleto, para análise num rollback:**
+- **O desfecho dos atendimentos em andamento na hora do rollback.** A `atendimentos` só recebe desfecho e tokens no `concluir()`. Uma conversa que a versão Python começou e não terminou fica com a linha sem `status_final` e sem tokens. O que a versão TypeScript faz quando essa pessoa manda a próxima mensagem não foi executado. Se ela concluir, grava o desfecho dela, sem os tokens das rodadas da Python. O estado até ali continua no `checkpoint_py`, para recuperação manual.
+- **Os tokens das rodadas já feitas nessas conversas.** Ficam acumulados no estado (`tokensGastos`), ou seja, no `checkpoint_py`, e não na tabela.
+- **Os desfechos do orquestrador nunca estiveram na `atendimentos`**, em nenhuma das duas versões: a rota do orquestrador só cria a linha quando identifica um fluxo da Maria. `redirecionado`/`tipoCaso` e as rodadas de desambiguação ficam nos logs e no checkpoint (`orquestrador:<chatId>`). Os logs do CloudWatch não dependem da versão. As conversas da versão Python continuam no `checkpoint_py`. Não é perda causada pelo rollback, mas quem analisar o orquestrador precisa saber que a tabela não o cobre.
+
 ## Decisões em aberto
 
 1. **Major do Postgres de produção. Valor provisório: 16**, na imagem `pgvector/pgvector:pg16` do CI. A conferir com `SELECT version()` no RDS (do stack antigo). Se for outra, o ajuste é uma linha no `ci.yml`.
@@ -622,6 +687,8 @@ Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o
    - **Lido em develop:** no `pg-pool` 3.14, cada consulta sem conexão livre abre um cliente próprio (`index.js:235`), e o erro de conexão vai direto para quem pediu (`index.js:283`), sem prazo no meio.
    - **PENDÊNCIA, antes de escolher o valor: medir no Linux quanto o `pg` leva para devolver erro a quem pede conexão com o banco fora do ar**, e o mesmo para o pool Python. Não pode ser medido no Windows, onde a recusa da conexão leva cerca de 2 s e o libpq não a percebe. As sondas estão prontas: `.sonda/pool-banco-fora.mts` no worktree de develop (o `pg`, mesmo `new Pool({ connectionString })` das stores) e uma sonda Python com o prazo real do código. Medir nos dois casos: conexão recusada (porta fechada) e pacote descartado (host que não responde).
    - **O que a medição decide:** se o `pg` devolve o erro em segundos e o Python espera 120 s, a tradução piorou, e é **correção de migração**, com commit próprio na `migration`. Se o `pg` também fica pendurado, é **defeito herdado**, registrado como melhoria. Isso muda quem decide e com que urgência. O rascunho da issue espera essa medição.
+
+6. ~~Como as respostas gravadas evoluem depois do corte~~ **Decidida em 2026-10-20:** ficam congeladas, e o contrato atual é conferido por testes escritos. Ver a seção "As respostas gravadas são evidência, não teste de regressão".
 
 *A decisão 5 (contador com texto vindo da Tykhe, D-1) foi fechada em 2026-10-16: divergência aceita (tabela "Divergências aceitas").*
 
@@ -636,6 +703,7 @@ Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o
   - o estado no GitHub e a **situação explícita**: mergeada na migration; corrigida em develop e pendente na migration; aprovada, aguardando janela; aguardando decisão; aguardando dado externo;
   - a data e o comando que gerou o índice.
 - **Cópias:** `docs/migracao/INDICE-ISSUES.md` (no repositório) e `migracao-specs/INDICE-ISSUES.md` (local). Se divergirem, vale o comentário.
+- **A cópia do repositório anda na branch do módulo seguinte** (achado C3 da spec 09): entre o merge de um módulo e a branch do próximo, a cópia na `migration` fica atrás do comentário. Depois do último módulo, a atualização vai num commit próprio na `migration`.
 - **Rotina ao fim de cada módulo:**
   1. fechar a issue com comentário;
   2. apagar a branch;

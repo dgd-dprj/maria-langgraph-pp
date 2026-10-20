@@ -74,7 +74,7 @@ Nenhum valor desta tabela é real. Troque pelos seus.
 | Variável | Obrigatória | Valor de exemplo | Efeito |
 |---|---|---|---|
 | `API_KEY` | **sim** | `troque-esta-chave` | Chave que as rotas exigem no cabeçalho `Authorization: Bearer <chave>`. Sem ela, a API **não sobe** (erro `API_KEY obrigatório`). Escolha qualquer texto |
-| `APP_ENV` | não | `test` ou `development` | `test`: IA e embeddings simulados, `chatId` opcional. `development`: IA real. Ausente: comporta-se como produção (IA real, `chatId` obrigatório) |
+| `APP_ENV` | não | `test` ou `development` | Só `test` muda o comportamento: IA e embeddings simulados, `chatId` opcional. Qualquer outro valor, inclusive `development` e ausente, é o comportamento de produção: IA real e `chatId` obrigatório. O `development` do modo B é só um rótulo |
 | `MOCK_CLASSIFICACAO_FLOWID` | só no modo A | `3df874f2-675a-4c43-9ec7-480f7c702f50` | Com `APP_ENV=test`, o `flowId` que a classificação simulada devolve. Sem ela, todo relato vai para `outros` |
 | `MOCK_CLASSIFICACAO_FLOWIDS` | não | `3df874f2-675a-4c43-9ec7-480f7c702f50,cabb2495-4e12-4f4a-9956-3d20649059bc` | Com `APP_ENV=test`, vários ids separados por vírgula: simula um relato ambíguo, e o orquestrador faz uma pergunta de desambiguação |
 | `AWS_REGION` | modo B | `us-east-1` | Região do Bedrock |

@@ -6,7 +6,8 @@ do `pnpm test` de develop. Isso importa porque alguns módulos leem variáveis
 na importação, como em develop (por exemplo, `VERDE_JWT_TOKEN`, que decide o
 modo mock do Verde).
 
-`APP_ENV` substitui `NODE_ENV` (#208): `test`, `development` ou `production`.
+`APP_ENV` substitui `NODE_ENV` (#208). O código só distingue `test`; qualquer outro
+valor se comporta como produção (corrigido em 2026-10-20, achado C4 da spec 09).
 """
 
 import asyncio
