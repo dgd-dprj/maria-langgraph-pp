@@ -173,6 +173,15 @@ scripts/
   - **Regra de fechamento:** onde a tabela diz que o `null` não entra, ela diz **por quê** e **o que mudaria** se ele passasse a entrar. Tabela sem justificativa envelhece mal.
   - **Lição do `idPessoa`:** a regra do objeto aninhado não estava errada; estava **incompleta**. Foi escrita olhando o `endereco`, onde o `null` não entra, e aplicada à resposta do Verde, onde entra. A regra completa: dentro de objeto aninhado, `undefined` vira chave ausente e `null` continua `null`. A correção do `cadastro_pessoa` e do bypass do CPF (código mergeado em `80de7bb`) está em `d5e5965`.
 
+## As respostas gravadas são evidência, não teste de regressão (decidido em 2026-10-20)
+
+**Não edite nada em `tests/fixtures/contrato/`.** Nem quando um teste falhar por causa de uma mudança legítima de contrato.
+
+- **O que elas são:** respostas HTTP e linhas de log gravadas com a versão TypeScript rodando de verdade (as 50 da #209, gravadas em develop @ `4e695f2`, e as das conferências do `api`). Elas **provam que o Python devolve o que o TypeScript devolvia**. É evidência da tradução, e tem valor só enquanto for exatamente o que o servidor real devolveu.
+- **Por que não editar:** a versão TypeScript não existe mais para regravar. Uma fixture editada à mão deixa de ser observação e passa a ser opinião. Depois de três edições, ninguém sabe mais o que veio do servidor real e o que foi escrito. A evidência some sem aviso.
+- **O contrato atual é conferido por testes escritos:** asserções explícitas sobre status, corpo e campos, como as de `tests/api/test_app.py`. Uma mudança de contrato muda o teste escrito, e o PR diz por quê.
+- **Quando uma mudança legítima quebra a conferência contra a fixture** (o primeiro caso conhecido é um fluxo novo mudando `GET /fluxos`, achado C7 da spec 09): o caso sai da conferência, sem tocar na fixture, e o comportamento novo ganha um teste escrito. O mecanismo para tirar o caso da conferência (por exemplo, uma lista de casos aposentados, com o motivo e o PR de cada um) é definido no primeiro PR que precisar dele. A fixture continua no repositório, intacta.
+
 ## Divergências aceitas
 
 | Onde | develop | Python | Por que é aceita |
@@ -285,6 +294,9 @@ A lição repete a do `timeout` do pool: **contar o efeito (requisições, tempo
 
 ## Limites conhecidos da verificação (2026-10-14, #208)
 
+- **Decisão de 2026-10-20: a migração é validada por teste em homologação, e não por revisão humana de código.** O Ícaro aprova e mergeia. **A ausência de revisão humana foi decisão consciente, e não lacuna.** Quem avaliar a confiança da migração precisa saber o que foi feito e o que não foi:
+  - **feito:** CI em todo PR (ruff, mypy strict, a suíte padrão, a suíte com Postgres e a imagem Docker); verificação por mutação em todos os módulos de código; conferência diferencial contra develop, cenário a cenário, nos dois lados; as respostas e os logs gravados de develop conferidos byte a byte; os guias de uso executados em pasta limpa; teste em homologação, com o roteiro de 4 casos rodado antes do merge na versão TypeScript, como linha de base, e depois na Python;
+  - **não feito:** leitura do código por outra pessoa. O que isso deixa passar está no parágrafo abaixo, escrito antes da decisão e mantido como está.
 - **Nenhum módulo teve revisão humana de código.** Vale para fundação, persistencia, integracoes, ia e subgrafos. As proteções são o CI, a verificação por mutação e a conferência diferencial contra develop. Elas pegam a tradução errada que alguém pensou em testar, mas não a premissa errada, o caminho que nenhum teste percorre ou o defeito que o próprio autor não enxerga. **Não substituem revisão humana.** Proposta: alguém do time revisa ao menos os módulos de grafo (`subgrafos`, `fluxos`, `orquestrador` e as rotas do `api`), de preferência antes do merge, olhando a regra de tradução de estado e os testes de "defeito reproduzido de propósito".
 - **Lacuna de teste herdada do subgrafos:** o caminho "Verde devolve a pessoa sem `nome`", que produz "Confirma que seus dados são: você?" (#236), foi testado só na função que monta o texto. A verificar no módulo fluxos, de ponta a ponta: violência doméstica e pessoa presa, pelo orquestrador, com "Sim" e com "Não", conferindo contra develop. **Fechada no fluxos (2026-10-14):** os quatro casos foram conferidos contra develop, com resultado igual, e têm teste (`test_7_*` em `tests/fluxos/test_spec_fluxos.py`).
 
@@ -599,7 +611,7 @@ O fluxo "Orquestrador" da Tykhe chama `https://d2urkrsd5u4rck.cloudfront.net`. *
 1. Merge da `migration` em `develop` numa janela anunciada, fora do horário de teste.
 2. Nada de teste na Tykhe durante o deploy do release.
 3. **Conversas em andamento se perdem na troca.** O checkpoint do Python fica no schema `checkpoint_py`, porque as duas serializações são incompatíveis. Quem estiver no meio de um atendimento ou de uma desambiguação recomeça a conversa. O destino das threads em andamento é a decisão em aberto 3.
-4. O roteiro abaixo, **duas vezes**: antes do merge, contra a versão TypeScript, para registrar a linha de base; e logo depois do deploy, contra a versão Python.
+4. O roteiro abaixo, **duas vezes**: antes do merge, contra a versão TypeScript, para registrar a linha de base; e logo depois do deploy, contra a versão Python. **A rodada na versão TypeScript é pré-condição do merge:** sem a linha de base, toda diferença vira discussão sobre se já era assim.
 
 ### Roteiro de conferência: 4 casos, no próprio fluxo da Tykhe, pelo WhatsApp de teste
 
@@ -659,7 +671,7 @@ Duas coisas diferentes:
    - **PENDÊNCIA, antes de escolher o valor: medir no Linux quanto o `pg` leva para devolver erro a quem pede conexão com o banco fora do ar**, e o mesmo para o pool Python. Não pode ser medido no Windows, onde a recusa da conexão leva cerca de 2 s e o libpq não a percebe. As sondas estão prontas: `.sonda/pool-banco-fora.mts` no worktree de develop (o `pg`, mesmo `new Pool({ connectionString })` das stores) e uma sonda Python com o prazo real do código. Medir nos dois casos: conexão recusada (porta fechada) e pacote descartado (host que não responde).
    - **O que a medição decide:** se o `pg` devolve o erro em segundos e o Python espera 120 s, a tradução piorou, e é **correção de migração**, com commit próprio na `migration`. Se o `pg` também fica pendurado, é **defeito herdado**, registrado como melhoria. Isso muda quem decide e com que urgência. O rascunho da issue espera essa medição.
 
-6. **Como as respostas gravadas evoluem depois do corte** (achado C7 da spec 09). `tests/fixtures/contrato/` guarda respostas gravadas contra a versão TypeScript, conferidas byte a byte. Registrar um fluxo novo muda `GET /fluxos` e quebra 6 desses testes (e mais 6 com a lista esperada no código). Depois do corte não há versão TypeScript para regravar. Opções: editar a fixture à mão a cada mudança de contrato, com o motivo no PR; ou congelar as fixtures como registro da tradução e mover a conferência do contrato vivo para testes escritos. Sem valor provisório: até a decisão, o `docs/novo-fluxo.md` pede combinar no PR.
+6. ~~Como as respostas gravadas evoluem depois do corte~~ **Decidida em 2026-10-20:** ficam congeladas, e o contrato atual é conferido por testes escritos. Ver a seção "As respostas gravadas são evidência, não teste de regressão".
 
 *A decisão 5 (contador com texto vindo da Tykhe, D-1) foi fechada em 2026-10-16: divergência aceita (tabela "Divergências aceitas").*
 
