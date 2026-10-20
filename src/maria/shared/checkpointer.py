@@ -51,7 +51,22 @@ async def _criar_checkpointer() -> BaseCheckpointSaver[str]:
         return InMemorySaver()
 
     async with await psycopg.AsyncConnection.connect(url, autocommit=True) as conexao:
-        await conexao.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(SCHEMA_CHECKPOINT)))
+        try:
+            await conexao.execute(sql.SQL("CREATE SCHEMA IF NOT EXISTS {}").format(sql.Identifier(SCHEMA_CHECKPOINT)))
+        except psycopg.errors.InsufficientPrivilege:
+            # #260: é o primeiro erro de um deploy num banco novo, e sem esta
+            # linha ele fica no fim de um traceback. Exige CREATE no banco mesmo
+            # com o schema já criado. Nunca a URL: ela contém a senha.
+            banco, usuario = conexao.info.dbname, conexao.info.user
+            logger.error(
+                "[checkpoint] sem permissão para criar o schema do checkpoint: o usuário precisa de CREATE no banco",
+                schema=SCHEMA_CHECKPOINT,
+                banco=banco,
+                usuario=usuario,
+                permissao="CREATE",
+                correcao=f'GRANT CREATE ON DATABASE "{banco}" TO "{usuario}";',
+            )
+            raise
 
     # Parâmetros de pool e de conexão iguais aos do pg de develop (shared/pool.py).
     # O autocommit de lá também é exigido pelo setup() (CREATE INDEX CONCURRENTLY).

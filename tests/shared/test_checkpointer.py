@@ -6,6 +6,7 @@ com pgvector. Eles provam que o `setup()` do Python cria as tabelas só em
 criou em `public`.
 """
 
+import json
 import math
 import os
 from collections.abc import AsyncIterator
@@ -122,6 +123,44 @@ async def test_search_path_e_fixado_em_cada_conexao_nova_pelo_configure_do_pool(
     assert primeira.comandos == segunda.comandos == ['SET search_path TO "checkpoint_py"']
 
 
+def _linhas_de_log(capsys: pytest.CaptureFixture[str]) -> list[dict[str, object]]:
+    return [json.loads(linha) for linha in capsys.readouterr().out.splitlines() if linha.strip()]
+
+
+class _ConexaoSemCreate(_ConexaoFalsa):
+    class info:  # imita `conexao.info` do psycopg
+        dbname = "banco_do_release"
+        user = "usuario_da_app"
+
+    async def execute(self, comando: sql.Composable) -> None:
+        raise psycopg.errors.InsufficientPrivilege("permission denied for database banco_do_release")
+
+
+async def test_sem_permissao_de_create_registra_o_que_falta_e_relanca(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # #260: o primeiro erro de um deploy num banco novo precisa dizer o que falta
+    # numa linha própria, e não só no fim do traceback. A URL tem a senha.
+    async def _conectar(*_a: object, **_k: object) -> _ConexaoSemCreate:
+        return _ConexaoSemCreate()
+
+    monkeypatch.setenv("DATABASE_URL", "postgresql://usuario_da_app:senha-secreta@host-falso/banco_do_release")
+    monkeypatch.setattr(psycopg.AsyncConnection, "connect", _conectar)
+
+    with pytest.raises(psycopg.errors.InsufficientPrivilege):
+        await inicializar_checkpointer()
+
+    saida = _linhas_de_log(capsys)
+    [linha] = [registro for registro in saida if str(registro["msg"]).startswith("[checkpoint] sem permissão")]
+    assert linha["level"] == 50
+    assert linha["schema"] == SCHEMA_CHECKPOINT
+    assert linha["banco"] == "banco_do_release"
+    assert linha["usuario"] == "usuario_da_app"
+    assert linha["permissao"] == "CREATE"
+    assert linha["correcao"] == 'GRANT CREATE ON DATABASE "banco_do_release" TO "usuario_da_app";'
+    assert "senha-secreta" not in json.dumps(saida)
+
+
 # --- Postgres real -----------------------------------------------------------
 
 
@@ -227,3 +266,29 @@ async def test_tabelas_existem_antes_da_primeira_requisicao(banco: psycopg.Async
     async with app.router.lifespan_context(app):
         # Nenhuma requisição foi feita: as tabelas vêm da inicialização, não da primeira chamada.
         assert await _tabelas(banco, SCHEMA_CHECKPOINT) == TABELAS_CHECKPOINT
+
+
+@pytest.mark.postgres
+async def test_usuario_sem_create_no_banco_real(
+    banco: psycopg.AsyncConnection[TupleRow], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # #260, contra o Postgres de verdade: um usuário sem CREATE no banco (o
+    # padrão de um usuário novo) não cria o schema, e a linha diz o que falta.
+    from psycopg.conninfo import conninfo_to_dict, make_conninfo
+
+    usuario, senha = "maria_sem_create", "senha-do-teste-260"
+    await banco.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(usuario)))
+    await banco.execute(sql.SQL("CREATE ROLE {} LOGIN PASSWORD {}").format(sql.Identifier(usuario), sql.Literal(senha)))
+    try:
+        url = os.environ["DATABASE_URL"]
+        monkeypatch.setenv("DATABASE_URL", make_conninfo(url, user=usuario, password=senha))
+        with pytest.raises(psycopg.errors.InsufficientPrivilege):
+            await inicializar_checkpointer()
+        saida = _linhas_de_log(capsys)
+        [linha] = [registro for registro in saida if str(registro["msg"]).startswith("[checkpoint] sem permissão")]
+        assert linha["usuario"] == usuario
+        assert linha["banco"] == conninfo_to_dict(url)["dbname"]
+        assert senha not in json.dumps(saida)
+        assert await _tabelas(banco, SCHEMA_CHECKPOINT) == set()
+    finally:
+        await banco.execute(sql.SQL("DROP ROLE IF EXISTS {}").format(sql.Identifier(usuario)))

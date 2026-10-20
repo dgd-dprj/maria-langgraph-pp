@@ -3,14 +3,25 @@
 Um único worker: a ponte do WhatsApp guarda estado em memória por número, e
 com mais de um processo esse estado divergiria. Host 0.0.0.0 porque o ALB
 conecta na interface da task, e não no loopback.
+
+Loop de eventos (#260): no Windows, o uvicorn escolhe o `ProactorEventLoop`
+por conta própria, e o psycopg assíncrono não funciona com ele. Lá o loop é o
+`SelectorEventLoop`, o mesmo dos testes (`tests/conftest.py`). Nos outros
+sistemas, inclusive no container de produção, fica o `"auto"` de sempre.
 """
 
 from __future__ import annotations
+
+import sys
 
 import uvicorn
 from dotenv import load_dotenv
 
 from maria.shared.logger import configurar_logging_stdlib
+
+
+def loop_do_servidor(plataforma: str = sys.platform) -> str:
+    return "asyncio:SelectorEventLoop" if plataforma == "win32" else "auto"
 
 
 def main() -> None:
@@ -26,6 +37,7 @@ def main() -> None:
         # O log de requisição no formato do Fastify (incoming request /
         # request completed) é reproduzido no módulo api.
         access_log=False,
+        loop=loop_do_servidor(),
     )
 
 
