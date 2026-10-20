@@ -191,14 +191,14 @@ Develop não tem teste destes scripts. Todos os testes abaixo são novos.
 ## 8. Critérios de aceite
 
 - [x] `scripts/dados/fluxos_planejados.json` extraído e verificado (2.3) em commit próprio, antes da tradução: 21 testes, e 6 de 6 mutações pegas (palavra-chave a menos, acento em NFD, `mensagemFixa: null`, registros trocados, espaço no fim, fixture com um byte a mais).
-- [ ] Os dois scripts traduzidos; `scripts/` incluído no `mypy` (`files`) e no `ruff`.
-- [ ] Testes da seção 6 passando; o teste 4 no CI.
-- [ ] Conferência da seção 7, com o resultado na seção 10.
-- [ ] Mutações executadas, com a lista no corpo do PR.
-- [ ] `scripts/README.md` com os comandos novos, os pré-requisitos do `logs-prod.sh` (D-3) e o aviso do achado B2 (colisão com a #249).
-- [ ] `logs-prod.sh` com as checagens prévias da D-3, testadas com `PATH` sem `npx`, sem `node` e sem `aws`.
-- [ ] `MIGRACAO.md` com a seção do módulo; o índice de issues e a #208 atualizados.
-- [ ] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes; os jobs `test` e `imagem` verdes.
+- [x] Os dois scripts traduzidos (`8daa072`, `db9a56f`); `scripts/` incluído no `mypy` (`files`) e no `ruff`.
+- [x] Testes da seção 6 passando localmente. *Falta: o teste 4 (Postgres) e os do `logs-prod.sh`, que só rodam no CI.*
+- [x] Conferência da seção 7: 64 cenários, 62 idênticos e 2 da D-4 (seção 10.2).
+- [x] Mutações executadas: 6 de 6 na extração; 22 de 23 no seed e na coleta, e a restante é pega pelo teste com Postgres no CI (seção 10.2). *Falta: a lista no corpo do PR.*
+- [x] `scripts/README.md` com os comandos novos, os pré-requisitos do `logs-prod.sh` (D-3) e os avisos da #251, da #253 (colisão com a #249) e da #255 (`f3e7b6c`).
+- [x] `logs-prod.sh` com as checagens prévias da D-3, testadas com `PATH` sem `node`, sem `npx`, sem `aws` e com o download falhando (`f3e7b6c`). *Os testes rodam no CI; no Windows são pulados.*
+- [x] `MIGRACAO.md` com a seção do módulo; o índice de issues e a #208 atualizados.
+- [ ] `ruff`, `ruff format --check`, `mypy` strict e `pytest` verdes (localmente: sim, fora os 2 testes de `test_workflows.py`, que dependem do Git Bash, quebrado nesta máquina); os jobs `test` e `imagem` verdes. *Falta: o CI do PR.*
 
 ## 9. Decisões (aprovadas em 2026-10-19)
 
@@ -226,6 +226,30 @@ O laço em si não muda.
 | **B2** | O seed grava `mensagem_fixa = NULL` nos 72 registros sem mensagem e sobrescreve `nome`, `descricao` e `palavras_chave`. Rodar o seed de novo num banco editado à mão desfaz as edições. O comentário de `:103` diz que a tabela "passa a ser editada por SQL". **Colide com a #249:** uma correção feita editando `mensagem_fixa` no banco some no próximo seed, e a #22 foi entregue justamente mudando só o seed (`6806952`) | lido, `:149-154` | Reproduzir. **Registrado na #249** (comentário de 2026-10-19, com critério de aceitação proposto) e no README. **Issue própria: #253** (`[TECH]`, seção 10.1) |
 | **B4** | A palavra-chave `"sofri preconceito` (planejado "direitos e diversidade") começa com uma aspa solta, escrita como `\"` no literal: provável erro de digitação. As palavras-chave só entram no texto dado à IA e ao embedding (`src/shared/fluxosPlanejadosDb.ts:42-43`), e não há comparação exata | executado (leitor e extração), uso lido | Reproduzir; o teste `test_aspa_solta_de_develop_preservada` trava o valor. Efeito cosmético: sem issue |
 | **B3** | `logs-prod.sh` manda o stderr do `aws logs tail` para `/dev/null`. Credencial expirada, perfil errado ou `aws` ausente não mostram nada: o script fica em silêncio, como se não houvesse log | lido, `logs-prod.sh:8` | A ausência do `aws` entra nas checagens da D-3. Mostrar o erro da credencial muda o laço e fica para decisão |
+
+| **B5** | Importar os fluxos inicializa o checkpointer (top-level await nos grafos, o ponto 1 da #208): os scripts logam o aviso do MemorySaver, criam as tabelas de checkpoint no banco de destino e, com o banco inalcançável, morrem sem o próprio prefixo de erro, antes das guardas. A fundação Python já desfez o acoplamento | executado (seed e coleta de develop, 2026-10-19 e 2026-10-20); o `CREATE TABLE`, lido | **Issue #255.** Os scripts Python reproduzem com uma chamada explícita a `inicializar_checkpointer()`, fora do tratamento de erro do script |
+
+**Achado lateral, sem relação com os scripts: a busca vetorial do orquestrador não roda em produção (#256).** Com o catálogo de 9 opções e `k` 10, `buscar_candidatos` devolve o catálogo inteiro sem calcular embedding (executado: 0 chamadas ao Bedrock nos dois lados). Encontrado na verificação da busca, feita sem melhoria.
+
+### 10.2 Resultado (executado em 2026-10-19 e 2026-10-20)
+
+**Conferência contra develop @ `1157a6d`: 64 cenários, 62 idênticos.** Os dois crawlers rodam como processo, contra o mesmo Verde falso por HTTP (`tests/fixtures/scripts/conferencia-coleta/`). Develop roda pela cópia sonda, cujo diff é impresso por `gerar_sonda.py`. A comparação cobre o stdout (o log pino sem `time`, `pid` e `hostname`), o stderr (num erro fatal, só a primeira linha), o código de saída, as chamadas ao Verde na ordem e o que foi gravado (chave ausente e `null` contam igual, como no Postgres). Os 2 restantes são o texto do erro do parser de JSON, a divergência aceita na D-4:
+
+| Cenário | develop | Python |
+|---|---|---|
+| JSON inválido | `Expected property name or '}' in JSON at position 1 (line 1 column 2)` | `Expecting property name enclosed in double quotes: line 1 column 2 (char 1)` |
+| Corpo vazio com 200 | `Unexpected end of JSON input` | `Expecting value: line 1 column 1 (char 0)` |
+
+A primeira rodada parou no 32º cenário: o sistema passou a recusar a criação de processos (e o Git Bash da máquina perdeu o `usr\bin\bash.exe`). A segunda rodou os 33 restantes com pausa entre eles e gravação a cada cenário.
+
+**Mutações:**
+- **extração dos 74 registros:** 6 de 6 (`83c8437`);
+- **seed e coleta:** 23 mutações. A 1ª rodada pegou 19. As 4 que passaram:
+  - `assuntoEncontrado` e `pergunta` com o `bool()` do Python: faltava o caso. `[]` e `{}` são verdadeiros no JS e falsos no Python; `"false"` e `0` coincidem por acaso. Testes novos (`bb5e3a6`);
+  - profundidade `>=` no lugar de `>`: o teste só conferia a mensagem, que é a mesma nos dois casos (usa a constante 12). Faltava a fronteira exata, a profundidade 12 passando. Teste novo (`bb5e3a6`);
+  - `ON CONFLICT DO NOTHING` no seed: legítima. Só o teste com Postgres (`test_seed_desfaz_edicao_manual_da_mensagem_fixa`) pega, e ele roda no CI.
+  
+  **Depois dos testes novos: 22 de 23 nos testes de unidade, e a 23ª pega pelo teste com Postgres no CI.**
 
 ### 10.1 B2: vale issue própria?
 
