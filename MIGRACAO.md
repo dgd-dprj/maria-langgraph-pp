@@ -580,6 +580,21 @@ Trocar um prazo pelo outro é o mesmo erro do padrão "parâmetro com nome famil
 
 ## Plano de corte: a troca de versão no release (combinado em 2026-10-20)
 
+> **Corrigido em 2026-10-20, no fim do dia: não há release em uso.** O Ícaro informou que não usa o release, e a validação deixa de depender dele. O texto abaixo, escrito antes da informação, fica como estava. Valem as observações:
+> - **O release está parado.** O token do Verde no segredo dele venceu em 04/10, e ninguém o usa. O deploy automático dele continua acontecendo (houve um em 2026-10-20, 17:31, com o #254 do Dependabot), mas não serve de validação.
+> - **O endereço que o fluxo de teste da Tykhe chamava** (`d2urkrsd5u4rck.cloudfront.net`) continua sendo o release pela evidência (o `tipoCaso` do #242 no `/docs/json`). Se a Tykhe usada de verdade chama a produção, o merge da `migration` em `develop` não muda o que a Tykhe vê; a troca que importa é a de `main`, e a linha de base, o roteiro e a troca da chave de API passam a ser da produção. **A confirmar com o Ícaro, antes do merge.**
+> - **O teste em homologação passou a ser local:** as duas versões rodando na máquina de desenvolvimento, contra o Verde de homologação, com o token e o client id de teste (válidos até 29/10). Ver a seção "Teste local contra a homologação do Verde".
+
+## Teste local contra a homologação do Verde (desde 2026-10-20)
+
+Substitui o "teste em homologação" pelo release, que não está em uso.
+
+- **Como:** `teste-tykhe/verde_homolog_duas_versoes.py` (fora do repositório) sobe a versão TypeScript (develop @ `1157a6d`) e a Python, uma de cada vez, e roda os mesmos cenários pela API nas duas. O Verde fica atrás de um **proxy local que só deixa passar GET e o `POST /apenado`** (consulta por RG) e recusa qualquer outro POST: nada é gravado na homologação. O proxy registra o método, o caminho, o corpo, o status e o formato da resposta, sem o token.
+- **Primeira rodada (executada em 2026-10-20):** 3 cenários (processo digitado com pontuação, RG, CPF), **idênticos nas duas versões**, inclusive as 3 chamadas ao Verde (método, caminho, escape, corpo, status e formato da resposta). Nenhuma chamada bloqueada. A consulta de CEP e o cadastro não foram exercidos.
+- **Incidente da primeira rodada:** o RG inventado `000000000` devolveu um registro, e a pergunta de confirmação trouxe um nome completo, possivelmente de pessoa real. É a #236, nas duas versões (evidência registrada lá, sem o nome). Os arquivos locais com o nome foram apagados.
+- **Mascaramento:** desde então, o executor mascara todo texto que pode vir do Verde (sequências de palavras em maiúsculas viram `[DADO DO VERDE]`) antes de imprimir ou gravar. A comparação entre as versões continua usando o texto inteiro, só em memória.
+- **Suspenso até a resposta do Ícaro sobre dados reais na homologação:** qualquer teste que envolva nome, CPF ou RG. Os testes de leitura que param antes disso continuam.
+
 **Quando a `migration` entrar em `develop`, o `deploy-release.yml` sobe a versão Python no release sozinho, no push.** O endereço que o fluxo da Tykhe chama não muda, e o comportamento muda de uma vez. Por isso a troca tem momento combinado.
 
 ### Qual ambiente a Tykhe chama (executado em 2026-10-20)
