@@ -1,6 +1,6 @@
 # Fluxo: Violência Doméstica
 
-`flowId`: `cabb2495-4e12-4f4a-9956-3d20649059bc` — código em `src/fluxos/violenciaDomestica/`. Categoria Verde equivalente: `idCategoriaAssuntoVerde = 10113`.
+`flowId`: `cabb2495-4e12-4f4a-9956-3d20649059bc` — código em `src/maria/fluxos/violencia_domestica/`. Categoria Verde equivalente: `idCategoriaAssuntoVerde = 10113`.
 
 Vítima de violência doméstica buscando ajuda/proteção/encaminhamento jurídico.
 
@@ -51,13 +51,13 @@ Vítima de violência doméstica buscando ajuda/proteção/encaminhamento juríd
      deu certo → CONCLUÍDO (mensagem com nome do órgão + protocolo)
 ```
 
-`identificarAssistido`, `cadastroPessoa` e `coletarEndereco` (aninhado dentro de `cadastroPessoa`) são subgrafos reaproveitáveis (`src/subgrafos/`, ver `docs/novo-fluxo.md`) — embutidos como nó dentro deste fluxo, mesmo `chatId`/checkpoint.
+`identificarAssistido`, `cadastroPessoa` e `coletarEndereco` (aninhado dentro de `cadastroPessoa`) são subgrafos reaproveitáveis (`src/maria/subgrafos/`, ver `docs/novo-fluxo.md`) — embutidos como nó dentro deste fluxo, mesmo `chatId`/checkpoint.
 
 ### `viaOrquestrador` — por que a Tykhe nunca vê nada disso (issue #191)
 
 A Tykhe consome este fluxo direto via `POST /atendimentos` com `flowId` explícito — contrato que já existia antes das issues #171/#189. Pra não alterar NADA desse contrato, um sinal novo no state (`viaOrquestrador`) decide se o comportamento novo (cadastro automático, confirmação de dados) ativa:
 
-- **Setado `true`** só em um lugar: `rotas/orquestrador.ts`, ao criar o atendimento via `POST /atendimentos/orquestrador` (pra quem não sabe de antemão qual fluxo usar — não é a Tykhe).
+- **Setado `true`** só em um lugar: a rota do orquestrador (`src/maria/api/orquestrador.py`), ao criar o atendimento via `POST /atendimentos/orquestrador` (pra quem não sabe de antemão qual fluxo usar — não é a Tykhe).
 - **Nunca setado** por quem chama `POST /atendimentos` direto — a Tykhe nunca manda esse campo, então o fluxo se comporta exatamente como antes dessas issues: CPF esgotado vira handoff direto (`cpf_nao_encontrado`), sem tentar cadastro nem perguntar confirmação.
 - É o MESMO `flowId`, o MESMO grafo — só o roteamento pós-subgrafo (`depoisDeIdentificarAssistido`/`depoisDeCadastrarPessoa`) e a confirmação dentro dos subgrafos checam esse sinal.
 

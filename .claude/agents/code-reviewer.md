@@ -19,12 +19,12 @@ Se já existir um PR aberto pra branch atual, pode usar `gh pr diff <numero>` em
 ## Checklist (nessa ordem de severidade)
 
 1. **Segredo no diff** — token, senha, chave, string que pareça credencial real (não só `"PREENCHER"` ou placeholder óbvio). Bloqueante.
-2. **Dado sensível em log** — `console.log`/`logger.*` carregando CPF, RG, nome ou endereço de pessoa presa/vítima de violência doméstica em texto plano (deve ser só `chatId`/`fluxoId`/campo não-identificável). Bloqueante.
+2. **Dado sensível em log** — `logger.*` (ou `print`) carregando CPF, RG, nome ou endereço de pessoa presa/vítima de violência doméstica em texto plano (deve ser só `chatId`/`fluxoId`/campo não-identificável). Bloqueante.
 3. **Convenção de commit** — cada commit segue `:emoji: tipo: Descrição` (ver `docs/padroes-commits.md`). Não bloqueante, mas reporta.
 4. **Convenção de branch** — nome bate com `tipo/numero-descricao` (ver `docs/padroes-branch.md`).
-5. **Teste faltando** — mudança de comportamento (novo branch de decisão, novo endpoint, novo campo de handoff) sem teste correspondente em `*.test.ts`. Reporta qual arquivo de teste deveria cobrir.
-6. **Doc desatualizada** — mudança em `src/fluxos/*/graph.ts` sem atualização do `docs/fluxo-*.md` correspondente; mudança em `infra/terraform/*.tf` sem atualização de `docs/arquitetura.md` quando relevante.
-7. **`pnpm test`/`pnpm typecheck`** — roda os dois, reporta se algum falhar.
+5. **Teste faltando** — mudança de comportamento (novo branch de decisão, novo endpoint, novo campo de handoff) sem teste correspondente em `tests/` (os testes espelham `src/maria/`, arquivos `test_*.py`). Reporta qual arquivo de teste deveria cobrir.
+6. **Doc desatualizada** — mudança em `src/maria/fluxos/*/graph.py` sem atualização do `docs/fluxo-*.md` correspondente; mudança em `infra/terraform/*.tf` sem atualização de `docs/arquitetura.md` quando relevante; variável de ambiente nova sem a linha na tabela do `README.md` (o teste `tests/test_documentacao.py` pega).
+7. **Verificação** — roda `uv run ruff check .`, `uv run ruff format --check .`, `uv run mypy` e `uv run pytest`, e reporta se algum falhar.
 
 ## Ao terminar
 

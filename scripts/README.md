@@ -25,7 +25,13 @@ Varre a árvore de perguntas/assuntos do Verde (`GET /integra/assunto/consultar-
 
 ## `seed_fluxos_planejados.py` (issue #26)
 
-Migração **única**, já rodada — populou `fluxos_planejados` com os 74 registros que antes viviam hardcoded em `src/fluxos/catalogo.ts` (removido depois da migração; 71 vieram de `GET /integra/assunto/categorias`, 3 só existiam na planilha de palavras-chave).
+Migração **única**, já rodada — populou `fluxos_planejados` com os 74 registros que antes viviam fixos no código (71 vieram de `GET /integra/assunto/categorias`, 3 só existiam na planilha de palavras-chave).
+
+### Origem dos dados
+
+> **Registro histórico (issue #26).** Os 74 registros viviam hardcoded em `src/fluxos/catalogo.ts`, na versão TypeScript, removido depois da migração para a tabela.
+
+### Uso
 
 - **Por que ainda existe**: é a **única cópia restante** dos dados originais (nome, descrição, palavras-chave, id de categoria do Verde, mensagem fixa) — sem ela, recriar `fluxos_planejados` do zero (banco novo, recuperação de desastre) não teria fonte.
 - **Os dados** ficam em `scripts/dados/fluxos_planejados.json`, transcritos do seed de develop @ `1157a6d`. O teste `tests/scripts/test_seed_extracao.py` confere o arquivo contra o `.ts` original, guardado byte a byte em `tests/fixtures/scripts/`. **Não edite o JSON à mão**: uma mudança de dado entra no seed de develop, e a fixture, o id do blob esperado e o JSON mudam juntos.

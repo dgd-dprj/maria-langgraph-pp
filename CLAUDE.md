@@ -14,7 +14,8 @@ Contexto completo: [`README.md`](README.md) e [`docs/`](docs/). Fluxo de contrib
 - Issue antes do código quando o pedido for "cria X" (ver [`docs/padroes-issues.md`](docs/padroes-issues.md)).
 - Branch a partir de `develop` atualizada, nomenclatura `tipo/numero-descricao`.
 - Commit no formato `:emoji: tipo: Descrição` em pt-BR ([`docs/padroes-commits.md`](docs/padroes-commits.md)).
-- `pnpm test` passando antes de abrir PR ([`docs/testes.md`](docs/testes.md)).
+- `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest` passando antes de abrir PR ([`docs/testes.md`](docs/testes.md)).
+- Ao mudar documentação, preservar as referências históricas: decisões datadas, registros de incidente e números de issue ficam como estão, mesmo citando arquivos da versão TypeScript ([`docs/migracao/`](docs/migracao/), spec 09).
 
 ## Infra
 
