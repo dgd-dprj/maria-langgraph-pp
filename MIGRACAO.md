@@ -550,6 +550,65 @@ Trocar um prazo pelo outro é o mesmo erro do padrão "parâmetro com nome famil
 | Abrir a conexão TCP | 10 s | `src/maria/integracoes/cliente_http.py:34` (`connect=10.0`) | `connectTimeout` do undici, medido no módulo integracoes. Corre dentro dos 30 s, e não no lugar deles |
 | Total de cada chamada do script de coleta | 20 s | `scripts/coletar_arvore_perguntas_verde.py` (`TIMEOUT_MS`) | Reproduz o script de develop, que a #196 não alterou. Mesmo risco da #196 numa ferramenta de manutenção (ver #251) |
 
+## Plano de corte: a troca de versão no release (combinado em 2026-10-20)
+
+**Quando a `migration` entrar em `develop`, o `deploy-release.yml` sobe a versão Python no release sozinho, no push.** O endereço que o fluxo da Tykhe chama não muda, e o comportamento muda de uma vez. Por isso a troca tem momento combinado.
+
+### Qual ambiente a Tykhe chama (executado em 2026-10-20)
+
+O fluxo "Orquestrador" da Tykhe chama `https://d2urkrsd5u4rck.cloudfront.net`. **É o release**, por evidência, e não pela informação repassada:
+- o `GET /docs/json` público desse endereço traz `redirecionado` e `tipoCaso`, que são do #242;
+- o #242 está em `develop` (3 ocorrências de `tipoCaso` em `src/`) e não está em `main` (0 ocorrências; o último merge em `main` é de 2026-10-01);
+- o release faz deploy no push para `develop` (`deploy-release.yml`), e a produção no push para `main` (`deploy-prod.yml`).
+
+**A chave de API desse fluxo é o `API_KEY` do segredo `maria-langgraph-pp-release/app`**, e não o de `maria-langgraph-pp-prod/app`. Assumir o ambiente errado significaria gravar a chave no segredo errado, ou trocar a de produção achando que era a do release.
+
+### Quem consome a chave do release
+
+| Possível consumidor | Usa a chave? | Se a chave for trocada |
+|---|---|---|
+| Fluxo "Orquestrador" da Tykhe (3 nós de Chamada API) | sim | quebra até os cabeçalhos serem atualizados |
+| Workflows do GitHub (deploys, Grafana, verificação do token do Verde) | não; o único segredo de API nos workflows é o `GRAFANA_API_TOKEN` | nada |
+| Health check do ALB | não; `/health` não exige chave | nada |
+| Bridge do WhatsApp do release | sim, a chave da própria API, lida quando o container sobe | se ajusta no novo deploy |
+| Testes do repositório | não; chave fixa de teste, sem rede | nada |
+| **Fora do repositório:** outros fluxos da Tykhe, coleções do Postman, scripts de quem testa | **não dá para saber pelo código** | quebram até serem atualizados |
+
+**O risco real está fora do repositório.** "A Tykhe é o único consumidor esperado" (`docs/contrato-tykhe.md`) é intenção documentada, e não inventário. Antes de trocar a chave, perguntar ao Ícaro e a quem administra a Tykhe quem mais usa a chave do release.
+
+**Troca da chave (ficou exposta num arquivo):** gerar a nova; gravar no campo `API_KEY` do segredo do release, mantendo os outros campos; novo deploy do serviço `api-release`; atualizar a Tykhe logo em seguida (entre o deploy e a atualização, as chamadas recebem 401). **Na mesma janela da troca de versão**, para quem testa parar uma vez só.
+
+### A janela
+
+1. Merge da `migration` em `develop` numa janela anunciada, fora do horário de teste.
+2. Nada de teste na Tykhe durante o deploy do release.
+3. **Conversas em andamento se perdem na troca.** O checkpoint do Python fica no schema `checkpoint_py`, porque as duas serializações são incompatíveis. Quem estiver no meio de um atendimento ou de uma desambiguação recomeça a conversa. O destino das threads em andamento é a decisão em aberto 3.
+4. O roteiro abaixo, **duas vezes**: antes do merge, contra a versão TypeScript, para registrar a linha de base; e logo depois do deploy, contra a versão Python.
+
+### Roteiro de conferência: 4 casos, no próprio fluxo da Tykhe, pelo WhatsApp de teste
+
+Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o que é **fixo** (código, sem IA) e o que **depende da IA** (a classificação e o texto da pergunta de desambiguação). **Se uma parte fixa não bater, é falha. Se só uma parte da IA mudar, compare com a linha de base do TypeScript, e não com este texto.** Os campos são os do fluxo da Tykhe: `StatusFluxo` (status), `TipoFluxo` (flowId), `TipoResposta`, `tipoCaso` e `RespostaFluxo` (resposta).
+
+**Caso 1. Fluxo da Maria identificado.** Relato: *"Meu companheiro me ameaçou ontem à noite e quebrou meu celular. Tenho medo de voltar pra casa."*
+- **Depende da IA:** a classificação escolher violência doméstica. Não executado com o Bedrock real para este relato.
+- **Fixo, se escolher:** `StatusFluxo` = `em_andamento`; `TipoFluxo` = `cabb2495-4e12-4f4a-9956-3d20649059bc`; `TipoResposta` = `sim_nao`; a pergunta é **"Você é a vítima de violência doméstica?"**, com as opções Sim e Não (executado na API Python em 2026-10-19, com a classificação simulada).
+
+**Caso 2. Redirecionado para a Tykhe.** Relato: *"Fui mandado embora da empresa onde trabalhei três anos e eles não pagaram minha rescisão nem o FGTS. O que eu faço pra receber?"*
+- **Depende da IA, já medido:** na API Python com o Bedrock real (2026-10-19, duas vezes): `redirecionado`, `tipoCaso` = `novo-processo`.
+- **Fixo, dado o `tipoCaso`:** `StatusFluxo` = `redirecionado`; sem `TipoFluxo`; `RespostaFluxo` = **"Entendi. Vou te encaminhar para o atendimento de abertura de um novo caso."**
+- **Atenção:** este é o defeito da #249 (deveria orientar a procurar o sindicato). Se a #249 for corrigida antes da troca, o esperado muda para o que ela decidir.
+
+**Caso 3. Desambiguação.** Relato: *"Meu marido foi preso semana passada depois de uma briga lá em casa e eu não sei o que fazer."* Depois, a resposta: *"Quero saber onde ele está preso e como visitar."*
+- **Fixo, na 1ª resposta, se a IA achar o relato ambíguo:** `StatusFluxo` = `em_andamento` e **sem `TipoFluxo`**. O fluxo da Tykhe vai para "Orquestrador (rodadas seguintes)", e a 2ª chamada sai com o campo `resposta`, no mesmo chat.
+- **Fixo, nas rodadas seguintes:** em no máximo 5 respostas a conversa sai da desambiguação, identificada ou redirecionada. Na 6ª, a API devolve `redirecionado`, `tipoCaso` = `outros`, **"Entendi. Vou te encaminhar para o atendimento de outros assuntos."**
+- **Depende da IA:** se o relato é tido como ambíguo, o texto da pergunta e para onde a 2ª resposta leva (o esperado é pessoa presa, `TipoFluxo` = `3df874f2-675a-4c43-9ec7-480f7c702f50`).
+
+**Caso 4. Conversa até o fim.** Num chat novo, o relato do caso 1. À pergunta "Você é a vítima de violência doméstica?", responder **Não**. Depois, mandar mais uma mensagem qualquer no mesmo chat.
+- **Fixo:** `StatusFluxo` = `handoff_humano`; `RespostaFluxo` = **"Esse atendimento é destinado apenas para quem é vítima da violência. Vou encaminhar você para um atendente humano."** (fixture `violencia-domestica-handoff-nao-vitima-200`, gravada contra develop @ `1157a6d`).
+- **Fixo, na mensagem seguinte:** a API responde **409** (atendimento já concluído). No fluxo da Tykhe, cai no grupo "Falha", porque a Chamada API só tem a saída "falhou" (fixture `erro-atendimento-ja-concluido-409`).
+
+**Registro de cada rodada:** a data, a versão (TypeScript ou Python), e para cada caso os campos de depuração do fluxo da Tykhe e o texto que chegou ao WhatsApp. Uma diferença na parte fixa entre as duas rodadas é falha da troca; na parte da IA, é variação a anotar.
+
 ## Decisões em aberto
 
 1. **Major do Postgres de produção. Valor provisório: 16**, na imagem `pgvector/pgvector:pg16` do CI. A conferir com `SELECT version()` no RDS (do stack antigo). Se for outra, o ajuste é uma linha no `ci.yml`.
