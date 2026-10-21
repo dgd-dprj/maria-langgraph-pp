@@ -16,7 +16,9 @@ from pathlib import Path
 RAIZ = Path(__file__).resolve().parents[1]
 
 EXTENSOES = {".ts", ".mts", ".cts", ".tsx", ".js", ".mjs", ".cjs", ".jsx"}
-NOMES = {"package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock"}
+# Configuração do pnpm e do npm também conta: o pnpm-workspace.yaml (com os overrides
+# do fast-uri, PR #272) passava pelo teste sem ser acusado (2026-10-21).
+NOMES = {"package.json", "package-lock.json", "pnpm-lock.yaml", "yarn.lock", "pnpm-workspace.yaml", ".npmrc"}
 IGNORAR = {".git", ".venv", "node_modules", "__pycache__", ".mypy_cache", ".ruff_cache", ".pytest_cache"}
 
 MANTER = {
