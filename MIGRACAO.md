@@ -534,6 +534,19 @@ Um teste que passa prova que o código faz o esperado no caso testado. Não prov
 - **A regra:** a conferência compara o Python com uma **observação** de develop, e a observação passa por uma ferramenta: o `inject`, um transporte de teste, um mock. Quando a divergência pode estar na ferramenta, observe develop pelo caminho que a produção usa antes de mudar o Python.
 - **Sinais de que pode ser a ferramenta:** a diferença está em detalhe de protocolo (HEAD, cabeçalhos automáticos, codificação de URL, `content-length`), e não em regra de negócio. Ou a ferramenta pula uma camada que a produção atravessa.
 
+## Padrão: arquivo novo que o build passa a precisar não é avisado por nada (2026-10-21)
+
+**Mesma classe do princípio acima:** o CI passar não diz que a imagem constrói, assim como a ferramenta de teste não é o sistema.
+
+- **O caso (PR #272, `fast-uri` em `develop`):** os `overrides` do `fast-uri` ficaram no `pnpm-workspace.yaml`, porque no pnpm 12 eles só valem ali (o campo `pnpm.overrides` do `package.json` é ignorado; conferido). O lock passou a registrar os `overrides`. Mas o `Dockerfile` da versão TypeScript copia só o `package.json` e o `pnpm-lock.yaml` nos estágios que instalam as dependências. Dentro da imagem, os `overrides` não existiam, e o `pnpm install --frozen-lockfile` falhava com `ERR_PNPM_LOCKFILE_CONFIG_MISMATCH`.
+- **Por que nada avisou:** o CI do PR instala com o repositório inteiro, onde o arquivo existe, e não constrói a imagem. O CI passou. No merge, o job de testes do deploy do release passaria, o `docker build` falharia, e **a correção de segurança não chegaria a lugar nenhum**.
+- **Como apareceu:** construindo a imagem localmente, como o deploy faz, antes do merge. A correção foi o `Dockerfile` copiar também o `pnpm-workspace.yaml`. Depois do merge, o deploy do release construiu a imagem e fez o deployment (run `39620973087`).
+- **A regra:** toda mudança que mexe em configuração de build (lockfile, configuração do gerenciador de pacotes, arquivos que a imagem copia) **constrói a imagem antes do merge**, com o mesmo `Dockerfile` do deploy, e confere dentro dela as versões instaladas.
+
+**Lacuna conhecida até o corte: o CI de `develop` não constrói a imagem.** O `ci.yml` de `develop` é o da versão TypeScript e só roda `typecheck` e `test`. O job `imagem` existe só no CI da Python, que roda em PR para a `migration`. **Até o corte, uma mudança que afete o build em `develop` passa despercebida pelo CI.** No corte, o `ci.yml` da Python, com o job `imagem` e os gatilhos de `develop` e `main`, substitui o atual, e a lacuna some.
+
+**O mesmo padrão no teste `MANTER`:** a lista de nomes cobria o `package.json` e os lockfiles, e deixava passar o `pnpm-workspace.yaml`. O merge do #272 na branch do corte mostrou isso. A lista passou a incluir o `pnpm-workspace.yaml` e o `.npmrc`.
+
 ## Padrão: afirmação sobre desfecho inferida do código, sem execução
 
 Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escrita a partir da leitura do código, e a execução mostrou outra coisa. **O padrão é inferir o desfecho a partir do código em vez de rodar.**
