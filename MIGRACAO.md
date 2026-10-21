@@ -689,6 +689,11 @@ Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o
 - **Depende da IA, já medido:** na API Python com o Bedrock real (2026-10-19, duas vezes): `redirecionado`, `tipoCaso` = `novo-processo`.
 - **Fixo, dado o `tipoCaso`:** `StatusFluxo` = `redirecionado`; sem `TipoFluxo`; `RespostaFluxo` = **"Entendi. Vou te encaminhar para o atendimento de abertura de um novo caso."**
 - **Atenção:** este é o defeito da #249 (deveria orientar a procurar o sindicato). Se a #249 for corrigida antes da troca, o esperado muda para o que ela decidir.
+- **Atualizado em 2026-10-21: o redirecionamento sem o "Falha. Diferente de 200" depois, e sem segunda chamada à Maria.** Num teste pelo WhatsApp (relato de pensão alimentícia), o fluxo da Tykhe mostrou "Falha. Diferente de 200" junto do redirecionamento. **A falha não vem da API:**
+  - a Maria responde **200** ao redirecionamento (`orquestrador.ts:198` e `:207` na versão TypeScript; o mesmo na Python);
+  - o fluxo da Tykhe testava "sem `TipoFluxo`" antes de "`StatusFluxo` = `redirecionado`", tratava o redirecionamento como desambiguação e fazia **uma segunda chamada com `resposta` vazia**. A Maria responde **400** ("resposta não pode ser vazia", `orquestrador.ts:141-142`), e é esse 400 que vira o "Falha". Com texto, a segunda chamada receberia 200, com o redirecionamento repetido (executado na versão TypeScript);
+  - acontece com **qualquer** assunto redirecionado, nas duas versões da Maria;
+  - **a correção é no fluxo da Tykhe** (redirecionamento testado antes de qualquer condição baseada em `TipoFluxo`), feita pelo usuário antes da rodada pela Tykhe. Se a rodada acontecer antes da correção, o "Falha" aparece nas duas versões e não indica diferença entre elas.
 
 **Caso 3. Desambiguação.** Relato: *"Meu marido foi preso semana passada depois de uma briga lá em casa e eu não sei o que fazer."* Depois, a resposta: *"Quero saber onde ele está preso e como visitar."*
 - **Fixo, na 1ª resposta, se a IA achar o relato ambíguo:** `StatusFluxo` = `em_andamento` e **sem `TipoFluxo`**. O fluxo da Tykhe vai para "Orquestrador (rodadas seguintes)", e a 2ª chamada sai com o campo `resposta`, no mesmo chat.
