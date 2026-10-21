@@ -102,6 +102,7 @@ Ferramentas fora do Python: o **Node.js** só é preciso para os hooks do Claude
 - [`docs/integracao-verde.md`](docs/integracao-verde.md): cada endpoint do Verde usado, o formato real das respostas e os defeitos encontrados ao vivo.
 - [`docs/ia.md`](docs/ia.md): cada chamada de IA, o padrão comum de retentativa, simulação e flags.
 - [`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md): o bridge do WhatsApp (só no ambiente de release).
+- [`docs/guia-teste-homologacao.md`](docs/guia-teste-homologacao.md): o roteiro para a equipe testar no release, pelo WhatsApp e pela Tykhe, com o que já foi conferido e onde focar.
 - [`docs/testes.md`](docs/testes.md): como os testes são organizados e rodados, e o que roda no CI.
 - [`docs/novo-fluxo.md`](docs/novo-fluxo.md): passo a passo para criar um fluxo novo.
 - [`scripts/README.md`](scripts/README.md): os scripts de manutenção e quando rodar cada um.
