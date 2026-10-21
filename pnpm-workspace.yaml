@@ -1,2 +1,12 @@
 allowBuilds:
   esbuild: false
+
+# Segurança (decisão de 2026-10-21, #268): fast-uri nas primeiras versões que
+# corrigem os 7 alertas do Dependabot (GHSA-qw65-cvwx-89v3, GHSA-58mr-gqgx-xq4g,
+# GHSA-hrr3-gc8f-f4qj, GHSA-jvvf-x445-j334). Dentro das faixas que ajv
+# (^3.0.1), json-schema-resolver (^3.0.5), @fastify/ajv-compiler e
+# fast-json-stringify (^4.0.0) declaram. Versões fixas, e não as mais novas:
+# 3.1.9 e 4.2.3 saíram em 2026-10-19. Some com a versão TypeScript, no corte.
+overrides:
+  fast-uri@^3.0.0: 3.1.8
+  fast-uri@^4.0.0: 4.1.5

@@ -10,14 +10,14 @@ WORKDIR /app
 RUN pnpm config set minimum-release-age 0
 
 FROM base AS deps
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts
 
 # node_modules separado, só com dependencies (sem typescript/tsx/etc) — é o
 # que vai pro runner. Independente do stage `build` (não usa nada dele), o
 # BuildKit roda os dois em paralelo.
 FROM base AS deps-prod
-COPY package.json pnpm-lock.yaml ./
+COPY package.json pnpm-lock.yaml pnpm-workspace.yaml ./
 RUN pnpm install --frozen-lockfile --ignore-scripts --prod
 
 FROM base AS build
