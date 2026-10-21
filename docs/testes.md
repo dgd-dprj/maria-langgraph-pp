@@ -26,6 +26,7 @@ Os testes espelham `src/maria/` (`tests/<pasta>/test_*.py`).
 | Integrações | `tests/integracoes/` | O cliente do Verde e o do WhatsApp contra servidores falsos. |
 | Persistência | `tests/shared/` | As stores (`atendimentos`, `perguntas`, `fluxos_planejados`, embeddings), o checkpointer, o pool e o logger. Os testes marcados `postgres` rodam contra banco real. |
 | Scripts | `tests/scripts/` | Os scripts de manutenção, inclusive a verificação dos 74 fluxos planejados contra o seed original. |
+| Sem TypeScript | `tests/test_sem_typescript.py` | Nenhum arquivo `.ts`/`.js`, `package.json`, lockfile ou `tsconfig` fora da lista `MANTER` (os hooks do Claude Code e as fixtures de evidência). Protege contra um merge que traga arquivos de volta sem conflito. |
 | Documentação | `tests/test_documentacao.py` | Links e caminhos dos documentos, referências à versão TypeScript só em registro histórico, e as variáveis de ambiente do código contra a tabela do README. |
 | Integração real com IA | `tests/integracao/ia/` | Chama o Bedrock de verdade — não roda na suíte padrão nem no CI, só sob demanda (custa tempo e dinheiro real). |
 

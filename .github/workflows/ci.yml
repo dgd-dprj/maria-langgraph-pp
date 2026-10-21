@@ -1,13 +1,14 @@
 name: CI
 
-# Durante a migração para Python (#208), só roda em PR para `migration`.
-# Nenhum PR para develop (ainda TypeScript) roda esta esteira. Os gatilhos de
-# develop e main voltam no último PR da migração, o que leva `migration` para
-# `develop`. Cada deploy (deploy-release.yml / deploy-prod.yml) roda os mesmos
+# PR para develop (fluxo normal) ou main (release develop→main): gate antes do
+# merge. Cada deploy (deploy-release.yml / deploy-prod.yml) roda os mesmos
 # checks de novo depois do merge, como segunda camada de defesa.
+# Os gatilhos de develop e main voltaram no corte da migração (#268). `migration`
+# continua na lista só enquanto o corte não termina, para o PR do corte rodar CI;
+# sai depois do merge da migration em develop.
 on:
   pull_request:
-    branches: [migration]
+    branches: [develop, main, migration]
 
 jobs:
   test:

@@ -569,7 +569,7 @@ Trocar um prazo pelo outro é o mesmo erro do padrão "parâmetro com nome famil
 
 | Prazo | Valor | Onde | Situação |
 |---|---|---|---|
-| Espera de quem pede conexão ao pool | 120 s | `src/maria/shared/pool.py:55` (`ESPERA_POR_CONEXAO_S`) | **Provisório, decisão em aberto 5.** É o prazo que vale no caminho da API: medido em 2026-10-20, a consulta desiste no prazo do pool mesmo com o libpq preso tentando conectar. Com o banco fora, cada requisição espera o prazo inteiro, porque o psycopg_pool não avisa quem espera. O `pg` de develop devolve o erro na hora quando a conexão é recusada |
+| Espera de quem pede conexão ao pool | 120 s | `src/maria/shared/pool.py` (`ESPERA_POR_CONEXAO_S`) | **Decisão 5, fechada em 2026-10-20 (correção de migração, #268).** Com a conexão recusada, o erro agora chega a quem espera na hora, como no `pg` (`PoolComoPg`). O prazo de 120 s continua limitando o que nenhum dos dois devolve sozinho: o pacote descartado (no Linux, o `pg` errou em 21 s) e o pool cheio |
 | Abrir a conexão (`connect_timeout` do libpq) | ausente | conexões diretas, fora do pool: o `CREATE SCHEMA` do checkpointer no boot (`shared/checkpointer.py`), o seed e as fixtures de teste | Igual ao `pg` de develop, que também não tem prazo por padrão (`connect_timeout: 0`, `pg/lib/defaults.js:78`). No Linux, a conexão recusada falha na hora; um pacote descartado espera o prazo do TCP do sistema. **No Windows, o libpq não percebe a conexão recusada e espera sem limite** (medido: `socket` puro recusado em 2,1 s, `psycopg.connect` preso por mais de 150 s; numa rodada de mutações do seed, a conexão direta a uma porta fechada levou 2 min 10 s até o teste falhar): afeta só o desenvolvimento local. **Não é o prazo do pool:** são conexões que não passam por ele |
 
 **Chamadas HTTP ao Verde. Requisito: o Verde lento não vira "não encontrado" (#196).**
@@ -587,6 +587,22 @@ Trocar um prazo pelo outro é o mesmo erro do padrão "parâmetro com nome famil
 > - **O endereço que o fluxo de teste da Tykhe chamava** (`d2urkrsd5u4rck.cloudfront.net`) continua sendo o release pela evidência (o `tipoCaso` do #242 no `/docs/json`). Se a Tykhe usada de verdade chama a produção, o merge da `migration` em `develop` não muda o que a Tykhe vê; a troca que importa é a de `main`, e a linha de base, o roteiro e a troca da chave de API passam a ser da produção. **A confirmar com o Ícaro, antes do merge.**
 > - **O teste em homologação passou a ser local:** as duas versões rodando na máquina de desenvolvimento, contra o Verde de homologação, com o token e o client id de teste (válidos até 29/10). Ver a seção "Teste local contra a homologação do Verde".
 
+## Módulo corte (#268)
+
+Leva a `migration` para `develop`. O PR #267 (`migration` → `develop`) foi aberto em 2026-10-20 e **só é mergeado depois da linha de base do roteiro de 4 casos, no ambiente que a Tykhe usa de verdade** (a confirmar).
+
+**O que entrou em develop desde a base (`4e695f2`), e onde está na `migration`:** #226 (`2403bab`, módulo fluxos), #229 (`814395b`), #234 (`respostas.py`, PR #250) e #242 (PRs #245, #247 e #250), todos já na `migration`. O #254 (Dependabot) não se aplica, porque mudou só o `pnpm-lock.yaml`. A única mudança de develop que faltava, o painel `observabilidade.json` do #242, entra pelo merge, e os 3 eventos que ele filtra existem no código Python.
+
+**Merge de develop na branch do corte, resolvido (2026-10-20):**
+- 16 conflitos: 3 de documentação, resolvidos com a versão da `migration`, que já contém o texto de develop; e 13 de modificação contra remoção (`pnpm-lock.yaml` e 12 `.ts`), que continuam apagados.
+- **Achado: 4 arquivos `.ts` entravam sem conflito nenhum.** Develop os criou depois da base, e o git os deixava preparados para o commit sem avisar: `tiposTykhe.ts`, `respostaSimNao.ts` e dois testes. Foram apagados.
+- **`tests/test_sem_typescript.py`:** falha com qualquer `.ts`/`.js`, `package.json`, lockfile ou `tsconfig` no disco fora da lista `MANTER` (os 2 hooks do Claude Code e as 7 fixtures de evidência), e com item de `MANTER` que não existe mais. É o que impede o "nenhum arquivo TypeScript" de virar falso em silêncio depois de um merge mal resolvido. Mutações conferidas: o `.ts` sobrevivente de volta e um `package.json`.
+- Depois da resolução, a branch difere da `migration` só no `observabilidade.json`, e a simulação do merge em `develop` sai sem conflito.
+
+**`ci.yml`:** os gatilhos de PR para `develop` e `main` voltaram; `migration` fica até o fim do corte.
+
+**Decisão 5 fechada como correção de migração** (seção "Decisões em aberto").
+
 ## Teste local contra a homologação do Verde (desde 2026-10-20)
 
 Substitui o "teste em homologação" pelo release, que não está em uso.
@@ -596,6 +612,15 @@ Substitui o "teste em homologação" pelo release, que não está em uso.
 - **Incidente da primeira rodada, resolvido em 2026-10-20:** o RG inventado `000000000` devolveu um registro, e a pergunta de confirmação trouxe um nome completo. **O Ícaro confirmou em 2026-10-20 que a homologação do Verde tem dados de teste, e não de pessoas reais: não houve exposição de dado pessoal.** O comportamento é o da #236, nas duas versões, e em produção, onde os dados são reais, continua sendo o que a issue descreve (evidência registrada lá, sem o nome). Os arquivos locais com o nome foram apagados.
 - **Mascaramento:** desde então, o executor mascara todo texto que pode vir do Verde (sequências de palavras em maiúsculas viram `[DADO DO VERDE]`) antes de imprimir ou gravar. A comparação entre as versões continua usando o texto inteiro, só em memória.
 - ~~**Suspenso até a resposta do Ícaro sobre dados reais na homologação:** qualquer teste que envolva nome, CPF ou RG.~~ **Liberado em 2026-10-20, com a confirmação do Ícaro:** a homologação tem dados de teste. O mascaramento continua no executor, porque não custa nada e protege se alguém apontar o executor para outro ambiente por engano. **A gravação na homologação também foi liberada em 2026-10-20:** o cadastro de pessoa com endereço e o encaminhamento voltam ao escopo dos testes. O proxy passa a deixar passar esses dois POST, e só eles, e nunca aponta para o Verde de produção.
+- **Segunda rodada, com gravação (executada em 2026-10-20):** `teste-tykhe/verde_homolog_orquestrador.py`. Os cenários entram pelo orquestrador, porque só por ele o fluxo chega à identificação por CPF e ao cadastro (`viaOrquestrador`, `violencia_domestica/graph.py:198-199`). A classificação é a simulada do modo de teste (`MOCK_CLASSIFICACAO_FLOWID`), e o Verde é o real: o Verde simulado só liga quando falta o token, nas duas versões (`verde.py:255`, `verde.ts:108`). Cada versão usa um CPF inventado próprio, com dígito verificador válido. 22 chamadas ao Verde, nenhuma bloqueada.
+
+  | Cenário | TypeScript × Python | O que foi exercido no Verde |
+  |---|---|---|
+  | Pessoa presa, RG `000000000`, confirma o nome | igual (13 passos) | apenado, CPF 404, CEP, **cadastro com endereço (201)**; handoff "sem número do processo" |
+  | Pessoa presa, o mesmo RG, "não" à confirmação | igual (4 passos) | apenado; handoff "não consegui confirmar" |
+  | Violência doméstica, cadastro e encaminhamento | mesmo comportamento (12 passos, `concluido`, urgente) | CPF 404, CEP, **cadastro (201)**, plantão, órgãos, **encaminhamento (201)** |
+
+  Na violência doméstica, **o que a Maria envia ao Verde é igual**: os corpos do `POST /pessoa` (199 bytes) e do encaminhamento (230 bytes) têm os mesmos campos, na mesma ordem. Quem diferiu foi o Verde: para cada pessoa cadastrada, ele devolveu um órgão diferente (ids 386 e 270), com horários diferentes. A diferença é de dado da homologação, e não de tradução. Ficaram na homologação 4 pessoas de teste e 2 encaminhamentos de teste. **Não coberto:** o CPF que já existe na homologação (falta um CPF de teste).
 
 **Quando a `migration` entrar em `develop`, o `deploy-release.yml` sobe a versão Python no release sozinho, no push.** O endereço que o fluxo da Tykhe chama não muda, e o comportamento muda de uma vez. Por isso a troca tem momento combinado.
 
@@ -687,6 +712,14 @@ Duas coisas diferentes:
    - **Lido em develop:** no `pg-pool` 3.14, cada consulta sem conexão livre abre um cliente próprio (`index.js:235`), e o erro de conexão vai direto para quem pediu (`index.js:283`), sem prazo no meio.
    - **PENDÊNCIA, antes de escolher o valor: medir no Linux quanto o `pg` leva para devolver erro a quem pede conexão com o banco fora do ar**, e o mesmo para o pool Python. Não pode ser medido no Windows, onde a recusa da conexão leva cerca de 2 s e o libpq não a percebe. As sondas estão prontas: `.sonda/pool-banco-fora.mts` no worktree de develop (o `pg`, mesmo `new Pool({ connectionString })` das stores) e uma sonda Python com o prazo real do código. Medir nos dois casos: conexão recusada (porta fechada) e pacote descartado (host que não responde).
    - **O que a medição decide:** se o `pg` devolve o erro em segundos e o Python espera 120 s, a tradução piorou, e é **correção de migração**, com commit próprio na `migration`. Se o `pg` também fica pendurado, é **defeito herdado**, registrado como melhoria. Isso muda quem decide e com que urgência. O rascunho da issue espera essa medição.
+   - **FECHADA em 2026-10-20: correção de migração, aprovada e feita na branch do corte (#268).** Medido em containers Linux, duas consultas por caso:
+
+     | Banco fora do ar | `pg` de develop (8.23.0, pg-pool 3.14.0) | pool Python antes | pool Python depois |
+     |---|---|---|---|
+     | Conexão recusada | erro em 0,00 s | `PoolTimeout` em 120 s | erro da conexão abaixo de 1 s |
+     | Pacote descartado | erro em 21 s | `PoolTimeout` em 120 s | `PoolTimeout` no prazo do pool |
+
+     `PoolComoPg` (`shared/pool.py`) entrega o erro de conexão a quem está na fila e encerra a tentativa sem retentativa em segundo plano, como o `newClient` do `pg-pool`. O pool cheio com o banco no ar não muda. `tests/shared/test_pool_banco_fora.py` mede o tempo até o erro. Mutação conferida em Linux: sem a correção, o teste falha com `PoolTimeout` em 5 s. **Lição:** o `PoolTimeout` é subclasse de `OperationalError`, e a primeira versão do teste aceitava os dois. A mutação mostrou isso, e o teste passou a recusar o `PoolTimeout` explicitamente.
 
 6. ~~Como as respostas gravadas evoluem depois do corte~~ **Decidida em 2026-10-20:** ficam congeladas, e o contrato atual é conferido por testes escritos. Ver a seção "As respostas gravadas são evidência, não teste de regressão".
 

@@ -34,8 +34,10 @@ def test_yaml_valido(nome: str) -> None:
     _carregar(nome)
 
 
-def test_ci_dispara_so_em_pr_para_migration() -> None:
-    assert _gatilhos(_carregar("ci.yml")) == {"pull_request": {"branches": ["migration"]}}
+def test_ci_dispara_em_pr_para_develop_e_main() -> None:
+    # Os gatilhos de antes da migração voltaram no corte (#268); `migration` fica
+    # enquanto o corte não termina, para o PR do corte rodar CI.
+    assert _gatilhos(_carregar("ci.yml")) == {"pull_request": {"branches": ["develop", "main", "migration"]}}
 
 
 def test_ci_roda_as_duas_suites_e_postgres_16_provisorio() -> None:
