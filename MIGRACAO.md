@@ -547,6 +547,8 @@ Um teste que passa prova que o código faz o esperado no caso testado. Não prov
 
 **O mesmo padrão no teste `MANTER`:** a lista de nomes cobria o `package.json` e os lockfiles, e deixava passar o `pnpm-workspace.yaml`. O merge do #272 na branch do corte mostrou isso. A lista passou a incluir o `pnpm-workspace.yaml` e o `.npmrc`.
 
+**O ponto cego é de desenho, e não de descuido.** Um teste feito para impedir que o Node volte enumera à mão o que é proibido (extensões e nomes de arquivo), então cobre só o que alguém lembrou. Se aparecer outro arquivo de configuração de Node (`.nvmrc`, `bunfig.toml`, `tsconfig.base.json`, um lockfile novo), o teste deixa passar outra vez, em silêncio. **Inverter a lógica seria mais seguro:** listar o que é permitido no repositório (extensões e diretórios de uma aplicação Python, mais as exceções de `MANTER`) e falhar com qualquer outra coisa. **Não foi invertido agora, por decisão de 2026-10-21:** fica registrado para quem mexer no teste depois.
+
 ## Padrão: afirmação sobre desfecho inferida do código, sem execução
 
 Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escrita a partir da leitura do código, e a execução mostrou outra coisa. **O padrão é inferir o desfecho a partir do código em vez de rodar.**
@@ -616,6 +618,13 @@ Leva a `migration` para `develop`. O PR #267 (`migration` → `develop`) foi abe
 
 **Decisão 5 fechada como correção de migração** (seção "Decisões em aberto").
 
+**Decisão 3 (conversas em andamento no corte): corrigir antes do corte, na #270 (melhoria sobre develop, 2026-10-21).**
+- **O problema, executado num Postgres local:** depois da troca, a conversa em andamento recebia 409 com status `concluido` e a mensagem de sucesso do fluxo ("Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento…"), sem que nada tivesse acontecido. A pessoa vai embora achando que foi atendida.
+- **É herdado:** com o checkpoint apagado, a versão TypeScript responde igual (controle executado). O corte transforma o caso raro em evento de massa.
+- **A correção:** na rota de respostas, um atendimento sem checkpoint (nenhum valor nem nó pendente) passa a ser tratado como expirado. Reaproveita o contrato que o TTL já usa: 409 com `status: expirado`. A mensagem tem texto próprio, porque não é inatividade; o desfecho vai para a `atendimentos` (`expirado`, `sessao_expirada`), e o log tem o evento `atendimento_sem_checkpoint`, para contar quantas conversas o corte atingiu.
+- **Escopo:** só quem vem pela Tykhe, cujo `chatId` persiste. O bridge do WhatsApp guarda as conversas em memória e abre um atendimento novo depois do reinício.
+- **Pré-condição, com o usuário:** conferir se a Tykhe grava o corpo do 409 nas variáveis. Se não gravar, a resposta passa a ser 200.
+
 ## Teste local contra a homologação do Verde (desde 2026-10-20)
 
 Substitui o "teste em homologação" pelo release, que não está em uso.
@@ -680,6 +689,11 @@ Relatos inventados, como aqui. Para cada caso, o esperado está dividido entre o
 - **Depende da IA, já medido:** na API Python com o Bedrock real (2026-10-19, duas vezes): `redirecionado`, `tipoCaso` = `novo-processo`.
 - **Fixo, dado o `tipoCaso`:** `StatusFluxo` = `redirecionado`; sem `TipoFluxo`; `RespostaFluxo` = **"Entendi. Vou te encaminhar para o atendimento de abertura de um novo caso."**
 - **Atenção:** este é o defeito da #249 (deveria orientar a procurar o sindicato). Se a #249 for corrigida antes da troca, o esperado muda para o que ela decidir.
+- **Atualizado em 2026-10-21: o redirecionamento sem o "Falha. Diferente de 200" depois, e sem segunda chamada à Maria.** Num teste pelo WhatsApp (relato de pensão alimentícia), o fluxo da Tykhe mostrou "Falha. Diferente de 200" junto do redirecionamento. **A falha não vem da API:**
+  - a Maria responde **200** ao redirecionamento (`orquestrador.ts:198` e `:207` na versão TypeScript; o mesmo na Python);
+  - o fluxo da Tykhe testava "sem `TipoFluxo`" antes de "`StatusFluxo` = `redirecionado`", tratava o redirecionamento como desambiguação e fazia **uma segunda chamada com `resposta` vazia**. A Maria responde **400** ("resposta não pode ser vazia", `orquestrador.ts:141-142`), e é esse 400 que vira o "Falha". Com texto, a segunda chamada receberia 200, com o redirecionamento repetido (executado na versão TypeScript);
+  - acontece com **qualquer** assunto redirecionado, nas duas versões da Maria;
+  - **a correção é no fluxo da Tykhe** (redirecionamento testado antes de qualquer condição baseada em `TipoFluxo`), feita pelo usuário antes da rodada pela Tykhe. Se a rodada acontecer antes da correção, o "Falha" aparece nas duas versões e não indica diferença entre elas.
 
 **Caso 3. Desambiguação.** Relato: *"Meu marido foi preso semana passada depois de uma briga lá em casa e eu não sei o que fazer."* Depois, a resposta: *"Quero saber onde ele está preso e como visitar."*
 - **Fixo, na 1ª resposta, se a IA achar o relato ambíguo:** `StatusFluxo` = `em_andamento` e **sem `TipoFluxo`**. O fluxo da Tykhe vai para "Orquestrador (rodadas seguintes)", e a 2ª chamada sai com o campo `resposta`, no mesmo chat.
