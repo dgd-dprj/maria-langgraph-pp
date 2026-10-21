@@ -16,56 +16,66 @@ O fluxo de cada atendimento é uma máquina de estados com pausa/retomada: pergu
 
 - **`interrupt()`** pausa o grafo no meio de um nó e devolve o controle pro chamador (aqui, a resposta HTTP) — sem isso, teríamos que serializar "em que ponto da conversa estamos" manualmente a cada request.
 - **Checkpointer** persiste o estado do grafo entre chamadas HTTP (cada POST é uma invocação nova do processo, sem estado em memória entre requests) — ver seção Persistência abaixo.
-- **`StateGraph` + `addConditionalEdges`** dá um jeito declarativo de desenhar "depois desta pergunta, vai pra cá ou pra lá dependendo da resposta" — o desenho do grafo em cada `fluxos/*/graph.ts` É a documentação executável do fluxo de negócio.
+- **`StateGraph` + `add_conditional_edges`** dá um jeito declarativo de desenhar "depois desta pergunta, vai pra cá ou pra lá dependendo da resposta" — o desenho do grafo em cada `src/maria/fluxos/<fluxo>/graph.py` É a documentação executável do fluxo de negócio.
+- **Compilação sob demanda:** o grafo é compilado na primeira chamada (`src/maria/fluxos/_fabrica.py`), e o checkpointer é criado na inicialização da aplicação. Importar um fluxo não conecta em nada.
 
 A alternativa (state machine manual, switch/case por "qual pergunta estamos") funcionaria, mas LangGraph já resolve pausa/retomada + persistência prontos — não reinventar isso foi a troca.
 
-## Por que Fastify
+## HTTP: FastAPI com o pipeline da versão anterior
 
-API fina, poucas rotas (`/atendimentos`, `/atendimentos/:chatId`, `/atendimentos/respostas`, `/fluxos`, `/orquestrador`). Fastify dá:
+API fina, poucas rotas (`/atendimentos`, `/atendimentos/:chatId`, `/atendimentos/respostas`, `/atendimentos/orquestrador`, `/fluxos`, `/webhook/whatsapp`). O servidor é FastAPI sobre uvicorn, mas **as rotas não usam a validação do FastAPI**: passam por um pipeline próprio (`src/maria/api/pipeline.py`) que reproduz o Fastify da versão TypeScript — a ordem de autenticação, parse e validação, a coerção de tipos do ajv, a serialização pelo schema de resposta e os sete formatos de erro. Motivo: o contrato com a Tykhe foi conferido byte a byte contra a versão anterior (50 respostas gravadas, `tests/fixtures/contrato/`), e uma tradução direta para a validação do FastAPI mudaria status e corpos sem erro.
 
-- **Schema-first**: cada rota declara `body`/`response` como JSON Schema — serialização rápida (fast-json-stringify) e, de bônus, gera o OpenAPI (`/docs`) sem manter um YAML solto (ver `@fastify/swagger` em `src/app.ts`).
-- **`app.inject()`**: testa a API inteira (rotas + auth + serialização) sem abrir uma porta de verdade — é como os testes `*.http.test.ts` funcionam.
+- **Schema-first**: cada rota declara corpo e respostas como JSON Schema (`src/maria/api/esquemas.py`); o OpenAPI de `/docs` sai das mesmas definições (`src/maria/api/docs.py`).
+- **Testes por ASGI**: a API inteira (rotas + auth + serialização) roda nos testes sem abrir porta, chamada direto pelo ASGI.
 
 ## Estrutura de pastas
 
 ```
-src/
-  app.ts              # monta o Fastify (rotas, auth, swagger) — sem listen()
-  server.ts           # importa app.ts e chama listen() — só isso muda entre "testável" e "rodando de verdade"
+src/maria/
+  main.py               # sobe o uvicorn (1 worker, porta 3001)
+  app.py                # monta a aplicação: rotas, autenticação, ordem de inicialização (lifespan)
+  api/                  # HTTP: pipeline.py (a ordem e os erros do Fastify), atendimentos.py (core), orquestrador.py,
+                        #   basicas.py (/health, /fluxos), webhook_whatsapp.py, docs.py (/docs)
   fluxos/
-    index.ts           # registro: flowId (uuid) -> {grafo, schema de metadados, mensagens}
-    pessoaPresa/        # grafo + state + schema HTTP deste fluxo
-    violenciaDomestica/ # idem
-    padrao/              # grafo genérico (1 nó, conclui na hora) pra categoria sem fluxo próprio ainda
-  orquestrador/        # classifica um relato livre pro flowId certo (ver docs/contrato-tykhe.md)
-  subgrafos/           # StateGraph reaproveitável, sem flowId próprio — embutido como nó dentro de um fluxo (ver docs/novo-fluxo.md)
+    __init__.py         # registro: flowId (uuid) -> {grafo, schema de metadados, mensagens}
+    pessoa_presa/       # grafo + state + metadados e mensagens deste fluxo
+    violencia_domestica/ # idem
+    padrao/             # grafo genérico (1 nó, conclui na hora) pra categoria sem fluxo próprio ainda
+    tipos_tykhe.py      # os 7 tipos de caso que a própria Tykhe atende (#225)
+  orquestrador/         # classifica um relato livre pro flowId certo (ver docs/fluxo-orquestrador.md)
+  subgrafos/            # StateGraph reaproveitável, sem flowId próprio — embutido como nó dentro de um fluxo (ver docs/novo-fluxo.md)
   integracoes/
-    verde.ts            # toda chamada HTTP pro Verde mora aqui (ver docs/integracao-verde.md)
-  ia/                  # chamadas de IA (Bedrock): reescrever pergunta, extrair campos, classificar, sumarizar
-  rotas/                # HTTP: atendimentos.ts (core), fluxos.ts, orquestrador.ts
+    verde.py            # toda chamada HTTP pro Verde mora aqui (ver docs/integracao-verde.md)
+    whatsapp.py         # envio pela API da Meta (bridge do WhatsApp)
+    cliente_http.py     # cliente HTTP único do processo, com os parâmetros do fetch da versão anterior
+  ia/                   # chamadas de IA (Bedrock): classificar, desambiguar, extrair, reescrever, sumarizar
   shared/
-    checkpointer.ts     # persistência do LangGraph (Postgres)
-    atendimentosDb.ts   # tabela chatId -> flowId (+ colunas de desfecho pra métricas)
-    perguntasDb.ts       # árvore de perguntas do Verde por categoria (retrieval do orquestrador)
-    fluxosPlanejadosDb.ts # catálogo de categorias sem fluxo implementado ainda
-    logger.ts / contexto.ts # pino + correlação de log por fluxoId/chatId fora do request handler
+    checkpointer.py     # persistência do LangGraph (Postgres, schema próprio)
+    atendimentos_db.py  # tabela chatId -> flowId (+ colunas de desfecho pra métricas)
+    perguntas_db.py     # árvore de perguntas do Verde por categoria
+    fluxos_planejados_db.py # catálogo de categorias sem fluxo implementado ainda
+    embeddings_fluxos.py # busca por similaridade (pgvector)
+    pool.py             # parâmetros dos pools Postgres
+    logger.py / contexto.py # log JSON no envelope do pino + correlação por fluxoId/chatId
+    _js.py              # semântica do JavaScript que a tradução reproduz (verdade, trim, Number())
+tests/                  # espelha src/maria/ (ver docs/testes.md)
+scripts/                # utilitários de manutenção, fora da imagem (ver scripts/README.md)
 infra/
   terraform/            # toda a infra AWS
-  grafana/               # dashboards e alertas versionados (ver seção Observabilidade)
+  grafana/              # dashboards e alertas versionados (ver seção Observabilidade)
 docs/                   # este diretório
 ```
 
-Cada fluxo é uma pasta autocontida (`graph.ts`, `state.ts`, `api.ts`) — adicionar um fluxo novo não toca nos outros, só registra em `fluxos/index.ts`.
+Cada fluxo é uma pasta autocontida (`graph.py`, `state.py`, `api.py`) — adicionar um fluxo novo não toca nos outros, só registra em `src/maria/fluxos/__init__.py`.
 
 ## Persistência
 
 Tudo no **mesmo** Postgres (RDS `maria-chat-prod-pg`, acessado via RDS Proxy compartilhado com o stack antigo), 4 preocupações diferentes:
 
-1. **Checkpoints do LangGraph** (`PostgresSaver`, tabelas próprias que a lib cria) — o estado de cada conversa em andamento, indexado por `thread_id` (= `chatId`). Sem `DATABASE_URL` (testes), cai num `MemorySaver` em memória.
+1. **Checkpoints do LangGraph** (`AsyncPostgresSaver`, tabelas próprias que a lib cria, no schema `checkpoint_py`) — o estado de cada conversa em andamento, indexado por `thread_id` (= `chatId`; no orquestrador, `orquestrador:<chatId>`). Sem `DATABASE_URL` (testes), cai num `InMemorySaver` em memória. O schema é separado das tabelas que a versão TypeScript criava em `public`, porque as duas serializações são incompatíveis (plano de corte da #208).
 2. **Tabela `atendimentos`** (`chatId -> flowId` + colunas de desfecho) — o checkpointer do LangGraph indexa só por `thread_id`, sem separar por fluxo; sem essa tabela, o mesmo `chatId` usado em 2 fluxos diferentes colidiria no mesmo checkpoint. Também guarda `status_final`/`motivo_handoff`/`tokens_*` pra consulta SQL direta (Grafana), sem depender só de CloudWatch Logs. Desde a issue #166, guarda também `atualizado_em`/`aguardando_confirmacao_ttl`/`resposta_pendente_ttl` — controle de TTL de inatividade, já que o checkpointer do LangGraph em si não tem TTL nativo (isso é feature só do LangGraph Platform gerenciado, não do OSS self-hosted que usamos).
-3. **`perguntas`/`assuntos_verde`/`flow_assuntos`** — árvore de perguntas do catálogo do Verde, coletada uma vez (`scripts/coletarArvorePerguntasVerde.ts`), usada pelo orquestrador pra desambiguação e retrieval.
-4. **`fluxo_embeddings`** (extensão `vector`/pgvector, `src/shared/embeddingsFluxos.ts`) — embedding da descrição de cada fluxo do catálogo, usado pelo orquestrador pra busca por similaridade (`embedding <=> $1::vector`) na hora de decidir qual fluxo melhor casa com o relato livre do usuário.
+3. **`perguntas`/`assuntos_verde`/`flow_assuntos`** — árvore de perguntas do catálogo do Verde, coletada sob demanda (`scripts/coletar_arvore_perguntas_verde.py`), usada pelo orquestrador pra desambiguação (pergunta real do Verde quando todos os candidatos compartilham a raiz).
+4. **`fluxo_embeddings`** (extensão `vector`/pgvector, `src/maria/shared/embeddings_fluxos.py`) — embedding da descrição de cada fluxo do catálogo, usado pelo orquestrador pra busca por similaridade (`embedding <=> ...::vector`) na hora de decidir qual fluxo melhor casa com o relato livre do usuário. **Com o catálogo de 9 opções de hoje, a busca não corta nada** (só age acima de 10; #256), mas o boot ainda indexa as descrições.
 
 Todas as tabelas são criadas via `CREATE TABLE IF NOT EXISTS` / `ALTER TABLE ADD COLUMN IF NOT EXISTS` no código (sem ferramenta de migração formal — repo pequeno, não justificou ainda). Desde a issue #114, essa criação roda no **startup do processo** (bloqueia o health check até terminar), não mais na primeira request de negócio — evita o deploy ficar "saudável" antes do schema estar pronto de verdade.
 
@@ -75,7 +85,7 @@ Bearer token fixo (`API_KEY`), um valor só por ambiente, guardado em Secrets Ma
 
 ## Observabilidade
 
-- **Logs estruturados** (pino, JSON) — todo log de negócio carrega `chatId`/`fluxoId` pra correlacionar uma conversa inteira entre requests diferentes (`reqId` sozinho só correlaciona 1 request). `evento` é um campo fixo (`atendimento_criado`, `pergunta_enviada`, `atendimento_finalizado`, `verde_chamada`...) — filtra por isso, não pelo texto livre da mensagem.
+- **Logs estruturados** (JSON no envelope do pino, reproduzido em Python em `src/maria/shared/logger.py` para os painéis e as consultas continuarem valendo) — todo log de negócio carrega `chatId`/`fluxoId` pra correlacionar uma conversa inteira entre requests diferentes (`reqId` sozinho só correlaciona 1 request). `evento` é um campo fixo (`atendimento_criado`, `pergunta_enviada`, `atendimento_finalizado`, `verde_chamada`...) — filtra por isso, não pelo texto livre da mensagem.
 - **CloudWatch Logs Insights** — consulta os logs acima. Dashboard versionado em `infra/grafana/dashboards/observabilidade.json`.
 - **Datasource CloudWatch no Grafana** — o Grafana chama a API do CloudWatch direto (métricas e logs), com task role própria de **somente leitura** (`cloudwatch:GetMetricData`/`GetMetricStatistics`/`ListMetrics`/`Describe*Alarm*` + logs, ver `infra/terraform/grafana.tf`) — não fica limitado ao Logs Insights manual, os dashboards já plotam isso direto.
 - **Datasource Postgres no Grafana** — consulta direto a tabela `atendimentos` via SQL (joins/agregações que CloudWatch não faz bem), usuário **somente leitura** dedicado (`grafana_readonly`).
@@ -86,7 +96,7 @@ Bearer token fixo (`API_KEY`), um valor só por ambiente, guardado em Secrets Ma
 ## Infra (AWS)
 
 - **ECS Fargate** (sem servidor pra gerenciar) atrás de um **ALB** único, com **CloudFront** na frente só pra ter HTTPS sem precisar de domínio próprio (certificado `*.cloudfront.net` grátis/automático — decisão documentada em `infra/terraform/cloudfront.tf`).
-- **2 ambientes, mesmo padrão**: `prod` (deploy em push pra `main`) e `release`/homolog (deploy em push pra `develop`) — serviços ECS separados, mesmo cluster/ALB, roteados por header (`X-Maria-App`) que o CloudFront injeta. Permite testar em release com dado real do Verde (homolog) antes de ir pra prod.
+- **2 ambientes, mesmo padrão**: `prod` (deploy em push pra `main`) e `release` (deploy em push pra `develop`) — serviços ECS separados, mesmo cluster/ALB. A distribuição CloudFront do release injeta o header `X-Maria-Env: release`, que o ALB usa para rotear (`infra/terraform/release.tf`); o `X-Maria-App` é o header do Grafana (`infra/terraform/grafana.tf`). Pelo Terraform, o release foi criado para testar com o **Verde de produção** ("quando a credencial chegar"), em paralelo ao `prod`, que aponta para a **homologação** (`release.tf:1-3`, `iam.tf:25-26`). Mas as credenciais do release **começam iguais às da homologação até a credencial de produção do Verde chegar** (`release.tf:20-22`), e o Terraform não sabe se ela chegou: os valores são gravados fora dele (`PREENCHER`, com `ignore_changes`). Qual Verde cada ambiente usa hoje só o segredo diz. O bridge do WhatsApp existe só no release.
 - **VPC/subnets/RDS compartilhados** com um stack Terraform antigo (`data.terraform_remote_state.old`) — não duplica rede nem banco, só lê os IDs de lá. Esse repo nunca escreve no state antigo.
 - **RDS Proxy compartilhado** — o app e o Grafana se conectam ao Postgres através do mesmo proxy que o stack antigo já usa; cada security group novo (task da app, task do Grafana) ganha uma regra de ingress própria no SG do proxy, sem o stack antigo precisar saber desse repo na hora de escrever o `.tf` dele.
 - **Deploy via GitHub Actions com OIDC** (sem chave AWS fixa guardada como secret) — token de curta duração emitido pelo GitHub a cada run, `assume-role` restrito pelo `sub` do token a só `main`/`develop`.
@@ -99,4 +109,4 @@ Bearer token fixo (`API_KEY`), um valor só por ambiente, guardado em Secrets Ma
 - **Migração de schema formal** — DDL idempotente no código, sem Flyway/Drizzle Kit (ver issue #114 e a seção Persistência acima).
 - **Autoscaling** — 1 task fixa por ambiente, tráfego baixo não justifica ainda.
 - **Domínio próprio** — `*.cloudfront.net` resolve HTTPS sem precisar de Route53/ACM.
-- **Testes de contrato automatizados contra o Verde real** — `test-integracao/` existe mas cobre pouco; a maior parte da validação contra a API real do Verde é feita manualmente (ver `docs/integracao-verde.md`), o que já causou mais de um bug descoberto tarde (ver esse mesmo doc).
+- **Testes de contrato automatizados contra o Verde real** — `tests/integracao/` existe mas cobre pouco (só o Bedrock); a maior parte da validação contra a API real do Verde é feita manualmente (ver `docs/integracao-verde.md`), o que já causou mais de um bug descoberto tarde (ver esse mesmo doc).

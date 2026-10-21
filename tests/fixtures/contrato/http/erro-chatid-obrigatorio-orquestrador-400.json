@@ -1,0 +1,30 @@
+{
+  "nome": "erro-chatid-obrigatorio-orquestrador-400",
+  "descricao": "Fora de NODE_ENV=test, orquestrador sem chatId → 400",
+  "instancia": {
+    "nome": "e-development",
+    "env": {
+      "NODE_ENV": "development"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "mensagem": "oi"
+    }
+  },
+  "resposta": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"erro\":\"chatId obrigatório\"}",
+    "corpo": {
+      "erro": "chatId obrigatório"
+    }
+  }
+}

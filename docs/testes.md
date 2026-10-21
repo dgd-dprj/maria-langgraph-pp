@@ -2,36 +2,51 @@
 
 ## Runner
 
-Sem Jest/Vitest — `node --test` nativo (`--import tsx` pra rodar `.ts` direto, sem build prévio). Motivo: repo pequeno, runner nativo já resolve `describe`/`test`/`assert` sem dependência extra.
+`pytest`, com `pytest-asyncio` (`asyncio_mode = "auto"`: teste `async def` roda sem decorador). Configuração em `pyproject.toml`.
 
 ```bash
-pnpm test              # test/**/*.test.ts + src/**/*.test.ts — modo mock, sem .env
-pnpm test:integracao   # test-integracao/*.test.ts — chama IA real (Bedrock)
+uv run pytest                          # suíte padrão: modo mock, sem banco, sem rede, sem .env
+uv run pytest -m postgres              # contra um Postgres real com pgvector (precisa de DATABASE_URL)
+uv run pytest -m integracao            # chama o Bedrock de verdade (custo real; precisa de credencial AWS)
 ```
+
+A verificação completa antes de um PR é `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest` (no Windows PowerShell 5.1, que não tem `&&`, um comando por vez).
 
 ## Camadas
 
+Os testes espelham `src/maria/` (`tests/<pasta>/test_*.py`).
+
 | Camada | Onde | O que cobre |
 |---|---|---|
-| Unidade do grafo | `src/fluxos/*/graph.test.ts` | Lógica de decisão do `StateGraph` isolada — invoca o grafo direto, sem HTTP. |
-| HTTP por fluxo | `src/fluxos/*/http.test.ts` | Conteúdo/texto de pergunta de cada fluxo específico via `app.inject()`. |
-| HTTP genérico | `test/app.test.ts` | Mecânica das rotas (auth, health, idempotência, status code, HATEOAS) — sem acoplar em texto de negócio de nenhum fluxo. Usa violência doméstica só como fixture (é o fluxo mais rápido de concluir). |
-| Contrato Tykhe | `test/contratoTykhe.test.ts` | Shape da resposta HTTP que a Tykhe consome (ver `docs/contrato-tykhe.md`). |
-| TTL de inatividade | `test/ttlInatividade.test.ts` | Confirmação de continuidade e expiração após `TTL_INATIVIDADE_HORAS` (issue #166) — usa `TTL_INATIVIDADE_HORAS=0` pra forçar expiração determinística, sem mockar `Date`. |
-| Orquestrador | `test/orquestrador.test.ts`, `src/orquestrador/graph.test.ts` | Classificação/desambiguação de relato livre. |
-| Auxiliares | `src/shared/*.test.ts` | `embeddingsFluxos`, `perguntasDb`, `tokensAcumulados` isolados. |
-| Store Postgres (opt-in) | `src/shared/atendimentosDb.postgres.test.ts` | Store `atendimentos` contra Postgres real (issue #217 — defeito que a store em memória escondia). Pulado sem `TEST_DATABASE_URL`; pra rodar: `docker run -d --rm --name pg-teste -e POSTGRES_PASSWORD=postgres -p 55432:5432 postgres:16` e `TEST_DATABASE_URL=postgres://postgres:postgres@localhost:55432/postgres pnpm test`. Nunca apontar pra banco de prod/release. |
-| Integração real com IA | `test-integracao/*.test.ts` | Chama Bedrock de verdade (classificar, desambiguar, extrair, parentesco, reescrever, sumarizar) — não roda no `pnpm test` normal nem no CI padrão, só sob demanda (custa tempo/dinheiro real). |
+| Unidade do grafo | `tests/fluxos/`, `tests/subgrafos/`, `tests/orquestrador/` | Lógica de decisão de cada grafo, invocado direto, sem HTTP. |
+| HTTP | `tests/api/` | Mecânica das rotas (autenticação, `/health`, idempotência, status, `_links`), o pipeline que reproduz a ordem e os formatos de erro do Fastify da versão anterior, o TTL de inatividade (issue #166, com `TTL_INATIVIDADE_HORAS=0` para forçar a expiração sem mexer no relógio) e o bridge do WhatsApp. |
+| Contrato Tykhe | `tests/api/test_contrato.py`, `tests/test_fixtures_contrato.py` | As 50 respostas HTTP e as 5 de log gravadas contra a versão TypeScript (`tests/fixtures/contrato/`), conferidas byte a byte (ver [`docs/contrato-tykhe.md`](contrato-tykhe.md)). |
+| Conferência com a versão TypeScript | `tests/api/test_conferencia_pr1.py`, `tests/api/test_conferencia_pr2.py` | Centenas de cenários gravados contra a versão TypeScript, repetidos a cada execução como teste de regressão. |
+| IA | `tests/ia/` | O padrão comum das chamadas ao Bedrock (simulação, retentativa, prazos), com um Bedrock falso que conta as requisições (`tests/ia/conftest.py`). |
+| Integrações | `tests/integracoes/` | O cliente do Verde e o do WhatsApp contra servidores falsos. |
+| Persistência | `tests/shared/` | As stores (`atendimentos`, `perguntas`, `fluxos_planejados`, embeddings), o checkpointer, o pool e o logger. Os testes marcados `postgres` rodam contra banco real. |
+| Scripts | `tests/scripts/` | Os scripts de manutenção, inclusive a verificação dos 74 fluxos planejados contra o seed original. |
+| Sem TypeScript | `tests/test_sem_typescript.py` | Nenhum arquivo `.ts`/`.js`, `package.json`, lockfile ou `tsconfig` fora da lista `MANTER` (os hooks do Claude Code e as fixtures de evidência). Protege contra um merge que traga arquivos de volta sem conflito. |
+| Documentação | `tests/test_documentacao.py` | Links e caminhos dos documentos, referências à versão TypeScript só em registro histórico, e as variáveis de ambiente do código contra a tabela do README. |
+| Integração real com IA | `tests/integracao/ia/` | Chama o Bedrock de verdade — não roda na suíte padrão nem no CI, só sob demanda (custa tempo e dinheiro real). |
 
 ## Modo mock — por que os testes não tocam infra real
 
-`pnpm test` roda com `API_KEY=teste-fixo-chave` fixo e **sem** `VERDE_JWT_TOKEN`/`DATABASE_URL` — isso já é o gatilho pro modo mock (ver `docs/integracao-verde.md`): `src/integracoes/verde.ts` cai nos mocks locais, `checkpointer.ts` cai no `MemorySaver` em memória (sem Postgres). Resultado: suite roda em qualquer máquina, sem AWS, sem segredo, sem rede — só `test-integracao/` sai desse modo de propósito.
+`tests/conftest.py` fixa `APP_ENV=test` e `API_KEY=teste-fixo-chave` antes de importar a aplicação, e a suíte roda **sem** `VERDE_JWT_TOKEN` e **sem** `DATABASE_URL`. Isso já é o gatilho do modo mock: o cliente do Verde (`src/maria/integracoes/verde.py`) cai nas respostas simuladas, o checkpointer cai no `InMemorySaver`, as stores ficam em memória, e as chamadas de IA devolvem respostas simuladas (ver [`docs/ia.md`](ia.md)). Resultado: a suíte roda em qualquer máquina, sem AWS, sem segredo e sem rede.
+
+**Store Postgres.** Os testes marcados `postgres` precisam de `DATABASE_URL` apontando para um Postgres 16 com pgvector, e apagam as tabelas de negócio antes de cada teste. **Nunca apontar para banco de produção ou de release.** Localmente, com Docker: `docker run -d --rm --name pg-teste -e POSTGRES_USER=maria -e POSTGRES_PASSWORD=maria -e POSTGRES_DB=maria -p 55432:5432 pgvector/pgvector:pg16` e `DATABASE_URL=postgresql://maria:maria@localhost:55432/maria uv run pytest -m postgres`. A issue #217 mostrou por que isso importa: um defeito que a store em memória escondia.
+
+**Windows.** `tests/conftest.py` troca o loop de eventos pelo `WindowsSelectorEventLoopPolicy`, porque o psycopg assíncrono não funciona com o loop padrão do Windows. O CI e a imagem são Linux. Alguns testes precisam de um `sh` POSIX ou do comportamento de rede do Linux e são pulados no Windows; no CI, nada é pulado. Exceção: os 2 testes do `publish-grafana` (`tests/test_workflows.py`) só são pulados quando não há `bash` no PATH. Se o `bash` encontrado for o do WSL sem uma distribuição funcionando, eles **falham** em vez de serem pulados; a falha é do ambiente, não do código.
 
 ## O que NÃO existe ainda
 
-- **Teste de contrato automatizado contra o Verde real** — a validação contra a API real do Verde (shape de resposta, bugs de doc) é manual (ver checklist em `docs/integracao-verde.md`); já causou bug descoberto tarde (issue #108).
-- **Coverage report** — sem `--coverage`/threshold configurado; nenhuma decisão tomada ainda sobre exigir um número mínimo.
+- **Teste de contrato automatizado contra o Verde real** — a validação contra a API real do Verde (shape de resposta, bugs de doc) é manual (ver checklist em [`docs/integracao-verde.md`](integracao-verde.md)); já causou bug descoberto tarde (issue #108).
+- **Coverage report** — sem cobertura medida nem limite mínimo; nenhuma decisão tomada ainda.
 
 ## CI
 
-`pnpm test` roda em todo push/PR (`.github/workflows/ci.yml`) e de novo como gate antes de deploy (`deploy-release.yml`/`deploy-prod.yml`) — falha em qualquer um dos três bloqueia merge/deploy.
+O `.github/workflows/ci.yml` tem dois jobs:
+- **`test`:** `ruff check`, `ruff format --check`, `mypy`, a suíte padrão e, numa segunda etapa, a suíte `postgres` contra um Postgres 16 com pgvector (serviço do próprio job);
+- **`imagem`:** constrói a imagem Docker e confere que ela sobe e responde `/health`.
+
+Os deploys (`deploy-release.yml` e `deploy-prod.yml`) rodam os testes de novo antes de publicar — falha em qualquer etapa bloqueia o merge ou o deploy. Durante a migração, o `ci.yml` roda só em PR para a branch `migration`; os gatilhos de `develop` e `main` voltam no corte (#208).

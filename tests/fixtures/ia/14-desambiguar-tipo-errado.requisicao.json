@@ -1,0 +1,56 @@
+{
+  "metodo": "POST",
+  "caminho": "/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "corpo": {
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "relato"
+          }
+        ]
+      }
+    ],
+    "system": [
+      {
+        "text": "Você ajuda a Defensoria Pública do RJ a esclarecer qual tipo de atendimento uma pessoa precisa, quando o relato dela bate com mais de uma opção.\nOpções possíveis:\n- A: da\n- B: db\nGere 1 pergunta curta, natural, em português, que ajude a pessoa a escolher entre essas opções — foque na diferença prática entre elas, sem citar nomes técnicos/internos."
+      }
+    ],
+    "toolConfig": {
+      "tools": [
+        {
+          "toolSpec": {
+            "name": "extract",
+            "inputSchema": {
+              "json": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "pergunta": {
+                    "type": "string",
+                    "description": "pergunta curta, natural, em português do Brasil, que ajuda a pessoa a escolher entre as opções — sem citar nomes técnicos/internos"
+                  }
+                },
+                "required": [
+                  "pergunta"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "description": "A function available to call."
+          }
+        }
+      ],
+      "toolChoice": {
+        "tool": {
+          "name": "extract"
+        }
+      }
+    }
+  },
+  "t": 1791573010875
+}

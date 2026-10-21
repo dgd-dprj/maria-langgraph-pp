@@ -1,0 +1,30 @@
+{
+  "nome": "erro-chatid-obrigatorio-atendimentos-400",
+  "descricao": "Fora de NODE_ENV=test, POST /atendimentos sem chatId → 400",
+  "instancia": {
+    "nome": "e-development",
+    "env": {
+      "NODE_ENV": "development"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc"
+    }
+  },
+  "resposta": {
+    "status": 400,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"erro\":\"chatId obrigatório\"}",
+    "corpo": {
+      "erro": "chatId obrigatório"
+    }
+  }
+}

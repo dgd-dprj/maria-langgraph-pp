@@ -1,30 +1,87 @@
 name: CI
 
-# PR pra develop (fluxo normal) ou main (release develop→main) — gate antes
-# do merge. Cada deploy (deploy-release.yml / deploy-prod.yml) roda esses
-# mesmos checks de novo depois do merge, como segunda camada de defesa.
+# PR para develop (fluxo normal) ou main (release develop→main): gate antes do
+# merge. Cada deploy (deploy-release.yml / deploy-prod.yml) roda os mesmos
+# checks de novo depois do merge, como segunda camada de defesa.
+# Os gatilhos de develop e main voltaram no corte da migração (#268). `migration`
+# continua na lista só enquanto o corte não termina, para o PR do corte rodar CI;
+# sai depois do merge da migration em develop.
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, main, migration]
 
 jobs:
   test:
     runs-on: ubuntu-latest
+
+    # Postgres com pgvector para a suíte `postgres`: conversões do psycopg
+    # (UUID, TIMESTAMPTZ, cast ::vector), schema do checkpointer e o
+    # encerramento por store.concluir do plano de corte só se provam contra
+    # banco real. Major 16 é VALOR PROVISÓRIO: precisa ser a mesma do RDS de
+    # produção, a conferir com SELECT version() (decisão em aberto na #208).
+    services:
+      postgres:
+        image: pgvector/pgvector:pg16
+        env:
+          POSTGRES_USER: maria
+          POSTGRES_PASSWORD: maria
+          POSTGRES_DB: maria
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd "pg_isready -U maria -d maria"
+          --health-interval 5s
+          --health-timeout 5s
+          --health-retries 12
+
     steps:
       - uses: actions/checkout@v4
 
-      - uses: actions/setup-node@v4
-        with:
-          node-version: "22"
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@v6
 
-      - name: Ativar pnpm (corepack, mesma versão do Dockerfile)
-        run: corepack enable && corepack prepare pnpm@latest --activate
+      - name: Instalar Python (versão de .python-version) e dependências
+        run: uv sync --frozen
 
-      - name: Instalar dependências
-        run: pnpm install --frozen-lockfile
+      - name: Lint
+        run: uv run ruff check
+
+      - name: Formatação
+        run: uv run ruff format --check
 
       - name: Typecheck
-        run: pnpm typecheck
+        run: uv run mypy
 
-      - name: Testes
-        run: pnpm test
+      - name: Testes (suíte rápida, sem banco)
+        run: uv run pytest -m "not postgres and not integracao"
+
+      - name: Testes contra Postgres
+        env:
+          DATABASE_URL: postgresql://maria:maria@localhost:5432/maria
+        run: uv run pytest -m postgres
+
+  # Os deploys (que constroem a imagem) só disparam em develop e main. Sem este
+  # job, uma imagem quebrada durante a migração só apareceria no merge final.
+  imagem:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build da imagem
+        run: docker build -t maria:ci .
+
+      # Desde o módulo api (#246), a aplicação não sobe sem API_KEY, como em
+      # develop (app.ts:87). Em produção ela vem do secret do ECS; aqui, um valor
+      # fictício, que não autentica em lugar nenhum.
+      - name: A imagem sobe e responde /health
+        run: |
+          docker run -d --name maria -p 3001:3001 -e API_KEY=chave-ficticia-do-ci maria:ci
+          for _ in $(seq 1 30); do
+            if curl -sf http://localhost:3001/health; then
+              docker logs maria
+              exit 0
+            fi
+            sleep 1
+          done
+          docker logs maria
+          exit 1

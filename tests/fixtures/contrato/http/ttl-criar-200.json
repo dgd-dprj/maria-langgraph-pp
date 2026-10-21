@@ -1,0 +1,50 @@
+{
+  "nome": "ttl-criar-200",
+  "descricao": "Cria atendimento (VD) para o cenário de TTL",
+  "instancia": {
+    "nome": "d-test-ttl-zero",
+    "env": {
+      "NODE_ENV": "test",
+      "TTL_INATIVIDADE_HORAS": "0"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-ttl-1",
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": "/atendimentos/cap-ttl-1",
+    "corpoBruto": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-ttl-1\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}",
+    "corpo": {
+      "resposta": "Você é a vítima de violência doméstica?",
+      "tipoResposta": "sim_nao",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "status": "em_andamento",
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc",
+      "metadados": {},
+      "dadosColetados": {},
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-ttl-1"
+        },
+        "responder": {
+          "href": "/atendimentos/respostas",
+          "method": "POST"
+        }
+      }
+    }
+  }
+}

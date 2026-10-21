@@ -1,0 +1,45 @@
+{
+  "nome": "ttl-get-expirado-200",
+  "descricao": "GET de atendimento expirado (estado do checkpoint, sem status expirado)",
+  "instancia": {
+    "nome": "d-test-ttl-zero",
+    "env": {
+      "NODE_ENV": "test",
+      "TTL_INATIVIDADE_HORAS": "0"
+    }
+  },
+  "requisicao": {
+    "metodo": "GET",
+    "caminho": "/atendimentos/cap-ttl-1",
+    "headers": {
+      "authorization": "Bearer <API_KEY>"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"resposta\":\"Você é a vítima de violência doméstica?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-ttl-1\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}",
+    "corpo": {
+      "resposta": "Você é a vítima de violência doméstica?",
+      "tipoResposta": "sim_nao",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "status": "em_andamento",
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc",
+      "metadados": {},
+      "dadosColetados": {},
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-ttl-1"
+        },
+        "responder": {
+          "href": "/atendimentos/respostas",
+          "method": "POST"
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,44 @@
+{
+  "nome": "orquestrador-nao-identificado-200",
+  "descricao": "Relato sem fluxo: handoff_humano nao_identificado",
+  "instancia": {
+    "nome": "c-test-sem-classificacao",
+    "env": {
+      "NODE_ENV": "test"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-orq-nenhum",
+      "mensagem": "texto qualquer"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-orq-nenhum\"}}}",
+    "corpo": {
+      "resposta": "Entendi. Vou te encaminhar para o atendimento de outros assuntos.",
+      "tipoResposta": "texto",
+      "status": "redirecionado",
+      "tipoCaso": "outros",
+      "tokensGastos": {
+        "input": 0,
+        "output": 0,
+        "total": 0
+      },
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-orq-nenhum"
+        }
+      }
+    }
+  }
+}

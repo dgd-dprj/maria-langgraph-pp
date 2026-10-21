@@ -22,6 +22,17 @@ jobs:
   publicar:
     runs-on: ubuntu-latest
     steps:
+      # O push já é restrito a develop/main no gatilho, mas o workflow_dispatch
+      # aceita qualquer branch. Durante a migração para Python (#208), um disparo
+      # manual a partir de `migration` publicaria dashboards de uma branch que
+      # ainda não está no ar. Primeiro passo do job, antes de qualquer outro.
+      - name: Recusar referência fora de develop/main
+        run: |
+          case "$GITHUB_REF" in
+            refs/heads/develop|refs/heads/main) echo "Referência permitida: $GITHUB_REF" ;;
+            *) echo "::error::publish-grafana só publica a partir de develop ou main (recebido: $GITHUB_REF)"; exit 1 ;;
+          esac
+
       - uses: actions/checkout@v4
 
       - name: Publicar dashboards

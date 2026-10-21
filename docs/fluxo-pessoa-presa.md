@@ -1,6 +1,6 @@
 # Fluxo: Pessoa Presa
 
-`flowId`: `3df874f2-675a-4c43-9ec7-480f7c702f50` — código em `src/fluxos/pessoaPresa/`.
+`flowId`: `3df874f2-675a-4c43-9ec7-480f7c702f50` — código em `src/maria/fluxos/pessoa_presa/`.
 
 Quem busca informação/encaminhamento sobre alguém que está presa (geralmente um familiar).
 
@@ -45,11 +45,11 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
 
 ### `viaOrquestrador` — por que a Tykhe nunca pergunta CPF do assistido (issue #191)
 
-Mesmo racional de `docs/fluxo-violencia-domestica.md`: a Tykhe consome este fluxo direto via `POST /atendimentos` com `flowId` explícito, contrato que já existia antes da issue #183. `viaOrquestrador` (setado só por `rotas/orquestrador.ts`, nunca pela Tykhe) decide se `identificarAssistido`/`cadastroPessoa` rodam depois do parentesco — sem esse sinal, o fluxo pula os 2 subgrafos inteiros e conclui direto, exatamente como era antes da #183.
+Mesmo racional de `docs/fluxo-violencia-domestica.md`: a Tykhe consome este fluxo direto via `POST /atendimentos` com `flowId` explícito, contrato que já existia antes da issue #183. `viaOrquestrador` (setado só pela rota do orquestrador, `src/maria/api/orquestrador.py`, nunca pela Tykhe) decide se `identificarAssistido`/`cadastroPessoa` rodam depois do parentesco — sem esse sinal, o fluxo pula os 2 subgrafos inteiros e conclui direto, exatamente como era antes da #183.
 
 ## Regras de negócio (o que decide handoff vs conclusão)
 
-A conclusão (`concluir()`, `graph.ts`) checa, nesta ordem:
+A conclusão (`concluir`, em `src/maria/fluxos/pessoa_presa/graph.py`) checa, nesta ordem:
 
 1. **Sem número de processo** (`temProcesso === false`) → `handoff_humano`, motivo `sem_numero_processo`. Mesmo com RG/nome/parentesco todos ok — sem processo não tem como acompanhar a situação de verdade (issue #49).
 2. **Processo com origem não suportada** (`dadosProcesso.origem !== "SEEU"`) → `handoff_humano`, motivo `origem_processo_nao_suportada`. Só processos de origem **SEEU** são resolvidos pelo bot; qualquer outra origem (ou processo não encontrado) cai aqui (issue #51).

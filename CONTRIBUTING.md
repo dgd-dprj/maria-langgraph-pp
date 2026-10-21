@@ -10,13 +10,13 @@ Setup local, variáveis de ambiente e estrutura de pastas: ver [`README.md`](REA
 ## Durante
 
 - Commits seguem [`docs/padroes-commits.md`](docs/padroes-commits.md) (Conventional Commits em pt-BR com emoji).
-- `pnpm test` precisa passar antes de abrir PR — detalhes em [`docs/testes.md`](docs/testes.md).
+- A verificação precisa passar antes de abrir PR — `uv run ruff check . && uv run ruff format --check . && uv run mypy && uv run pytest`; detalhes em [`docs/testes.md`](docs/testes.md).
 
 ## Abrindo o PR
 
 - Template e regras de merge em [`docs/padroes-pull-request.md`](docs/padroes-pull-request.md).
 - Destino padrão é `develop` (nunca commitar direto em `main`/`develop`).
-- CI (`pnpm test`) precisa passar antes do merge.
+- O CI precisa passar antes do merge: o job `test` (lint, tipos, a suíte padrão e a suíte com Postgres) e o job `imagem` (constrói a imagem Docker e confere o `/health`).
 
 ## Resumo rápido
 

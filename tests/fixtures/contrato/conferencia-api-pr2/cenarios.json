@@ -1,0 +1,3691 @@
+[
+ {
+  "nome": "get_nunca_criado",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-nunca",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "vd_criar",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_get_pergunta_1",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-vd",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "vd_eh_vitima",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_get_pergunta_2",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-vd",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "vd_sem_processo",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd\",\"resposta\":\"false\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_tem_ro",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_cpf",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd\",\"resposta\":\"11111111111\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_get_concluido",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-vd",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "vd_409_concluido",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd\",\"resposta\":\"qualquer coisa\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_cpf_conhecido",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd-cpf\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": \"11111111111\"}}",
+  "env": {}
+ },
+ {
+  "nome": "vd_cpf_conhecido_nao_vitima",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd-cpf\",\"resposta\":\"false\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_cpf_conhecido_409",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd-cpf\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "pp_criar",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-pp\",\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\"}",
+  "env": {}
+ },
+ {
+  "nome": "pp_sem_processo",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-pp\",\"resposta\":\"Não\"}",
+  "env": {}
+ },
+ {
+  "nome": "pp_rg_invalido",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-pp\",\"resposta\":\"abc\"}",
+  "env": {}
+ },
+ {
+  "nome": "pp_rg",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-pp\",\"resposta\":\"11111111111\"}",
+  "env": {}
+ },
+ {
+  "nome": "pp_get_confirma_nome",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-pp",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "pp_confirma",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-pp\",\"resposta\":\"Sim\"}",
+  "env": {}
+ },
+ {
+  "nome": "pp_parentesco",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-pp\",\"resposta\":\"irmão\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_PARENTESCO": "Irmão(a)"
+  }
+ },
+ {
+  "nome": "pp_get_concluido",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-pp",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "vd_encaminhamento_falha",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd-falha\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": \"11111111111\"}}",
+  "env": {}
+ },
+ {
+  "nome": "vd_falha_1",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd-falha\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_falha_2",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd-falha\",\"resposta\":\"false\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_falha_3",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-vd-falha\",\"resposta\":\"true\"}",
+  "env": {
+   "MOCK_ENCAMINHAMENTO_FALHA": "true"
+  }
+ },
+ {
+  "nome": "respostas_chat_inexistente",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-nunca\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "orq_redirecionado",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-orq\",\"mensagem\":\"remédio\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "tykhe:saude"
+  }
+ },
+ {
+  "nome": "orq_redirecionado_get",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-orq",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "orq_redirecionado_respostas",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-orq\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "orq_identifica",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-orq-pp\",\"mensagem\":\"preso\"}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "orq_identifica_get",
+  "bloco": "principal",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-orq-pp",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "orq_identifica_responde",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-orq-pp\",\"resposta\":\"false\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_via_orq_em_dados",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-viaorq\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"dadosConhecidos\":{\"cpf\": \"11111111111\", \"viaOrquestrador\": true}}",
+  "env": {}
+ },
+ {
+  "nome": "vd_via_orq_1",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-viaorq\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_via_orq_2",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-viaorq\",\"resposta\":\"false\"}",
+  "env": {}
+ },
+ {
+  "nome": "vd_via_orq_3",
+  "bloco": "principal",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-viaorq\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c0_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c0\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c0_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c0\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_c0_continuar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c0\",\"resposta\":\"sim\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c0_get",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-c0",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_c1_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c1\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c1_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c1\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_c1_continuar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c1\",\"resposta\":\"Sim\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c1_get",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-c1",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_c2_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c2\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c2_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c2\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_c2_continuar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c2\",\"resposta\":\" s \"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c2_get",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-c2",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_c3_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c3\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c3_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c3\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_c3_continuar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c3\",\"resposta\":\"quero continuar\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c3_get",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-c3",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_c4_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c4\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c4_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c4\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_c4_continuar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c4\",\"resposta\":\"Continuar\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c4_get",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-c4",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_c5_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c5\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c5_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c5\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_c5_continuar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c5\",\"resposta\":\"pode continuar\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c5_get",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-c5",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_c6_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c6\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c6_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c6\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_c6_continuar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c6\",\"resposta\":\"SIM\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c6_get",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-c6",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_c7_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c7\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c7_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c7\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_c7_continuar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c7\",\"resposta\":\"yes\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c7_get",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-c7",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_c8_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c8\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c8_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c8\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_c8_continuar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-c8\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_c8_get",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-c8",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_r0_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r0\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r0_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r0\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_r0_recomecar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r0\",\"resposta\":\"não\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r0_409_expirado",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r0\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r0_get_depois_de_expirado",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-r0",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_r1_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r1\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r1_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r1\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_r1_recomecar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r1\",\"resposta\":\"nao\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r1_409_expirado",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r1\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r1_get_depois_de_expirado",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-r1",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_r2_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r2\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r2_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r2\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_r2_recomecar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r2\",\"resposta\":\"N\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r2_409_expirado",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r2\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r2_get_depois_de_expirado",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-r2",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_r3_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r3\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r3_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r3\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_r3_recomecar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r3\",\"resposta\":\"Recomeçar\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r3_409_expirado",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r3\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r3_get_depois_de_expirado",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-r3",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_r4_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r4\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r4_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r4\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_r4_recomecar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r4\",\"resposta\":\"comecar de novo\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r4_409_expirado",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r4\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r4_get_depois_de_expirado",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-r4",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_r5_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r5\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r5_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r5\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_r5_recomecar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r5\",\"resposta\":\"não quero\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r5_409_expirado",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r5\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r5_get_depois_de_expirado",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-r5",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_r6_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r6\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r6_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r6\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_r6_recomecar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r6\",\"resposta\":\"false\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r6_409_expirado",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-r6\",\"resposta\":\"true\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_r6_get_depois_de_expirado",
+  "bloco": "ttl",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-ttl-r6",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "ttl_repete_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-repete\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_repete_confirmacao",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-repete\",\"resposta\":\"false\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_repete_nao_reconhecida",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-repete\",\"resposta\":\"meu marido me ameaçou\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_repete_de_novo",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-repete\",\"resposta\":\"talvez\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "ttl_repete_sim",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-repete\",\"resposta\":\"sim\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_env_abc_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-abc\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_env_abc_resposta",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-abc\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "abc"
+  }
+ },
+ {
+  "nome": "ttl_env_vazio_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-vazio\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_env_vazio_resposta",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-vazio\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": ""
+  }
+ },
+ {
+  "nome": "ttl_env_hex_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-hex\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_env_hex_resposta",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-hex\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0x10"
+  }
+ },
+ {
+  "nome": "ttl_env_espacos_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-espacos\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_env_espacos_resposta",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-espacos\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": " 5 "
+  }
+ },
+ {
+  "nome": "ttl_env_negativo_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-negativo\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_env_negativo_resposta",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-negativo\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "-1"
+  }
+ },
+ {
+  "nome": "ttl_env_infinito_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-infinito\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_env_infinito_resposta",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-infinito\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "Infinity"
+  }
+ },
+ {
+  "nome": "ttl_env_zero_ponto_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-zero_ponto\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_env_zero_ponto_resposta",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-zero_ponto\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "0.0"
+  }
+ },
+ {
+  "nome": "ttl_env_exp_criar",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-exp\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "ttl_env_exp_resposta",
+  "bloco": "ttl",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-ttl-env-exp\",\"resposta\":\"true\"}",
+  "env": {
+   "TTL_INATIVIDADE_HORAS": "1e-9"
+  }
+ },
+ {
+  "nome": "rota_criar_espaco",
+  "bloco": "roteador",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"a b\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "rota_criar_barra",
+  "bloco": "roteador",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"a/b\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "rota_criar_cedilha",
+  "bloco": "roteador",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"ç\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "rota_criar_percent",
+  "bloco": "roteador",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"a%b\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "rota_criar_mais",
+  "bloco": "roteador",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"a+b\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "rota_criar_100",
+  "bloco": "roteador",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "rota_criar_barra_espaco",
+  "bloco": "roteador",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"a/b c\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "rota_criar_barra_percent",
+  "bloco": "roteador",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"a/b%c\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "rota_get_vazio",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_vazio",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_barra_final",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-vd/",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_barra_final",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/conf-pr2-vd/",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_espaco_codificado",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a%20b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_espaco_codificado",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a%20b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_barra_codificada",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a%2Fb",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_barra_codificada",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a%2Fb",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_barra_codificada_minuscula",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a%2fb",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_barra_codificada_minuscula",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a%2fb",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_barra_crua",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a/b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_barra_crua",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a/b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_cedilha",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/%C3%A7",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_cedilha",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/%C3%A7",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_percent",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a%25b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_percent",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a%25b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_mais_cru",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a+b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_mais_cru",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a+b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_mais_codificado",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a%2Bb",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_mais_codificado",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a%2Bb",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_utf8_incompleto",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/%E0%A4%A",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_utf8_incompleto",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/%E0%A4%A",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_escape_invalido",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/%zz",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_escape_invalido",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/%zz",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_escape_invalido_query",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-vd?x=%zz",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_escape_invalido_query",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/conf-pr2-vd?x=%zz",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_query",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-vd?y=1",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_query",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/conf-pr2-vd?y=1",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_respostas_get",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_respostas_get",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_orquestrador_get",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_orquestrador_get",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/orquestrador",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_caixa",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/ATENDIMENTOS/conf-pr2-vd",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_caixa",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/ATENDIMENTOS/conf-pr2-vd",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_barra_dupla_meio",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos//conf-pr2-vd",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_barra_dupla_meio",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos//conf-pr2-vd",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_ponto_e_virgula",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-vd;x",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_ponto_e_virgula",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/conf-pr2-vd;x",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_hash_codificado",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a%23b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_hash_codificado",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a%23b",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_param_100",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_param_100",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_param_101",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_param_101",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_param_101_codificado",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_param_101_codificado",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78%78",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_param_emoji_51",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_param_emoji_51",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_param_emoji_50",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_param_emoji_50",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80%F0%9F%98%80",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_fluxos_escape_invalido",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/fluxos%zz",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_fluxos_escape_invalido",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/fluxos%zz",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_inexistente_escape_invalido",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/nao-existe%zz",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_inexistente_escape_invalido",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/nao-existe%zz",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_fluxos_codificado",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/flu%78os",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_fluxos_codificado",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/flu%78os",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_health_codificado",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/healt%68",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_health_codificado",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/healt%68",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_barra_e_espaco_codificados",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a%2Fb%20c",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_barra_e_espaco_codificados",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a%2Fb%20c",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_barra_e_percent_codificados",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a%2Fb%25c",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_barra_e_percent_codificados",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a%2Fb%25c",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_espaco_e_barra_codificados",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/a%20b%2Fc",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_head_espaco_e_barra_codificados",
+  "bloco": "roteador",
+  "metodo": "HEAD",
+  "caminho": "/atendimentos/a%20b%2Fc",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_post_param",
+  "bloco": "roteador",
+  "metodo": "POST",
+  "caminho": "/atendimentos/x",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{}",
+  "env": {}
+ },
+ {
+  "nome": "rota_put_escape_invalido",
+  "bloco": "roteador",
+  "metodo": "PUT",
+  "caminho": "/atendimentos/%zz",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_sem_auth",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-vd",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_sem_auth_inexistente",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/nunca",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_auth_errada",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/conf-pr2-vd",
+  "headers": {
+   "authorization": "Bearer errada"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_escape_invalido_sem_auth",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/%zz",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "rota_get_param_101_sem_auth",
+  "bloco": "roteador",
+  "metodo": "GET",
+  "caminho": "/atendimentos/xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "varre_base",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":null,\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"x\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":0,\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":7,\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":true,\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":false,\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":{},\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":[],\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_ausente",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":[\"y\"],\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":12345678901234567890,\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":1.5,\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":{\"a\": 1},\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_chatId_espacos",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"   \",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_null",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":null}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_texto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_zero",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":0}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_sete",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":7}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_true",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":true}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_false",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":false}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_objeto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":{}}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_lista",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":[]}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":\"\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_ausente",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_lista1",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":[\"y\"]}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_inteiro_grande",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":12345678901234567890}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_float",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":1.5}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_objeto_cheio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":{\"a\": 1}}",
+  "env": {}
+ },
+ {
+  "nome": "varre_resposta_espacos",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":\"   \"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_texto_plano",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "text/plain"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_sem_content_type",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_json_invalido",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{x",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_corpo_vazio",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_array",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "[]",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_string_json",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "\"x\"",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_null_json",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "null",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_sem_corpo",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia"
+  },
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_campo_extra",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"chatId\":\"conf-pr2-varre\",\"resposta\":\"x\",\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_proto",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "{\"__proto__\":{\"a\":1},\"chatId\":\"conf-pr2-varre\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_bom",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "authorization": "Bearer chave-conferencia",
+   "content-type": "application/json"
+  },
+  "corpo": "﻿{\"chatId\":\"conf-pr2-varre\",\"resposta\":\"x\"}",
+  "env": {}
+ },
+ {
+  "nome": "varre_corpo_sem_auth_json_invalido",
+  "bloco": "varredura",
+  "metodo": "POST",
+  "caminho": "/atendimentos/respostas",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{x",
+  "env": {}
+ },
+ {
+  "nome": "wh_get_sem_token_env",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "wh_head_sem_token_env",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {}
+ },
+ {
+  "nome": "wh_get_token_vazio_env",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": ""
+  }
+ },
+ {
+  "nome": "wh_head_token_vazio_env",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": ""
+  }
+ },
+ {
+  "nome": "wh_get_ok",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_ok",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_modo_errado",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=unsubscribe&hub.verify_token=tok&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_modo_errado",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=unsubscribe&hub.verify_token=tok&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_token_errado",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=x&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_token_errado",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=x&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_sem_challenge",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_sem_challenge",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_challenge_vazio",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_challenge_vazio",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_challenge_repetido",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=a&hub.challenge=b",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_challenge_repetido",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=a&hub.challenge=b",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_challenge_codificado",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=%C3%A7",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_challenge_codificado",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=%C3%A7",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_challenge_mais",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=a+b",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_challenge_mais",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=a+b",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_challenge_igual",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=a=b",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_challenge_igual",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=a=b",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_challenge_escape_invalido",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=%zz",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_challenge_escape_invalido",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.challenge=%zz",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_token_codificado",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=t%6Fk&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_token_codificado",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=t%6Fk&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_token_repetido",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.verify_token=tok&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_token_repetido",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=tok&hub.verify_token=tok&hub.challenge=abc",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_sem_query",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_sem_query",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_get_so_chave",
+  "bloco": "webhook",
+  "metodo": "GET",
+  "caminho": "/webhook/whatsapp?hub.mode&hub.verify_token=tok",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_head_so_chave",
+  "bloco": "webhook",
+  "metodo": "HEAD",
+  "caminho": "/webhook/whatsapp?hub.mode&hub.verify_token=tok",
+  "headers": {},
+  "corpo": null,
+  "env": {
+   "WHATSAPP_VERIFY_TOKEN": "tok"
+  }
+ },
+ {
+  "nome": "wh_post_status",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"w\", \"entry\": [{\"changes\": [{\"value\": {\"statuses\": [{\"id\": \"w\", \"status\": \"delivered\"}]}}]}]}",
+  "env": {}
+ },
+ {
+  "nome": "wh_post_status_falha",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"w\", \"entry\": [{\"changes\": [{\"value\": {\"statuses\": [{\"id\": \"w\", \"status\": \"failed\", \"errors\": [{\"code\": 131026, \"title\": \"Mensagem não entregue\"}]}]}}]}]}",
+  "env": {}
+ },
+ {
+  "nome": "wh_post_vazio_objeto",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{}",
+  "env": {}
+ },
+ {
+  "nome": "wh_post_audio",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"entry\": [{\"changes\": [{\"value\": {\"messages\": [{\"from\": \"551\", \"type\": \"audio\"}]}}]}]}",
+  "env": {}
+ },
+ {
+  "nome": "wh_post_json_invalido",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{x",
+  "env": {}
+ },
+ {
+  "nome": "wh_post_texto_plano",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "text/plain"
+  },
+  "corpo": "{\"a\":1}",
+  "env": {}
+ },
+ {
+  "nome": "wh_post_sem_corpo",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "",
+  "env": {}
+ },
+ {
+  "nome": "wh_post_item_null",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"entry\": [{\"changes\": [{\"value\": {\"messages\": [null]}}]}]}",
+  "env": {}
+ },
+ {
+  "nome": "wh_post_sair_sem_conversa",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000001\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"#sair\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {}
+ },
+ {
+  "nome": "wh_post_pp_1",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"meu irmão está preso\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_pp_2_tem_processo",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"Não\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_pp_3_rg",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"11111111111\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_pp_4_confirma",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"Sim\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_pp_5_parentesco_conclui",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"irmão\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_pp_6_nova_conversa",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"oi de novo\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_pp_7_sair_maiusculo",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"  #SAIR  \"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_pp_8_depois_do_sair",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"oi\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_pp_9_sair_com_x1c",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"#sair\\u001c\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_pp_10_sair_com_bom",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000002\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"﻿#sair\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ },
+ {
+  "nome": "wh_post_saude",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000003\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"remédio\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "tykhe:saude"
+  }
+ },
+ {
+  "nome": "wh_post_saude_de_novo",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000003\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"remédio\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "tykhe:saude"
+  }
+ },
+ {
+  "nome": "wh_post_tykhe_sair",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000004\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"quero sair\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "tykhe:sair"
+  }
+ },
+ {
+  "nome": "wh_post_outros",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000005\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"blá\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": ""
+  }
+ },
+ {
+  "nome": "wh_post_ambiguo_1",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000006\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"meu ex foi preso e me ameaça\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWIDS": "3df874f2-675a-4c43-9ec7-480f7c702f50,cabb2495-4e12-4f4a-9956-3d20649059bc"
+  }
+ },
+ {
+  "nome": "wh_post_ambiguo_2",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000006\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"sou vítima\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "cabb2495-4e12-4f4a-9956-3d20649059bc"
+  }
+ },
+ {
+  "nome": "wh_post_ambiguo_3",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000006\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"Sim\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "cabb2495-4e12-4f4a-9956-3d20649059bc"
+  }
+ },
+ {
+  "nome": "wh_post_vd_1",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000007\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"apanho do meu marido\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "cabb2495-4e12-4f4a-9956-3d20649059bc"
+  }
+ },
+ {
+  "nome": "wh_post_vd_2_ttl",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000007\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"Sim\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "cabb2495-4e12-4f4a-9956-3d20649059bc",
+   "TTL_INATIVIDADE_HORAS": "0"
+  }
+ },
+ {
+  "nome": "wh_post_vd_3_confirma_ttl",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000007\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"sim\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "cabb2495-4e12-4f4a-9956-3d20649059bc"
+  }
+ },
+ {
+  "nome": "wh_post_vd_4_nao_vitima_texto",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"object\": \"whatsapp_business_account\", \"entry\": [{\"id\": \"x\", \"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000007\", \"id\": \"w\", \"type\": \"text\", \"text\": {\"body\": \"talvez\"}}]}, \"field\": \"messages\"}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "cabb2495-4e12-4f4a-9956-3d20649059bc"
+  }
+ },
+ {
+  "nome": "wh_post_numero_texto_numero",
+  "bloco": "webhook",
+  "metodo": "POST",
+  "caminho": "/webhook/whatsapp",
+  "headers": {
+   "content-type": "application/json"
+  },
+  "corpo": "{\"entry\": [{\"changes\": [{\"value\": {\"messages\": [{\"from\": \"5521000000008\", \"type\": \"text\", \"text\": {\"body\": 7}}]}}]}]}",
+  "env": {
+   "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+  }
+ }
+]

@@ -1,0 +1,46 @@
+{
+  "nome": "orquestrador-resposta-sem-pendencia-200",
+  "descricao": "Resposta de desambiguação sem pergunta pendente: roda do zero com mensagem vazia → handoff",
+  "instancia": {
+    "nome": "a-test-classificacao-pessoa-presa",
+    "env": {
+      "NODE_ENV": "test",
+      "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-orq-sem-estado",
+      "resposta": "qualquer coisa"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"resposta\":\"Entendi. Vou te encaminhar para o atendimento de outros assuntos.\",\"tipoResposta\":\"texto\",\"status\":\"redirecionado\",\"tipoCaso\":\"outros\",\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-orq-sem-estado\"}}}",
+    "corpo": {
+      "resposta": "Entendi. Vou te encaminhar para o atendimento de outros assuntos.",
+      "tipoResposta": "texto",
+      "status": "redirecionado",
+      "tipoCaso": "outros",
+      "tokensGastos": {
+        "input": 0,
+        "output": 0,
+        "total": 0
+      },
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-orq-sem-estado"
+        }
+      }
+    }
+  }
+}
