@@ -31,6 +31,9 @@ CONTINUAR_TTL = frozenset(("quero", "continuar", "quero continuar", "continua", 
 RECOMECAR_TTL = frozenset(("recomecar", "quero recomecar", "comecar de novo", "nao quero"))
 TEXTO_CONFIRMACAO_TTL = "Já faz um tempo desde sua última mensagem. Quer continuar de onde você parou?"
 MENSAGEM_EXPIRADO = "Essa conversa expirou por inatividade. Pra continuar, inicie um novo atendimento."
+# #270: atendimento registrado cujo checkpoint não existe mais (no corte da migração,
+# todas as conversas em andamento). Não é inatividade, por isso o texto é outro.
+MENSAGEM_CONVERSA_SEM_CHECKPOINT = "Não consegui continuar essa conversa de onde ela parou. Pra seguir, inicie um novo atendimento."
 
 
 class EmptyInputError(Exception):
@@ -255,10 +258,10 @@ async def _get_atendimento(ctx: Contexto) -> Resposta:
     return Resposta(200, montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt, valores))
 
 
-def _expirado(fluxo: FluxoConfig, fluxo_id: str, chat_id: str, valores: Mapping[str, Any]) -> dict[str, Any]:
-    return montar_resposta_atendimento(
-        fluxo, fluxo_id, chat_id, None, {**valores, "statusFinal": "expirado", "mensagemFinal": MENSAGEM_EXPIRADO}
-    )
+def _expirado(
+    fluxo: FluxoConfig, fluxo_id: str, chat_id: str, valores: Mapping[str, Any], mensagem: str = MENSAGEM_EXPIRADO
+) -> dict[str, Any]:
+    return montar_resposta_atendimento(fluxo, fluxo_id, chat_id, None, {**valores, "statusFinal": "expirado", "mensagemFinal": mensagem})
 
 
 async def _post_respostas(ctx: Contexto) -> Resposta:
@@ -332,6 +335,27 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
         original = _js.coalesce(await store.resolver_confirmacao_ttl_continuar(chat_id), "")
         ctx.log.info("resposta recebida (retomada após confirmação de TTL)", fluxoId=fluxo_id, chatId=chat_id, evento="resposta_recebida")
         return await processar(original)
+
+    if not retomando and len(valores_atuais) == 0:
+        # #270 (melhoria sobre develop, decisão 3 do corte, #268): o atendimento existe
+        # na tabela, mas o checkpoint não. Sem esta guarda, o estado vazio virava
+        # "concluido" com a mensagem de sucesso do fluxo ("Já confirmei os dados…"),
+        # sem que nada tivesse acontecido. Develop responde igual (controle executado
+        # em 2026-10-21): é herdado, e o corte o faria acontecer com toda conversa em
+        # andamento. Reaproveita a resposta de expirado do TTL: 409, status expirado.
+        destino_sem_checkpoint = destino_do_log(fluxo_id, "expirado")
+        conclusao_sem_checkpoint: ConclusaoAtendimento = {"statusFinal": "expirado"}
+        if destino_sem_checkpoint is not None:
+            conclusao_sem_checkpoint["destino"] = destino_sem_checkpoint
+        await store.concluir(chat_id, conclusao_sem_checkpoint)
+        ctx.log.warn(
+            "atendimento sem checkpoint — a conversa não continua, tratado como expirado",
+            fluxoId=fluxo_id,
+            chatId=chat_id,
+            evento="atendimento_sem_checkpoint",
+        )
+        erro = {"erro": "atendimento sem conversa em andamento — inicie um novo atendimento"}
+        return Resposta(409, {**erro, **_expirado(fluxo, fluxo_id, chat_id, valores_atuais, MENSAGEM_CONVERSA_SEM_CHECKPOINT)})
 
     if not retomando:
         # Já concluiu: 409 com os dados coletados, como um GET.
