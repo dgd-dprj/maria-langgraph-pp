@@ -9,6 +9,11 @@ impede o "nenhum arquivo TypeScript" de virar falso em silêncio.
 
 Varre o disco, e não só o que o git rastreia: um arquivo ainda não adicionado
 também conta. Se um arquivo novo precisar ficar, ele entra em MANTER com o motivo.
+
+Ponto cego conhecido: EXTENSOES e NOMES listam à mão o que é proibido, então o teste
+cobre só o que alguém lembrou (o pnpm-workspace.yaml passou despercebido até
+2026-10-21). Inverter, listando o permitido, seria mais seguro; não foi feito por
+decisão, e o motivo está no MIGRACAO.md.
 """
 
 from pathlib import Path

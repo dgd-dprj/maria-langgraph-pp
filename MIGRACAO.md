@@ -547,6 +547,8 @@ Um teste que passa prova que o código faz o esperado no caso testado. Não prov
 
 **O mesmo padrão no teste `MANTER`:** a lista de nomes cobria o `package.json` e os lockfiles, e deixava passar o `pnpm-workspace.yaml`. O merge do #272 na branch do corte mostrou isso. A lista passou a incluir o `pnpm-workspace.yaml` e o `.npmrc`.
 
+**O ponto cego é de desenho, e não de descuido.** Um teste feito para impedir que o Node volte enumera à mão o que é proibido (extensões e nomes de arquivo), então cobre só o que alguém lembrou. Se aparecer outro arquivo de configuração de Node (`.nvmrc`, `bunfig.toml`, `tsconfig.base.json`, um lockfile novo), o teste deixa passar outra vez, em silêncio. **Inverter a lógica seria mais seguro:** listar o que é permitido no repositório (extensões e diretórios de uma aplicação Python, mais as exceções de `MANTER`) e falhar com qualquer outra coisa. **Não foi invertido agora, por decisão de 2026-10-21:** fica registrado para quem mexer no teste depois.
+
 ## Padrão: afirmação sobre desfecho inferida do código, sem execução
 
 Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escrita a partir da leitura do código, e a execução mostrou outra coisa. **O padrão é inferir o desfecho a partir do código em vez de rodar.**
@@ -615,6 +617,13 @@ Leva a `migration` para `develop`. O PR #267 (`migration` → `develop`) foi abe
 **`ci.yml`:** os gatilhos de PR para `develop` e `main` voltaram; `migration` fica até o fim do corte.
 
 **Decisão 5 fechada como correção de migração** (seção "Decisões em aberto").
+
+**Decisão 3 (conversas em andamento no corte): corrigir antes do corte, na #270 (melhoria sobre develop, 2026-10-21).**
+- **O problema, executado num Postgres local:** depois da troca, a conversa em andamento recebia 409 com status `concluido` e a mensagem de sucesso do fluxo ("Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento…"), sem que nada tivesse acontecido. A pessoa vai embora achando que foi atendida.
+- **É herdado:** com o checkpoint apagado, a versão TypeScript responde igual (controle executado). O corte transforma o caso raro em evento de massa.
+- **A correção:** na rota de respostas, um atendimento sem checkpoint (nenhum valor nem nó pendente) passa a ser tratado como expirado. Reaproveita o contrato que o TTL já usa: 409 com `status: expirado`. A mensagem tem texto próprio, porque não é inatividade; o desfecho vai para a `atendimentos` (`expirado`, `sessao_expirada`), e o log tem o evento `atendimento_sem_checkpoint`, para contar quantas conversas o corte atingiu.
+- **Escopo:** só quem vem pela Tykhe, cujo `chatId` persiste. O bridge do WhatsApp guarda as conversas em memória e abre um atendimento novo depois do reinício.
+- **Pré-condição, com o usuário:** conferir se a Tykhe grava o corpo do 409 nas variáveis. Se não gravar, a resposta passa a ser 200.
 
 ## Teste local contra a homologação do Verde (desde 2026-10-20)
 
