@@ -2,6 +2,34 @@
 
 Setup local, variáveis de ambiente e estrutura de pastas: ver [`README.md`](README.md). Este arquivo cobre só o fluxo de contribuição.
 
+## Branches e ambientes
+
+| Branch | Papel | Ambiente | O que dispara o deploy |
+|---|---|---|---|
+| `develop` | **staging**: integração e validação pela equipe | homologação, chamado de `release` na infraestrutura (serviço `api-release`) | todo merge em `develop` (`deploy-release.yml`) |
+| `main` | **produção** | produção (serviço `api`) | todo merge em `main` (`deploy-prod.yml`) |
+
+- **Os nomes ficam como estão** até depois do corte da migração (#268), por decisão de 2026-10-22: renomear branch ou ambiente no meio do teste da equipe confundiria qualquer problema que aparecesse. Uma branch de integração separada e a troca de nomes ficam para depois, junto com o ambiente novo da #286.
+- **Todo merge em `develop` reinicia o release.** Quem estiver testando pelo WhatsApp perde a conversa em andamento, porque a ponte guarda as conversas abertas em memória ([`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md)). Durante uma rodada de teste da equipe, combine o horário do merge.
+
+**Proteção (rulesets do GitHub, desde 2026-10-22, #214):**
+
+| Regra | `develop` | `main` |
+|---|---|---|
+| Push direto | bloqueado: tudo entra por PR | bloqueado: tudo entra por PR |
+| Checks obrigatórios | `test` e `imagem` | `test` e `imagem`, com a branch atualizada |
+| Aprovações | nenhuma | 1, de quem não fez o último push |
+| Método de merge | squash (padrão) ou merge commit | só merge commit |
+| Force push e exclusão da branch | bloqueados | bloqueados |
+
+Ninguém contorna as regras, nem quem é admin. Numa emergência, um admin desativa o ruleset nas configurações do repositório, e isso fica registrado.
+
+> **Não "corrija" estas duas configurações sem combinar com o Ícaro.** As duas existem pelo mesmo motivo: as sessões do Claude do Ícaro reaproveitam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291, #295).
+> - **`develop` aceita merge commit, e não só squash.** Com squash obrigatório, o PR seguinte dessa branch traria de novo commits já mergeados e entraria em conflito.
+> - **A exclusão automática da branch depois do merge está desligada.** Ligada, ela apagaria a branch reaproveitada a cada merge.
+>
+> As duas voltam à mesa quando cada PR tiver a própria branch. Registro em `MIGRACAO.md`, seção "Branches, ambientes e proteção".
+
 ## Antes de codar
 
 1. Confirme que existe uma issue pro trabalho (crie uma se não existir — padrão em [`docs/padroes-issues.md`](docs/padroes-issues.md)).
@@ -15,8 +43,8 @@ Setup local, variáveis de ambiente e estrutura de pastas: ver [`README.md`](REA
 ## Abrindo o PR
 
 - Template e regras de merge em [`docs/padroes-pull-request.md`](docs/padroes-pull-request.md).
-- Destino padrão é `develop` (nunca commitar direto em `main`/`develop`).
-- O CI precisa passar antes do merge: o job `test` (lint, tipos, a suíte padrão e a suíte com Postgres) e o job `imagem` (constrói a imagem Docker e confere o `/health`).
+- Destino padrão é `develop` (o GitHub recusa push direto em `main` e em `develop`).
+- O CI precisa passar antes do merge, e o GitHub bloqueia o merge sem ele: o job `test` (lint, tipos, a suíte padrão e a suíte com Postgres) e o job `imagem` (constrói a imagem Docker e confere o `/health`).
 
 ## Resumo rápido
 
