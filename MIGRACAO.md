@@ -183,6 +183,7 @@ scripts/
 - **Por que não editar:** a versão TypeScript não existe mais para regravar. Uma fixture editada à mão deixa de ser observação e passa a ser opinião. Depois de três edições, ninguém sabe mais o que veio do servidor real e o que foi escrito. A evidência some sem aviso.
 - **O contrato atual é conferido por testes escritos:** asserções explícitas sobre status, corpo e campos, como as de `tests/api/test_app.py`. Uma mudança de contrato muda o teste escrito, e o PR diz por quê.
 - **Quando uma mudança legítima quebra a conferência contra a fixture** (o primeiro caso conhecido é um fluxo novo mudando `GET /fluxos`, achado C7 da spec 09): o caso sai da conferência, sem tocar na fixture, e o comportamento novo ganha um teste escrito. O mecanismo para tirar o caso da conferência (por exemplo, uma lista de casos aposentados, com o motivo e o PR de cada um) é definido no primeiro PR que precisar dele. A fixture continua no repositório, intacta.
+- **Atualizado em 2026-10-22: o primeiro PR que precisou não definiu o mecanismo (#294).** O campo `destino` (#288) é o primeiro campo novo da resposta depois da gravação das fixtures. O PR #289, que o entregou, tirou o campo da conferência com uma expressão regular que serve só para ele, repetida em `tests/api/test_contrato.py:64-70` e `tests/api/test_conferencia_pr2.py:118-123`. A outra implementação da mesma issue (PR #290, fechado sem merge) trazia um mecanismo reaproveitável, `tests/api/sem_campos_posteriores.py` (commit `4d120e7`). **O mecanismo ficou para a #294.** Sem ele, cada campo novo quebra a conferência e pede outra expressão, e a tentação de editar a fixture volta: **é o mecanismo que torna esta decisão sustentável.** Para campo novo e opcional, a proposta da #294 é tirar só o campo, e não aposentar o caso inteiro, porque o resto da resposta continua conferido byte a byte. Aposentar casos continua valendo para mudança de comportamento, como o `GET /fluxos` do C7.
 
 ## Divergências aceitas
 
@@ -560,6 +561,18 @@ Três vezes, uma afirmação sobre o que acontece com a pessoa atendida foi escr
 
 **Regra a partir daqui:** a afirmação sobre desfecho (o que a pessoa vê, o que vai ao Verde, como o atendimento termina) só entra em issue, spec ou registro depois de executada, ou marcada explicitamente como **inferida da leitura, não executada**.
 
+## Aviso de processo: trabalho duplicado em paralelo, dois casos num só dia (2026-10-22)
+
+**Dois casos em 2026-10-22, com 36 minutos entre eles. Com o segundo, deixou de ser um caso isolado.** Os dois aconteceram na mesma conta, e no segundo as duas aberturas ficaram a 18 segundos uma da outra.
+
+- **Caso 1, 15:04 e 15:05 UTC: a mesma issue implementada duas vezes.** Duas sessões do Claude na conta do Ícaro implementaram a #288 sem que uma soubesse da outra. Uma rodava na nuvem (PR #289, branch `claude/project-thread-u8h56h`, 15:04 UTC). A outra rodava na máquina dele (PR #290, branch `feat/288-campo-destino`, 15:05 UTC). O #289 foi mergeado às 15:08. O #290 mudava as mesmas linhas e ficou em conflito.
+- **A decisão do caso 1 (2026-10-22): fechar o #290 sem merge, apontando o #289.** O Ícaro já o tinha fechado às 15:18, e a Nicole confirmou. O resultado para a Tykhe era o mesmo nas duas versões, e resolver o conflito seria refazer por cima o que já estava no ar. O que só o #290 trazia, o mecanismo para campos novos na conferência contra as fixtures, virou a #294 (seção "As respostas gravadas são evidência").
+- **Caso 2, 15:40 UTC: a mesma issue aberta duas vezes, com 18 segundos de diferença.** As #292 (15:40:37 UTC) e #293 (15:40:55 UTC), sobre o mesmo assunto (o `destino` de cada desfecho da pessoa presa), foram abertas pela mesma conta. A #292 foi fechada como duplicada da #293 às 15:41:21. *Não verificado* se foram duas sessões do Claude. Dezoito segundos é pouco para uma pessoa escrever uma issue com tabela de evidências, mas isso é inferência.
+- **A justificativa do fechamento da #292 saiu errada.** O comentário de fechamento diz que a #293 foi "aberta minutos antes". Pelo GitHub, ela foi aberta **18 segundos depois**. A escolha de manter a #293 pode estar certa por outro motivo que o mesmo comentário dá (ela tem a tabela completa de desfechos e as labels), mas o motivo temporal registrado é falso. **Quando a justificativa de um fechamento também sai errada, quem reconstruir o que aconteceu depois não consegue separar o fato do que foi escrito sobre ele.** A correção foi registrada num comentário datado na #292.
+- **Por que vai acontecer de novo:** uma sessão que recebe uma issue começa a trabalhar sem procurar branch, PR ou issue já abertos sobre o mesmo assunto, e nada no GitHub mostra que a issue está em execução. Quando mais de uma pessoa, ou mais de uma sessão da mesma pessoa, delega o mesmo trabalho, ele sai em dobro. **No caso 1, o conflito só avisou porque as duas versões mexiam nas mesmas linhas.** Duas implementações em arquivos diferentes poderiam entrar as duas, sem aviso nenhum.
+- **O custo é de quem delega:** trabalho em dobro, PR em conflito, issue duplicada e registros que outra pessoa precisa conferir.
+- **Cuidado sugerido, a levar ao Ícaro (2026-10-22), ainda não adotado como regra:** antes de delegar ou começar uma issue, procurar PR e branch com o número dela (`gh pr list --search "<número>" --state all` e `git ls-remote --heads origin "*<número>*"`). Antes de abrir uma issue, procurar issue aberta sobre o mesmo assunto. Ao começar, marcar a issue como em execução (responsável no GitHub ou comentário).
+
 ## Melhorias registradas, fora do escopo
 
 - **Validação da saída estruturada da IA:** [#212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212), em dois passos (primeiro só medir, depois validar).
@@ -700,6 +713,8 @@ O fluxo "Orquestrador" da Tykhe chama `https://d2urkrsd5u4rck.cloudfront.net`. *
 > - **O token do Verde vencido no release** (decisão em aberto 4): bloqueia o teste dos fluxos na primeira consulta ao Verde, mas não deixa ninguém sem atendimento. Continua sendo pré-requisito do teste.
 >
 > **Quando algum dos ambientes passar a atender cidadão, as três voltam ao peso original.** O texto abaixo foi escrito antes desta informação e fica como estava.
+>
+> **O título do commit em develop diz o oposto do conteúdo.** Este bloco e o ajuste do guia de teste entraram pelo PR #287, cujo commit de squash em develop é o `7af101d`. O título desse commit, ":books: docs: Aviso no guia de teste para nao gravar no Verde ate confirmar o ambiente (#287)", veio da primeira versão do PR. **O commit traz o oposto:** o release usa o Verde de homologação, onde gravar está autorizado, e o aviso de não gravar virou uma nota. O título do PR foi corrigido antes do merge, mas o squash usou a mensagem do primeiro commit. **develop não foi reescrita por isso (decisão de 2026-10-22).** Quem ler o histórico deve se guiar por este registro e pelo PR #287.
 
 1. Merge da `migration` em `develop` numa janela anunciada, fora do horário de teste.
 2. Nada de teste na Tykhe durante o deploy do release.
@@ -799,6 +814,7 @@ Duas coisas diferentes:
   3. **editar o comentário do índice**, com `gh api -X PATCH repos/dgd-dprj/maria-langgraph-pp/issues/comments/6222948856 -F body=@<arquivo>`;
   4. atualizar as cópias.
 - **Por quê:** "fechada" no GitHub não quer dizer correção na `migration`. **Um índice desatualizado é pior que nenhum.**
+- **Issue de trabalho feito fecha sem esperar `main` (decidido em 2026-10-22, Nicole):** se o código está em `develop` e roda no release, a issue fecha; a ida para `main` é acompanhada na #268. Aplicado à #217, à #225 e à #227. A pergunta aberta da #225 (o `category` da Tykhe) foi antes para a #305. A #23 fica aberta, ligada à #249.
 
 ## Pendências operacionais
 
