@@ -800,6 +800,17 @@ Duas coisas diferentes:
   4. atualizar as cópias.
 - **Por quê:** "fechada" no GitHub não quer dizer correção na `migration`. **Um índice desatualizado é pior que nenhum.**
 
+## Branches, ambientes e proteção (decidido em 2026-10-22)
+
+- **Decisão da Nicole: os nomes ficam como estão até depois do corte.** `develop` faz o papel de staging e alimenta o ambiente `release`, e `main` é a produção. Documentado no `CONTRIBUTING.md` e no `README.md`. **Motivo:** a equipe está testando, e o corte não aconteceu. Renomear branch ou ambiente agora confundiria qualquer problema que aparecesse. Uma branch de integração separada (`develop` → `staging` → `main`) e a troca de nomes ficam para depois do corte, junto com o ambiente novo da #286, onde estão os custos de cada caminho.
+- **Proteção aplicada em 2026-10-22 (#214), por rulesets** (25667365 em `develop`, 25667366 em `main`), sem ninguém na lista de quem contorna:
+  - nas duas branches: PR obrigatório, checks `test` e `imagem` (do GitHub Actions), e force push e exclusão bloqueados;
+  - em `main`: branch atualizada antes do merge, 1 aprovação de quem não fez o último push, e só merge commit;
+  - em `develop`: sem aprovação, sem exigir branch atualizada, e **squash ou merge commit**.
+- **A diferença em relação à proposta, e por quê:** a proposta era só squash em `develop`. As sessões do Claude do Ícaro reaproveitam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291 e #295), o que só funciona com merge commit. Com squash obrigatório, o PR seguinte dessa branch traria de novo commits já mergeados e entraria em conflito. O squash obrigatório volta à mesa quando cada PR tiver a própria branch.
+- **Ajustes no repositório:** o título do commit de squash passou a ser o título do PR (com `COMMIT_OR_PR_TITLE`, o squash do #287 saiu com o título da primeira versão, `7af101d`), e o rebase merge foi desligado. A exclusão automática da branch depois do merge **continua desligada**, para não apagar a branch reaproveitada do Ícaro a cada merge.
+- **Verificação:** as regras efetivas foram lidas pela API (`GET /repos/…/rules/branches/{develop,main}`), e os PRs abertos (#295 e #301) continuaram mergeáveis. O endpoint antigo de proteção (`/branches/{branch}/protection`) não mostra rulesets e continua respondendo "not protected". **Não foi feito** um push de teste em `develop`: se a regra falhasse, o push dispararia um deploy no release no meio do teste da equipe.
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.

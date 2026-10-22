@@ -6,6 +6,8 @@ Cada fluxo de atendimento é um grafo de estados do [LangGraph](https://langchai
 
 Vai contribuir? Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) (fluxo de issue, branch, commit e PR).
 
+**Branches e ambientes:** `develop` faz o papel de **staging**. Cada merge nela sobe no ambiente de homologação, que a infraestrutura chama de `release`, e é onde a equipe valida. `main` é a **produção**. Detalhes em [`CONTRIBUTING.md`](CONTRIBUTING.md#branches-e-ambientes).
+
 > **Migração.** Até outubro de 2026 a Maria foi escrita em TypeScript (Fastify e LangGraph JS). A tradução para Python reproduziu o comportamento da versão TypeScript, inclusive os defeitos conhecidos, que foram registrados em issues para corrigir depois. O registro completo, com cada decisão, está em [`MIGRACAO.md`](MIGRACAO.md) e em [`docs/migracao/`](docs/migracao/).
 
 ## Rodando local
