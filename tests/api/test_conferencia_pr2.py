@@ -11,7 +11,8 @@ cenários de `cenarios.json` (`gerar_cenarios_pr2.py`):
 
 O teste roda os mesmos cenários, na mesma ordem e numa única aplicação, por ASGI
 cru (o caminho chega intacto, sem a normalização de URL do httpx), e compara
-status, content-type, Location e o corpo byte a byte. As linhas de log foram
+status, content-type, Location e o corpo byte a byte (sem os campos posteriores à
+gravação, `campos_posteriores.py`, #294). As linhas de log foram
 comparadas na execução da conferência (`conferir.py`), com o mesmo resultado.
 """
 
@@ -28,6 +29,7 @@ import pytest
 
 from maria.api.webhook_whatsapp import limpar_conversas_ativas_de_teste
 from maria.app import criar_app
+from tests.api.campos_posteriores import sem_campos_posteriores
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr2")
 CENARIOS: list[dict[str, Any]] = json.loads((RAIZ / "cenarios.json").read_text(encoding="utf-8"))
@@ -115,14 +117,6 @@ async def _asgi(app: Any, c: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-_DESTINO = re.compile(r',"destino":"[a-z_]+"')
-
-
-def _sem_destino(corpo: str) -> str:
-    """Divergência aceita (#288): develop não tem o campo `destino`; fora dele o corpo é igual byte a byte."""
-    return _DESTINO.sub("", corpo)
-
-
 async def test_313_cenarios_iguais_a_develop(monkeypatch: pytest.MonkeyPatch) -> None:
     for variavel in _VARIAVEIS:
         monkeypatch.delenv(variavel, raising=False)
@@ -148,7 +142,7 @@ async def test_313_cenarios_iguais_a_develop(monkeypatch: pytest.MonkeyPatch) ->
                 obtido.pop("message"), esperado.pop("message")  # #210
                 if list(obtido.items()) != list(esperado.items()):
                     falhas.append(f"{c['nome']}: corpo {r['corpo']} != {esperado_corpo}")
-            elif _CHAT_WPP.sub(r"\1<T>", _sem_destino(r["corpo"])) != _CHAT_WPP.sub(r"\1<T>", esperado_corpo):
+            elif _CHAT_WPP.sub(r"\1<T>", sem_campos_posteriores(r["corpo"])) != _CHAT_WPP.sub(r"\1<T>", esperado_corpo):
                 falhas.append(f"{c['nome']}:\n    obtido:   {r['corpo'][:300]}\n    esperado: {esperado_corpo[:300]}")
     limpar_conversas_ativas_de_teste()
     assert not falhas, "\n".join(falhas)
