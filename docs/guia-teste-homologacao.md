@@ -1,5 +1,17 @@
 # Guia de teste em homologação: a Maria em Python no release
 
+> ## ⚠️ Antes de qualquer teste: não rode os casos que gravam no Verde
+>
+> **Ainda não está confirmado qual Verde o release usa.** Pode ser o de homologação ou o de produção (#286): o Terraform e o Ícaro dizem coisas diferentes. **Se for o Verde de produção, cada gravação cria um registro real**, de uma pessoa ou de um encaminhamento que não existem.
+>
+> **Até a Nicole confirmar, não rode os passos que gravam:**
+> - **o cadastro de pessoa:** acontece quando o CPF não é encontrado 3 vezes e a Maria pede nome, data de nascimento e endereço. **O registro é criado logo depois do último dado de endereço.** Por isso, **não use CPF inventado**;
+> - **o encaminhamento de violência doméstica:** **o registro é criado logo depois do "Sim" em "Confirma que seus dados são…?"**. Responda **Não** nessa pergunta.
+>
+> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**. Nesse caminho, não informe CPF nenhum.
+>
+> **Os casos de leitura podem seguir:** classificação, perguntas, consulta de RG, de processo e de CPF que já existe, e a confirmação de nome. Cada caso da seção 3 diz como rodar só a parte de leitura.
+
 Este guia é para a equipe que vai testar a Maria no ambiente de homologação (o release), depois da troca da versão TypeScript pela versão em Python (2026-10-21, #268).
 
 **Há dois canais, e eles são integrações separadas:**
@@ -50,7 +62,9 @@ Confirme com a Nicole que estes pré-requisitos estão feitos:
   - se houver, um número de processo de origem SEEU, e um CPF já cadastrado;
   - CPFs inventados, com dígito verificador válido, para o caminho de cadastro.
 
-**Use só dados de teste.** O Verde de homologação tem pessoas cadastradas para teste, e nunca uma pessoa real. Os cadastros e encaminhamentos feitos no teste ficam gravados na homologação, e isso está autorizado.
+- [ ] **Confirmado qual Verde o release usa** (#286). Enquanto não estiver, valem só as versões de leitura dos casos (o aviso no topo).
+
+**Use só dados de teste.** O Verde de homologação tem pessoas cadastradas para teste, e nunca uma pessoa real. **Se e quando for confirmado que o release usa o Verde de homologação**, os cadastros e encaminhamentos do teste ficam gravados lá, e isso está autorizado.
 
 ## 3. Os casos
 
@@ -69,6 +83,12 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 
 Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro.
 
+> **Este caso grava duas vezes** (o cadastro no passo 5 e o encaminhamento no passo 6). **Enquanto o Verde do release não estiver confirmado, rode só a versão de leitura:**
+> - no passo 5, use **um CPF que já existe** na homologação (nunca um inventado);
+> - no passo 6, responda **Não**.
+>
+> **Esperado na versão de leitura:** "Vou encaminhar seu atendimento para um atendente humano." Isso confere a consulta de CPF e a confirmação de nome no release. Os passos de CEP, plantão, órgãos e encaminhamento ficam para depois da confirmação.
+
 ### Caso B. Pessoa presa, até o desfecho
 
 1. Relato livre sobre um familiar preso (inventado).
@@ -82,9 +102,11 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 - sem número de processo: "Já confirmei os dados da pessoa presa, mas como você não tem o número do processo, vou encaminhar seu atendimento pra equipe localizar isso e dar continuidade.";
 - com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui."
 
+> **Este caso só grava se cair no cadastro** (passo 6 com um CPF que não existe). Pessoa presa não cria encaminhamento no Verde. **Enquanto o Verde do release não estiver confirmado, no passo 6 use um CPF que já existe na homologação**, e o caso inteiro é só de leitura.
+
 ### Caso C. A conversa parada no meio
 
-Repita o caso A, mas **pare por 10 a 15 minutos** depois de informar o CPF e só então continue.
+Repita o caso A, mas **pare por 10 a 15 minutos** depois de informar o CPF e só então continue. **Enquanto o Verde do release não estiver confirmado, use a versão de leitura do caso A** (CPF que já existe, e Não na confirmação).
 
 **Esperado:** a Maria retoma do ponto exato em que parou, sem repetir perguntas.
 
