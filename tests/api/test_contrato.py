@@ -26,6 +26,7 @@ import httpx
 import pytest
 
 from maria.app import criar_app
+from tests.api.sem_campos_posteriores import sem_campos_posteriores
 
 RAIZ = Path("tests/fixtures/contrato")
 CHAVE = "chave-de-captura"
@@ -146,7 +147,7 @@ async def test_fixtures_byte_a_byte(
             obtido.pop("message"), esperado_corpo.pop("message")
             if list(obtido.items()) != list(esperado_corpo.items()):
                 falhas.append(f"{f['nome']}: corpo {r.text} != {esperado['corpoBruto']}")
-        elif r.text != esperado["corpoBruto"]:
+        elif sem_campos_posteriores(r.text) != esperado["corpoBruto"]:
             falhas.append(f"{f['nome']}:\n    obtido:   {r.text}\n    esperado: {esperado['corpoBruto']}")
 
         linhas = [json.loads(x) for x in capsys.readouterr().out.splitlines() if x.strip().startswith("{")]

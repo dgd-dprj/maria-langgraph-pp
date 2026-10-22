@@ -30,6 +30,10 @@ TOKENS_GASTOS: Schema = {
 # concluído" leva o atendimento inteiro junto do `erro`.
 ERRO_ATENDIMENTOS: Schema = {"type": "object", "properties": {"erro": {"type": "string"}}, "additionalProperties": True}
 
+# #288: aditivo, só em atendimento encerrado e só quando o fluxo tem destino definido. `status` e
+# `motivoHandoff` não mudam. A posição (logo depois de `status`) é a ordem de serialização.
+DESTINO: Schema = {"type": "string", "enum": ["atendimento_humano", "agendamento", "sessao_expirada"]}
+
 # rotas/atendimentos.ts:146-181
 RESPOSTA_ATENDIMENTO: Schema = {
     "type": "object",
@@ -38,6 +42,7 @@ RESPOSTA_ATENDIMENTO: Schema = {
         "tipoResposta": {"type": "string", "enum": ["texto", "sim_nao", "opcoes"]},
         "opcoes": {"type": "array", "items": {"type": "string"}},
         "status": {"type": "string", "enum": ["em_andamento", "concluido", "handoff_humano", "expirado"]},
+        "destino": DESTINO,
         "flowId": {"type": "string", "format": "uuid"},
         "metadados": {"type": "object", "additionalProperties": True},
         "dadosColetados": {"type": "object", "properties": {"cpf": {"type": "string"}}},
@@ -84,6 +89,7 @@ RESPOSTA_ORQUESTRADOR: Schema = {
         "status": {"type": "string", "enum": ["em_andamento", "concluido", "handoff_humano", "redirecionado"]},
         "tipoCaso": {"type": "string", "enum": [t.tipo_caso for t in TIPOS_TYKHE]},
         "motivoHandoff": {"type": "string", "enum": ["nao_identificado"]},
+        "destino": DESTINO,
         "metadados": {"type": "object", "additionalProperties": True},
         "dadosColetados": {"type": "object", "additionalProperties": True},
         "tokensGastos": TOKENS_GASTOS,

@@ -28,6 +28,7 @@ import pytest
 
 from maria.api.webhook_whatsapp import limpar_conversas_ativas_de_teste
 from maria.app import criar_app
+from tests.api.sem_campos_posteriores import sem_campos_posteriores
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr2")
 CENARIOS: list[dict[str, Any]] = json.loads((RAIZ / "cenarios.json").read_text(encoding="utf-8"))
@@ -140,7 +141,7 @@ async def test_313_cenarios_iguais_a_develop(monkeypatch: pytest.MonkeyPatch) ->
                 obtido.pop("message"), esperado.pop("message")  # #210
                 if list(obtido.items()) != list(esperado.items()):
                     falhas.append(f"{c['nome']}: corpo {r['corpo']} != {esperado_corpo}")
-            elif _CHAT_WPP.sub(r"\1<T>", r["corpo"]) != _CHAT_WPP.sub(r"\1<T>", esperado_corpo):
+            elif _CHAT_WPP.sub(r"\1<T>", sem_campos_posteriores(r["corpo"])) != _CHAT_WPP.sub(r"\1<T>", esperado_corpo):
                 falhas.append(f"{c['nome']}:\n    obtido:   {r['corpo'][:300]}\n    esperado: {esperado_corpo[:300]}")
     limpar_conversas_ativas_de_teste()
     assert not falhas, "\n".join(falhas)

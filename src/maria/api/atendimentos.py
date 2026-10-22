@@ -62,7 +62,10 @@ def _arredondar_js(valor: float) -> int:
 
 
 def destino_do_log(fluxo_id: str, status_final: Any) -> str | None:
-    """Issue #92: `destino` só no log interno; "concluido" no log cobre handoff também."""
+    """Para onde o atendimento encerrado vai (#92: log e tabela `atendimentos`; #288: também a resposta).
+
+    "concluido" cobre handoff também: `handoff_humano` e `expirado` valem para qualquer fluxo, e o fluxo de
+    violência doméstica concluído vai para o agendamento. Os demais fluxos concluídos não têm destino."""
     if status_final == "handoff_humano":
         return "atendimento_humano"
     if status_final == "expirado":
@@ -110,17 +113,26 @@ def montar_resposta_atendimento(
         }
     status = _js.coalesce(valores.get("statusFinal"), "concluido")
     padrao = fluxo.mensagem_concluido if status == "concluido" else fluxo.mensagem_handoff
-    return {
+    corpo: dict[str, Any] = {
         "resposta": _js.coalesce(valores.get("mensagemFinal"), padrao),
         "tipoResposta": "texto",
         "status": status,
-        "flowId": fluxo_id,
-        "metadados": metadados,
-        "dadosColetados": dados_coletados,
-        # {0,0,0}, e não ausente, quando nenhuma chamada de IA rodou (#35, #69, #92).
-        "tokensGastos": _js.coalesce(valores.get("tokensGastos"), {"input": 0, "output": 0, "total": 0}),
-        "_links": montar_links(chat_id, status),
     }
+    # #288: para onde a pessoa vai. Sem destino definido (hoje, pessoa presa concluída), o campo não sai.
+    destino = destino_do_log(fluxo_id, status)
+    if destino is not None:
+        corpo["destino"] = destino
+    corpo.update(
+        {
+            "flowId": fluxo_id,
+            "metadados": metadados,
+            "dadosColetados": dados_coletados,
+            # {0,0,0}, e não ausente, quando nenhuma chamada de IA rodou (#35, #69, #92).
+            "tokensGastos": _js.coalesce(valores.get("tokensGastos"), {"input": 0, "output": 0, "total": 0}),
+            "_links": montar_links(chat_id, status),
+        }
+    )
+    return corpo
 
 
 async def criar_atendimento(
