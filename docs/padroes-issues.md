@@ -4,6 +4,12 @@ Toda issue: clara, acionável, testável, com contexto suficiente para ser enten
 
 **Rastreio com o Coilab**: issue derivada de um card do Coilab recebe a label `#<numero-do-card>` (ex: `#20260106`; cor `7c3aed`, descrição = nome do card — criar a label se não existir) e cita o card no corpo. Issues sem card não levam label de card.
 
+## Antes de abrir
+
+- **Procurar duplicata**, abertas e fechadas: `gh issue list --state all --search "<termos>"`. Se já existe issue do mesmo assunto, **comente nela ou amplie o escopo dela** (comentário datado, e a marca "**Ampliada em AAAA-MM-DD:** …" no topo do corpo), em vez de abrir outra. Duas issues do mesmo assunto dividem a discussão e uma delas fica para trás. Se uma duplicata for aberta por engano, feche a mais nova com um comentário apontando a original.
+- **Conferir o que vai ser afirmado.** Cada `arquivo:linha` citado é aberto e conferido antes de publicar, no commit citado. Uma linha errada derruba a confiança na issue inteira.
+- **Escopo de uma issue = um assunto.** Se o levantamento achar outro problema, ele vira outra issue, com referência cruzada.
+
 ## Título
 
 ```
@@ -57,9 +63,24 @@ Cenário: <nome>
 Obrigatório em `[BUG]` e em qualquer issue que afirme algo sobre o comportamento atual (prática adotada nas issues de defeito da migração, #217/#220/#222):
 
 - **Toda afirmação diz de onde vem**: `arquivo:linha` em `develop` (com o commit, ex.: `develop @ 4e695f2`), execução feita (o quê, versão, data) ou documentação (link). O que não foi verificado aparece marcado como **não verificado**.
+- **Cada afirmação leva uma marca** do tipo de evidência, e a marca vale por linha, não pela issue inteira:
+  - **lido**: conferido no código ou na documentação, sem executar;
+  - **executado**: rodado de fato. Diga o quê (teste, script, chamada à API), em qual ambiente e versão, e quando;
+  - **relato**: informado por alguém. Diga quem;
+  - **não verificado**: suposição ou o que ainda falta confirmar.
+
+  Uma tabela "O quê | Onde | Evidência" deixa isso fácil de ler. "Lido" e "executado" não são a mesma coisa: código que parece certo pode não rodar como parece.
+- **Comportamento herdado × regressão**: quando o defeito existia antes da mudança que o revelou, diga isso e mostre o controle (o mesmo cenário na versão anterior). Herdado e regressão pedem prioridades diferentes.
 - **Consulta de log vem com conferência manual**: um controle que prova que a consulta encontra o que procura (ex.: o mesmo filtro sem a condição rara, ou a existência do evento no período). Sem isso, zero por ausência do caso e zero por consulta errada são indistinguíveis.
 - **Correção de issue já publicada**: comentário datado explicando a mudança e, no corpo, a marca "**Corrigido em AAAA-MM-DD:** …". O texto antigo não some sem explicação.
 - **Nenhum dado pessoal**: só contagens e conclusões, nunca o conteúdo encontrado (CPF, RG, nome, telefone, relato, `chatId` de WhatsApp — que carrega o número).
+
+## Depois de abrir, mudar ou fechar
+
+- **Catálogo de issues no mesmo passo.** Toda issue nova, mudança de estado ou mudança de escopo entra em `docs/migracao/INDICE-ISSUES.md` (número, tipo, módulo, estado e resumo de uma linha), e no catálogo publicado como comentário na #208. Sem isso, o catálogo deixa de ser confiável e ninguém sabe o que está aberto.
+- **Ligar as issues relacionadas nos dois sentidos.** Citar a relacionada no corpo não basta: comente também nela, para quem chegar por lá encontrar esta.
+- **Escopo ampliado:** comentário datado e a marca "**Ampliada em AAAA-MM-DD:** …" no topo do corpo, com o texto original mantido abaixo.
+- **Ao fechar:** um comentário com o que resolveu (PR ou commit) ou com o motivo (duplicada, decidido não fazer), e o estado atualizado no catálogo.
 
 ## Regras para o assistente de IA
 
@@ -70,4 +91,4 @@ Obrigatório em `[BUG]` e em qualquer issue que afirme algo sobre o comportament
 
 ## Checklist antes de criar/aprovar
 
-Objetivo de negócio claro · problema declarado · escopo definido · critérios de aceitação · BDD quando aplicável · dependências documentadas · fora de escopo documentado · issue independente · testável · pronta para implementação.
+Sem duplicata (busca feita) · objetivo de negócio claro · problema declarado · cada afirmação com fonte e marca (lido, executado, relato, não verificado) · linhas citadas conferidas · escopo definido · critérios de aceitação · BDD quando aplicável · dependências documentadas · fora de escopo documentado · issue independente · testável · pronta para implementação · **depois de publicar:** catálogo atualizado e issues relacionadas comentadas.
