@@ -115,6 +115,14 @@ async def _asgi(app: Any, c: dict[str, Any]) -> dict[str, Any]:
     }
 
 
+_DESTINO = re.compile(r',"destino":"[a-z_]+"')
+
+
+def _sem_destino(corpo: str) -> str:
+    """Divergência aceita (#288): develop não tem o campo `destino`; fora dele o corpo é igual byte a byte."""
+    return _DESTINO.sub("", corpo)
+
+
 async def test_313_cenarios_iguais_a_develop(monkeypatch: pytest.MonkeyPatch) -> None:
     for variavel in _VARIAVEIS:
         monkeypatch.delenv(variavel, raising=False)
@@ -140,7 +148,7 @@ async def test_313_cenarios_iguais_a_develop(monkeypatch: pytest.MonkeyPatch) ->
                 obtido.pop("message"), esperado.pop("message")  # #210
                 if list(obtido.items()) != list(esperado.items()):
                     falhas.append(f"{c['nome']}: corpo {r['corpo']} != {esperado_corpo}")
-            elif _CHAT_WPP.sub(r"\1<T>", r["corpo"]) != _CHAT_WPP.sub(r"\1<T>", esperado_corpo):
+            elif _CHAT_WPP.sub(r"\1<T>", _sem_destino(r["corpo"])) != _CHAT_WPP.sub(r"\1<T>", esperado_corpo):
                 falhas.append(f"{c['nome']}:\n    obtido:   {r['corpo'][:300]}\n    esperado: {esperado_corpo[:300]}")
     limpar_conversas_ativas_de_teste()
     assert not falhas, "\n".join(falhas)
