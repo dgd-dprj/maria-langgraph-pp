@@ -4,6 +4,12 @@ Toda issue: clara, acionável, testável, com contexto suficiente para ser enten
 
 **Rastreio com o Coilab**: issue derivada de um card do Coilab recebe a label `#<numero-do-card>` (ex: `#20260106`; cor `7c3aed`, descrição = nome do card — criar a label se não existir) e cita o card no corpo. Issues sem card não levam label de card.
 
+## Antes de abrir: procurar
+
+- **Procure issue aberta sobre o mesmo assunto:** `gh issue list --state open --search "<palavras do assunto>"`. Se houver, acrescente nela, com um comentário, em vez de abrir outra.
+- **Achou duplicata depois de abrir:** feche a que foi aberta **por último**, pelo horário de criação do GitHub (`gh issue view <n> --json createdAt`), citando a outra e um motivo que dê para conferir.
+- **Por quê:** em 2026-10-22, as #292 e #293 foram abertas com 18 segundos de diferença, e a #292 foi fechada dizendo que a #293 tinha sido aberta "minutos antes", quando foi depois. Registro em `MIGRACAO.md`, "Aviso de processo". Para quem começa a trabalhar numa issue, a regra equivalente está em [`padroes-branch.md`](padroes-branch.md), "Antes de criar a branch".
+
 ## Título
 
 ```

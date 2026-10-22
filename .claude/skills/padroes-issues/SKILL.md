@@ -9,6 +9,11 @@ A versão completa está em [`docs/padroes-issues.md`](../../../docs/padroes-iss
 
 Toda issue: clara, acionável, testável, com contexto suficiente pra ser entendida sem esclarecimentos adicionais. Idioma: pt-BR.
 
+## Antes de abrir: procurar (obrigatório)
+
+- **Procure issue aberta sobre o mesmo assunto:** `gh issue list --state open --search "<palavras do assunto>"`. Se houver, acrescente nela (comentário) em vez de abrir outra.
+- **Achou duplicata depois de abrir:** feche a que foi aberta **por último**, pelo horário de criação do GitHub (`gh issue view <n> --json createdAt`), citando a outra e um motivo que dê para conferir. Não escreva o motivo de memória: em 2026-10-22, a #292 foi fechada dizendo que a #293 era "minutos antes", e ela era 18 segundos depois.
+
 ## Título
 
 ```
