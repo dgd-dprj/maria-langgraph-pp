@@ -13,7 +13,8 @@ A Tykhe é o único consumidor esperado desta API — chamada servidor-a-servido
 | Rota | Quando usar |
 |---|---|
 | `POST /atendimentos` | Cria um atendimento novo — `chatId` (atribuído pela Tykhe) + `flowId` obrigatórios. `dadosConhecidos` (opcional) pré-preenche campos que a Tykhe já sabe (ex: `cpf`), pra não perguntar de novo. |
-| `GET /atendimentos/:chatId` | Consulta o estado atual, sem avançar nada. |
+| `POST /atendimentos/orquestrador` | Cria o atendimento a partir de um relato livre e escolhe o fluxo sozinho. 1ª chamada com `mensagem`; continuação da desambiguação com `resposta` (ver "Como distinguir os desfechos do orquestrador"). |
+| `GET /atendimentos/:chatId` | Consulta o estado atual, sem avançar nada. `chatId` vai no caminho. |
 | `POST /atendimentos/respostas` | Envia uma resposta, avança o fluxo pra próxima pergunta (ou conclui). `chatId` no corpo (não na URL) — o servidor resolve o `flowId` sozinho a partir do `chatId`. |
 
 **Idempotência**: `POST /atendimentos` 2x no mesmo `chatId` nunca reinicia o fluxo — devolve o estado atual (é assim que a Tykhe pode reenviar/reconectar sem medo de apagar o progresso da conversa).
@@ -58,6 +59,25 @@ A Tykhe é o único consumidor esperado desta API — chamada servidor-a-servido
 | Fluxo da Maria identificado | `em_andamento` | **com `flowId`**; `_links.responder.href` = `/atendimentos/respostas` | mostrar `resposta` (a 1ª pergunta do fluxo); as respostas seguintes vão para `POST /atendimentos/respostas` |
 
 Raro: `status: "handoff_humano"` com `motivoHandoff: "nao_identificado"`, só numa inconsistência interna do catálogo.
+
+### Campos do corpo das requisições
+
+Mesma informação do `GET /docs`. "Obrigatório" vale para a Tykhe; a API responde 400 sem o campo.
+
+| Rota | Campo | Obrigatório | Descrição |
+|---|---|---|---|
+| `POST /atendimentos/orquestrador` | `chatId` | sim (dispensado só com `APP_ENV=test`) | Mesmo valor em todas as rodadas |
+| | `mensagem` | um dos dois | Relato livre, na 1ª chamada |
+| | `resposta` | um dos dois | Resposta à desambiguação; não pode ser vazia |
+| | `dadosConhecidos` | não | Objeto com o que a Tykhe já sabe (hoje só `cpf`); repassado ao fluxo identificado |
+| `POST /atendimentos` | `flowId` | sim | Id do fluxo (`GET /fluxos`) |
+| | `chatId` | sim (dispensado só com `APP_ENV=test`) | |
+| | `dadosConhecidos` | não | Igual ao do orquestrador |
+| `POST /atendimentos/respostas` | `chatId` | sim | O servidor resolve o fluxo a partir dele |
+| | `resposta` | sim | `"true"`/`"false"` para `sim_nao`; texto livre nas demais |
+| `GET /atendimentos/:chatId` | `chatId` (caminho) | sim | Até 100 caracteres; acima, 414 |
+
+`dadosColetados` é só de saída: traz o `cpf` quando existe, apenas na resposta do fluxo da Maria identificado (nunca no `redirecionado` nem na desambiguação). Rotas protegidas respondem 401 (`{"error": "missing authorization header"}` ou `"invalid authorization header"`) sem o Bearer correto.
 
 ### `chatId`
 
