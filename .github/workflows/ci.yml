@@ -4,11 +4,12 @@ name: CI
 # merge. Cada deploy (deploy-release.yml / deploy-prod.yml) roda os mesmos
 # checks de novo depois do merge, como segunda camada de defesa.
 # Os gatilhos de develop e main voltaram no corte da migração (#268). `migration`
-# continua na lista só enquanto o corte não termina, para o PR do corte rodar CI;
-# sai depois do merge da migration em develop.
+# saiu da lista depois do merge da migration em develop (PR #267, 2026-10-21).
+# `test` e `imagem` são checks obrigatórios nos rulesets de develop e main (#214):
+# renomear um desses jobs bloqueia todo merge até o ruleset ser atualizado.
 on:
   pull_request:
-    branches: [develop, main, migration]
+    branches: [develop, main]
 
 jobs:
   test:
