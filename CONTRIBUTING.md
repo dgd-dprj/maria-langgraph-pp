@@ -24,6 +24,12 @@ Setup local, variáveis de ambiente e estrutura de pastas: ver [`README.md`](REA
 
 Ninguém contorna as regras, nem quem é admin. Numa emergência, um admin desativa o ruleset nas configurações do repositório, e isso fica registrado.
 
+> **Não "corrija" estas duas configurações sem combinar com o Ícaro.** As duas existem pelo mesmo motivo: as sessões do Claude do Ícaro reaproveitam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291, #295).
+> - **`develop` aceita merge commit, e não só squash.** Com squash obrigatório, o PR seguinte dessa branch traria de novo commits já mergeados e entraria em conflito.
+> - **A exclusão automática da branch depois do merge está desligada.** Ligada, ela apagaria a branch reaproveitada a cada merge.
+>
+> As duas voltam à mesa quando cada PR tiver a própria branch. Registro em `MIGRACAO.md`, seção "Branches, ambientes e proteção".
+
 ## Antes de codar
 
 1. Confirme que existe uma issue pro trabalho (crie uma se não existir — padrão em [`docs/padroes-issues.md`](docs/padroes-issues.md)).
