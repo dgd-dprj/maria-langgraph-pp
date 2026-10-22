@@ -691,6 +691,15 @@ O fluxo "Orquestrador" da Tykhe chama `https://d2urkrsd5u4rck.cloudfront.net`. *
 
 ### A janela
 
+> **Registrado em 2026-10-22 (#286): hoje, nenhum dos dois ambientes atende cidadão.** O Ícaro confirmou que o `api` recebe só testes: as 1.883 conversas e os 4 encaminhamentos de violência doméstica dos 30 dias anteriores (contagens do CloudWatch) são de teste, e não envolvem pessoas reais. O release é o ambiente de teste da equipe. Os dois usam o Verde de homologação (verificado nos segredos em 2026-10-22, comparando só o host). *Fonte do uso do `api`: relato do Ícaro; não verificado de outra forma.*
+>
+> Isso muda a leitura do risco de três decisões, enquanto valer:
+> - **A janela do deploy:** a janela anunciada protege quem está testando. Um deploy fora dela interrompe um teste, e não um atendimento.
+> - **As conversas perdidas na troca** (item 3 abaixo e decisão em aberto 3): quem recomeça a conversa é alguém da equipe, e não uma pessoa no meio de um relato de violência ou da busca por um familiar preso.
+> - **O token do Verde vencido no release** (decisão em aberto 4): bloqueia o teste dos fluxos na primeira consulta ao Verde, mas não deixa ninguém sem atendimento. Continua sendo pré-requisito do teste.
+>
+> **Quando algum dos ambientes passar a atender cidadão, as três voltam ao peso original.** O texto abaixo foi escrito antes desta informação e fica como estava.
+
 1. Merge da `migration` em `develop` numa janela anunciada, fora do horário de teste.
 2. Nada de teste na Tykhe durante o deploy do release.
 3. **Conversas em andamento se perdem na troca.** O checkpoint do Python fica no schema `checkpoint_py`, porque as duas serializações são incompatíveis. Quem estiver no meio de um atendimento ou de uma desambiguação recomeça a conversa. O destino das threads em andamento é a decisão em aberto 3.

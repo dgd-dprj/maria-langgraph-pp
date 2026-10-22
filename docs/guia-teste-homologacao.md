@@ -1,5 +1,13 @@
 # Guia de teste em homologação: a Maria em Python no release
 
+> **O release usa o Verde de homologação** (verificado em 2026-10-22, #286). As gravações do teste ficam na homologação, e isso está autorizado. Use só dados inventados ou os de teste da homologação.
+>
+> **Onde a Maria grava no Verde**, para saber o que cada caso deixa registrado:
+> - **o cadastro de pessoa:** quando o CPF não é encontrado 3 vezes, a Maria pede nome, data de nascimento e endereço. **O registro é criado logo depois do último dado de endereço;**
+> - **o encaminhamento de violência doméstica:** **o registro é criado logo depois do "Sim" em "Confirma que seus dados são…?"**.
+>
+> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**.
+
 Este guia é para a equipe que vai testar a Maria no ambiente de homologação (o release), depois da troca da versão TypeScript pela versão em Python (2026-10-21, #268).
 
 **Há dois canais, e eles são integrações separadas:**
@@ -50,6 +58,8 @@ Confirme com a Nicole que estes pré-requisitos estão feitos:
   - se houver, um número de processo de origem SEEU, e um CPF já cadastrado;
   - CPFs inventados, com dígito verificador válido, para o caminho de cadastro.
 
+- [x] **Confirmado qual Verde o release usa:** o de homologação (verificado em 2026-10-22, #286).
+
 **Use só dados de teste.** O Verde de homologação tem pessoas cadastradas para teste, e nunca uma pessoa real. Os cadastros e encaminhamentos feitos no teste ficam gravados na homologação, e isso está autorizado.
 
 ## 3. Os casos
@@ -69,6 +79,8 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 
 Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro.
 
+> **Este caso grava duas vezes na homologação:** o cadastro no passo 5 (com CPF inventado) e o encaminhamento no passo 6.
+
 ### Caso B. Pessoa presa, até o desfecho
 
 1. Relato livre sobre um familiar preso (inventado).
@@ -81,6 +93,8 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 **Esperado:**
 - sem número de processo: "Já confirmei os dados da pessoa presa, mas como você não tem o número do processo, vou encaminhar seu atendimento pra equipe localizar isso e dar continuidade.";
 - com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui."
+
+> **Este caso só grava se cair no cadastro** (passo 6 com um CPF que não existe). Pessoa presa não cria encaminhamento no Verde.
 
 ### Caso C. A conversa parada no meio
 
