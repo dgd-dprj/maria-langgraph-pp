@@ -35,9 +35,15 @@ def test_yaml_valido(nome: str) -> None:
 
 
 def test_ci_dispara_em_pr_para_develop_e_main() -> None:
-    # Os gatilhos de antes da migração voltaram no corte (#268); `migration` fica
-    # enquanto o corte não termina, para o PR do corte rodar CI.
-    assert _gatilhos(_carregar("ci.yml")) == {"pull_request": {"branches": ["develop", "main", "migration"]}}
+    # Os gatilhos de antes da migração voltaram no corte (#268); `migration` saiu
+    # depois do merge da migration em develop (PR #267).
+    assert _gatilhos(_carregar("ci.yml")) == {"pull_request": {"branches": ["develop", "main"]}}
+
+
+def test_ci_mantem_os_jobs_que_os_rulesets_exigem() -> None:
+    # `test` e `imagem` são checks obrigatórios nos rulesets de develop e main (#214).
+    # Um job renomeado deixa o check obrigatório pendente para sempre, e nenhum PR entra.
+    assert {"test", "imagem"} <= set(_carregar("ci.yml")["jobs"])
 
 
 def test_ci_roda_as_duas_suites_e_postgres_16_provisorio() -> None:
