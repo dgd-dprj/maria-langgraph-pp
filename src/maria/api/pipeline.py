@@ -133,6 +133,8 @@ class Rota:
     respostas: dict[int, Schema] = field(default_factory=dict)
     # Metadados para o /docs (OpenAPI).
     resumo: str = ""
+    # Texto longo da operação no /docs (opcional).
+    descricao: str = ""
     tags: tuple[str, ...] = ()
 
 

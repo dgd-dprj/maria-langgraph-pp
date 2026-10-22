@@ -195,6 +195,17 @@ ROTAS: tuple[Rota, ...] = (
             "Cria um atendimento identificando o fluxo automaticamente a partir de um relato livre "
             "(com possíveis perguntas de desambiguação antes)"
         ),
+        descricao=(
+            "1ª chamada: `chatId` + `mensagem` (o relato). Chamadas seguintes, enquanto houver pergunta de desambiguação: "
+            "`chatId` + `resposta`. `dadosConhecidos` é opcional.\n\n"
+            "O HTTP é 200 em todos os desfechos; o corpo diz qual foi:\n"
+            "- **Fluxo da Maria identificado:** `status` = `em_andamento`, com `flowId`. "
+            "As respostas seguintes vão para `POST /atendimentos/respostas`.\n"
+            "- **Pergunta de desambiguação:** `status` = `em_andamento`, sem `flowId`, `tipoResposta` = `texto`. "
+            "A resposta volta nesta mesma rota, em `resposta`.\n"
+            "- **Redirecionado à Tykhe:** `status` = `redirecionado`, com `tipoCaso` (e só nele); sem `flowId`. "
+            "Relato não identificado também cai aqui, com `tipoCaso` = `outros`."
+        ),
         tags=("atendimentos",),
     ),
 )

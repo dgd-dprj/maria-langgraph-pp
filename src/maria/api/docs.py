@@ -25,12 +25,48 @@ DESCRICAO = (
 )
 
 
+# Parâmetros de caminho (`:nome` no caminho da rota) e o que o /docs mostra de cada um.
+PARAMETROS_CAMINHO: dict[str, str] = {
+    "chatId": (
+        "Identificador da conversa, o mesmo `chatId` usado ao criar o atendimento. "
+        "Até 100 caracteres (acima disso a resposta é 414), sem `/`, `?`, `#` nem espaço."
+    ),
+}
+
+
+def _caminho_openapi(caminho: str) -> tuple[str, list[dict[str, Any]]]:
+    """`/atendimentos/:chatId` vira `/atendimentos/{chatId}`, mais a lista de `parameters` da operação."""
+    segmentos: list[str] = []
+    parametros: list[dict[str, Any]] = []
+    for segmento in caminho.split("/"):
+        if segmento.startswith(":"):
+            nome = segmento[1:]
+            segmentos.append("{" + nome + "}")
+            parametros.append(
+                {
+                    "name": nome,
+                    "in": "path",
+                    "required": True,
+                    "description": PARAMETROS_CAMINHO.get(nome, ""),
+                    "schema": {"type": "string", "maxLength": 100},
+                }
+            )
+        else:
+            segmentos.append(segmento)
+    return "/".join(segmentos), parametros
+
+
 def montar_openapi(rotas: Iterable[Rota]) -> dict[str, Any]:
     caminhos: dict[str, Any] = {}
     for rota in rotas:
         if not rota.tags:  # /health fica fora, como o `hide: true` de develop
             continue
+        caminho, parametros = _caminho_openapi(rota.caminho)
         operacao: dict[str, Any] = {"tags": list(rota.tags), "summary": rota.resumo}
+        if rota.descricao:
+            operacao["description"] = rota.descricao
+        if parametros:
+            operacao["parameters"] = parametros
         if rota.protegida:
             operacao["security"] = [{"bearerAuth": []}]
         if rota.corpo is not None:
@@ -39,7 +75,7 @@ def montar_openapi(rotas: Iterable[Rota]) -> dict[str, Any]:
             str(status): {"description": "Default Response", "content": {"application/json": {"schema": schema}}}
             for status, schema in rota.respostas.items()
         }
-        caminhos.setdefault(rota.caminho, {})[rota.metodo.lower()] = operacao
+        caminhos.setdefault(caminho, {})[rota.metodo.lower()] = operacao
     return {
         "openapi": "3.0.3",
         "info": {"title": "Maria — API (LangGraph nativo)", "description": DESCRICAO, "version": "0.2.0"},

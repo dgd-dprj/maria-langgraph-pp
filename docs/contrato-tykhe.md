@@ -15,6 +15,47 @@ A Tykhe é o único consumidor esperado desta API — chamada servidor-a-servido
 | `POST /atendimentos` | Cria um atendimento novo — `chatId` (atribuído pela Tykhe) + `flowId` obrigatórios. `dadosConhecidos` (opcional) pré-preenche campos que a Tykhe já sabe (ex: `cpf`), pra não perguntar de novo. |
 | `GET /atendimentos/:chatId` | Consulta o estado atual, sem avançar nada. |
 | `POST /atendimentos/respostas` | Envia uma resposta, avança o fluxo pra próxima pergunta (ou conclui). `chatId` no corpo (não na URL) — o servidor resolve o `flowId` sozinho a partir do `chatId`. |
+| `POST /atendimentos/orquestrador` | Quando a Tykhe não sabe o `flowId`: manda o relato livre (`mensagem`) e a Maria identifica o fluxo e cria o atendimento, redireciona para um tipo que a Tykhe atende, ou faz perguntas de desambiguação (a pessoa responde na mesma rota, em `resposta`). Ver "Como distinguir os desfechos do orquestrador". |
+
+## Campos das requisições
+
+Obrigatório = sem ele a API responde 400. O formato do `chatId` está na seção `chatId`, mais abaixo.
+
+### `POST /atendimentos`
+
+| Campo | Obrigatório | Descrição |
+|---|---|---|
+| `chatId` | sim | Identificador da conversa, atribuído pela Tykhe. |
+| `flowId` | sim | uuid do fluxo (ver `GET /fluxos`). Fluxo inexistente dá 404. |
+| `dadosConhecidos` | não | Objeto com o que a Tykhe já sabe (ex: `cpf`), pra não perguntar de novo. |
+
+### `POST /atendimentos/orquestrador`
+
+| Campo | Obrigatório | Descrição |
+|---|---|---|
+| `chatId` | sim | O mesmo `chatId` em todas as rodadas da conversa. |
+| `mensagem` | na 1ª chamada | Relato livre da pessoa. |
+| `resposta` | nas chamadas seguintes | Resposta à pergunta de desambiguação, no lugar de `mensagem`. Texto não vazio: vazio dá 400. |
+| `dadosConhecidos` | não | Como no `POST /atendimentos`. Só vale se o relato levar a um fluxo da Maria (vai para o atendimento criado); nos redirecionamentos e na desambiguação não tem efeito. |
+
+Sem `mensagem` e sem `resposta`, a API responde 400.
+
+### `GET /atendimentos/:chatId`
+
+| Parâmetro | Onde | Obrigatório | Descrição |
+|---|---|---|---|
+| `chatId` | caminho | sim | O `chatId` do atendimento. Sem corpo. Atendimento inexistente dá 404. |
+
+### `POST /atendimentos/respostas`
+
+| Campo | Obrigatório | Descrição |
+|---|---|---|
+| `chatId` | sim | O `chatId` do atendimento. |
+| `resposta` | sim | `"true"`/`"false"` pra `sim_nao`, texto livre pras demais. |
+
+### `dadosConhecidos` (requisição) e `dadosColetados` (resposta)
+
+`dadosConhecidos` é o que a Tykhe **manda**; `dadosColetados` é o que a Maria **devolve**. O `dadosColetados` só vem na resposta de um fluxo da Maria identificado, e pode vir vazio (`{}`); não vem nos redirecionamentos nem nas perguntas de desambiguação do orquestrador.
 
 **Idempotência**: `POST /atendimentos` 2x no mesmo `chatId` nunca reinicia o fluxo — devolve o estado atual (é assim que a Tykhe pode reenviar/reconectar sem medo de apagar o progresso da conversa).
 
