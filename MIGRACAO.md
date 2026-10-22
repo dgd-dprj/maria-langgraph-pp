@@ -814,6 +814,7 @@ Duas coisas diferentes:
   3. **editar o comentário do índice**, com `gh api -X PATCH repos/dgd-dprj/maria-langgraph-pp/issues/comments/6222948856 -F body=@<arquivo>`;
   4. atualizar as cópias.
 - **Por quê:** "fechada" no GitHub não quer dizer correção na `migration`. **Um índice desatualizado é pior que nenhum.**
+- **Issue de trabalho feito fecha sem esperar `main` (decidido em 2026-10-22, Nicole):** se o código está em `develop` e roda no release, a issue fecha; a ida para `main` é acompanhada na #268. Aplicado à #217, à #225 e à #227. A pergunta aberta da #225 (o `category` da Tykhe) foi antes para a #305. A #23 fica aberta, ligada à #249.
 
 ## Pendências operacionais
 
