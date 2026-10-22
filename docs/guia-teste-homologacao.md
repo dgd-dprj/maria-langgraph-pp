@@ -174,6 +174,16 @@ Para cada caso, registre:
 
 Não precisa copiar o CPF, o RG nem o nome que aparecer. O horário e o passo bastam para achar a conversa nos logs.
 
+### Os relatos que você escreveu
+
+Em todo caso que começa com um relato livre (A, B, C e os de controle), anote também:
+
+- **o relato**, exatamente como você escreveu. Sempre inventado: nunca use a história de uma pessoa real;
+- **para onde a Maria mandou:** o fluxo (violência doméstica ou pessoa presa), o encaminhamento à Tykhe com o assunto (por exemplo, "abertura de um novo caso"), ou a pergunta de esclarecimento e para onde a conversa foi depois dela;
+- **"discordo"**, quando achar que a Maria mandou para o lugar errado, e para onde deveria ter ido.
+
+Não precisa escrever relatos a mais: basta anotar os que você já escreveu para os casos. Essas anotações viram a base de relatos rotulados que a **#256** usa para medir se a Maria classifica certo. A base é montada a partir das suas anotações, e não dos logs.
+
 **Os testes entram no painel do Grafana** do release como atendimentos normais. Informe as datas e horários do teste a quem acompanha o painel.
 
 ## 7. Para quem dá suporte ao teste
