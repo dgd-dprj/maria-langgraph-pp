@@ -16,6 +16,14 @@ from fastapi import FastAPI
 from fastapi.openapi.docs import get_swagger_ui_html
 from fastapi.responses import HTMLResponse, JSONResponse
 
+from maria.api.docs_campos import (
+    DESCRICOES_ROTA,
+    ERRO_401,
+    caminho_openapi,
+    documentar_corpo,
+    documentar_resposta,
+    parametros_caminho,
+)
 from maria.api.pipeline import Rota
 
 DESCRICAO = (
@@ -31,15 +39,24 @@ def montar_openapi(rotas: Iterable[Rota]) -> dict[str, Any]:
         if not rota.tags:  # /health fica fora, como o `hide: true` de develop
             continue
         operacao: dict[str, Any] = {"tags": list(rota.tags), "summary": rota.resumo}
+        if (rota.metodo, rota.caminho) in DESCRICOES_ROTA:
+            operacao["description"] = DESCRICOES_ROTA[(rota.metodo, rota.caminho)]
+        parametros = parametros_caminho(rota.caminho)
+        if parametros:
+            operacao["parameters"] = parametros
         if rota.protegida:
             operacao["security"] = [{"bearerAuth": []}]
         if rota.corpo is not None:
-            operacao["requestBody"] = {"content": {"application/json": {"schema": rota.corpo}}}
-        operacao["responses"] = {
-            str(status): {"description": "Default Response", "content": {"application/json": {"schema": schema}}}
+            schema_corpo = documentar_corpo(rota.metodo, rota.caminho, rota.corpo)
+            operacao["requestBody"] = {"required": True, "content": {"application/json": {"schema": schema_corpo}}}
+        respostas = {
+            str(status): {"description": "Default Response", "content": {"application/json": {"schema": documentar_resposta(schema)}}}
             for status, schema in rota.respostas.items()
         }
-        caminhos.setdefault(rota.caminho, {})[rota.metodo.lower()] = operacao
+        if rota.protegida:
+            respostas.setdefault("401", {"description": "Unauthorized", "content": {"application/json": {"schema": ERRO_401}}})
+        operacao["responses"] = respostas
+        caminhos.setdefault(caminho_openapi(rota.caminho), {})[rota.metodo.lower()] = operacao
     return {
         "openapi": "3.0.3",
         "info": {"title": "Maria — API (LangGraph nativo)", "description": DESCRICAO, "version": "0.2.0"},
