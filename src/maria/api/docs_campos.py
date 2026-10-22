@@ -31,6 +31,12 @@ DESCRICOES_RESPOSTA: dict[str, Schema] = {
     "tipoCaso": {
         "description": ("Só vem com `status: redirecionado` (caso que a Tykhe atende). `outros` também cobre relato não identificado.")
     },
+    "destino": {
+        "description": (
+            "Só em atendimento encerrado: para onde a pessoa vai. `atendimento_humano` (acompanha `handoff_humano`), "
+            "`agendamento` (violência doméstica concluída) ou `sessao_expirada`. Ausente quando o fluxo concluído não tem destino definido."
+        )
+    },
     "flowId": {
         "description": "Id do fluxo da Maria identificado. Não vem na desambiguação nem no `redirecionado`.",
     },

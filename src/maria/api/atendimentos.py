@@ -62,7 +62,7 @@ def _arredondar_js(valor: float) -> int:
 
 
 def destino_do_log(fluxo_id: str, status_final: Any) -> str | None:
-    """Issue #92: `destino` só no log interno; "concluido" no log cobre handoff também."""
+    """Issue #92: o `destino` do desfecho. Issue #288: também vai na resposta de atendimento encerrado."""
     if status_final == "handoff_humano":
         return "atendimento_humano"
     if status_final == "expirado":
@@ -110,7 +110,7 @@ def montar_resposta_atendimento(
         }
     status = _js.coalesce(valores.get("statusFinal"), "concluido")
     padrao = fluxo.mensagem_concluido if status == "concluido" else fluxo.mensagem_handoff
-    return {
+    corpo: dict[str, Any] = {
         "resposta": _js.coalesce(valores.get("mensagemFinal"), padrao),
         "tipoResposta": "texto",
         "status": status,
@@ -121,6 +121,11 @@ def montar_resposta_atendimento(
         "tokensGastos": _js.coalesce(valores.get("tokensGastos"), {"input": 0, "output": 0, "total": 0}),
         "_links": montar_links(chat_id, status),
     }
+    # #288: o "para onde vai", o mesmo valor que já vai para o log e para a tabela `atendimentos`.
+    destino = destino_do_log(fluxo_id, status)
+    if destino is not None:
+        corpo["destino"] = destino
+    return corpo
 
 
 async def criar_atendimento(
