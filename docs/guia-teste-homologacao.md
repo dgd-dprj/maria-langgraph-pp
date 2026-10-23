@@ -40,6 +40,14 @@ Nada disso foi exercitado ainda **no release**:
 
 **Os dois fluxos estão conferidos no release só até a primeira pergunta:** violência doméstica até "Você é a vítima?", e pessoa presa até a entrada no fluxo. Tudo o que vem depois é o que este teste precisa cobrir.
 
+### O que o deploy confere sozinho (#298)
+
+Depois de cada deploy, o último passo do workflow (`deploy-release.yml`; `deploy-prod.yml` a partir do próximo release para `main`) lê o segredo do ambiente e chama `GET /autenticacao/token/status` no Verde, **só de leitura**. **O deploy termina com falha** se o Verde responder diferente de 200, ou disser que o token está `revogado` ou `expirado`. O log mostra o status HTTP, o `codigo` do Verde e os campos `expirado`, `revogado` e `expiraEm`, **nunca o token**. O código é o `scripts/conferir_token_verde.py`, o mesmo que o `verificar-token-verde.yml` usa para ler o status.
+
+**O que isso cobre:** o token do segredo do release ser aceito pelo Verde, que é a linha "O token do Verde" da tabela acima.
+
+**O que continua sendo teste humano:** a rede **do container** até o Verde (a consulta sai do runner do GitHub, não da Maria), o banco com a conversa no meio de um fluxo, e tudo o que a Tykhe faz com as respostas. Um deploy verde **não** prova que a Maria consegue consultar o Verde.
+
 ### Nunca conferido em lugar nenhum
 
 - **Pessoa presa até `concluido`.** Exige um número de processo de origem SEEU de teste no Verde de homologação. Os testes de 20/10 terminaram em encaminhamento para a equipe ("sem número do processo").

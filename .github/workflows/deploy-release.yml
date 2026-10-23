@@ -73,3 +73,17 @@ jobs:
             --cluster "$ECS_CLUSTER" \
             --services "$ECS_SERVICE" \
             --region "$AWS_REGION"
+
+      # Issue #298 — só leitura (GET token/status): o deploy pode deixar a Maria sem
+      # acesso ao Verde (token vencido ou revogado, segredo trocado errado) sem
+      # nenhum sinal. Nunca renova: a renovação é só do verificar-token-verde.yml.
+      - name: Conferir que o Verde aceita o token do ambiente
+        env:
+          AMBIENTE: release
+        run: |
+          SEGREDO="$RUNNER_TEMP/segredo-verde.json"
+          trap 'rm -f "$SEGREDO"' EXIT
+          aws secretsmanager get-secret-value \
+            --secret-id "maria-langgraph-pp-${AMBIENTE}/app" --region "$AWS_REGION" \
+            --query SecretString --output text > "$SEGREDO"
+          python3 scripts/conferir_token_verde.py --ambiente "$AMBIENTE" --segredo "$SEGREDO"
