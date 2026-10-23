@@ -20,7 +20,7 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 
 | Prioridade | Issues | Motivo |
 |---|---|---|
-| 1 | #316 | Prazo: a próxima renovação automática do token de produção, em 2026-10-25, ~13:27. É a causa do incidente de 22 e 23/10 (#308) |
+| 1 | #316 | Prazo: a próxima renovação automática do token de produção, em 2026-10-25, ~13:27. É a causa do incidente de 22 e 23/10 (#308). **Feita em 2026-10-23** (PR #318, `fc345df`) |
 | 2 | #239 e #232 | O mesmo padrão do incidente: falha de infraestrutura (Verde, CEP) vira resposta de negócio para a pessoa |
 | 3 | #220 | Corpo da resposta do Verde no log, com dado pessoal. Falta a medição |
 | 4 | #212 | Validação da saída da IA e lista de parentescos |
@@ -31,6 +31,41 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 1. **O grupo 5 não entra enquanto a equipe estiver testando.** Mudar o contrato com a Tykhe no meio da validação confunde quem testa e quem lê o resultado.
 2. **Resposta gravada não se edita.** Se uma correção mudar o **valor** de uma resposta gravada em `tests/fixtures/contrato/`, o caso é **aposentado da conferência com registro**: o motivo, a issue e o teste escrito que passa a cobrir o comportamento novo. A fixture fica intacta. Campo novo e opcional continua no mecanismo da #294 (`tests/api/campos_posteriores.py`). Ver "As respostas gravadas são evidência, não teste de regressão".
 3. **Guia de teste:** cada PR de correção que muda comportamento atualiza o `docs/guia-teste-homologacao.md`, e o merge entra em horário combinado com a equipe. Todo merge em `develop` reinicia o release.
+
+## Padronização de fluxos (decidida em 2026-10-23)
+
+**Decisão da Nicole, registrada na #208.** O objetivo é que um fluxo novo entre sem quebrar a aplicação nem o contrato com a Tykhe, e que a IA entre aos poucos, um ponto por vez. **Nenhuma peça reorganiza pastas nem move código existente: todas acrescentam.**
+
+| Peça | Issue | O quê |
+|---|---|---|
+| 1 | #321 (PR #322) | Aposentar casos da conferência com registro, sem editar fixture |
+| 2 | #323 | Teste de conformidade: as 14 regras do molde em todo fluxo registrado |
+| 3 | #327 | Gerador de fluxo novo |
+| 4 | #324 | Fluxo em teste, ligado só no release |
+| 5 | #325 | Pontos de IA com o mesmo contrato |
+| 6 | #326 | Medir a busca por similaridade antes de o catálogo passar de 10 |
+
+**O molde (#323):** as regras A1 a A12 foram tiradas dos fluxos existentes. A Nicole acrescentou duas:
+- **A13:** toda saída da IA de um conjunto fechado é conferida contra a lista fixa (#212).
+- **A14:** falha de infraestrutura nunca vira resposta de negócio (spec 10, #239).
+
+Pessoa presa não passa na A13 nem na A14, e violência doméstica não passa na A14. **As duas regras valem para fluxo novo, e o molde não força refatoração agora.** As três falhas viram exceções registradas, ligadas à #212 e à #239, e a lista só diminui.
+
+**Parte C:**
+- O destino do atendimento concluído passa a ser declarado no registro, com o primeiro fluxo novo.
+- O molde exige só o canal de tokens; a forma de contar fica para a #230.
+- A mensagem final não vira regra.
+- Um fluxo sem perguntas é aceito.
+
+**Interruptor por ambiente (#324):**
+- `MARIA_AMBIENTE` tem valor fixo no Terraform de cada ambiente.
+- **O padrão é desligado:** só o valor exato `release` liga um fluxo em teste.
+- Uma conversa em andamento termina normalmente.
+- O `.env` local fica documentado.
+
+**Critério de liberação da busca por similaridade (#326):**
+- Nenhum relato da base rotulada perde o fluxo certo no corte.
+- O corte não acrescenta mais de 1 s ao p95, que hoje é de 3,3 s.
 
 ## Modelo de branch
 
