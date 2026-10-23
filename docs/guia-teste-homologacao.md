@@ -152,6 +152,15 @@ Depois de terminar os casos A e B (e o de controle "não sou a vítima"), mande 
 
 **Não registre nada disso como "a Maria não achou a pessoa".** Registre com o horário exato. Pelo horário, dá para conferir nos logs se a consulta ao Verde falhou por autenticação ou infraestrutura.
 
+### Durante uma manutenção do Verde
+
+> **Registrado em 2026-10-23 (#308):** a equipe do Verde vai fazer manutenção preventiva, **sem data confirmada**. Durante a manutenção, as consultas ao Verde falham, e a Maria mostra as mesmas mensagens das tabelas acima.
+
+- **Antes de começar uma rodada de teste,** confirme com o Ícaro se há manutenção anunciada para aquele horário.
+- **Se o teste cair dentro de uma manutenção anunciada,** não registre como defeito. Anote o horário e "durante a manutenção do Verde", e repita o caso depois que ela terminar.
+- **Fora de uma manutenção anunciada,** a falha continua valendo: registre com o horário exato, como acima.
+- **Para quem confere nos logs:** manutenção costuma aparecer como erro de serviço (5xx) ou tempo esgotado. **Uma recusa de autenticação (401) não é manutenção**: é o token do Verde, vencido, revogado ou trocado sem o container ter sido reiniciado. Em 2026-10-22 e 23, a falha em produção foi 401 do começo ao fim.
+
 ## 5. O que não é defeito novo
 
 Estes comportamentos já são conhecidos e já têm issue. Não precisam ser registrados de novo:
@@ -162,6 +171,7 @@ Estes comportamentos já são conhecidos e já têm issue. Não precisam ser reg
 | O texto da pergunta de esclarecimento muda de uma vez para outra (é gerado pela IA) | — (esperado) |
 | "Falha. Diferente de 200" depois de um encaminhamento à Tykhe | correção no fluxo da Tykhe (seção 2) |
 | A mensagem depois do fim diz "concluído" mesmo após o encaminhamento para um atendente | #280 (mas anote o que aparece; ver o caso D) |
+| Consultas ao Verde falhando durante uma manutenção anunciada do Verde | — (anote o horário e repita depois; ver a seção 4) |
 
 ## 6. Como registrar o resultado
 
