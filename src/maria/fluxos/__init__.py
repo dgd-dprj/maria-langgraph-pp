@@ -39,6 +39,26 @@ class FluxoConfig:
     # idCategoriaAssunto do Verde equivalente, quando existe (issue #19). Só
     # evita duplicar o fluxo na tabela fluxos_planejados (#26).
     id_categoria_assunto_verde: int | None = None
+    # Fluxo em teste (#324): só liga onde `fluxo_em_teste_liga()`. Ligar em
+    # produção é um PR que tira o campo, com registro na #208.
+    em_teste: bool = False
+
+
+# Única variável que liga um fluxo em teste, declarada no Terraform de cada
+# ambiente (ecs.tf: "producao"; release.tf: "release"). Na dúvida, desligado:
+# ausente, vazia ou qualquer valor diferente de exatamente "release" conta como
+# produção, então uma variável esquecida ou copiada errada nunca liga um fluxo
+# em teste. Não é a APP_ENV, que liga os simulados dos testes.
+AMBIENTE_DO_FLUXO_EM_TESTE = "release"
+
+
+def ambiente() -> str | None:
+    return os.environ.get("MARIA_AMBIENTE")
+
+
+def fluxo_em_teste_liga() -> bool:
+    # Lida a cada chamada, como as outras variáveis de comportamento.
+    return ambiente() == AMBIENTE_DO_FLUXO_EM_TESTE
 
 
 # Id fixo por fluxo, no formato que uma linha de tabela teria (uuid).
@@ -86,11 +106,23 @@ FLUXO_PADRAO = FluxoConfig(
 )
 
 
-async def buscar_fluxo(fluxo_id: str) -> FluxoConfig | None:
+def fluxos_ligados() -> dict[str, FluxoConfig]:
+    """O registro sem os fluxos em teste, fora do ambiente que os liga (#324)."""
+    liga = fluxo_em_teste_liga()
+    return {id_: cfg for id_, cfg in fluxos_por_id.items() if liga or not cfg.em_teste}
+
+
+async def buscar_fluxo(fluxo_id: str, *, conversa_em_andamento: bool = False) -> FluxoConfig | None:
     """Implementado tem prioridade; um planejado (#26) cai no grafo padrão (#21).
-    `None` só se o catálogo de classificação ficar inconsistente com os dois."""
+    `None` só se o catálogo de classificação ficar inconsistente com os dois.
+
+    Um fluxo em teste desligado responde como um id desconhecido para conversa
+    nova. A conversa que já começou nele termina normalmente
+    (`conversa_em_andamento=True`), por decisão de 2026-10-23 (#324)."""
     implementado = fluxos_por_id.get(fluxo_id)
     if implementado is not None:
+        if implementado.em_teste and not conversa_em_andamento and not fluxo_em_teste_liga():
+            return None
         return implementado
     planejado = await buscar_fluxo_planejado_por_id(fluxo_id)
     return FLUXO_PADRAO if planejado else None
@@ -108,8 +140,11 @@ async def catalogo_para_classificacao() -> list[OpcaoCatalogo]:
     identifica e devolve), nesta ordem. Os planejados (#26) saíram do catálogo,
     mas a tabela fica intacta e `buscar_fluxo` continua resolvendo um planejado
     para o grafo padrão. `ORQUESTRADOR_INCLUIR_PLANEJADOS == "true"`, lido a cada
-    chamada, volta a oferecê-los, no fim, com `texto_para_classificacao` (#19)."""
-    implementados: list[OpcaoCatalogo] = [{"id": id_, "nome": cfg.nome, "descricao": cfg.descricao} for id_, cfg in fluxos_por_id.items()]
+    chamada, volta a oferecê-los, no fim, com `texto_para_classificacao` (#19).
+    Fluxo em teste desligado não entra (#324)."""
+    implementados: list[OpcaoCatalogo] = [
+        {"id": id_, "nome": cfg.nome, "descricao": cfg.descricao} for id_, cfg in fluxos_ligados().items()
+    ]
     tykhe: list[OpcaoCatalogo] = [{"id": t.id, "nome": t.nome, "descricao": t.descricao} for t in TIPOS_TYKHE]
     # `!== "true"` de develop: comparação exata, sem caixa e sem outros valores.
     if os.environ.get("ORQUESTRADOR_INCLUIR_PLANEJADOS") != "true":

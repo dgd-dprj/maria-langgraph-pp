@@ -36,6 +36,7 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 |---|---|---|
 | `API_KEY` | **obrigatória** | Chave que as rotas exigem em `Authorization: Bearer <chave>`. Sem ela, a API não sobe |
 | `APP_ENV` | ausente | **Só o valor `test` muda o comportamento:** IA e embeddings simulados (nunca chama o Bedrock) e `chatId` opcional, gerado se faltar. **Qualquer outro valor, inclusive `development` e ausente, é o comportamento de produção:** IA real e `chatId` obrigatório |
+| `MARIA_AMBIENTE` | ausente | Qual é o ambiente, declarado no Terraform: `producao` no `ecs.tf` e `release` no `release.tf` (#324). **Só o valor `release` exato liga os fluxos em teste** (`em_teste=True` no registro); ausente, vazia ou qualquer outro valor conta como produção. Para ver um fluxo em teste na sua máquina, ponha `MARIA_AMBIENTE=release` no `.env` |
 | `DATABASE_URL` | ausente | Postgres com a extensão pgvector. Sem ela, checkpoints, atendimentos, perguntas, fluxos planejados e embeddings ficam em memória |
 | `AWS_REGION` | `us-east-1` | Região do Bedrock |
 | `AWS_PROFILE` | ausente | Perfil do AWS CLI usado pelo SDK para chamar o Bedrock |

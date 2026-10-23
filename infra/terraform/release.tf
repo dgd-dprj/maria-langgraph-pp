@@ -82,6 +82,10 @@ resource "aws_ecs_task_definition" "api_release" {
       # cross-region, não o model id direto (confirmado via
       # `aws bedrock get-foundation-model`/`list-inference-profiles`).
       { name = "BEDROCK_MODEL_ID", value = "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
+      # #324: qual é o ambiente. Só "release" exato liga os fluxos em teste
+      # (maria/fluxos/__init__.py); um teste do CI confere este valor. Fica em
+      # environment, e não em secrets, para não ser copiado com os segredos.
+      { name = "MARIA_AMBIENTE", value = "release" },
     ]
     secrets = [
       for k in [

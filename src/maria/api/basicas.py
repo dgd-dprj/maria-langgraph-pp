@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, Resposta, Rota
-from maria.fluxos import fluxos_por_id
+from maria.fluxos import fluxos_ligados
 
 
 async def _health(_ctx: Contexto) -> Resposta:
@@ -13,8 +13,9 @@ async def _health(_ctx: Contexto) -> Resposta:
 
 
 async def _fluxos(_ctx: Contexto) -> Resposta:
-    # Só os fluxos implementados: os tipos da Tykhe e os planejados não aparecem aqui.
-    return Resposta(200, [{"id": id_, "nome": cfg.nome} for id_, cfg in fluxos_por_id.items()])
+    # Só os fluxos implementados: os tipos da Tykhe e os planejados não aparecem
+    # aqui, nem um fluxo em teste fora do release (#324).
+    return Resposta(200, [{"id": id_, "nome": cfg.nome} for id_, cfg in fluxos_ligados().items()])
 
 
 ROTAS: tuple[Rota, ...] = (

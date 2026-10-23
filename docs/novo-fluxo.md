@@ -90,6 +90,25 @@ Para gerar o uuid: `uv run python -c "import uuid; print(uuid.uuid4())"`.
 
 O registro já basta para o fluxo aparecer em `GET /fluxos`, aceitar `POST /atendimentos` com o novo `flowId` e entrar no catálogo do orquestrador. Para abrir o grafo no LangGraph Studio, acrescente também a linha `"meu_fluxo": "./src/maria/fluxos/meu_fluxo/graph.py:criar_grafo"` em `langgraph.json`.
 
+### 2.1. Registre como fluxo em teste (#324)
+
+Um fluxo novo entra com `em_teste=True` no `FluxoConfig`. Assim a equipe testa no release, e ele não chega a quem usa a Maria:
+
+```python
+    ID_MEU_FLUXO: FluxoConfig(
+        nome="meu-fluxo",
+        # ...
+        em_teste=True,
+    ),
+```
+
+- **Ligado só no release.** O fluxo em teste só liga onde `MARIA_AMBIENTE` é exatamente `release`. A variável é declarada no Terraform de cada ambiente: `producao` no `ecs.tf` e `release` no `release.tf`, e um teste do CI confere os dois valores.
+- **Na dúvida, desligado.** Variável ausente, vazia, `producao`, `Release` ou qualquer outro valor contam como produção. Uma variável esquecida ou copiada errada nunca liga um fluxo em teste.
+- **Desligado,** o fluxo não aparece em `GET /fluxos` nem no catálogo do orquestrador, e `POST /atendimentos` com o id dele responde como a um id desconhecido (404). Uma conversa que já começou nele termina normalmente; só conversas novas ficam bloqueadas.
+- **Na sua máquina,** ponha `MARIA_AMBIENTE=release` no `.env` para ver o fluxo em teste.
+- **Ao subir,** a aplicação registra no log o ambiente e os fluxos ligados (`evento: "fluxos_ligados"`).
+- **Para ir para produção,** abra um PR que tira o `em_teste=True`, com o resultado do teste da equipe e o registro na #208. Nunca troque uma variável no console.
+
 > Um fluxo novo entra no catálogo de classificação. Com mais de 10 opções no catálogo, a busca por similaridade passa a cortar candidatos antes da IA (`CANDIDATOS_MAXIMOS`, #256): hoje são 9 (2 fluxos e 7 tipos da Tykhe), então o 2º fluxo novo já muda esse comportamento. Ver `docs/fluxo-orquestrador.md`.
 
 ## 3. Testes
