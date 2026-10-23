@@ -99,6 +99,38 @@ O registro já basta para o fluxo aparecer em `GET /fluxos`, aceitar `POST /aten
 
 Rodar só os testes do fluxo: `uv run pytest tests/fluxos/test_<nome>.py`. Antes do PR, a verificação inteira (`docs/testes.md`).
 
+### O teste de conformidade confere o molde (#323)
+
+`tests/fluxos/test_conformidade.py` roda para todo fluxo de `fluxos_por_id` e para o grafo padrão. O fluxo novo entra sozinho, pelo registro. As 14 regras:
+
+| # | Regra |
+|---|---|
+| A1 | O estado tem `statusFinal`, e todo fim grava `concluido` ou `handoff_humano` |
+| A2 | O estado tem `tokensGastos: CanalTokensGastos` |
+| A3 | O estado tem `mensagemFinal`; sem valor, vale a mensagem padrão do registro |
+| A4 | Cada pausa manda `pergunta` e `tipo` (`texto` ou `sim_nao`) |
+| A5 | Pergunta sim/não leva as opções `["Sim", "Não"]`, e a resposta passa por `resposta_eh_sim` |
+| A6 | Cada pergunta é um par: o nó que prepara (`preparar_pergunta`) e o que pede |
+| A7 | O nó que prepara e o que pede pulam pela mesma condição |
+| A8 | O grafo do fluxo compila na primeira chamada (`FabricaGrafo`), e não na importação |
+| A9 | O `api.py` tem `extrair_metadados_<pasta>`, `MENSAGEM_CONCLUIDO` e `MENSAGEM_HANDOFF`, e o registro usa os três |
+| A10 | O registro tem id uuid4, nome em kebab-case e descrição não vazia |
+| A11 | Todo encaminhamento para atendimento humano grava `motivoHandoff`, de uma lista fixa do fluxo (`Literal` no `state.py`) |
+| A12 | Os subgrafos compilam sem persistência própria e dividem canais com o fluxo pai |
+| A13 | Toda saída da IA de uma lista fechada é conferida contra a lista antes de ser gravada (#212) |
+| A14 | Falha de infraestrutura do Verde nunca vira resposta de negócio: o fluxo encerra com `motivoHandoff = falha_infra_verde` (#239) |
+
+Além das 14 regras, o teste confere que todo nó chega ao fim e que cada resposta montada passa no esquema do contrato com a Tykhe. Um fluxo sem perguntas, como o padrão, não tem o que conferir nas regras A4 a A7 nem na A11.
+
+O teste lê o fluxo sem executar e depois passeia por ele, respondendo "Sim" ou "Não" a toda pergunta sim/não:
+- **sem IA e com o Verde em mock;**
+- **com a IA simulada:** a pergunta reescrita leva uma marca, e toda saída de lista fechada vem com um valor inventado, que não pode chegar à resposta;
+- **com o Verde falhando numa chamada de cada vez:** 503, tempo esgotado e 401.
+
+**Se o fluxo pergunta algo de texto,** declare em `ROTEIROS`, no próprio teste, as respostas que o passeio dá, por padrão do texto da pergunta. Sem elas, o passeio responde um texto genérico, e uma validação de formato pode prender a conversa: o teste falha em "fim".
+
+**Fluxo novo não tem exceção.** Pessoa presa e violência doméstica ainda não passam na A13 e na A14. As três falhas estão em `EXCECOES`, cada uma ligada à issue que a corrige, e a lista só diminui. Quando a correção entra, o teste falha até a exceção ser apagada.
+
 ### O que o registro muda em outros testes
 
 Registrar o fluxo muda a resposta de `GET /fluxos` e o catálogo do orquestrador, e **12 testes que fixam esses dois valores falham** (conferido seguindo este guia com um fluxo de exemplo, 2026-10-20):
