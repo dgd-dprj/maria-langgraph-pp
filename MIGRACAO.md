@@ -6,9 +6,66 @@ Este documento conta a mesma história da issue [#208](https://github.com/dgd-dp
 
 O serviço foi reescrito de TypeScript (Node 22, Fastify, LangGraph JS, pnpm) para Python 3.12 (FastAPI, LangGraph Python, uv, ruff, mypy, pytest).
 
-**A régua é comportamento idêntico ao de `develop` @ `4e695f2`**: mesmas perguntas, mesmos desfechos, mesmo contrato HTTP com a Tykhe e mesmos logs consumidos pelo Grafana. Funcionalidade nova, melhoria e mudança de contrato ficaram fora. O que valia melhorar está na seção [Melhorias registradas, fora do escopo](#melhorias-registradas-fora-do-escopo), sem implementar.
+**A régua é comportamento idêntico ao de `develop` @ `4e695f2`**: mesmas perguntas, mesmos desfechos, mesmo contrato HTTP com a Tykhe e mesmos logs consumidos pelo Grafana. Funcionalidade nova, melhoria e mudança de contrato ficaram fora. O que valia melhorar está na seção [Melhorias registradas, fora do escopo](#melhorias-registradas-fora-do-escopo), sem implementar. **A régua cumpriu o papel dela em 2026-10-23**, quando produção passou a rodar Python. Ver a seção "Janela das correções", logo abaixo.
 
 O código TypeScript não foi copiado nem convive com o Python. Ele continua em `develop` (e no histórico do git) como fonte de comportamento.
+
+## Janela das correções (aberta em 2026-10-23)
+
+**Decisão da Nicole, registrada na #208.**
+
+**Por quê:** com produção em Python (release #310, `15fd757`, estável às 12:33), não há mais versão TypeScript em nenhum ambiente para comparar. A régua de reproduzir develop, inclusive os defeitos, existia para que cada diferença entre as versões fosse erro de tradução, e não mudança de propósito. Com uma versão só, essa comparação acabou. As correções marcadas "aprovada, aguardando janela" no índice de issues podem entrar.
+
+**Ordem:**
+
+| Prioridade | Issues | Motivo |
+|---|---|---|
+| 1 | #316 | Prazo: a próxima renovação automática do token de produção, em 2026-10-25, ~13:27. É a causa do incidente de 22 e 23/10 (#308). **Feita em 2026-10-23** (PR #318, `fc345df`) |
+| 2 | #239 e #232 | O mesmo padrão do incidente: falha de infraestrutura (Verde, CEP) vira resposta de negócio para a pessoa |
+| 3 | #220 | Corpo da resposta do Verde no log, com dado pessoal. Falta a medição |
+| 4 | #212 | Validação da saída da IA e lista de parentescos |
+| 5 | #210, #211, #231 e #280 | Mudam o que a Tykhe recebe |
+| 6 | #230 | Contagem de tokens. Falta a medição |
+
+**Regras para toda correção:**
+1. **O grupo 5 não entra enquanto a equipe estiver testando.** Mudar o contrato com a Tykhe no meio da validação confunde quem testa e quem lê o resultado.
+2. **Resposta gravada não se edita.** Se uma correção mudar o **valor** de uma resposta gravada em `tests/fixtures/contrato/`, o caso é **aposentado da conferência com registro**: o motivo, a issue e o teste escrito que passa a cobrir o comportamento novo. A fixture fica intacta. Campo novo e opcional continua no mecanismo da #294 (`tests/api/campos_posteriores.py`). Ver "As respostas gravadas são evidência, não teste de regressão".
+3. **Guia de teste:** cada PR de correção que muda comportamento atualiza o `docs/guia-teste-homologacao.md`, e o merge entra em horário combinado com a equipe. Todo merge em `develop` reinicia o release.
+
+## Padronização de fluxos (decidida em 2026-10-23)
+
+**Decisão da Nicole, registrada na #208.** O objetivo é que um fluxo novo entre sem quebrar a aplicação nem o contrato com a Tykhe, e que a IA entre aos poucos, um ponto por vez. **Nenhuma peça reorganiza pastas nem move código existente: todas acrescentam.**
+
+| Peça | Issue | O quê |
+|---|---|---|
+| 1 | #321 (PR #322) | Aposentar casos da conferência com registro, sem editar fixture |
+| 2 | #323 | Teste de conformidade: as 14 regras do molde em todo fluxo registrado |
+| 3 | #327 | Gerador de fluxo novo |
+| 4 | #324 | Fluxo em teste, ligado só no release |
+| 5 | #325 | Pontos de IA com o mesmo contrato |
+| 6 | #326 | Medir a busca por similaridade antes de o catálogo passar de 10 |
+
+**O molde (#323):** as regras A1 a A12 foram tiradas dos fluxos existentes. A Nicole acrescentou duas:
+- **A13:** toda saída da IA de um conjunto fechado é conferida contra a lista fixa (#212).
+- **A14:** falha de infraestrutura nunca vira resposta de negócio (spec 10, #239).
+
+Pessoa presa não passa na A13 nem na A14, e violência doméstica não passa na A14. **As duas regras valem para fluxo novo, e o molde não força refatoração agora.** As três falhas viram exceções registradas, ligadas à #212 e à #239, e a lista só diminui.
+
+**Parte C:**
+- O destino do atendimento concluído passa a ser declarado no registro, com o primeiro fluxo novo.
+- O molde exige só o canal de tokens; a forma de contar fica para a #230.
+- A mensagem final não vira regra.
+- Um fluxo sem perguntas é aceito.
+
+**Interruptor por ambiente (#324):**
+- `MARIA_AMBIENTE` tem valor fixo no Terraform de cada ambiente.
+- **O padrão é desligado:** só o valor exato `release` liga um fluxo em teste.
+- Uma conversa em andamento termina normalmente.
+- O `.env` local fica documentado.
+
+**Critério de liberação da busca por similaridade (#326):**
+- Nenhum relato da base rotulada perde o fluxo certo no corte.
+- O corte não acrescenta mais de 1 s ao p95, que hoje é de 3,3 s.
 
 ## Modelo de branch
 
@@ -859,7 +916,7 @@ Duas coisas diferentes:
   - em `main`: branch atualizada antes do merge, 1 aprovação e só merge commit. **Corrigido em 2026-10-23:** a aprovação era "de quem não fez o último push" (`require_last_push_approval`). Com duas pessoas no time, essa exigência travou o release #310: a Nicole tinha feito o último merge em `develop`, e o Ícaro abriu o PR, então nenhum dos dois podia aprovar. A exigência saiu do ruleset (pela API, a pedido da Nicole), e a aprovação continua obrigatória. Na mesma mudança saiu o descarte da aprovação a cada push novo (`dismiss_stale_reviews_on_push`). Como o PR de release tem `develop` como origem, cada merge em `develop` descartava a aprovação do release aberto. **Consequência:** uma aprovação dada a um release continua valendo se algo entrar em `develop` depois dela, então o que entrar depois chega a `main` sem nova revisão. No release #310, os merges em `develop` esperam por ele (decidido em 2026-10-23); se isso vira regra para todo release, ainda não foi decidido. As duas regras estão certas em princípio e voltam à mesa quando o time crescer. O caso está registrado na #214;
   - em `develop`: sem aprovação, sem exigir branch atualizada, e **squash ou merge commit**.
 - **A diferença em relação à proposta, e por quê:** a proposta era só squash em `develop`. As sessões do Claude do Ícaro reaproveitam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291 e #295), o que só funciona com merge commit. Com squash obrigatório, o PR seguinte dessa branch traria de novo commits já mergeados e entraria em conflito. O squash obrigatório volta à mesa quando cada PR tiver a própria branch.
-- **Ajustes no repositório:** o título do commit de squash passou a ser o título do PR (com `COMMIT_OR_PR_TITLE`, o squash do #287 saiu com o título da primeira versão, `7af101d`), e o rebase merge foi desligado. A exclusão automática da branch depois do merge **continua desligada**, para não apagar a branch reaproveitada do Ícaro a cada merge. **Os dois avisos (merge commit em `develop` e exclusão automática desligada) estão também no `CONTRIBUTING.md` e no nome do ruleset de `develop`, que é onde alguém olharia antes de "corrigir".**
+- **Ajustes no repositório:** o título do commit de squash passou a ser o título do PR (com `COMMIT_OR_PR_TITLE`, o squash do #287 saiu com o título da primeira versão, `7af101d`), e o rebase merge foi desligado. A exclusão automática da branch depois do merge **continua desligada**, para não apagar a branch reaproveitada do Ícaro a cada merge. **Corrigido em 2026-10-23: a exclusão automática foi religada** (Nicole). O Ícaro apagou a branch reaproveitada depois do #315, e o motivo sumiu; se uma sessão recriar a branch com o mesmo nome, nada quebra, porque `develop` aceita merge commit. O bloqueio de exclusão por ruleset para `claude/*` não foi feito: não está confirmado que a exclusão automática o respeita, e sem ele o risco é baixo. O aviso do merge commit continua. **Os dois avisos (merge commit em `develop` e exclusão automática desligada) estão também no `CONTRIBUTING.md` e no nome do ruleset de `develop`, que é onde alguém olharia antes de "corrigir".**
 - **Verificação:** as regras efetivas foram lidas pela API (`GET /repos/…/rules/branches/{develop,main}`), e os PRs abertos (#295 e #301) continuaram mergeáveis. O endpoint antigo de proteção (`/branches/{branch}/protection`) não mostra rulesets e continua respondendo "not protected". **Não foi feito** um push de teste em `develop`: se a regra falhasse, o push dispararia um deploy no release no meio do teste da equipe.
 
 ## Pendências operacionais

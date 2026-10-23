@@ -24,11 +24,12 @@ Setup local, variáveis de ambiente e estrutura de pastas: ver [`README.md`](REA
 
 Ninguém contorna as regras, nem quem é admin. Numa emergência, um admin desativa o ruleset nas configurações do repositório, e isso fica registrado.
 
-> **Não "corrija" estas duas configurações sem combinar com o Ícaro.** As duas existem pelo mesmo motivo: as sessões do Claude do Ícaro reaproveitam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291, #295).
-> - **`develop` aceita merge commit, e não só squash.** Com squash obrigatório, o PR seguinte dessa branch traria de novo commits já mergeados e entraria em conflito.
-> - **A exclusão automática da branch depois do merge está desligada.** Ligada, ela apagaria a branch reaproveitada a cada merge.
+> **Não "corrija" esta configuração sem combinar com o Ícaro.** Ela existe porque as sessões do Claude do Ícaro reaproveitavam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291, #295, #315).
+> - **`develop` aceita merge commit, e não só squash.** Com squash obrigatório, o PR seguinte de uma branch reaproveitada traria de novo commits já mergeados e entraria em conflito.
 >
-> As duas voltam à mesa quando cada PR tiver a própria branch. Registro em `MIGRACAO.md`, seção "Branches, ambientes e proteção".
+> Volta à mesa quando cada PR tiver a própria branch. Registro em `MIGRACAO.md`, seção "Branches, ambientes e proteção".
+
+**A branch é apagada sozinha depois do merge** (religado em 2026-10-23). A exclusão automática ficou desligada enquanto a branch reaproveitada existia; o Ícaro apagou essa branch depois do #315. Se uma sessão recriar a branch com o mesmo nome, nada quebra: `develop` aceita merge commit.
 
 ## Antes de codar
 
