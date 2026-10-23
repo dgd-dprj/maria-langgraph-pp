@@ -27,6 +27,8 @@ import pytest
 
 from maria.app import criar_app
 from tests.api.campos_posteriores import sem_campos_posteriores
+from tests.api.casos_aposentados import CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato")
 CHAVE = "chave-de-captura"
@@ -123,17 +125,17 @@ async def instancia(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
             yield cliente
 
 
-@pytest.mark.parametrize("instancia", sorted(INSTANCIAS), indirect=True)
-async def test_fixtures_byte_a_byte(
-    instancia: httpx.AsyncClient, request: pytest.FixtureRequest, capsys: pytest.CaptureFixture[str]
-) -> None:
-    nome: str = request.node.callspec.params["instancia"]
+async def _conferir(cliente: httpx.AsyncClient, nome: str, capsys: pytest.CaptureFixture[str]) -> dict[str, list[str]]:
+    """As falhas de cada fixture da instância, pelo nome (lista vazia quando bate com a gravação).
+
+    Toda fixture é enviada, na ordem, porque algumas dependem do estado deixado pelas anteriores."""
     gravados = _logs_da_gravacao(nome)
-    falhas: list[str] = []
+    por_caso: dict[str, list[str]] = {}
     for f in INSTANCIAS[nome]:
+        falhas = por_caso.setdefault(f["nome"], [])
         capsys.readouterr()
         req = f["requisicao"]
-        r = await instancia.request(req["metodo"], req["caminho"], headers=_cabecalhos(f), content=_conteudo(f))
+        r = await cliente.request(req["metodo"], req["caminho"], headers=_cabecalhos(f), content=_conteudo(f))
         esperado = f["resposta"]
         if r.status_code != esperado["status"]:
             falhas.append(f"{f['nome']}: status {r.status_code} != {esperado['status']}: {r.text}")
@@ -161,4 +163,25 @@ async def test_fixtures_byte_a_byte(
                 f"{f['nome']}: log\n    obtido:   {json.dumps(obtidos, ensure_ascii=False)}\n"
                 f"    esperado: {json.dumps(esperados, ensure_ascii=False)}"
             )
+    return por_caso
+
+
+@pytest.mark.parametrize("instancia", sorted(INSTANCIAS), indirect=True)
+async def test_fixtures_byte_a_byte(
+    instancia: httpx.AsyncClient, request: pytest.FixtureRequest, capsys: pytest.CaptureFixture[str]
+) -> None:
+    nome: str = request.node.callspec.params["instancia"]
+    falhas = falhas_da_conferencia(await _conferir(instancia, nome, capsys), CASOS_APOSENTADOS["contrato"])
     assert not falhas, "\n".join(falhas)
+
+
+@pytest.mark.parametrize("instancia", sorted(INSTANCIAS), indirect=True)
+async def test_fluxo_novo_muda_so_os_casos_medidos(
+    instancia: httpx.AsyncClient, request: pytest.FixtureRequest, capsys: pytest.CaptureFixture[str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #321: com um fluxo a mais, quebram só os casos medidos; aposentados, a conferência passa.
+    nome: str = request.node.callspec.params["instancia"]
+    registrar_fluxo_de_brinquedo(monkeypatch)
+    por_caso = await _conferir(instancia, nome, capsys)
+    assert casos_que_falharam(por_caso) == CASOS_DE_UM_FLUXO_NOVO["contrato"] & set(por_caso)
+    assert falhas_da_conferencia(por_caso, aposentados_do_brinquedo("contrato")) == []
