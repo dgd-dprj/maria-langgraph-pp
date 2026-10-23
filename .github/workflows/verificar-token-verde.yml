@@ -34,6 +34,10 @@ jobs:
           - ambiente: release
             ecs_service: api-release
     steps:
+      # Issue #298 — a consulta de status vem de scripts/conferir_token_verde.py,
+      # o mesmo código que o deploy usa para conferir o token (só leitura).
+      - uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -53,6 +57,9 @@ jobs:
 
           python3 - <<'EOF'
           import base64, json, os, subprocess, sys, time, urllib.error, urllib.request
+
+          sys.path.insert(0, "scripts")
+          from conferir_token_verde import ErroDeStatus, consultar_status, ler_status
 
           ambiente = os.environ["AMBIENTE"]
           secret_id = f"maria-langgraph-pp-{ambiente}/app"
@@ -87,28 +94,14 @@ jobs:
                   corpo = err.read().decode("utf-8", errors="replace")
                   return err.code, corpo
 
-          status_code, status_bruto = chamar("GET", "/autenticacao/token/status", token)
-          if status_code != 200:
-              print(f"::error::[{ambiente}] GET token/status falhou (HTTP {status_code}): {status_bruto}")
-              sys.exit(1)
-
-          # Issue #194 — achado ao vivo testando contra a Verde homolog real:
-          # GET token/status devolve envelopado em "dados" ({"dados": {...}}),
-          # mesmo padrão de TODO o resto da API (ver src/integracoes/verde.ts)
-          # — só não bate com o exemplo do Swagger, que mostrava flat. Sem
-          # isso, revogado/expirado sempre liam o default (False), quebrando
-          # silenciosamente a checagem mais importante do workflow. Diferente
-          # de POST token/refresh, que É flat de verdade (confirmado no mesmo
-          # teste ao vivo) — não envelopar isso quebraria o refresh.
-          status = status_bruto.get("dados", status_bruto) if isinstance(status_bruto, dict) else {}
-          # Achado no code review da própria #194: um shape inesperado (sem
-          # "dados" E sem os campos flat, ou resposta que não é dict) não
-          # pode virar silenciosamente "token saudável, não faz nada" — é
-          # exatamente o bug que essa issue corrigiu, só que disparado por
-          # outra causa. Mesma disciplina de fail-loud já usada no bloco de
-          # refresh logo abaixo (checagem de "token" in refresh).
-          if not isinstance(status, dict) or not ({"revogado", "expirado", "valido"} & status.keys()):
-              print(f"::error::[{ambiente}] GET token/status devolveu 200 mas sem nenhum campo esperado — contrato da Verde mudou? corpo: {status_bruto}")
+          # Issue #194 (o envelope "dados" do token/status e o fail-loud para um
+          # formato inesperado) e issue #298 (a consulta saiu para o script, que o
+          # deploy também usa): ver scripts/conferir_token_verde.py. Só o refresh,
+          # abaixo, continua usando `chamar`.
+          try:
+              status = ler_status(*consultar_status(api_url, token, client_id))
+          except ErroDeStatus as erro:
+              print(f"::error::[{ambiente}] {erro}")
               sys.exit(1)
 
           revogado = status.get("revogado", False)

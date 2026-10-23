@@ -157,6 +157,8 @@ def _renovar(
         encoding="utf-8",
     )
     monkeypatch.chdir(tmp_path)
+    # No Actions o script roda na raiz do checkout e importa `scripts/conferir_token_verde.py` (#298).
+    monkeypatch.syspath_prepend(str(WORKFLOWS.parent.parent / "scripts"))
     for nome, valor in {"AMBIENTE": "prod", "AWS_REGION": "us-east-1", "ECS_CLUSTER": "maria-langgraph-pp", "ECS_SERVICE": "api"}.items():
         monkeypatch.setenv(nome, valor)
 
@@ -254,3 +256,38 @@ def test_token_saudavel_nao_pede_deploy(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert codigo == 0
     assert chamados == []
     assert "token saudável" in saida
+
+
+# --- Conferência do token do Verde depois do deploy (#298) ---
+
+
+def _passos(nome: str, job: str) -> list[dict[str, Any]]:
+    passos = _carregar(nome)["jobs"][job]["steps"]
+    assert isinstance(passos, list)
+    return passos
+
+
+@pytest.mark.parametrize(("nome", "ambiente"), [("deploy-release.yml", "release"), ("deploy-prod.yml", "prod")])
+def test_deploy_confere_o_token_do_verde_depois_do_services_stable(nome: str, ambiente: str) -> None:
+    passos = _passos(nome, "deploy")
+    espera = next(i for i, p in enumerate(passos) if "services-stable" in p.get("run", ""))
+    conferencia = passos[espera + 1]
+    assert conferencia["env"] == {"AMBIENTE": ambiente}
+    assert "scripts/conferir_token_verde.py" in conferencia["run"]
+    assert "maria-langgraph-pp-${AMBIENTE}/app" in conferencia["run"]
+
+
+@pytest.mark.parametrize("nome", ["deploy-release.yml", "deploy-prod.yml"])
+def test_conferencia_do_deploy_e_so_leitura(nome: str) -> None:
+    # A renovação invalida o token antigo na hora e tem um dono só (verificar-token-verde.yml).
+    texto = "\n".join(p.get("run", "") for p in _passos(nome, "deploy")).lower()
+    assert "refresh" not in texto
+    assert "put-secret-value" not in texto
+
+
+def test_verificar_token_verde_usa_o_mesmo_script_da_conferencia() -> None:
+    passos = _passos("verificar-token-verde.yml", "verificar")
+    assert passos[0]["uses"].startswith("actions/checkout@")  # o script mora no repositório
+    renovacao = next(p for p in passos if "Checar e renovar" in p.get("name", ""))["run"]
+    assert "from conferir_token_verde import" in renovacao
+    assert '"/autenticacao/token/status"' not in renovacao  # a consulta de status saiu do corpo inline
