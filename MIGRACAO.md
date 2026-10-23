@@ -644,6 +644,36 @@ Leva a `migration` para `develop`. O PR #267 (`migration` → `develop`) foi abe
 - **Atendimentos de teste no release:** o roteiro deixou 4 atendimentos gravados, nos `chatId` **`conf-b2810080-c1`, `conf-b2810080-c2`, `conf-b2810080-c3` e `conf-b2810080-c4`**, com os relatos inventados do roteiro e nenhum dado real. Eles ficam na tabela `atendimentos` e no `checkpoint_py` do release, e **entram nas contagens do painel do Grafana**. Quem olhar o painel precisa saber disso. Para tirá-los de uma consulta: `WHERE chat_id NOT LIKE 'conf-b2810080-%'`.
 - **Pendências:** o token do Verde no segredo do release continua vencido. A primeira consulta de pessoa presa ou de violência doméstica vai falhar até o Ícaro gravar o token válido e fazer o deploy. Também falta trocar a chave de API.
 
+**Produção em Python: `main` recebeu `develop` em 2026-10-23, e o serviço `api` estabilizou às 12:33 (Brasília).** É a última etapa da troca de versão.
+- **O merge:**
+  - release #310 (`develop` → `main`), aberto pelo Ícaro;
+  - aprovado pela Nicole, depois da mudança na proteção de `main` (#214, seção "Branches, ambientes e proteção");
+  - merge do Ícaro às 12:28:42, com merge commit (**`15fd757`**). O `main` anterior, ainda TypeScript, é o `06f2157`, de 2026-10-01.
+- **O deploy:** `deploy-prod.yml`, run `39978612911`.
+  - Os testes passaram, a imagem `latest` foi publicada, o serviço foi forçado a trocar e estabilizou. A tag `v1.1.0` foi criada às 12:33.
+  - O primeiro container Python subiu às 12:30:33, e o que ficou no ar subiu às 12:31:01.
+  - A última requisição do container TypeScript, que rodava desde 2026-10-20, foi às 12:31:55.
+  - A métrica de deploys do ECS voltou a 1 às 12:33.
+- **O incidente de 22 e 23/10 fechou com a troca:** o primeiro sucesso do Verde veio às 12:34:25, depois de cerca de 23 horas de recusas do token (#308). A troca resolveu o sintoma, e não a causa, que é a #316: a renovação automática do token não confere se o container novo subiu.
+- **As primeiras duas horas** (12:30 a 14:45, só contagens do CloudWatch):
+  - **o Verde:** 49 consultas, 43 com sucesso e 6 "não encontrado" (400, 404, 422). **Nenhuma recusa de token nem erro 5xx.** As 4 recusas registradas às 12:30 são do container TypeScript, antes da troca;
+  - **os atendimentos:** 30 iniciados e 21 encerrados, com os desfechos na proporção de antes do incidente;
+  - **a API:** nenhuma resposta 5xx.
+- **Conversas cortadas pela troca:** 4. Elas receberam o tratamento da #270 (`atendimento_sem_checkpoint`, 409 `expirado`, com texto próprio) entre 12:31 e 13:40.
+- **O que a troca não teve, do que este documento previa:** a linha de base do roteiro de 4 casos pela Tykhe, na versão TypeScript (seção "A janela", item 4). Ela nunca foi feita, nem no release nem em produção. A comparação disponível é a da API local nas duas versões e a das fixtures de contrato.
+- **A premissa "nenhum ambiente atende cidadão"** (seção "A janela", registrada em 2026-10-22) **foi questionada em 2026-10-23.** Os padrões de uso do `api` nos logs parecem de uso real:
+  - curva de horário comercial;
+  - conversas curtas;
+  - cerca de 2.500 conversas distintas em 30 dias.
+
+  A pergunta está com o Ícaro e a Tykhe. Até a resposta, as conversas cortadas e o incidente devem ser lidos como possivelmente de pessoas reais.
+- **O que continua aberto na #268:**
+  - a troca da chave de API;
+  - a decisão em aberto 1 (major do Postgres de produção);
+  - o teste da equipe pelos fluxos inteiros;
+  - o critério da linha de base.
+- **Rollback:** reverter o merge `15fd757` em `main` volta a imagem para a versão TypeScript. O que acontece com o histórico está em "O histórico num rollback".
+
 **O que entrou em develop desde a base (`4e695f2`), e onde está na `migration`:** #226 (`2403bab`, módulo fluxos), #229 (`814395b`), #234 (`respostas.py`, PR #250) e #242 (PRs #245, #247 e #250), todos já na `migration`. O #254 (Dependabot) não se aplica, porque mudou só o `pnpm-lock.yaml`. A única mudança de develop que faltava, o painel `observabilidade.json` do #242, entra pelo merge, e os 3 eventos que ele filtra existem no código Python.
 
 **Merge de develop na branch do corte, resolvido (2026-10-20):**
