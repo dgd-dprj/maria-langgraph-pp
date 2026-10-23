@@ -95,3 +95,38 @@ def test_checagem_de_referencia_do_publish_grafana(ref: str, permitido: bool) ->
     script = _passo_de_referencia()["run"]
     resultado = subprocess.run(["bash", "-c", script], env={"GITHUB_REF": ref, "PATH": "/usr/bin:/bin"}, capture_output=True, text=True)
     assert (resultado.returncode == 0) is permitido, resultado.stdout + resultado.stderr
+
+
+# --- Conferência do token do Verde depois do deploy (#298) ---
+
+
+def _passos(nome: str, job: str) -> list[dict[str, Any]]:
+    passos = _carregar(nome)["jobs"][job]["steps"]
+    assert isinstance(passos, list)
+    return passos
+
+
+@pytest.mark.parametrize(("nome", "ambiente"), [("deploy-release.yml", "release"), ("deploy-prod.yml", "prod")])
+def test_deploy_confere_o_token_do_verde_depois_do_services_stable(nome: str, ambiente: str) -> None:
+    passos = _passos(nome, "deploy")
+    espera = next(i for i, p in enumerate(passos) if "services-stable" in p.get("run", ""))
+    conferencia = passos[espera + 1]
+    assert conferencia["env"] == {"AMBIENTE": ambiente}
+    assert "scripts/conferir_token_verde.py" in conferencia["run"]
+    assert "maria-langgraph-pp-${AMBIENTE}/app" in conferencia["run"]
+
+
+@pytest.mark.parametrize("nome", ["deploy-release.yml", "deploy-prod.yml"])
+def test_conferencia_do_deploy_e_so_leitura(nome: str) -> None:
+    # A renovação invalida o token antigo na hora e tem um dono só (verificar-token-verde.yml).
+    texto = "\n".join(p.get("run", "") for p in _passos(nome, "deploy")).lower()
+    assert "refresh" not in texto
+    assert "put-secret-value" not in texto
+
+
+def test_verificar_token_verde_usa_o_mesmo_script_da_conferencia() -> None:
+    passos = _passos("verificar-token-verde.yml", "verificar")
+    assert passos[0]["uses"].startswith("actions/checkout@")  # o script mora no repositório
+    renovacao = next(p for p in passos if "Checar e renovar" in p.get("name", ""))["run"]
+    assert "from conferir_token_verde import" in renovacao
+    assert '"/autenticacao/token/status"' not in renovacao  # a consulta de status saiu do corpo inline
