@@ -1,0 +1,65 @@
+{
+  "metodo": "POST",
+  "caminho": "/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "corpo": {
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "rg 123"
+          }
+        ]
+      }
+    ],
+    "system": [
+      {
+        "text": "Você extrai dados estruturados do relato livre de alguém buscando informação sobre uma pessoa presa, pra Defensoria Pública do RJ.\nRegras: extraia APENAS o que foi dito explicitamente — nunca invente, nunca infira além do texto. Campo não mencionado fica ausente (não force um valor).\n\"temProcesso\" só é true/false se a pessoa falou EXPLICITAMENTE sobre ter ou não processo — não deduza da presença/ausência de \"numeroProcesso\" no texto."
+      }
+    ],
+    "toolConfig": {
+      "tools": [
+        {
+          "toolSpec": {
+            "name": "extract",
+            "inputSchema": {
+              "json": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "temProcesso": {
+                    "description": "true se a pessoa mencionou ter processo, false se mencionou não ter, ausente se não falou nada sobre isso",
+                    "type": "boolean"
+                  },
+                  "numeroProcesso": {
+                    "description": "número do processo, só os dígitos/formato como foi informado, ausente se não mencionado",
+                    "type": "string"
+                  },
+                  "rg": {
+                    "description": "RG da pessoa presa, só os dígitos, ausente se não mencionado",
+                    "type": "string"
+                  },
+                  "parentesco": {
+                    "description": "parentesco de quem está falando com a pessoa presa (ex: esposa, mãe, irmão), ausente se não mencionado",
+                    "type": "string"
+                  }
+                },
+                "additionalProperties": false
+              }
+            },
+            "description": "A function available to call."
+          }
+        }
+      ],
+      "toolChoice": {
+        "tool": {
+          "name": "extract"
+        }
+      }
+    }
+  },
+  "t": 1791573031405
+}

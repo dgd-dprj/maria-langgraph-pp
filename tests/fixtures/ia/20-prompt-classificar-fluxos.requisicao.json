@@ -1,0 +1,63 @@
+{
+  "metodo": "POST",
+  "caminho": "/model/us.anthropic.claude-haiku-4-5-20251001-v1:0/converse",
+  "headers": {
+    "content-type": "application/json"
+  },
+  "corpo": {
+    "messages": [
+      {
+        "role": "user",
+        "content": [
+          {
+            "text": "meu marido me bateu"
+          }
+        ]
+      }
+    ],
+    "system": [
+      {
+        "text": "Você tria o relato de alguém buscando atendimento na Defensoria Pública do RJ, decidindo quais fluxos de atendimento PODEM resolver o caso.\nFluxos disponíveis:\n- id \"f1\" (Violência doméstica): agressão em casa\n- id \"f2\" (Pessoa presa): parente preso\nRegras: devolva os ids de TODOS os fluxos que plausivelmente atendem ao relato — nenhum (lista vazia) se não bater com confiança em nenhum, 1 só se for claro, ou vários se o relato for genuinamente ambíguo entre mais de um. Nunca invente id fora da lista."
+      }
+    ],
+    "toolConfig": {
+      "tools": [
+        {
+          "toolSpec": {
+            "name": "extract",
+            "inputSchema": {
+              "json": {
+                "$schema": "https://json-schema.org/draft/2020-12/schema",
+                "type": "object",
+                "properties": {
+                  "idsPlausiveis": {
+                    "type": "array",
+                    "items": {
+                      "type": "string",
+                      "enum": [
+                        "f1",
+                        "f2"
+                      ]
+                    },
+                    "description": "ids de TODOS os candidatos que plausivelmente atendem ao relato — lista vazia se nenhum bater com confiança, 1 item se for claro, vários se o relato for genuinamente ambíguo entre mais de um. Nunca inventa id fora da lista."
+                  }
+                },
+                "required": [
+                  "idsPlausiveis"
+                ],
+                "additionalProperties": false
+              }
+            },
+            "description": "A function available to call."
+          }
+        }
+      ],
+      "toolChoice": {
+        "tool": {
+          "name": "extract"
+        }
+      }
+    }
+  },
+  "t": 1791573031402
+}

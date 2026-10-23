@@ -1,6 +1,6 @@
 # Integração com o Verde
 
-Todo o código de chamada ao Verde mora em `src/integracoes/verde.ts`. Base URL de homolog: `https://homologacao.verde.rj.def.br/api/integra`. Autenticação: `Authorization: Bearer <VERDE_JWT_TOKEN>` + `X-Client-ID: <VERDE_CLIENT_ID>`.
+Todo o código de chamada ao Verde mora em `src/maria/integracoes/verde.py`, sobre o cliente HTTP único do processo (`src/maria/integracoes/cliente_http.py`). Base URL de homolog: `https://homologacao.verde.rj.def.br/api/integra`. Autenticação: `Authorization: Bearer <VERDE_JWT_TOKEN>` + `X-Client-ID: <VERDE_CLIENT_ID>`.
 
 **Modo mock**: sem `VERDE_JWT_TOKEN` no ambiente (dev local sem `.env`, ou testes), toda função cai num mock local com CPFs/RGs/números sentinela (`"000000000"` = não encontrado, etc — ver comentário de cada função). Nunca chama a Verde de verdade nesse modo.
 
@@ -27,6 +27,16 @@ Toda chamada passa por `logHttpNaoOk()` quando o HTTP não é 2xx:
 | 404, 422, outros | `nao_encontrado` (dado de negócio genuíno) | `warn` |
 
 Antes dessa distinção existir, um token expirado virava indistinguível de "CPF não encontrado" nos logs — quase fez a gente culpar dado de teste em vez de credencial (achado ao vivo 2026-09-18). Painel no Grafana separa os dois tipos por ambiente/chamada.
+
+### Retry automático em `auth_ou_infra` + sinal `falhaInfra` — issue #172
+
+Antes, `auth_ou_infra` (401/403/5xx, timeout/erro de rede incluso) virava o MESMO `encontrado:false` de "não encontrado de negócio" (404/422) pro resto do grafo — token expirado ou Verde fora do ar virava indistinguível de "CPF/RG genuinamente não existe", e o fluxo tratava os dois igual (retry de negócio "quer tentar de novo?", que é especificamente pra erro de digitação).
+
+Agora, `chamar_verde_com_retry()` (helper interno de `verde.py`, usado por todas as 9 funções) tenta de novo automaticamente em `auth_ou_infra` — até `TENTATIVAS_RETRY_VERDE` (3) vezes, mesmo número dos módulos de IA. 404/422 (negócio) **nunca** retenta, sai na 1ª tentativa — é resposta válida da Verde, não falha.
+
+**Prazos:** cada tentativa tem 30 s no total, inclusive a leitura do corpo (`TIMEOUT_VERDE_S`, issue #196: um RG real voltou "não encontrado" com o Verde de homologação levando 13,5 s e o prazo antigo de 20 s), e 10 s para abrir a conexão TCP, dentro desses 30 s (`cliente_http.py`). Não confundir com os prazos de conexão com o banco (`MIGRACAO.md`, seção "Prazos").
+
+Se esgotar as 3 tentativas por infra, `consultar_apenado_por_rg`/`consultar_pessoa_por_cpf` devolvem `falhaInfra: true` (em vez de só `encontrado: false`) — `DadosApenado`/`DadosPessoa` (`src/maria/shared/types.py`). Os fluxos que consomem isso (`src/maria/fluxos/pessoa_presa/graph.py`, `src/maria/fluxos/violencia_domestica/graph.py`, `src/maria/subgrafos/identificar_assistido/graph.py`) checam `falhaInfra` ANTES de "não encontrado" e vão direto pro `handoff_humano` (motivo `falha_infra_verde`) — nunca entram no retry de negócio "quer tentar de novo?" nem tentam `cadastroPessoa` em cima disso (arriscaria duplicar cadastro de quem já tem registro, só não deu pra confirmar).
 
 ## Endpoints usados
 
@@ -73,7 +83,7 @@ Antes dessa distinção existir, um token expirado virava indistinguível de "CP
 { "dados": { "uf": { "id": 19, "sigla": "RJ", "nome": "Rio de Janeiro" }, "bairro": { "id": 9948, "nome": "Centro" }, "municipio": { "id": 3643, "nome": "Rio de Janeiro" }, "logradouro": "Rua Exemplo", "numero": null } }
 ```
 
-Quando cadastrado, `uf`/`bairro`/`municipio` vêm como `{id, nome}` (`sigla` só em `uf`) e `logradouro` como string solta — capturamos tanto o `id` quanto o texto (`idDeCampoCep()`/`nomeDeCampoCep()` em `verde.ts`). Usado por `coletarEndereco` (issue #176) pra não perguntar de novo o que a Verde já sabe.
+Quando cadastrado, `uf`/`bairro`/`municipio` vêm como `{id, nome}` (`sigla` só em `uf`) e `logradouro` como string solta — capturamos tanto o `id` quanto o texto (`_id_de_campo_cep()`/`_nome_de_campo_cep()` em `verde.py`). Usado por `coletar_endereco` (issue #176) pra não perguntar de novo o que a Verde já sabe.
 
 ⚠️ **Achado ao vivo (2026-09-21)**, testando com 2 CEPs reais: `bairro`/`municipio` vieram `null` nos dois — só `uf` veio populado. Não é regra geral da API, é CEP a CEP: outro CEP testado depois (2026-09-25) veio com tudo populado (exemplo acima). O código lê defensivamente (`idDeCampoCep()`/`nomeDeCampoCep()`), sem assumir shape fixo — se vier `null` ou objeto sem `id`/`nome`, só fica `undefined`, não quebra nada; `coletarEndereco` pergunta de volta o que faltou.
 
@@ -118,7 +128,7 @@ Devolve em **ordem de prioridade** — o código sempre usa `orgaos[0]`. Código
 { "dados": { "idPessoa": 123456 } }
 ```
 
-Usado pelo subgrafo `src/subgrafos/cadastroPessoa/` quando o CPF informado não tem cadastro no Verde (depois de esgotar as tentativas de busca por CPF). `endereco` vem do subgrafo `src/subgrafos/coletarEndereco/` (issue #176), embutido dentro do cadastro — **achado ao vivo**: pessoa cadastrada sem endereço pode não ter órgão disponível na consulta de violência doméstica (a consulta de órgão parece depender do endereço cadastrado), mesmo em casos que teriam fallback com endereço presente. `coletarEndereco` consulta `GET /cep/{cep}` primeiro e só pergunta os campos que a Verde não devolveu em texto (ver seção acima) — número e complemento nunca vêm do CEP, sempre perguntados.
+Usado pelo subgrafo `src/maria/subgrafos/cadastro_pessoa/` quando o CPF informado não tem cadastro no Verde (depois de esgotar as tentativas de busca por CPF). `endereco` vem do subgrafo `src/maria/subgrafos/coletar_endereco/` (issue #176), embutido dentro do cadastro — **achado ao vivo**: pessoa cadastrada sem endereço pode não ter órgão disponível na consulta de violência doméstica (a consulta de órgão parece depender do endereço cadastrado), mesmo em casos que teriam fallback com endereço presente. `coletar_endereco` consulta `GET /cep/{cep}` primeiro e só pergunta os campos que a Verde não devolveu em texto (ver seção acima) — número e complemento nunca vêm do CEP, sempre perguntados.
 
 `CadastrarPessoaDTO` completo também aceita telefones, gênero, nacionalidade e representante legal — nenhum desses é enviado ainda (decisão registrada na issue #171: chatbot não pede esses dados por enquanto, fica pra melhoria futura).
 

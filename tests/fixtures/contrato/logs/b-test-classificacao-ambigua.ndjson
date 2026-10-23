@@ -1,0 +1,9 @@
+{"level":40,"time":1791406062784,"pid":28424,"hostname":"maquina-de-captura","msg":"[checkpoint] DATABASE_URL ausente — usando MemorySaver (não persiste)"}
+{"level":30,"time":1791406062997,"pid":28424,"hostname":"maquina-de-captura","msg":"Server listening at http://127.0.0.1:3001"}
+{"level":30,"time":1791406062997,"pid":28424,"hostname":"maquina-de-captura","msg":"Server listening at http://192.0.2.10:3001"}
+{"level":30,"time":1791406062997,"pid":28424,"hostname":"maquina-de-captura","msg":"rodando em http://localhost:3001"}
+{"level":30,"time":1791406063106,"pid":28424,"hostname":"maquina-de-captura","reqId":"1913f0ab-1f81-4fc5-a390-3c2eb4a29937","req":{"method":"GET","url":"/health","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":63587},"msg":"incoming request"}
+{"level":30,"time":1791406063109,"pid":28424,"hostname":"maquina-de-captura","reqId":"1913f0ab-1f81-4fc5-a390-3c2eb4a29937","res":{"statusCode":200},"responseTime":3.251899999999978,"msg":"request completed"}
+{"level":30,"time":1791406063110,"pid":28424,"hostname":"maquina-de-captura","reqId":"bcbdbf2f-0d32-4a28-9ceb-7199408b6ddb","req":{"method":"POST","url":"/atendimentos/orquestrador","host":"127.0.0.1:3001","remoteAddress":"127.0.0.1","remotePort":63588},"msg":"incoming request"}
+{"level":30,"time":1791406063128,"pid":28424,"hostname":"maquina-de-captura","reqId":"bcbdbf2f-0d32-4a28-9ceb-7199408b6ddb","chatId":"cap-orq-amb","evento":"orquestrador_pergunta_enviada","status":"em_andamento","tipoResposta":"texto","msg":"orquestrador: pergunta de desambiguação enviada"}
+{"level":30,"time":1791406063129,"pid":28424,"hostname":"maquina-de-captura","reqId":"bcbdbf2f-0d32-4a28-9ceb-7199408b6ddb","res":{"statusCode":200},"responseTime":18.784400000000005,"msg":"request completed"}

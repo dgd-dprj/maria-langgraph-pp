@@ -1,0 +1,28 @@
+{
+  "nome": "erro-atendimento-inexistente-get-404",
+  "descricao": "GET de chatId nunca criado",
+  "instancia": {
+    "nome": "a-test-classificacao-pessoa-presa",
+    "env": {
+      "NODE_ENV": "test",
+      "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "GET",
+    "caminho": "/atendimentos/cap-nunca-existiu",
+    "headers": {
+      "authorization": "Bearer <API_KEY>"
+    }
+  },
+  "resposta": {
+    "status": 404,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"erro\":\"atendimento não encontrado\"}",
+    "corpo": {
+      "erro": "atendimento não encontrado"
+    }
+  }
+}

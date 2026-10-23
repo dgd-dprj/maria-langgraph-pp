@@ -1,0 +1,53 @@
+{
+  "nome": "violencia-domestica-handoff-nao-vitima-200",
+  "descricao": "Responde 'false': handoff_humano, motivoHandoff, mensagemFinal, tokensGastos {0,0,0}, _links só self",
+  "instancia": {
+    "nome": "a-test-classificacao-pessoa-presa",
+    "env": {
+      "NODE_ENV": "test",
+      "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-vd-1",
+      "resposta": "false"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"resposta\":\"Esse atendimento é destinado apenas para quem é vítima da violência. Vou encaminhar você para um atendente humano.\",\"tipoResposta\":\"texto\",\"status\":\"handoff_humano\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{\"ehVitima\":false,\"motivoHandoff\":\"nao_e_vitima\"},\"dadosColetados\":{\"cpf\":\"12345678901\"},\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-vd-1\"}}}",
+    "corpo": {
+      "resposta": "Esse atendimento é destinado apenas para quem é vítima da violência. Vou encaminhar você para um atendente humano.",
+      "tipoResposta": "texto",
+      "status": "handoff_humano",
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc",
+      "metadados": {
+        "ehVitima": false,
+        "motivoHandoff": "nao_e_vitima"
+      },
+      "dadosColetados": {
+        "cpf": "12345678901"
+      },
+      "tokensGastos": {
+        "input": 0,
+        "output": 0,
+        "total": 0
+      },
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-vd-1"
+        }
+      }
+    }
+  }
+}

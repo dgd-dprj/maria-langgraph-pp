@@ -27,6 +27,14 @@ tipo/numero-da-issue-descricao-curta
 
 Exemplos: `feat/1-cliente-http-token-env`, `fix/12-banner-503-nao-fecha`, `hotfix/21-crash-ao-abrir-fluxo`.
 
+## Antes de criar a branch: procurar e marcar (obrigatório)
+
+1. **Procure** PR ou branch com o número da issue: `gh pr list --search "<número>" --state all` e `git ls-remote --heads origin "*<número>*"`. Se houver, pare e avise quem pediu o trabalho.
+2. **Marque**: `gh issue edit <número> --add-assignee @me`. Issue atribuída a outra pessoa: pare e avise.
+3. **Uma issue, uma sessão**: não trabalhe numa issue que outra sessão já esteja fazendo.
+
+Motivo: em 2026-10-22, duas sessões implementaram a mesma issue com um minuto de diferença (PRs #289 e #290). Detalhe em [`docs/padroes-branch.md`](../../../docs/padroes-branch.md).
+
 ## Regras
 
 - Uma branch = uma issue. Escopo cresceu → nova issue + nova branch.

@@ -1,0 +1,47 @@
+{
+  "nome": "ttl-recusa-expirado-200",
+  "descricao": "Responde 'false' à confirmação: status expirado (200)",
+  "instancia": {
+    "nome": "d-test-ttl-zero",
+    "env": {
+      "NODE_ENV": "test",
+      "TTL_INATIVIDADE_HORAS": "0"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-ttl-1",
+      "resposta": "false"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"resposta\":\"Essa conversa expirou por inatividade. Pra continuar, inicie um novo atendimento.\",\"tipoResposta\":\"texto\",\"status\":\"expirado\",\"flowId\":\"cabb2495-4e12-4f4a-9956-3d20649059bc\",\"metadados\":{},\"dadosColetados\":{},\"tokensGastos\":{\"input\":0,\"output\":0,\"total\":0},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-ttl-1\"}}}",
+    "corpo": {
+      "resposta": "Essa conversa expirou por inatividade. Pra continuar, inicie um novo atendimento.",
+      "tipoResposta": "texto",
+      "status": "expirado",
+      "flowId": "cabb2495-4e12-4f4a-9956-3d20649059bc",
+      "metadados": {},
+      "dadosColetados": {},
+      "tokensGastos": {
+        "input": 0,
+        "output": 0,
+        "total": 0
+      },
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-ttl-1"
+        }
+      }
+    }
+  }
+}

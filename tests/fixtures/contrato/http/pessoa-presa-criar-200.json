@@ -1,0 +1,51 @@
+{
+  "nome": "pessoa-presa-criar-200",
+  "descricao": "Cria atendimento: 1ª pergunta sim_nao com opcoes",
+  "instancia": {
+    "nome": "a-test-classificacao-pessoa-presa",
+    "env": {
+      "NODE_ENV": "test",
+      "MOCK_CLASSIFICACAO_FLOWID": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "headers": {
+      "authorization": "Bearer <API_KEY>",
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-pessoa-presa-1",
+      "flowId": "3df874f2-675a-4c43-9ec7-480f7c702f50"
+    }
+  },
+  "resposta": {
+    "status": 200,
+    "contentType": "application/json; charset=utf-8",
+    "location": "/atendimentos/cap-pessoa-presa-1",
+    "corpoBruto": "{\"resposta\":\"Você tem o número do processo da pessoa que está presa?\",\"tipoResposta\":\"sim_nao\",\"opcoes\":[\"Sim\",\"Não\"],\"status\":\"em_andamento\",\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"metadados\":{},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-pessoa-presa-1\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}",
+    "corpo": {
+      "resposta": "Você tem o número do processo da pessoa que está presa?",
+      "tipoResposta": "sim_nao",
+      "opcoes": [
+        "Sim",
+        "Não"
+      ],
+      "status": "em_andamento",
+      "flowId": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+      "metadados": {},
+      "dadosColetados": {},
+      "_links": {
+        "self": {
+          "href": "/atendimentos/cap-pessoa-presa-1"
+        },
+        "responder": {
+          "href": "/atendimentos/respostas",
+          "method": "POST"
+        }
+      }
+    }
+  }
+}

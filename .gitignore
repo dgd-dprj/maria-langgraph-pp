@@ -1,5 +1,12 @@
-node_modules/
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
 dist/
+build/
+*.egg-info/
 .env
 *.log
 
@@ -9,3 +16,6 @@ dist/
 # Terraform
 infra/terraform/.terraform/
 infra/terraform/*.tfplan
+
+# Grafo local do graphify (ferramenta de navegação; gerado, não versionado)
+graphify-out/

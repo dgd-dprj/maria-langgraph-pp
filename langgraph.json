@@ -1,9 +1,9 @@
 {
-  "node_version": "20",
+  "python_version": "3.12",
   "dependencies": ["."],
   "graphs": {
-    "pessoa_presa": "./src/fluxos/pessoaPresa/graph.ts:grafo",
-    "violencia_domestica": "./src/fluxos/violenciaDomestica/graph.ts:grafo"
+    "pessoa_presa": "./src/maria/fluxos/pessoa_presa/graph.py:criar_grafo",
+    "violencia_domestica": "./src/maria/fluxos/violencia_domestica/graph.py:criar_grafo"
   },
   "env": ".env"
 }

@@ -1,8 +1,12 @@
-node_modules
+.venv
+__pycache__
+*.py[cod]
+.pytest_cache
+.mypy_cache
+.ruff_cache
 dist
 .env
 *.log
 .git
 .langgraph_api
-test
-test-integracao
+tests

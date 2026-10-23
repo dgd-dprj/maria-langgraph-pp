@@ -8,7 +8,7 @@ Contexto sempre carregado, sem precisar de gatilho:
 
 - [`CLAUDE.md`](../CLAUDE.md) (raiz) — regras que não podem falhar: nunca commitar direto em `develop`/`main`, nunca logar dado sensível LGPD em plaintext, nunca commitar fonte de diagrama, infra (bucket de docs, stack antigo, secrets).
 - [`infra/terraform/CLAUDE.md`](../infra/terraform/CLAUDE.md) — sempre `-target` explícito, nunca escrever no state antigo.
-- [`src/ia/CLAUDE.md`](../src/ia/CLAUDE.md) — custo real de chamada ao Bedrock, nunca logar prompt/resposta com dado sensível, manter caminho mock em teste.
+- [`src/maria/ia/CLAUDE.md`](../src/maria/ia/CLAUDE.md) — custo real de chamada ao Bedrock, nunca logar prompt/resposta com dado sensível, manter caminho mock em teste (`APP_ENV=test`).
 
 ## Skills (`.claude/skills/`)
 
@@ -18,8 +18,8 @@ Carregam sob gatilho (criar issue, commit, branch, PR):
 
 ## Agentes (`.claude/agents/`)
 
-- **`diagram-specialist`** — gera diagrama Mermaid com estilo fixo (losango=decisão, paralelogramo=chamada externa, verde=sucesso, vermelho=handoff), publica no bucket de docs. Nunca commita a fonte.
-- **`code-reviewer`** — revisa diff de uma branch/PR: segredo no diff, dado sensível em log, convenção de commit/branch, teste/doc faltando, `pnpm test`/`typecheck`. Não edita código, só reporta.
+- **`diagram-specialist`** — gera diagrama Mermaid com estilo fixo (losango=decisão, paralelogramo=chamada externa, verde=sucesso, vermelho=handoff). Em issues e PRs, entrega o bloco ` ```mermaid `; em `docs/*.md`, o PNG publicado no bucket de docs. Nunca commita a fonte.
+- **`code-reviewer`** — revisa diff de uma branch/PR: segredo no diff, dado sensível em log, convenção de commit/branch, teste/doc faltando, e roda `ruff`, `mypy` e `pytest`. Não edita código, só reporta.
 
 ## Slash commands (`.claude/commands/`)
 
@@ -28,6 +28,8 @@ Carregam sob gatilho (criar issue, commit, branch, PR):
 ## Hooks (`.claude/settings.json` + `.claude/hooks/`)
 
 - **`block-secrets.mjs`** (PreToolUse, `Edit|Write`) — bloqueia edição em arquivo que provavelmente guarda segredo real (`.env`, `*.pem`, `*.key`, `credentials*.json`).
-- **`typecheck-after-edit.mjs`** (PostToolUse, `Edit|Write`) — depois de editar um `.ts`, roda `pnpm typecheck` e reporta erro na hora, sem esperar o CI.
+- **`typecheck-after-edit.mjs`** (PostToolUse, `Edit|Write`) — depois de editar um `.py`, roda o `mypy` do projeto e reporta erro na hora, sem esperar o CI.
 
 Ambos falham aberto: erro inesperado no script nunca bloqueia por engano, só bloqueia quando reconhece o padrão de risco de verdade.
+
+Os hooks continuam em JavaScript (Node) depois da migração para Python: são do Claude Code, e não da aplicação (decisão da fundação, #208). Por isso o Node é preciso para quem usa o Claude Code no repositório.

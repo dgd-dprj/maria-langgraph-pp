@@ -1,6 +1,6 @@
 # Fluxo: Pessoa Presa
 
-`flowId`: `3df874f2-675a-4c43-9ec7-480f7c702f50` — código em `src/fluxos/pessoaPresa/`.
+`flowId`: `3df874f2-675a-4c43-9ec7-480f7c702f50` — código em `src/maria/fluxos/pessoa_presa/`.
 
 Quem busca informação/encaminhamento sobre alguém que está presa (geralmente um familiar).
 
@@ -45,11 +45,11 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
 
 ### `viaOrquestrador` — por que a Tykhe nunca pergunta CPF do assistido (issue #191)
 
-Mesmo racional de `docs/fluxo-violencia-domestica.md`: a Tykhe consome este fluxo direto via `POST /atendimentos` com `flowId` explícito, contrato que já existia antes da issue #183. `viaOrquestrador` (setado só por `rotas/orquestrador.ts`, nunca pela Tykhe) decide se `identificarAssistido`/`cadastroPessoa` rodam depois do parentesco — sem esse sinal, o fluxo pula os 2 subgrafos inteiros e conclui direto, exatamente como era antes da #183.
+Mesmo racional de `docs/fluxo-violencia-domestica.md`: a Tykhe consome este fluxo direto via `POST /atendimentos` com `flowId` explícito, contrato que já existia antes da issue #183. `viaOrquestrador` (setado só pela rota do orquestrador, `src/maria/api/orquestrador.py`, nunca pela Tykhe) decide se `identificarAssistido`/`cadastroPessoa` rodam depois do parentesco — sem esse sinal, o fluxo pula os 2 subgrafos inteiros e conclui direto, exatamente como era antes da #183.
 
 ## Regras de negócio (o que decide handoff vs conclusão)
 
-A conclusão (`concluir()`, `graph.ts`) checa, nesta ordem:
+A conclusão (`concluir`, em `src/maria/fluxos/pessoa_presa/graph.py`) checa, nesta ordem:
 
 1. **Sem número de processo** (`temProcesso === false`) → `handoff_humano`, motivo `sem_numero_processo`. Mesmo com RG/nome/parentesco todos ok — sem processo não tem como acompanhar a situação de verdade (issue #49).
 2. **Processo com origem não suportada** (`dadosProcesso.origem !== "SEEU"`) → `handoff_humano`, motivo `origem_processo_nao_suportada`. Só processos de origem **SEEU** são resolvidos pelo bot; qualquer outra origem (ou processo não encontrado) cai aqui (issue #51).
@@ -64,6 +64,7 @@ Outros motivos de handoff, fora dessa função:
 - `nome_nao_confirmado` — achou a pessoa mas a pessoa que está perguntando disse que não é ela.
 - `falha_cadastro` (issue #183, só no caminho `viaOrquestrador`) — CPF do assistido esgotou as 3 tentativas **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`) também falhou. Roda DEPOIS da conclusão normal do RG/processo/parentesco — não confundir com os motivos acima, que são sobre o PRESO.
 - `assistido_nao_confirmado` (issue #189, só no caminho `viaOrquestrador`) — achou o assistido por CPF **ou** cadastrou com sucesso, mas ele negou que os dados são dele. Diferente de `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar) e de `nome_nao_confirmado` (que é sobre o PRESO, via RG).
+- `falha_infra_verde` (issue #172) — RG do preso **ou** CPF do assistido esgotou o retry automático de infra (401/403/5xx, `docs/integracao-verde.md`) — diferente de `rg_nao_encontrado`/"CPF não encontrado" (que são dado genuinamente não encontrado/digitado errado): nunca entra no retry de negócio "quer tentar de novo?" nem tenta `cadastroPessoa` (arriscaria duplicar cadastro de quem já tem registro).
 
 ## Tolerâncias (achadas ao vivo, ver comentários no código)
 
