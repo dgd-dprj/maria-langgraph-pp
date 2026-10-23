@@ -2,7 +2,7 @@
 
 > **Cópia.** O índice canônico é o comentário da #208: https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6222948856. Se os dois divergirem, vale o comentário. Esta cópia é atualizada junto com ele, sempre que uma issue é aberta, muda de estado ou de escopo, ou um PR de módulo é mergeado.
 
-**Gerado em:** 2026-10-22 (atualizado com a abertura das #280, #282, #283, #286, #288, #293, #294, #296 a #300 e #303; #288 entregue no PR #289; na #286, o Verde verificado, a pergunta sobre o `api` respondida e o escopo de branches ampliado; na #256, a base rotulada vem do teste da equipe; #214, proteção aplicada; limpeza de 2026-10-22: situação das issues fora da migração, seção 4; decisões de 2026-10-22: #217, #225 e #227 fechadas, #305 aberta, #23 ligada à #249; à noite: #294 em andamento, #298 com escopo reescrito, #300 medida, #308 aberta).
+**Gerado em:** 2026-10-22 (atualizado com a abertura das #280, #282, #283, #286, #288, #293, #294, #296 a #300 e #303; #288 entregue no PR #289; na #286, o Verde verificado, a pergunta sobre o `api` respondida e o escopo de branches ampliado; na #256, a base rotulada vem do teste da equipe; #214, proteção aplicada; limpeza de 2026-10-22: situação das issues fora da migração, seção 4; decisões de 2026-10-22: #217, #225 e #227 fechadas, #305 aberta, #23 ligada à #249; à noite: #294 em andamento, #298 com escopo reescrito, #300 medida, #308 aberta; em 2026-10-23: #309 aberta).
 
 **Comando:** `gh issue list --repo dgd-dprj/maria-langgraph-pp --state all --limit 300 --json number,title,state`. Os PRs vêm de `gh pr view <número>`. A coluna **Situação** é preenchida à mão a partir do `MIGRACAO.md` e das specs.
 
@@ -110,6 +110,7 @@ A coluna **GitHub** é o estado da issue. A coluna **Situação** diz onde o có
 | #266 | Plano de saúde negado → fluxo NUDECON | melhoria de produto | orquestrador | Aberta | **Aguardando dado externo** (as perguntas do fluxo, com Debora, Virgínia e Jane) e a #265. Hoje o caso vai para `tykhe:saude` |
 | #305 | Setor da fila (`category`) no `redirecionado` | melhoria do contrato com a Tykhe | orquestrador, api | Aberta | **Aguardando dado externo** (Tykhe: como mapeia o `tipoCaso` para o setor da fila e se prefere receber o `category`). Pergunta do Ícaro que estava na #225 |
 | #308 | Alertas que não chegam a ninguém (a falha diária do token do Verde passou 26 dias sem ser vista) | processo e observabilidade | ci, observabilidade | Aberta | **Aguardando decisão** (Nicole e Ícaro: o canal da equipe). Levantado em 2026-10-22: workflow agendado avisa só uma pessoa; as 8 regras do Grafana vão para um ponto de contato não versionado; o CloudWatch não tem alarme nem tópico SNS |
+| #309 | Usuário do Grafana lê o texto digitado pela pessoa e, provavelmente, as conversas de produção | proteção de dados | observabilidade, persistencia | Aberta | **Aguardando execução** (Ícaro: banco e Grafana). O `grafana_readonly` recebe `SELECT` em todo o schema `public` (`grafana.tf:64-69`), onde ficam `resposta_pendente_ttl` e, pela documentação, o checkpoint da versão TypeScript. Proposta: visão `painel.atendimentos` sem as colunas sensíveis. Prioridade alta |
 
 **Pendências que ainda não têm issue:**
 - lista de parentescos nova em develop (#212);
