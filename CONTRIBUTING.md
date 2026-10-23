@@ -18,7 +18,7 @@ Setup local, variáveis de ambiente e estrutura de pastas: ver [`README.md`](REA
 |---|---|---|
 | Push direto | bloqueado: tudo entra por PR | bloqueado: tudo entra por PR |
 | Checks obrigatórios | `test` e `imagem` | `test` e `imagem`, com a branch atualizada |
-| Aprovações | nenhuma | 1, de quem não fez o último push |
+| Aprovações | nenhuma | 1 |
 | Método de merge | squash (padrão) ou merge commit | só merge commit |
 | Force push e exclusão da branch | bloqueados | bloqueados |
 
