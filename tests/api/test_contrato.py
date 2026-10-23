@@ -7,7 +7,7 @@ gravação (NODE_ENV vira APP_ENV), e as fixtures são reproduzidas na ordem do
 
 Compara:
 - status, content-type, Location e o corpo bruto (no 500, tudo menos o valor de
-  `message`, #210);
+  `message`, #210; sem os campos posteriores à gravação, `campos_posteriores.py`, #294);
 - as linhas de log de cada requisição (as que têm `reqId`), sem `time`, `pid`,
   `hostname`, `reqId`, `responseTime`, o endereço do cliente e o `stack`.
 
@@ -18,7 +18,6 @@ Módulo api (#246): as 31 fixtures do PR 1 e as 19 do PR 2 (`GET /atendimentos/:
 from __future__ import annotations
 
 import json
-import re
 from collections.abc import AsyncIterator
 from pathlib import Path
 from typing import Any
@@ -27,6 +26,7 @@ import httpx
 import pytest
 
 from maria.app import criar_app
+from tests.api.campos_posteriores import sem_campos_posteriores
 
 RAIZ = Path("tests/fixtures/contrato")
 CHAVE = "chave-de-captura"
@@ -59,15 +59,6 @@ def _conteudo(f: dict[str, Any]) -> bytes | None:
     if "corpo" in req:
         return json.dumps(req["corpo"], ensure_ascii=False, separators=(",", ":")).encode("utf-8")
     return None
-
-
-_DESTINO = re.compile(r',"destino":"[a-z_]+"')
-
-
-def _sem_destino(corpo: str) -> str:
-    """Divergência aceita (#288): as fixtures são do servidor TypeScript, que não tem o campo `destino`.
-    Fora o `destino`, o corpo continua igual byte a byte; os valores do campo têm teste próprio."""
-    return _DESTINO.sub("", corpo)
 
 
 _VARIAVEIS_LOG = {"time", "pid", "hostname", "reqId", "responseTime"}
@@ -156,7 +147,7 @@ async def test_fixtures_byte_a_byte(
             obtido.pop("message"), esperado_corpo.pop("message")
             if list(obtido.items()) != list(esperado_corpo.items()):
                 falhas.append(f"{f['nome']}: corpo {r.text} != {esperado['corpoBruto']}")
-        elif _sem_destino(r.text) != esperado["corpoBruto"]:
+        elif sem_campos_posteriores(r.text) != esperado["corpoBruto"]:
             falhas.append(f"{f['nome']}:\n    obtido:   {r.text}\n    esperado: {esperado['corpoBruto']}")
 
         linhas = [json.loads(x) for x in capsys.readouterr().out.splitlines() if x.strip().startswith("{")]
