@@ -11,8 +11,30 @@ Todo o código de chamada ao Verde mora em `src/maria/integracoes/verde.py`, sob
 1. Consulta `GET /autenticacao/token/status` — resposta vem **envelopada em `dados`** (`{"dados": {"valido":..., "expirado":..., "revogado":..., "expiraEm":...}}`), achado ao vivo (issue #194) diferente do exemplo flat do Swagger — mesmo padrão de inconsistência já visto no `/cep` (issue #127). `POST /autenticacao/token/refresh`, ao contrário, devolve FLAT de verdade (`{"token":..., "expiraEm":...}`, sem `dados`, confirmado no mesmo teste ao vivo).
 2. **Revogado** → falha o workflow direto (`::error::`) — não tem renovação possível, precisa de token novo emitido manualmente na Verde.
 3. **Saudável** (mais de 7 dias pro vencimento) → só loga, não faz nada.
-4. **Perto de vencer ou já expirado dentro do grace period** (Verde aceita renovar até 5 dias depois de expirado — nesse caso o token só serve pra chamar o refresh, nenhuma outra chamada) → chama `POST /autenticacao/token/refresh`, grava o token novo no Secrets Manager (`aws secretsmanager put-secret-value`) e força redeploy do ECS (`--force-new-deployment`) pra task pegar o valor novo no próximo boot.
+4. **Perto de vencer ou já expirado dentro do grace period** (Verde aceita renovar até 5 dias depois de expirado — nesse caso o token só serve pra chamar o refresh, nenhuma outra chamada) → chama `POST /autenticacao/token/refresh`, grava o token novo no Secrets Manager (`aws secretsmanager put-secret-value`) e força redeploy do ECS (`--force-new-deployment`) pra task pegar o valor novo no próximo boot. **Depois espera o serviço estabilizar** (`aws ecs wait services-stable`, como os deploys) e confere que o deploy que sobrou não é um dos que já existiam antes da renovação (#316). Se o serviço não estabilizar, ou se sobrar um deploy antigo, o workflow falha com a mensagem "token renovado e gravado no Secrets Manager, mas o container novo não subiu".
 5. Refresh falhou (grace period estourado, erro de rede) → falha o workflow, mesmo canal de alerta de antes (e-mail via GitHub Actions).
+
+### O container só lê o token quando inicia (#316)
+
+O Verde invalida o token antigo **na hora** da renovação, e cada container lê o `VERDE_JWT_TOKEN` do segredo só quando sobe. Até o container ser trocado, toda consulta ao Verde recebe 401. **Trocar o segredo, à mão ou pelo workflow, não muda nada até o container reiniciar.**
+
+Foi o incidente de 2026-10-22 e 23 (#308): a renovação rodou, o redeploy travou no ECS, o workflow terminou com sucesso, e o container antigo ficou cerca de 23 horas no ar com o token invalidado. A troca manual do segredo no dia seguinte também não teve efeito, porque nenhum container novo subiu.
+
+**Depois de trocar o token à mão** no segredo `maria-langgraph-pp-<ambiente>/app`:
+
+1. Reinicie o serviço (`api` para produção, `api-release` para o release):
+   ```
+   aws ecs update-service --cluster maria-langgraph-pp --service <servico> --force-new-deployment --region us-east-1
+   ```
+2. Espere estabilizar. Se o comando falhar por tempo esgotado, o deploy travou: veja os eventos do serviço no console do ECS.
+   ```
+   aws ecs wait services-stable --cluster maria-langgraph-pp --services <servico> --region us-east-1
+   ```
+3. Confirme que sobrou um deploy só e que as tarefas são novas (`deployments` com um item, e `runningCount` igual a `desiredCount`):
+   ```
+   aws ecs describe-services --cluster maria-langgraph-pp --services <servico> --region us-east-1 --query "services[0].{deploys:length(deployments),rodando:runningCount,desejado:desiredCount}"
+   ```
+4. Confirme nos logs que as consultas voltaram: o evento `verde_chamada` com `resultado = 'sucesso'` depois do horário do reinício, e nenhum `status = 401`.
 
 Esse workflow é o único "dono" da renovação — a aplicação nunca se auto-renova em runtime. Motivo: o serviço roda com múltiplas tasks ECS lendo o MESMO token; se 2 tasks tentassem renovar ao mesmo tempo, a primeira invalidaria o token na hora (regra da própria Verde) e a segunda colidiria. Um único processo agendado como dono evita essa corrida — as tasks só LEEM o token (no boot), nunca escrevem.
 
