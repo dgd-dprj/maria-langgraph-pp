@@ -30,6 +30,8 @@ import pytest
 from maria.api.webhook_whatsapp import limpar_conversas_ativas_de_teste
 from maria.app import criar_app
 from tests.api.campos_posteriores import sem_campos_posteriores
+from tests.api.casos_aposentados import CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr2")
 CENARIOS: list[dict[str, Any]] = json.loads((RAIZ / "cenarios.json").read_text(encoding="utf-8"))
@@ -117,13 +119,14 @@ async def _asgi(app: Any, c: dict[str, Any]) -> dict[str, Any]:
     }
 
 
-async def test_313_cenarios_iguais_a_develop(monkeypatch: pytest.MonkeyPatch) -> None:
+async def _conferir(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
+    """As falhas de cada cenário, pelo nome (lista vazia quando bate com develop)."""
     for variavel in _VARIAVEIS:
         monkeypatch.delenv(variavel, raising=False)
     monkeypatch.setenv("API_KEY", "chave-conferencia")
     limpar_conversas_ativas_de_teste()
     app = criar_app(pre_aquecer=False)
-    falhas: list[str] = []
+    por_caso: dict[str, list[str]] = {}
     async with app.router.lifespan_context(app):
         for c in CENARIOS:
             with monkeypatch.context() as m:
@@ -134,15 +137,29 @@ async def test_313_cenarios_iguais_a_develop(monkeypatch: pytest.MonkeyPatch) ->
                 r = await _asgi(app, c)
             d = DEVELOP[c["nome"]]
             esperado_corpo = "" if c["nome"] in HEAD_SEM_CORPO else d["corpo"]
+            do_caso = por_caso.setdefault(c["nome"], [])
             for campo in ("status", "contentType", "location"):
                 if r[campo] != d[campo]:
-                    falhas.append(f"{c['nome']}: {campo} {r[campo]!r} != {d[campo]!r}")
+                    do_caso.append(f"{c['nome']}: {campo} {r[campo]!r} != {d[campo]!r}")
             if d["status"] == 500 and r["corpo"] and esperado_corpo:
                 obtido, esperado = json.loads(r["corpo"]), json.loads(esperado_corpo)
                 obtido.pop("message"), esperado.pop("message")  # #210
                 if list(obtido.items()) != list(esperado.items()):
-                    falhas.append(f"{c['nome']}: corpo {r['corpo']} != {esperado_corpo}")
+                    do_caso.append(f"{c['nome']}: corpo {r['corpo']} != {esperado_corpo}")
             elif _CHAT_WPP.sub(r"\1<T>", sem_campos_posteriores(r["corpo"])) != _CHAT_WPP.sub(r"\1<T>", esperado_corpo):
-                falhas.append(f"{c['nome']}:\n    obtido:   {r['corpo'][:300]}\n    esperado: {esperado_corpo[:300]}")
+                do_caso.append(f"{c['nome']}:\n    obtido:   {r['corpo'][:300]}\n    esperado: {esperado_corpo[:300]}")
     limpar_conversas_ativas_de_teste()
+    return por_caso
+
+
+async def test_313_cenarios_iguais_a_develop(monkeypatch: pytest.MonkeyPatch) -> None:
+    falhas = falhas_da_conferencia(await _conferir(monkeypatch), CASOS_APOSENTADOS["pr2"])
     assert not falhas, "\n".join(falhas)
+
+
+async def test_fluxo_novo_muda_so_os_casos_medidos(monkeypatch: pytest.MonkeyPatch) -> None:
+    # #321: com um fluxo a mais, quebram só os casos medidos; aposentados, a conferência passa.
+    registrar_fluxo_de_brinquedo(monkeypatch)
+    por_caso = await _conferir(monkeypatch)
+    assert casos_que_falharam(por_caso) == CASOS_DE_UM_FLUXO_NOVO["pr2"]
+    assert falhas_da_conferencia(por_caso, aposentados_do_brinquedo("pr2")) == []
