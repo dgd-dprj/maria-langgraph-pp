@@ -6,9 +6,31 @@ Este documento conta a mesma história da issue [#208](https://github.com/dgd-dp
 
 O serviço foi reescrito de TypeScript (Node 22, Fastify, LangGraph JS, pnpm) para Python 3.12 (FastAPI, LangGraph Python, uv, ruff, mypy, pytest).
 
-**A régua é comportamento idêntico ao de `develop` @ `4e695f2`**: mesmas perguntas, mesmos desfechos, mesmo contrato HTTP com a Tykhe e mesmos logs consumidos pelo Grafana. Funcionalidade nova, melhoria e mudança de contrato ficaram fora. O que valia melhorar está na seção [Melhorias registradas, fora do escopo](#melhorias-registradas-fora-do-escopo), sem implementar.
+**A régua é comportamento idêntico ao de `develop` @ `4e695f2`**: mesmas perguntas, mesmos desfechos, mesmo contrato HTTP com a Tykhe e mesmos logs consumidos pelo Grafana. Funcionalidade nova, melhoria e mudança de contrato ficaram fora. O que valia melhorar está na seção [Melhorias registradas, fora do escopo](#melhorias-registradas-fora-do-escopo), sem implementar. **A régua cumpriu o papel dela em 2026-10-23**, quando produção passou a rodar Python. Ver a seção "Janela das correções", logo abaixo.
 
 O código TypeScript não foi copiado nem convive com o Python. Ele continua em `develop` (e no histórico do git) como fonte de comportamento.
+
+## Janela das correções (aberta em 2026-10-23)
+
+**Decisão da Nicole, registrada na #208.**
+
+**Por quê:** com produção em Python (release #310, `15fd757`, estável às 12:33), não há mais versão TypeScript em nenhum ambiente para comparar. A régua de reproduzir develop, inclusive os defeitos, existia para que cada diferença entre as versões fosse erro de tradução, e não mudança de propósito. Com uma versão só, essa comparação acabou. As correções marcadas "aprovada, aguardando janela" no índice de issues podem entrar.
+
+**Ordem:**
+
+| Prioridade | Issues | Motivo |
+|---|---|---|
+| 1 | #316 | Prazo: a próxima renovação automática do token de produção, em 2026-10-25, ~13:27. É a causa do incidente de 22 e 23/10 (#308) |
+| 2 | #239 e #232 | O mesmo padrão do incidente: falha de infraestrutura (Verde, CEP) vira resposta de negócio para a pessoa |
+| 3 | #220 | Corpo da resposta do Verde no log, com dado pessoal. Falta a medição |
+| 4 | #212 | Validação da saída da IA e lista de parentescos |
+| 5 | #210, #211, #231 e #280 | Mudam o que a Tykhe recebe |
+| 6 | #230 | Contagem de tokens. Falta a medição |
+
+**Regras para toda correção:**
+1. **O grupo 5 não entra enquanto a equipe estiver testando.** Mudar o contrato com a Tykhe no meio da validação confunde quem testa e quem lê o resultado.
+2. **Resposta gravada não se edita.** Se uma correção mudar o **valor** de uma resposta gravada em `tests/fixtures/contrato/`, o caso é **aposentado da conferência com registro**: o motivo, a issue e o teste escrito que passa a cobrir o comportamento novo. A fixture fica intacta. Campo novo e opcional continua no mecanismo da #294 (`tests/api/campos_posteriores.py`). Ver "As respostas gravadas são evidência, não teste de regressão".
+3. **Guia de teste:** cada PR de correção que muda comportamento atualiza o `docs/guia-teste-homologacao.md`, e o merge entra em horário combinado com a equipe. Todo merge em `develop` reinicia o release.
 
 ## Modelo de branch
 
