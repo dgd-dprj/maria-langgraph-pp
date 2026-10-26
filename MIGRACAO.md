@@ -189,6 +189,16 @@ scripts/
   - **Como tira:** o campo é cortado do texto original, com a vírgula do vizinho, e nada é reserializado. O resto fica como foi gravado, inclusive números como `1e-7`, que o `json.dumps` do Python escreveria `1e-07`. Corpo sem campo listado não é tocado. Campo com o mesmo nome dentro de objeto aninhado ou de texto continua conferido.
   - **Para registrar um campo novo:** uma entrada na lista, com a issue e o teste. Campo fora da lista quebra a conferência, de propósito. O teste do mecanismo falha se a entrada citar um teste que não existe ou que não menciona o campo.
   - **Fora do mecanismo:** campo novo dentro de objeto aninhado (como `metadados`) e linha de log nova; cada um fica para quando o primeiro caso aparecer. O de log já tem caso à vista: o `reqId` nas linhas do Verde e da IA (issue da instrumentação).
+- **Mecanismo definido em 2026-10-23 (#321): caso aposentado, para mudança de valor numa resposta gravada.**
+  - **Onde:** `tests/api/casos_aposentados.py` lista, por conferência (`contrato`, `pr1`, `pr2`), os casos que saíram da comparação, cada um com a issue, o motivo e o teste escrito que cobre o comportamento novo. A lista começa vazia.
+  - **Como funciona:**
+    - cada conferência devolve as falhas por caso, e a lista é aplicada depois;
+    - o caso aposentado **continua sendo enviado**, porque os seguintes dependem do estado que ele deixa;
+    - **caso aposentado que volta a bater com a gravação falha a conferência**, para a entrada não ficar esquecida;
+    - `tests/api/test_casos_aposentados.py` confere o registro: conferência, caso e teste citados precisam existir, e o teste precisa citar o caso ou a issue.
+  - **O primeiro uso previsto é um fluxo novo.** Um teste registra um fluxo de brinquedo só durante a execução (`tests/api/fluxo_de_brinquedo.py`) e mede os casos que ele muda: 6, todos `GET /fluxos` respondido com 200 (1 no `contrato`, 4 no `pr1` e 1 no `pr2`). A lista está no `docs/novo-fluxo.md`. Se ela mudar, o teste do brinquedo falha.
+  - **Verificado por mutação:** sem pular a comparação dos aposentados, 6 testes falham; sem a checagem do caso que voltou a bater, 1 falha.
+  - Regra reafirmada na abertura da janela das correções (seção "Janela das correções"): **resposta gravada não se edita**.
 
 ## Divergências aceitas
 

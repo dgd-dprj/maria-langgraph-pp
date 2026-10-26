@@ -106,6 +106,24 @@ Registrar o fluxo muda a resposta de `GET /fluxos` e o catálogo do orquestrador
 - **Listas esperadas no código** — `tests/api/test_app.py` (`GET /fluxos`), `tests/api/test_orquestrador_rota.py` e `tests/fluxos/test_spec_fluxos.py` (o catálogo com os 2 fluxos e os 7 tipos da Tykhe). Atualize a lista esperada para incluir o fluxo novo.
 - **Respostas gravadas contra a versão TypeScript** — `tests/fixtures/contrato/http/`, `tests/fixtures/contrato/conferencia-api-pr1/` e `tests/fixtures/contrato/conferencia-api-pr2/` guardam o corpo de `GET /fluxos` com os 2 fluxos, e são conferidas byte a byte por `tests/api/test_contrato.py`, `tests/api/test_conferencia_pr1.py` e `tests/api/test_conferencia_pr2.py`. **Não edite a fixture.** Ela é evidência da tradução, e não teste de regressão: prova o que a versão TypeScript devolvia. O caso afetado sai da conferência, e o comportamento novo ganha um teste escrito. Ver `MIGRACAO.md`, seção "As respostas gravadas são evidência, não teste de regressão".
 
+  **Como tirar os casos da conferência (#321):** aposente os 6 casos abaixo em `tests/api/casos_aposentados.py`. Cada entrada leva a issue do fluxo, o motivo e o teste escrito que confere a lista nova de `GET /fluxos` (por exemplo, o de `tests/api/test_app.py`, que você já atualizou). Esses 6 casos foram medidos com um fluxo de brinquedo (`tests/api/fluxo_de_brinquedo.py`). São todos `GET /fluxos` respondidos com 200, e o teste do brinquedo avisa se a lista mudar.
+
+  | Conferência | Casos |
+  |---|---|
+  | `contrato` | `fluxos-200` |
+  | `pr1` | `fluxos`, `fluxos_query`, `auth_bearer_espacos_fluxos`, `auth_bearer_duplo_espaco_fluxos` |
+  | `pr2` | `rota_get_fluxos_codificado` |
+
+  ```python
+  CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
+      "contrato": {"fluxos-200": CasoAposentado(issue=<n>, motivo="fluxo novo muda a lista de GET /fluxos", teste="tests/api/test_app.py")},
+      "pr1": {...},  # os 4 casos da tabela, com a mesma issue
+      "pr2": {...},
+  }
+  ```
+
+  O caso aposentado continua sendo enviado, porque os casos seguintes dependem do estado que ele deixa; só a comparação dele sai. Se um caso aposentado voltar a bater com a gravação, a conferência falha e pede para tirar a entrada. `tests/api/test_casos_aposentados.py` confere o registro: conferência, caso e teste citados precisam existir.
+
 Ver `docs/testes.md` pra convenção geral.
 
 ## 4. Documentação

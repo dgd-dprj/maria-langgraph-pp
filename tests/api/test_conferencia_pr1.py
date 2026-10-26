@@ -24,6 +24,8 @@ import httpx
 import pytest
 
 from maria.app import criar_app
+from tests.api.casos_aposentados import CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr1")
 CENARIOS: list[dict[str, Any]] = json.loads((RAIZ / "cenarios.json").read_text(encoding="utf-8"))
@@ -83,8 +85,9 @@ def test_conferencia_tem_343_cenarios_e_as_saidas_de_develop() -> None:
     assert [c["nome"] for c in CENARIOS] == [d["nome"] for d in DEVELOP]
 
 
-async def test_conferencia_diferencial_contra_develop(cliente_conferencia: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
-    falhas: list[str] = []
+async def _conferir(cliente_conferencia: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
+    """As falhas de cada cenário, pelo nome (lista vazia quando bate com develop)."""
+    por_caso: dict[str, list[str]] = {}
     for c, d in zip(CENARIOS, DEVELOP, strict=True):
         env = {"APP_ENV": c["env"].get("APP_ENV", "test"), **{k: v for k, v in c["env"].items() if k != "APP_ENV"}}
         with monkeypatch.context() as m:
@@ -99,16 +102,30 @@ async def test_conferencia_diferencial_contra_develop(cliente_conferencia: httpx
         nome = c["nome"]
         if nome in CLIENTE_DE_TESTE:
             continue
+        do_caso = por_caso.setdefault(nome, [])
         if nome in TOKENS_500:
             if r.status_code != 500:
-                falhas.append(f"{nome}: esperado 500 (D-5, divergência aceita), veio {r.status_code}")
+                do_caso.append(f"{nome}: esperado 500 (D-5, divergência aceita), veio {r.status_code}")
             continue
         obtido = (r.status_code, r.headers.get("content-type"), _norm(r.headers.get("location")), _norm(r.content.decode("utf-8")))
         esperado = (d["status"], d["contentType"], _norm(d["location"]), _norm(d["corpo"]))
         if nome in DIVERGENCIAS:
             if obtido == esperado:
-                falhas.append(f"{nome}: a divergência registrada sumiu ({DIVERGENCIAS[nome]})")
+                do_caso.append(f"{nome}: a divergência registrada sumiu ({DIVERGENCIAS[nome]})")
             continue
         if obtido != esperado:
-            falhas.append(f"{nome}:\n    python:  {obtido}\n    develop: {esperado}")
+            do_caso.append(f"{nome}:\n    python:  {obtido}\n    develop: {esperado}")
+    return por_caso
+
+
+async def test_conferencia_diferencial_contra_develop(cliente_conferencia: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    falhas = falhas_da_conferencia(await _conferir(cliente_conferencia, monkeypatch), CASOS_APOSENTADOS["pr1"])
     assert not falhas, "\n".join(falhas)
+
+
+async def test_fluxo_novo_muda_so_os_casos_medidos(cliente_conferencia: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # #321: com um fluxo a mais, quebram só os casos medidos; aposentados, a conferência passa.
+    registrar_fluxo_de_brinquedo(monkeypatch)
+    por_caso = await _conferir(cliente_conferencia, monkeypatch)
+    assert casos_que_falharam(por_caso) == CASOS_DE_UM_FLUXO_NOVO["pr1"]
+    assert falhas_da_conferencia(por_caso, aposentados_do_brinquedo("pr1")) == []
