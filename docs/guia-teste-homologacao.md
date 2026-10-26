@@ -1,5 +1,12 @@
 # Guia de teste em homologação: a Maria em Python no release
 
+> **Corrigido em 2026-10-26: a equipe está testando na produção (`main`, serviço `api`), pela Tykhe, e não no release.** Isso muda três coisas para quem usa este guia:
+> - **os atendimentos de teste ficam misturados aos de cidadãos** na produção. Os dois chegam pela Tykhe, com o mesmo formato de `chatId`, e o log da Maria não separa um do outro (#208);
+> - **o horário combinado vale para o PR de release** (`develop` → `main`), que reinicia a produção, e não para os merges em `develop`;
+> - **a produção também consulta o Verde de homologação** (#286), então a regra de usar só dados inventados ou os de teste da homologação continua valendo.
+>
+> O resto do guia foi escrito para o release e fica como está, para registro.
+
 > **O release usa o Verde de homologação** (verificado em 2026-10-22, #286). As gravações do teste ficam na homologação, e isso está autorizado. Use só dados inventados ou os de teste da homologação.
 >
 > **Onde a Maria grava no Verde**, para saber o que cada caso deixa registrado:

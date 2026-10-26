@@ -11,6 +11,7 @@ Setup local, variáveis de ambiente e estrutura de pastas: ver [`README.md`](REA
 
 - **Os nomes ficam como estão** até depois do corte da migração (#268), por decisão de 2026-10-22: renomear branch ou ambiente no meio do teste da equipe confundiria qualquer problema que aparecesse. Uma branch de integração separada e a troca de nomes ficam para depois, junto com o ambiente novo da #286.
 - **Todo merge em `develop` reinicia o release.** Quem estiver testando pelo WhatsApp perde a conversa em andamento, porque a ponte guarda as conversas abertas em memória ([`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md)). Durante uma rodada de teste da equipe, combine o horário do merge.
+- **Corrigido em 2026-10-26: a equipe testa na `main` (produção), pela Tykhe, e não no release.** Hoje ninguém usa o release, então merge em `develop` não precisa de horário combinado. O horário combinado vale para o PR de release (`develop` → `main`), que reinicia a produção, onde estão a equipe e o atendimento real. A coluna "Papel" da tabela acima descreve o desenho, e não o uso atual.
 
 **Proteção (rulesets do GitHub, desde 2026-10-22, #214):**
 
@@ -24,11 +25,12 @@ Setup local, variáveis de ambiente e estrutura de pastas: ver [`README.md`](REA
 
 Ninguém contorna as regras, nem quem é admin. Numa emergência, um admin desativa o ruleset nas configurações do repositório, e isso fica registrado.
 
-> **Não "corrija" estas duas configurações sem combinar com o Ícaro.** As duas existem pelo mesmo motivo: as sessões do Claude do Ícaro reaproveitam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291, #295).
-> - **`develop` aceita merge commit, e não só squash.** Com squash obrigatório, o PR seguinte dessa branch traria de novo commits já mergeados e entraria em conflito.
-> - **A exclusão automática da branch depois do merge está desligada.** Ligada, ela apagaria a branch reaproveitada a cada merge.
+> **Não "corrija" esta configuração sem combinar com o Ícaro.** Ela existe porque as sessões do Claude do Ícaro reaproveitavam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291, #295, #315).
+> - **`develop` aceita merge commit, e não só squash.** Com squash obrigatório, o PR seguinte de uma branch reaproveitada traria de novo commits já mergeados e entraria em conflito.
 >
-> As duas voltam à mesa quando cada PR tiver a própria branch. Registro em `MIGRACAO.md`, seção "Branches, ambientes e proteção".
+> Volta à mesa quando cada PR tiver a própria branch. Registro em `MIGRACAO.md`, seção "Branches, ambientes e proteção".
+
+**A branch é apagada sozinha depois do merge** (religado em 2026-10-23). A exclusão automática ficou desligada enquanto a branch reaproveitada existia; o Ícaro apagou essa branch depois do #315. Se uma sessão recriar a branch com o mesmo nome, nada quebra: `develop` aceita merge commit.
 
 ## Antes de codar
 
