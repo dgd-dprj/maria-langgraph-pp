@@ -14,6 +14,8 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 
 **Decisão da Nicole, registrada na #208.**
 
+> **Corrigido em 2026-10-26 (Nicole): a equipe testa na `main` (produção), e não no release.** A janela vale para a `main`, onde estão a equipe e o atendimento real. Merge em `develop` sobe só o release, que ninguém usa, e não espera pela janela: o #319, o #322 e o #328 entraram nesse dia por isso. As regras abaixo continuam, aplicadas ao PR de release (`develop` → `main`): o grupo 5 não vai para a `main` enquanto a equipe testa, e o PR de release que leva correção que muda comportamento entra em horário combinado e com o guia de teste atualizado. Os atendimentos de teste estão misturados aos reais na produção (#208). O texto original fica como está, para registro.
+
 **Por quê:** com produção em Python (release #310, `15fd757`, estável às 12:33), não há mais versão TypeScript em nenhum ambiente para comparar. A régua de reproduzir develop, inclusive os defeitos, existia para que cada diferença entre as versões fosse erro de tradução, e não mudança de propósito. Com uma versão só, essa comparação acabou. As correções marcadas "aprovada, aguardando janela" no índice de issues podem entrar.
 
 **Ordem:**
@@ -710,6 +712,7 @@ Leva a `migration` para `develop`. O PR #267 (`migration` → `develop`) foi abe
   4. **A chave de API não foi trocada.** O roteiro usou a chave atual, e a troca segue pendente.
 - **Atendimentos de teste no release:** o roteiro deixou 4 atendimentos gravados, nos `chatId` **`conf-b2810080-c1`, `conf-b2810080-c2`, `conf-b2810080-c3` e `conf-b2810080-c4`**, com os relatos inventados do roteiro e nenhum dado real. Eles ficam na tabela `atendimentos` e no `checkpoint_py` do release, e **entram nas contagens do painel do Grafana**. Quem olhar o painel precisa saber disso. Para tirá-los de uma consulta: `WHERE chat_id NOT LIKE 'conf-b2810080-%'`.
 - **Pendências:** o token do Verde no segredo do release continua vencido. A primeira consulta de pessoa presa ou de violência doméstica vai falhar até o Ícaro gravar o token válido e fazer o deploy. Também falta trocar a chave de API.
+- **Corrigido em 2026-10-26: o token do release ficou vencido 19 dias sem ninguém notar** (de 04/10, 11:57, a 23/10, ~10:40), porque ninguém usa o release: a equipe testa na `main`. Desde 23/10, o token gravado está válido até 23/11, às 10:34 (*executado*: verificação diária de 26/10, execução `40374463138`, "token saudável, expira em 27,8 dias"), e a renovação automática cobre o release. **A prioridade muda:** manter o token do release deixa de ser urgente e vira **pré-requisito de quando alguém for testar lá**: antes de usar o release, conferir a validade na verificação diária do dia.
 
 **Produção em Python: `main` recebeu `develop` em 2026-10-23, e o serviço `api` estabilizou às 12:33 (Brasília).** É a última etapa da troca de versão.
 - **O merge:**
@@ -813,6 +816,8 @@ O fluxo "Orquestrador" da Tykhe chama `https://d2urkrsd5u4rck.cloudfront.net`. *
 > - **A janela do deploy:** a janela anunciada protege quem está testando. Um deploy fora dela interrompe um teste, e não um atendimento.
 > - **As conversas perdidas na troca** (item 3 abaixo e decisão em aberto 3): quem recomeça a conversa é alguém da equipe, e não uma pessoa no meio de um relato de violência ou da busca por um familiar preso.
 > - **O token do Verde vencido no release** (decisão em aberto 4): bloqueia o teste dos fluxos na primeira consulta ao Verde, mas não deixa ninguém sem atendimento. Continua sendo pré-requisito do teste.
+>
+> **Corrigido em 2026-10-26:** a equipe testa na `main`, e não no release. A premissa de que a produção só recebia teste continua contestada (#208), e os atendimentos de teste estão misturados aos reais na produção. O token do release foi regravado em 23/10 e vale até 23/11; ver "Pendências", na seção do roteiro.
 >
 > **Quando algum dos ambientes passar a atender cidadão, as três voltam ao peso original.** O texto abaixo foi escrito antes desta informação e fica como estava.
 >

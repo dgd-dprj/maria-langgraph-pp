@@ -11,6 +11,7 @@ Setup local, variáveis de ambiente e estrutura de pastas: ver [`README.md`](REA
 
 - **Os nomes ficam como estão** até depois do corte da migração (#268), por decisão de 2026-10-22: renomear branch ou ambiente no meio do teste da equipe confundiria qualquer problema que aparecesse. Uma branch de integração separada e a troca de nomes ficam para depois, junto com o ambiente novo da #286.
 - **Todo merge em `develop` reinicia o release.** Quem estiver testando pelo WhatsApp perde a conversa em andamento, porque a ponte guarda as conversas abertas em memória ([`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md)). Durante uma rodada de teste da equipe, combine o horário do merge.
+- **Corrigido em 2026-10-26: a equipe testa na `main` (produção), pela Tykhe, e não no release.** Hoje ninguém usa o release, então merge em `develop` não precisa de horário combinado. O horário combinado vale para o PR de release (`develop` → `main`), que reinicia a produção, onde estão a equipe e o atendimento real. A coluna "Papel" da tabela acima descreve o desenho, e não o uso atual.
 
 **Proteção (rulesets do GitHub, desde 2026-10-22, #214):**
 
