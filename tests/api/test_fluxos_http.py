@@ -10,7 +10,7 @@ from itertools import count
 import httpx
 import pytest
 
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA
+from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA
 
 _ids = count(1)
 
@@ -152,3 +152,30 @@ async def test_pp_completo_sem_processo_handoff_com_metadados_preenchidos_49(
     assert "encontrado" not in apenado
     assert apenado["tipoPreso"] == "CONDENADO"
     assert apenado["regime"] == "SEMIABERTO"
+
+
+# --- Problemas com plano de saúde (NUDECON, #329) ---
+
+
+async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+    r = await cliente.post(
+        "/atendimentos", json={"chatId": f"teste-ps-http-{next(_ids)}", "flowId": ID_PROBLEMAS_PLANO_SAUDE}, headers=auth
+    )
+    corpo = r.json()
+    assert r.status_code == 200
+    assert corpo["status"] == "em_andamento"
+    assert corpo["tipoResposta"] == "texto"
+    assert "das 11h às 16h" in corpo["resposta"]
+
+
+async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+    chat_id = f"teste-ps-http-{next(_ids)}"
+    await cliente.post("/atendimentos", json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE}, headers=auth)
+    await _responder(cliente, auth, chat_id, "por aqui")
+    r = await _responder(cliente, auth, chat_id, "false")
+    corpo = r.json()
+    assert r.status_code == 200
+    assert corpo["status"] == "handoff_humano"
+    assert corpo["destino"] == "atendimento_humano"
+    assert corpo["metadados"]["motivoHandoff"] == "outra_pessoa"
+    assert "outra pessoa" in corpo["resposta"]

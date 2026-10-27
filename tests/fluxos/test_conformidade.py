@@ -19,7 +19,7 @@ from typing import Any
 
 import pytest
 
-from maria.fluxos import FLUXO_PADRAO, ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, fluxos_por_id
+from maria.fluxos import FLUXO_PADRAO, ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, fluxos_por_id
 from maria.fluxos.pessoa_presa import graph as grafo_pessoa_presa
 from maria.ia.classificar import classificar_entre_opcoes
 from tests.fluxos import conformidade, molde_de_teste
@@ -51,6 +51,7 @@ ROTEIROS: dict[str, tuple[Roteiro, ...]] = {
         Roteiro({"viaOrquestrador": True}, (*CPF_NOVO, *PESSOA_PRESA)),
     ),
     ID_VIOLENCIA_DOMESTICA: (Roteiro({}, COMUNS), Roteiro({}, (*CPF_NOVO, *COMUNS))),
+    ID_PROBLEMAS_PLANO_SAUDE: (Roteiro({}, ((r"como você prefere", "por aqui"),)), Roteiro({}, ((r"como você prefere", "presencial"),))),
 }
 
 EXCECOES: dict[tuple[str, str], str] = {

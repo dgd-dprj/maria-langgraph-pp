@@ -20,6 +20,8 @@ from maria.fluxos.padrao import api as api_padrao
 from maria.fluxos.padrao.graph import obter_grafo as obter_grafo_padrao
 from maria.fluxos.pessoa_presa import api as api_pessoa_presa
 from maria.fluxos.pessoa_presa.graph import obter_grafo as obter_grafo_pessoa_presa
+from maria.fluxos.plano_saude import api as api_plano_saude
+from maria.fluxos.plano_saude.graph import obter_grafo as obter_grafo_plano_saude
 from maria.fluxos.tipos_tykhe import TIPOS_TYKHE
 from maria.fluxos.violencia_domestica import api as api_violencia_domestica
 from maria.fluxos.violencia_domestica.graph import obter_grafo as obter_grafo_violencia_domestica
@@ -75,16 +77,16 @@ fluxos_por_id: dict[str, FluxoConfig] = {
         # Confirmado ao vivo em 2026-09-10 (GET /assunto/categorias), issue #19.
         id_categoria_assunto_verde=10113,
     ),
-    # Fluxo Problemas com plano de saúde (NUDECON, #329). Registrado só pelo id: enquanto a
-    # conversa não é implementada, roda o grafo padrão e o orquestrador não o oferece.
-    # A `descricao` e `oferecer_ao_orquestrador=True` entram com a #266.
+    # Fluxo Problemas com plano de saúde (NUDECON, #329). A conversa está sendo implementada por
+    # etapas; o orquestrador não o oferece. A `descricao` e `oferecer_ao_orquestrador=True`
+    # entram com a #266.
     ID_PROBLEMAS_PLANO_SAUDE: FluxoConfig(
         nome="problemas-plano-de-saude",
         descricao="",
-        obter_grafo=obter_grafo_padrao,
-        extrair_metadados=api_padrao.extrair_metadados_padrao,
-        mensagem_concluido=api_padrao.MENSAGEM_CONCLUIDO,
-        mensagem_handoff=api_padrao.MENSAGEM_HANDOFF,
+        obter_grafo=obter_grafo_plano_saude,
+        extrair_metadados=api_plano_saude.extrair_metadados_plano_saude,
+        mensagem_concluido=api_plano_saude.MENSAGEM_CONCLUIDO,
+        mensagem_handoff=api_plano_saude.MENSAGEM_HANDOFF,
         oferecer_ao_orquestrador=False,
     ),
 }
