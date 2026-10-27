@@ -7,10 +7,20 @@ description: Regras de destino, título, template e merge de pull request deste 
 
 A versão completa está em [`docs/padroes-pull-request.md`](../../../docs/padroes-pull-request.md) — este arquivo é o resumo que a skill carrega.
 
+## Quando abrir PR: só com mudança de código (regra de 2026-10-27, #357)
+
+- **PR só com mudança de código de fato:** `src/`, `tests/`, `scripts/`, `infra/`, `.github/`, `Dockerfile`, `pyproject.toml`, `uv.lock` ou configuração que muda o que roda.
+- **Nunca abra PR só para mudança de texto.** Isso vale para `docs/` (inclusive índice de issues e specs), `README.md`, `CONTRIBUTING.md`, `MIGRACAO.md`, `CLAUDE.md`, `.claude/` (skills) e comentário ou docstring sem mudança de lógica.
+  - Ela vai junto no próximo PR com código, em commit próprio `:books: docs:`.
+  - Até lá, o registro fica na issue e na #208.
+- **Mensagem ao assistido em `src/` é código:** muda o comportamento e segue a janela das correções.
+- **Exceção:** só com decisão registrada na #208.
+- Vale para as issues abertas e para as que vierem. Detalhe em [`docs/padroes-pull-request.md`](../../../docs/padroes-pull-request.md).
+
 ## Regras gerais
 
 - Destino padrão: `develop` (`hotfix/*` → `main`).
-- Um PR = uma issue; pequeno e focado.
+- Um PR = uma issue de código, pequeno e focado. Issues só de texto podem ir junto (`Closes #N` de cada uma).
 - Idioma: pt-BR (título e corpo).
 - CI passando antes do merge; apagar branch depois.
 - Merge: **squash** para branch de trabalho → `develop`; **merge commit** (nunca squash) para release `develop` → `main`.
@@ -42,4 +52,4 @@ Mudança de fluxo/arquitetura/sequência pode ganhar diagrama no corpo do PR, no
 
 ## Checklist antes de abrir
 
-Branch conforme padrão · título `:emoji: tipo:` · `Closes #N` · testes passando · critérios de aceitação da issue atendidos · sem segredos no diff.
+Tem mudança de código de fato (senão, não abra) · branch conforme padrão · título `:emoji: tipo:` · `Closes #N` · testes passando · critérios de aceitação da issue atendidos · sem segredos no diff.
