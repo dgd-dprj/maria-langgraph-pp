@@ -208,6 +208,22 @@ curl -s http://127.0.0.1:3001/atendimentos/teste-1 -H "Authorization: Bearer tro
 - **Com credencial criada por `aws login`, num ambiente instalado antes de 2026-10-19** (testado em 2026-10-19): o comportamento é o mesmo dos itens anteriores, embora a credencial funcione na AWS CLI. O log mostra `Using the login credential provider requires an additional dependency. You will need to pip install "botocore[crt]"`. O `uv sync` atual já instala esse componente; num ambiente antigo, rode `uv sync` de novo.
 - **Com `APP_ENV=test`:** nada chama a AWS, e a classificação usa os `MOCK_*`.
 
+### 6.1 Com Postgres local (Docker Compose, #361)
+
+Para rodar a API **e** um Postgres local (pgvector 16, a mesma imagem do CI), sem instalar nada além do Docker:
+
+```bash
+docker compose up --build
+```
+
+Sobe o banco (`db`) e a API (`app`, porta 3001). A IA e o Verde ficam simulados (`APP_ENV=test`), então não precisa de credencial AWS. A chave padrão é `troque-esta-chave`; para mudar a chave, a porta do banco ou o modo, copie `.env.example` para `.env` (fora do git). Confira com `curl -s http://127.0.0.1:3001/health`.
+
+- **O schema nasce da própria API** no startup (extensão `vector`, tabelas de negócio e o schema `checkpoint_py`). Nenhum DDL fica no compose.
+- **Banco:** `127.0.0.1:55432`, usuário, senha e banco `maria` (valores só para uso local). Serve também para `DATABASE_URL=postgresql://maria:maria@127.0.0.1:55432/maria uv run pytest -m postgres`: esses testes **apagam as tabelas de negócio**, então rode-os com o volume descartável.
+- **Zerar tudo:** `docker compose down -v` apaga o volume do banco.
+- **Bedrock real:** `AWS_PROFILE=meu-perfil docker compose -f docker-compose.yml -f docker-compose.bedrock.yml up --build` (monta `~/.aws` só para leitura).
+- **Catálogo do release (opcional):** quem tem acesso de rede ao RDS de release roda `CATALOGO_DATABASE_URL=... scripts/sincronizar_catalogo_release.sh`, que grava `docker/catalogo/catalogo-release.sql` (ignorado pelo git) só com `fluxos_planejados`, `perguntas`, `assuntos_verde` e `flow_assuntos`. Depois, `docker compose --profile catalogo up --build` carrega o arquivo quando a API já criou as tabelas; repetir não duplica. **Nunca** copie `atendimentos` nem `checkpoint_py`: têm conversas, que são dado pessoal. O seed de `fluxos_planejados` (`scripts/seed_fluxos_planejados.py`) não roda sozinho, porque sobrescreve edições manuais (#253).
+
 ## 7. Documentação das rotas
 
 Com o servidor rodando, `http://127.0.0.1:3001/docs` abre o Swagger UI, com as rotas e os formatos de corpo. O documento OpenAPI fica em `/docs/json`.
