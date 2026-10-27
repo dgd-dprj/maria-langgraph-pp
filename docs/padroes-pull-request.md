@@ -1,9 +1,21 @@
 # Padrões de pull request
 
+## Quando abrir PR: só com mudança de código
+
+Regra de 2026-10-27 (Nicole, #357), para as issues abertas e para as que vierem.
+
+- **Abra PR só quando houver mudança de código de fato:** `src/`, `tests/`, `scripts/`, `infra/`, `.github/`, `Dockerfile`, `pyproject.toml`, `uv.lock` ou outra configuração que muda o que roda.
+- **Mudança só de texto não ganha PR próprio.** Exemplos: `docs/` (inclusive `docs/migracao/`: índice de issues e specs), `README.md`, `CONTRIBUTING.md`, `MIGRACAO.md`, `CLAUDE.md`, `.claude/` (skills e agentes), comentário ou docstring sem mudança de lógica.
+  - Ela entra junto no próximo PR que tenha código, num commit próprio `:books: docs:`, listado em "O que foi feito".
+  - Até lá, o registro fica na issue, no comentário da #208 e na cópia de trabalho fora do repositório.
+- **Texto que o assistido vê conta como código.** As mensagens em `src/` mudam o comportamento e seguem as regras da janela das correções: guia de teste e horário combinado.
+- **Exceção:** só com decisão registrada na #208. Exemplo: um documento errado que a equipe está usando no teste.
+- **Por quê:** das 30 últimas execuções do CI em PR (#199 a #228, de 23 a 27/10), 19 eram de PR com título `:books: docs:` (levantamento da #357). Cada uma rodou a esteira inteira para validar texto, e cada PR a mais é mais uma rodada de revisão e merge.
+
 ## Regras gerais
 
 - Destino padrão: `develop` (`hotfix/*` → `main`).
-- Um PR = uma issue; pequeno e focado.
+- Um PR = uma issue de código, pequeno e focado. Issues só de texto podem ir junto (`Closes #N` de cada uma).
 - Idioma: pt-BR (título e corpo).
 - CI passando antes do merge; apagar branch depois.
 - Merge: **squash** para branch de trabalho → `develop`; **merge commit** (nunca squash) para release `develop` → `main` — squash no release reescreve commits compartilhados e gera conflito no próximo.
@@ -59,4 +71,4 @@ PR que muda fluxo de negócio, arquitetura ou sequência de integração pode se
 
 ## Checklist antes de abrir
 
-Branch conforme [`padroes-branch.md`](padroes-branch.md) · título `:emoji: tipo:` · `Closes #N` · typecheck/lint passando · critérios de aceitação da issue atendidos · sem segredos no diff.
+Tem mudança de código de fato (senão, não abra; ver "Quando abrir PR") · branch conforme [`padroes-branch.md`](padroes-branch.md) · título `:emoji: tipo:` · `Closes #N` · typecheck/lint passando · critérios de aceitação da issue atendidos · sem segredos no diff.
