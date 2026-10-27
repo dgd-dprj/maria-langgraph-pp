@@ -230,7 +230,7 @@ Sobe o banco (`db`) e a API (`app`, porta 3001). A IA e o Verde ficam simulados 
     -d '{"chatId":"teste-1","mensagem":"meu filho está preso e preciso de ajuda"}'
   ```
 
-  `/health` é público (sem chave) e não aparece no `/docs`. O segundo comando usa a chave padrão do compose; com `APP_ENV=test` todo relato vai para `outros`, a menos que você defina `MOCK_CLASSIFICACAO_FLOWID` (seção 3). Confira o que ficou no banco com `psql postgresql://maria:maria@127.0.0.1:55432/maria -c '\dt'`.
+  `/health` é público (sem chave) e não aparece no `/docs`. O segundo comando usa a chave padrão do compose (`troque-esta-chave`); **se você tem um `.env` com `API_KEY` própria, o compose usa a do `.env` e o exemplo dá `401`: troque a chave no cabeçalho `Authorization`**; com `APP_ENV=test` todo relato vai para `outros`, a menos que você defina `MOCK_CLASSIFICACAO_FLOWID` (seção 3). Confira o que ficou no banco com `psql postgresql://maria:maria@127.0.0.1:55432/maria -c '\dt'`.
 - **O schema nasce da própria API** no startup (extensão `vector`, tabelas de negócio e o schema `checkpoint_py`). Nenhum DDL fica no compose.
 - **Banco:** `127.0.0.1:55432`, usuário, senha e banco `maria` (valores só para uso local). Serve também para `DATABASE_URL=postgresql://maria:maria@127.0.0.1:55432/maria uv run pytest -m postgres`: esses testes **apagam as tabelas de negócio**, então rode-os com o volume descartável.
 - **Zerar tudo:** `docker compose down -v` apaga o volume do banco.
