@@ -39,11 +39,16 @@ class FluxoConfig:
     # idCategoriaAssunto do Verde equivalente, quando existe (issue #19). Só
     # evita duplicar o fluxo na tabela fluxos_planejados (#26).
     id_categoria_assunto_verde: int | None = None
+    # Falso enquanto o fluxo está registrado (aparece em GET /fluxos e resolve por flowId)
+    # mas ainda não deve ser escolhido pelo orquestrador: fica fora do catálogo de
+    # classificação e a regra A10 não exige `descricao`.
+    oferecer_ao_orquestrador: bool = True
 
 
 # Id fixo por fluxo, no formato que uma linha de tabela teria (uuid).
 ID_PESSOA_PRESA = "3df874f2-675a-4c43-9ec7-480f7c702f50"
 ID_VIOLENCIA_DOMESTICA = "cabb2495-4e12-4f4a-9956-3d20649059bc"
+ID_PROBLEMAS_PLANO_SAUDE = "84433c84-4776-4b05-a5a0-af8012d8eced"
 
 fluxos_por_id: dict[str, FluxoConfig] = {
     ID_PESSOA_PRESA: FluxoConfig(
@@ -69,6 +74,18 @@ fluxos_por_id: dict[str, FluxoConfig] = {
         mensagem_handoff=api_violencia_domestica.MENSAGEM_HANDOFF,
         # Confirmado ao vivo em 2026-09-10 (GET /assunto/categorias), issue #19.
         id_categoria_assunto_verde=10113,
+    ),
+    # Fluxo Problemas com plano de saúde (NUDECON, #329). Registrado só pelo id: enquanto a
+    # conversa não é implementada, roda o grafo padrão e o orquestrador não o oferece.
+    # A `descricao` e `oferecer_ao_orquestrador=True` entram com a #266.
+    ID_PROBLEMAS_PLANO_SAUDE: FluxoConfig(
+        nome="problemas-plano-de-saude",
+        descricao="",
+        obter_grafo=obter_grafo_padrao,
+        extrair_metadados=api_padrao.extrair_metadados_padrao,
+        mensagem_concluido=api_padrao.MENSAGEM_CONCLUIDO,
+        mensagem_handoff=api_padrao.MENSAGEM_HANDOFF,
+        oferecer_ao_orquestrador=False,
     ),
 }
 
@@ -109,7 +126,9 @@ async def catalogo_para_classificacao() -> list[OpcaoCatalogo]:
     mas a tabela fica intacta e `buscar_fluxo` continua resolvendo um planejado
     para o grafo padrão. `ORQUESTRADOR_INCLUIR_PLANEJADOS == "true"`, lido a cada
     chamada, volta a oferecê-los, no fim, com `texto_para_classificacao` (#19)."""
-    implementados: list[OpcaoCatalogo] = [{"id": id_, "nome": cfg.nome, "descricao": cfg.descricao} for id_, cfg in fluxos_por_id.items()]
+    implementados: list[OpcaoCatalogo] = [
+        {"id": id_, "nome": cfg.nome, "descricao": cfg.descricao} for id_, cfg in fluxos_por_id.items() if cfg.oferecer_ao_orquestrador
+    ]
     tykhe: list[OpcaoCatalogo] = [{"id": t.id, "nome": t.nome, "descricao": t.descricao} for t in TIPOS_TYKHE]
     # `!== "true"` de develop: comparação exata, sem caixa e sem outros valores.
     if os.environ.get("ORQUESTRADOR_INCLUIR_PLANEJADOS") != "true":

@@ -14,7 +14,7 @@ from itertools import count
 import httpx
 import pytest
 
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, catalogo_para_classificacao
+from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, catalogo_para_classificacao
 from maria.fluxos.tipos_tykhe import TIPOS_TYKHE, TipoTykhe
 from maria.shared.fluxos_planejados_db import FluxoPlanejado, adicionar_planejado_de_teste, remover_planejado_de_teste
 from maria.shared.perguntas_db import PerguntaArvore, obter_perguntas_store
@@ -261,3 +261,8 @@ async def test_via_orquestrador_cpf_encontrado_pergunta_confirmacao_189_191(
     assert "Confirma que seus dados são" in r_confirma.json()["resposta"], "via orquestrador pergunta a confirmação"
     r = await responder("sim")
     assert r.json()["status"] == "concluido"
+
+
+async def test_fluxo_nao_oferecido_nao_entra_no_catalogo_do_orquestrador() -> None:
+    # #329: o fluxo do NUDECON já está registrado (GET /fluxos), mas só é oferecido com a #266.
+    assert ID_PROBLEMAS_PLANO_SAUDE not in [c["id"] for c in await catalogo_para_classificacao()]

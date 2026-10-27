@@ -203,7 +203,7 @@ def _sem_executar(fluxo: FluxoSobConferencia, falhas: Falhas) -> None:
             falhas["A10"].append(f"o id {fluxo.fluxo_id!r} não é um uuid")
         if not _KEBAB.fullmatch(fluxo.config.nome):
             falhas["A10"].append(f"o nome {fluxo.config.nome!r} não está em kebab-case")
-        if not fluxo.config.descricao.strip():
+        if fluxo.config.oferecer_ao_orquestrador and not fluxo.config.descricao.strip():
             falhas["A10"].append("a descrição está vazia: a classificação do orquestrador depende dela")
 
     for caminho, pai, sub in _subgrafos(construtor):
