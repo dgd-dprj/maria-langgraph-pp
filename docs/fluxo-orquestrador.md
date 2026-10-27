@@ -8,7 +8,7 @@ Usa 4 dos 6 módulos de `src/maria/ia/` (`classificar`, `classificar_fluxos`, `d
 
 ```mermaid
 flowchart TD
-    A(["Relato livre (mensagem)"]) --> B[/"Busca por similaridade no catálogo<br/>(só corta com mais de 10 opções; hoje são 9, #256)"/]
+    A(["Relato livre (mensagem)"]) --> B[/"Busca por similaridade no catálogo<br/>(só corta com mais de 15 opções; hoje são 9, #256 e #353)"/]
     B --> C[/"IA: classificar candidatos plausíveis<br/>(nas rodadas seguintes, só entre os que sobraram)"/]
     C --> D{"Quantos candidatos<br/>restaram?"}
     D -->|"0"| R(["redirecionado<br/>tipoCaso: outros"])
@@ -29,7 +29,7 @@ flowchart TD
 
 ## Passo a passo
 
-1. **`classificar`** — 1ª rodada: busca por similaridade (embedding, `fluxo_embeddings`) no catálogo de classificação (`catalogo_para_classificacao()`: 2 fluxos implementados + 7 tipos atendidos pela Tykhe, issue #225; os planejados só entram com `ORQUESTRADOR_INCLUIR_PLANEJADOS=true`), retorna até 10 candidatos (`CANDIDATOS_MAXIMOS`). **Com o catálogo de 9 opções, a busca não corta nada:** com até 10 opções, o catálogo inteiro passa sem calcular embedding nenhum (#256). Chama IA (`classificar_fluxos_plausiveis`) pra filtrar quais desses candidatos são plausíveis de verdade a partir do relato. Rodadas seguintes: classifica de novo, mas só **dentro** do subconjunto que já sobrou — nunca alarga de volta pro catálogo todo.
+1. **`classificar`** — 1ª rodada: busca por similaridade (embedding, `fluxo_embeddings`) no catálogo de classificação (`catalogo_para_classificacao()`: 2 fluxos implementados + 7 tipos atendidos pela Tykhe, issue #225; os planejados só entram com `ORQUESTRADOR_INCLUIR_PLANEJADOS=true`), retorna até 15 candidatos (`CANDIDATOS_MAXIMOS`; era 10 até a #353, que mediu o ganho com as 74 categorias ligadas fora do ar). **Com o catálogo de 9 opções, a busca não corta nada:** com até 15 opções, o catálogo inteiro passa sem calcular embedding nenhum (#256). Chama IA (`classificar_fluxos_plausiveis`) pra filtrar quais desses candidatos são plausíveis de verdade a partir do relato. Rodadas seguintes: classifica de novo, mas só **dentro** do subconjunto que já sobrou — nunca alarga de volta pro catálogo todo.
 2. Decisão por quantos candidatos restaram (`depois_de_classificar`):
    - **0** → `nenhum` → nó `naoIdentificado` → `redirecionado` com `tipoCaso: "outros"` (issue #225; antes era `handoff_humano`).
    - **1** → `um` → nó `identificado` → segue pra criar o atendimento nesse `flowId`.

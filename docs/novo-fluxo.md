@@ -90,7 +90,7 @@ Para gerar o uuid: `uv run python -c "import uuid; print(uuid.uuid4())"`.
 
 O registro já basta para o fluxo aparecer em `GET /fluxos`, aceitar `POST /atendimentos` com o novo `flowId` e entrar no catálogo do orquestrador. Para abrir o grafo no LangGraph Studio, acrescente também a linha `"meu_fluxo": "./src/maria/fluxos/meu_fluxo/graph.py:criar_grafo"` em `langgraph.json`.
 
-> Um fluxo novo entra no catálogo de classificação. Com mais de 10 opções no catálogo, a busca por similaridade passa a cortar candidatos antes da IA (`CANDIDATOS_MAXIMOS`, #256): hoje são 9 (2 fluxos e 7 tipos da Tykhe), então o 2º fluxo novo já muda esse comportamento. Ver `docs/fluxo-orquestrador.md`.
+> Um fluxo novo entra no catálogo de classificação. Com mais de 15 opções no catálogo, a busca por similaridade passa a cortar candidatos antes da IA (`CANDIDATOS_MAXIMOS`, #256 e #353): hoje são 9 (2 fluxos e 7 tipos da Tykhe), então o 7º fluxo novo já muda esse comportamento. Ver `docs/fluxo-orquestrador.md`.
 
 ## 3. Testes
 

@@ -34,10 +34,13 @@ from maria.shared.embeddings_fluxos import buscar_candidatos
 from maria.shared.perguntas_db import OpcaoPergunta, PerguntaArvore, obter_perguntas_store
 from maria.shared.tokens_acumulados import TokensGastos
 
-# Mesmo valor de antes da issue #28 (era CANDIDATOS_MAXIMOS em
-# rotas/orquestrador.ts): quantos candidatos entram no prompt de
-# classificação/retrieval na 1ª rodada.
-CANDIDATOS_MAXIMOS = 10
+# Quantos candidatos entram no prompt de classificação/retrieval na 1ª rodada.
+# Era 10 desde antes da issue #28 (CANDIDATOS_MAXIMOS em rotas/orquestrador.ts).
+# #353 (2026-10-27): 15, medido com as 74 categorias ligadas fora do ar. A
+# conversa chega ao destino certo em 95% dos relatos, contra 90% com 10, por
+# ~900 tokens a mais por chamada e o mesmo tempo. Com até 15 opções no
+# catálogo, a busca não corta nada (hoje são 9).
+CANDIDATOS_MAXIMOS = 15
 
 # Quantas rodadas de desambiguação no máximo antes de desistir e cair para
 # "não identificado". Subido de 3 para 5 (issue #43, 2026-09-14), quando o
