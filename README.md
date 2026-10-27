@@ -12,7 +12,7 @@ Vai contribuir? Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) (fluxo de issue, branch
 
 ## Rodando local
 
-Para subir a API com um Postgres local, use `docker compose up --build` (seção 6.1 do guia abaixo).
+Para subir a API com um Postgres local, use `docker compose up --build` e confira com `curl -s http://127.0.0.1:3001/health` (seção 6.1 do guia abaixo).
 
 O guia completo, testado numa pasta limpa, está em [`docs/rodar-localmente.md`](docs/rodar-localmente.md): instalação, os dois modos (sem AWS e com o Bedrock real), como chamar o orquestrador e responder às perguntas, e problemas comuns.
 
