@@ -218,6 +218,19 @@ docker compose up --build
 
 Sobe o banco (`db`) e a API (`app`, porta 3001). A IA e o Verde ficam simulados (`APP_ENV=test`), então não precisa de credencial AWS. A chave padrão é `troque-esta-chave`; para mudar a chave, a porta do banco ou o modo, copie `.env.example` para `.env` (fora do git). Confira com `curl -s http://127.0.0.1:3001/health`.
 
+- **Testar que subiu** (a API leva alguns segundos; o `docker compose up` só marca a `app` como saudável quando o `/health` responde):
+
+  ```bash
+  curl -s http://127.0.0.1:3001/health
+  # {"status":"ok"}
+
+  curl -s -X POST http://127.0.0.1:3001/atendimentos/orquestrador \
+    -H "Authorization: Bearer troque-esta-chave" \
+    -H "Content-Type: application/json" \
+    -d '{"chatId":"teste-1","mensagem":"meu filho está preso e preciso de ajuda"}'
+  ```
+
+  `/health` é público (sem chave) e não aparece no `/docs`. O segundo comando usa a chave padrão do compose; com `APP_ENV=test` todo relato vai para `outros`, a menos que você defina `MOCK_CLASSIFICACAO_FLOWID` (seção 3). Confira o que ficou no banco com `psql postgresql://maria:maria@127.0.0.1:55432/maria -c '\dt'`.
 - **O schema nasce da própria API** no startup (extensão `vector`, tabelas de negócio e o schema `checkpoint_py`). Nenhum DDL fica no compose.
 - **Banco:** `127.0.0.1:55432`, usuário, senha e banco `maria` (valores só para uso local). Serve também para `DATABASE_URL=postgresql://maria:maria@127.0.0.1:55432/maria uv run pytest -m postgres`: esses testes **apagam as tabelas de negócio**, então rode-os com o volume descartável.
 - **Zerar tudo:** `docker compose down -v` apaga o volume do banco.
