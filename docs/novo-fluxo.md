@@ -114,7 +114,7 @@ Rodar só os testes do fluxo: `uv run pytest tests/fluxos/test_<nome>.py`. Antes
 | A7 | O nó que prepara e o que pede pulam pela mesma condição |
 | A8 | O grafo do fluxo compila na primeira chamada (`FabricaGrafo`), e não na importação |
 | A9 | O `api.py` tem `extrair_metadados_<pasta>`, `MENSAGEM_CONCLUIDO` e `MENSAGEM_HANDOFF`, e o registro usa os três |
-| A10 | O registro tem id uuid4, nome em kebab-case e descrição não vazia |
+| A10 | O registro tem id uuid4, nome em kebab-case e descrição não vazia (a descrição só é exigida se `oferecer_ao_orquestrador` for verdadeiro; o padrão é verdadeiro) |
 | A11 | Todo encaminhamento para atendimento humano grava `motivoHandoff`, de uma lista fixa do fluxo (`Literal` no `state.py`) |
 | A12 | Os subgrafos compilam sem persistência própria e dividem canais com o fluxo pai |
 | A13 | Toda saída da IA de uma lista fechada é conferida contra a lista antes de ser gravada (#212) |

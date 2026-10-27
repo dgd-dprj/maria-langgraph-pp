@@ -54,10 +54,18 @@ def nomes_dos_casos(conferencia: str) -> list[str]:
     return _nomes_cenarios({"pr1": "conferencia-api-pr1", "pr2": "conferencia-api-pr2"}[conferencia])
 
 
+# Fluxo "Problemas com plano de saúde" (NUDECON, #329) muda a lista de GET /fluxos; o teste escrito é o de test_app.py.
+_FLUXO_NOVO = CasoAposentado(issue=329, motivo="fluxo novo muda a lista de GET /fluxos", teste="tests/api/test_app.py")
+
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
-    "contrato": {},
-    "pr1": {},
-    "pr2": {},
+    "contrato": {"fluxos-200": _FLUXO_NOVO},
+    "pr1": {
+        "fluxos": _FLUXO_NOVO,
+        "fluxos_query": _FLUXO_NOVO,
+        "auth_bearer_espacos_fluxos": _FLUXO_NOVO,
+        "auth_bearer_duplo_espaco_fluxos": _FLUXO_NOVO,
+    },
+    "pr2": {"rota_get_fluxos_codificado": _FLUXO_NOVO},
 }
 
 
