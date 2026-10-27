@@ -14,7 +14,7 @@ from itertools import count
 import httpx
 import pytest
 
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, catalogo_para_classificacao
+from maria.fluxos import ID_PESSOA_PRESA, ID_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, catalogo_para_classificacao
 from maria.fluxos.tipos_tykhe import TIPOS_TYKHE, TipoTykhe
 from maria.shared.fluxos_planejados_db import FluxoPlanejado, adicionar_planejado_de_teste, remover_planejado_de_teste
 from maria.shared.perguntas_db import PerguntaArvore, obter_perguntas_store
@@ -223,10 +223,10 @@ async def test_tipo_da_tykhe_redireciona_sem_criar_atendimento(
     assert get.status_code == 404, "nenhum atendimento é criado na Maria"
 
 
-async def test_catalogo_com_2_implementados_e_7_tipos_da_tykhe() -> None:
+async def test_catalogo_com_3_implementados_e_7_tipos_da_tykhe() -> None:
     ids = [c["id"] for c in await catalogo_para_classificacao()]
-    assert len(ids) == 9
-    assert ID_PESSOA_PRESA in ids and ID_VIOLENCIA_DOMESTICA in ids
+    assert len(ids) == 10
+    assert ID_PESSOA_PRESA in ids and ID_VIOLENCIA_DOMESTICA in ids and ID_PLANO_SAUDE in ids
     assert all(t.id in ids for t in TIPOS_TYKHE)
 
 

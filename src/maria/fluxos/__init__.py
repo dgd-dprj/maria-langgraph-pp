@@ -20,6 +20,8 @@ from maria.fluxos.padrao import api as api_padrao
 from maria.fluxos.padrao.graph import obter_grafo as obter_grafo_padrao
 from maria.fluxos.pessoa_presa import api as api_pessoa_presa
 from maria.fluxos.pessoa_presa.graph import obter_grafo as obter_grafo_pessoa_presa
+from maria.fluxos.plano_saude import api as api_plano_saude
+from maria.fluxos.plano_saude.graph import obter_grafo as obter_grafo_plano_saude
 from maria.fluxos.tipos_tykhe import TIPOS_TYKHE
 from maria.fluxos.violencia_domestica import api as api_violencia_domestica
 from maria.fluxos.violencia_domestica.graph import obter_grafo as obter_grafo_violencia_domestica
@@ -44,6 +46,7 @@ class FluxoConfig:
 # Id fixo por fluxo, no formato que uma linha de tabela teria (uuid).
 ID_PESSOA_PRESA = "3df874f2-675a-4c43-9ec7-480f7c702f50"
 ID_VIOLENCIA_DOMESTICA = "cabb2495-4e12-4f4a-9956-3d20649059bc"
+ID_PLANO_SAUDE = "84433c84-4776-4b05-a5a0-af8012d8eced"
 
 fluxos_por_id: dict[str, FluxoConfig] = {
     ID_PESSOA_PRESA: FluxoConfig(
@@ -69,6 +72,18 @@ fluxos_por_id: dict[str, FluxoConfig] = {
         mensagem_handoff=api_violencia_domestica.MENSAGEM_HANDOFF,
         # Confirmado ao vivo em 2026-09-10 (GET /assunto/categorias), issue #19.
         id_categoria_assunto_verde=10113,
+    ),
+    # NUDECON (#329). Esqueleto: ainda sem as perguntas; o id foi combinado com a Tykhe.
+    ID_PLANO_SAUDE: FluxoConfig(
+        nome="plano-saude",
+        descricao=(
+            "Problemas com plano de saúde (NUDECON): negativa de cobertura de procedimento, exame ou internação, "
+            "reajuste abusivo, cancelamento do plano ou descumprimento de contrato com a operadora."
+        ),
+        obter_grafo=obter_grafo_plano_saude,
+        extrair_metadados=api_plano_saude.extrair_metadados_plano_saude,
+        mensagem_concluido=api_plano_saude.MENSAGEM_CONCLUIDO,
+        mensagem_handoff=api_plano_saude.MENSAGEM_HANDOFF,
     ),
 }
 

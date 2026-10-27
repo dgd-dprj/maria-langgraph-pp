@@ -13,7 +13,7 @@ from typing import Any
 import httpx
 import pytest
 
-from maria.fluxos import FLUXO_PADRAO, ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, buscar_fluxo, catalogo_para_classificacao
+from maria.fluxos import FLUXO_PADRAO, ID_PESSOA_PRESA, ID_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, buscar_fluxo, catalogo_para_classificacao
 from maria.fluxos.padrao.graph import _construtor as construtor_padrao
 from maria.fluxos.padrao.graph import obter_grafo as obter_padrao
 from maria.fluxos.pessoa_presa.api import extrair_metadados_pessoa_presa
@@ -693,10 +693,10 @@ async def test_catalogo_buscar_fluxo(planejado_cadastrado: str) -> None:
 
 
 async def test_catalogo_padrao_implementados_e_tykhe_sem_planejados(planejado_cadastrado: str, monkeypatch: pytest.MonkeyPatch) -> None:
-    # #242: com a variável ausente (o caminho do release), 9 opções.
+    # #242: com a variável ausente (o caminho do release), 10 opções.
     monkeypatch.delenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", raising=False)
     catalogo = await catalogo_para_classificacao()
-    assert [c["id"] for c in catalogo] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, *_IDS_TYKHE]
+    assert [c["id"] for c in catalogo] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, ID_PLANO_SAUDE, *_IDS_TYKHE]
     assert planejado_cadastrado not in [c["id"] for c in catalogo]
 
 
@@ -705,8 +705,8 @@ async def test_catalogo_com_a_variavel_true_devolve_os_planejados_no_fim(
 ) -> None:
     monkeypatch.setenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", "true")
     catalogo = await catalogo_para_classificacao()
-    assert [c["id"] for c in catalogo[:9]] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, *_IDS_TYKHE]
-    item = next(c for c in catalogo[9:] if c["id"] == planejado_cadastrado)
+    assert [c["id"] for c in catalogo[:10]] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, ID_PLANO_SAUDE, *_IDS_TYKHE]
+    item = next(c for c in catalogo[10:] if c["id"] == planejado_cadastrado)
     assert item["descricao"] == texto_para_classificacao(_planejado_dados())
 
 
@@ -715,7 +715,7 @@ async def test_catalogo_variavel_so_liga_com_true_exato(planejado_cadastrado: st
     # `!== "true"` de develop: qualquer outro valor deixa os planejados de fora.
     monkeypatch.setenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", valor)
     catalogo = await catalogo_para_classificacao()
-    assert len(catalogo) == 9
+    assert len(catalogo) == 10
     assert planejado_cadastrado not in [c["id"] for c in catalogo]
 
 

@@ -12,7 +12,7 @@ from itertools import count
 import httpx
 import pytest
 
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA
+from maria.fluxos import ID_PESSOA_PRESA, ID_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA
 
 BASE = "/atendimentos"
 FLOW_ID = ID_VIOLENCIA_DOMESTICA
@@ -38,12 +38,13 @@ async def test_health_nao_exige_authorization(cliente: httpx.AsyncClient) -> Non
     assert r.status_code == 200
 
 
-async def test_fluxos_lista_pessoa_presa_e_violencia_domestica(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+async def test_fluxos_lista_os_fluxos_implementados(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
     r = await cliente.get("/fluxos", headers=auth)
     assert r.status_code == 200
     corpo = r.json()
-    assert sorted(f["id"] for f in corpo) == sorted([ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA])
+    assert sorted(f["id"] for f in corpo) == sorted([ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, ID_PLANO_SAUDE])
     assert next(f for f in corpo if f["id"] == ID_PESSOA_PRESA)["nome"] == "pessoa-presa"
+    assert next(f for f in corpo if f["id"] == ID_PLANO_SAUDE)["nome"] == "plano-saude"  # #329
 
 
 async def test_post_atendimentos_sem_flow_id_400(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:

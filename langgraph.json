@@ -3,7 +3,8 @@
   "dependencies": ["."],
   "graphs": {
     "pessoa_presa": "./src/maria/fluxos/pessoa_presa/graph.py:criar_grafo",
-    "violencia_domestica": "./src/maria/fluxos/violencia_domestica/graph.py:criar_grafo"
+    "violencia_domestica": "./src/maria/fluxos/violencia_domestica/graph.py:criar_grafo",
+    "plano_saude": "./src/maria/fluxos/plano_saude/graph.py:criar_grafo"
   },
   "env": ".env"
 }

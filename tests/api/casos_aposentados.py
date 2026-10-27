@@ -54,10 +54,17 @@ def nomes_dos_casos(conferencia: str) -> list[str]:
     return _nomes_cenarios({"pr1": "conferencia-api-pr1", "pr2": "conferencia-api-pr2"}[conferencia])
 
 
+_MOTIVO_PLANO_SAUDE = "fluxo plano-saude (NUDECON) muda a lista de GET /fluxos"
+
+
+def _plano_saude() -> CasoAposentado:
+    return CasoAposentado(issue=329, motivo=_MOTIVO_PLANO_SAUDE, teste="tests/api/test_app.py")
+
+
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
-    "contrato": {},
-    "pr1": {},
-    "pr2": {},
+    "contrato": {"fluxos-200": _plano_saude()},
+    "pr1": {nome: _plano_saude() for nome in ("fluxos", "fluxos_query", "auth_bearer_espacos_fluxos", "auth_bearer_duplo_espaco_fluxos")},
+    "pr2": {"rota_get_fluxos_codificado": _plano_saude()},
 }
 
 
