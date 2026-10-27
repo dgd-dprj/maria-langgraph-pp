@@ -19,3 +19,6 @@ infra/terraform/*.tfplan
 
 # Grafo local do graphify (ferramenta de navegação; gerado, não versionado)
 graphify-out/
+
+# Catálogo copiado do release (#361): nunca versionar
+docker/catalogo/*.sql

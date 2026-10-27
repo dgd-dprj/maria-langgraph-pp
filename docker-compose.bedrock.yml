@@ -1,0 +1,14 @@
+# Override para usar o Bedrock de verdade (modo B de docs/rodar-localmente.md).
+#
+#   AWS_PROFILE=meu-perfil docker compose -f docker-compose.yml -f docker-compose.bedrock.yml up --build
+#
+# Monta ~/.aws só para leitura. Nenhuma credencial entra na imagem nem no repositório.
+services:
+  app:
+    environment:
+      APP_ENV: development # qualquer valor diferente de "test" liga a IA real
+      AWS_PROFILE: ${AWS_PROFILE:?defina AWS_PROFILE}
+      AWS_REGION: ${AWS_REGION:-us-east-1}
+      BEDROCK_MODEL_ID: ${BEDROCK_MODEL_ID:-us.anthropic.claude-haiku-4-5-20251001-v1:0}
+    volumes:
+      - ${HOME}/.aws:/root/.aws:ro
