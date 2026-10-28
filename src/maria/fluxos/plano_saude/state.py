@@ -1,8 +1,8 @@
 """Estado do fluxo Problemas com plano de saúde (NUDECON, issue #329).
 
-As chaves de `dadosConhecidos` que a Tykhe manda (`cpf` a `endereco`) são canais
-do estado: chave que não existe aqui o LangGraph ignora. Elas ainda não são
-lidas; entram na conversa com o resumo e a confirmação.
+As chaves de `dadosConhecidos` que a Tykhe manda (`cpf` a `endereco`, mais
+`imagensRecebidas` e `situacao`) são canais do estado: chave que não existe aqui
+o LangGraph ignora. Elas entram no resumo que a pessoa confirma no fim.
 """
 
 from __future__ import annotations
@@ -13,7 +13,13 @@ from maria.shared.tokens_acumulados import CanalTokensGastos
 
 CanalAtendimento = Literal["aqui", "email", "presencial"]
 
-MotivoHandoffPlanoSaude = Literal["outra_pessoa", "canal_nao_entendido"]
+MotivoHandoffPlanoSaude = Literal[
+    "outra_pessoa",
+    "canal_nao_entendido",
+    "imagens_pendentes",
+    "renda_nao_informada",
+    "dados_nao_confirmados",
+]
 
 
 class EnderecoPlanoSaude(TypedDict, total=False):
@@ -27,17 +33,26 @@ class EnderecoPlanoSaude(TypedDict, total=False):
 
 
 class PlanoSaudeState(TypedDict, total=False):
-    # Vêm da Tykhe em `dadosConhecidos` (formato proposto na #329).
+    # Vêm da Tykhe em `dadosConhecidos` (formato proposto na #329). `endereco` é
+    # objeto no desenho, mas a API aceita texto e o resumo mostra como veio.
     cpf: str
     nome: str
     dataNascimento: str
     email: str
     telefone: str
-    endereco: EnderecoPlanoSaude
+    endereco: EnderecoPlanoSaude | str
+    # Relato da situação, quando o orquestrador entregar (#334).
+    situacao: str
+    # A Tykhe coleta e guarda as imagens dos documentos; este campo avisa que já chegaram (a confirmar na #336).
+    imagensRecebidas: bool | None
     # Respostas da conversa.
     canal: CanalAtendimento | None
     tentativasCanal: int | None
     paraSi: bool | None
+    tentativasImagens: int | None
+    renda: str | None
+    tentativasRenda: int | None
+    confirmou: bool | None
     statusFinal: Literal["concluido", "handoff_humano"] | None
     motivoHandoff: MotivoHandoffPlanoSaude | None
     mensagemFinal: str | None
