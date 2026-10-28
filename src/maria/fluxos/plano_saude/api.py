@@ -9,23 +9,24 @@ from __future__ import annotations
 from collections.abc import Mapping
 from typing import Any
 
-from maria.fluxos.padrao.api import MENSAGEM_CONCLUIDO as MENSAGEM_PADRAO_EM_CONSTRUCAO
-
 # Rascunho do time, não validado pelo NUDECON (#329, #335).
 HORARIO_NUDECON = "de segunda a sexta, das 11h às 16h"
 
 
 def extrair_metadados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:
     metadados: dict[str, Any] = {}
-    for chave in ("canal", "paraSi", "motivoHandoff"):
+    for chave in ("canal", "paraSi", "renda", "motivoHandoff"):
         valor = values.get(chave)
         if valor is not None:
             metadados[chave] = valor
     return metadados
 
 
-# Provisório: a conversa seguinte (imagens, renda, confirmação) ainda não existe.
-MENSAGEM_CONCLUIDO = MENSAGEM_PADRAO_EM_CONSTRUCAO
+# Provisório: o texto final, com documentos e prazo, é da #335; o envio ao NUDECON, da #345.
+MENSAGEM_CONCLUIDO = "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você."
+MENSAGEM_IMAGENS_PENDENTES = "Não recebi as imagens dos documentos. Vou encaminhar seu atendimento para a equipe dar continuidade."
+MENSAGEM_RENDA_NAO_ENTENDIDA = "Não consegui entender a sua renda. Vou encaminhar seu atendimento para a equipe dar continuidade."
+MENSAGEM_DADOS_NAO_CONFIRMADOS = "Não consegui confirmar seus dados. Vou encaminhar seu atendimento para a equipe dar continuidade."
 # Provisório (mock decidido pelo Ícaro em 2026-10-26): a coleta dos dados da outra pessoa é da #347.
 MENSAGEM_OUTRA_PESSOA = (
     "Entendi que o atendimento é para outra pessoa. Por enquanto não consigo seguir com esse caso por aqui. "

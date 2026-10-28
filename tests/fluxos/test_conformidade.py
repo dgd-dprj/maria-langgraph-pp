@@ -51,7 +51,11 @@ ROTEIROS: dict[str, tuple[Roteiro, ...]] = {
         Roteiro({"viaOrquestrador": True}, (*CPF_NOVO, *PESSOA_PRESA)),
     ),
     ID_VIOLENCIA_DOMESTICA: (Roteiro({}, COMUNS), Roteiro({}, (*CPF_NOVO, *COMUNS))),
-    ID_PROBLEMAS_PLANO_SAUDE: (Roteiro({}, ((r"como você prefere", "por aqui"),)), Roteiro({}, ((r"como você prefere", "presencial"),))),
+    ID_PROBLEMAS_PLANO_SAUDE: (
+        Roteiro({}, ((r"como você prefere", "por aqui"), (r"renda", "2500"))),
+        Roteiro({"imagensRecebidas": True, "cpf": "00000000000"}, ((r"como você prefere", "por aqui"), (r"renda", "2500"))),
+        Roteiro({}, ((r"como você prefere", "presencial"),)),
+    ),
 }
 
 EXCECOES: dict[tuple[str, str], str] = {
