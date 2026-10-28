@@ -1,14 +1,14 @@
 """Fluxo Problemas com plano de saúde (NUDECON, issue #329).
 
 Conversa: canal ("aqui", e-mail ou presencial), "para quem", imagens dos
-documentos, renda e confirmação do resumo. Presencial encerra com a orientação;
+documentos, situação (só quando o relato não veio), renda e confirmação do resumo. Presencial encerra com a orientação;
 "outra pessoa" encerra com o texto provisório e `atendimento_humano` (coleta dos
 dados dela: #347). Falta o encaminhamento ao NUDECON pelo Verde (#265, #345).
 
 Premissas desta etapa, a confirmar: a Tykhe coleta as imagens e avisa com
 `imagensRecebidas` em `dadosConhecidos` (#336); sem o aviso, a Maria pergunta se
-a pessoa já enviou. Sem consulta ao Verde. O relato do orquestrador (#334) ainda
-não entra no resumo.
+a pessoa já enviou. Sem consulta ao Verde. O relato chega do orquestrador no canal
+`relato` (#334, ainda não entregue pela rota); sem ele, a Maria pergunta a situação.
 
 A pergunta do canal é de texto, com as opções escritas na própria pergunta: o
 tipo `opcoes` ainda está por confirmar com a Tykhe (#336).
@@ -33,6 +33,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_OUTRA_PESSOA,
     MENSAGEM_PRESENCIAL,
     MENSAGEM_RENDA_NAO_ENTENDIDA,
+    MENSAGEM_SITUACAO_NAO_INFORMADA,
 )
 from maria.fluxos.plano_saude.state import CanalAtendimento, PlanoSaudeState
 from maria.ia.reescrever import preparar_pergunta
@@ -40,7 +41,9 @@ from maria.shared.respostas import resposta_eh_sim
 
 MAXIMO_TENTATIVAS_CANAL = 3
 MAXIMO_TENTATIVAS_IMAGENS = 3
+MAXIMO_TENTATIVAS_SITUACAO = 3
 MAXIMO_TENTATIVAS_RENDA = 3
+TAMANHO_MINIMO_SITUACAO = 5
 MAXIMO_TENTATIVAS_CONFIRMACAO = 3
 RENDA_MAXIMA = 10_000_000
 
@@ -50,6 +53,8 @@ TEXTO_PARA_QUEM = "O atendimento é para você? Responda não se for para outra 
 # Lista provisória de documentos: a definitiva é da #335.
 TEXTO_IMAGENS = "Envie por aqui as fotos dos documentos: a carteirinha do plano, frente e verso. Já enviou?"
 TEXTO_IMAGENS_NOVAMENTE = "Ainda não recebi as imagens. Envie as fotos da carteirinha do plano, frente e verso. Já enviou?"
+TEXTO_SITUACAO = "Conte em poucas palavras o que aconteceu com o seu plano de saúde."
+TEXTO_SITUACAO_NOVAMENTE = "Preciso de um pouco mais de detalhe. O que o plano de saúde negou ou deixou de fazer?"
 TEXTO_RENDA = "Qual é a sua renda mensal, em reais? Se não tem renda, responda 0."
 TEXTO_RENDA_NOVAMENTE = (
     "Não entendi o valor. Informe a sua renda mensal em reais, só o número (por exemplo, 2500). Se não tem renda, responda 0."
@@ -126,7 +131,12 @@ async def pedir_para_quem(state: PlanoSaudeState) -> Atualizacao:
 def depois_de_para_quem(state: PlanoSaudeState) -> str:
     if not state.get("paraSi"):
         return "outraPessoa"
-    return "renda" if state.get("imagensRecebidas") is True else "imagens"
+    return "imagens" if state.get("imagensRecebidas") is not True else _depois_das_imagens_enviadas(state)
+
+
+def _depois_das_imagens_enviadas(state: PlanoSaudeState) -> str:
+    """Sem relato (atendimento criado direto, sem orquestrador), a Maria pergunta a situação."""
+    return "renda" if _texto(state.get("relato")) else "situacao"
 
 
 def texto_imagens(state: PlanoSaudeState) -> str:
@@ -148,12 +158,38 @@ async def pedir_imagens(state: PlanoSaudeState) -> Atualizacao:
 
 def depois_das_imagens(state: PlanoSaudeState) -> str:
     if state.get("imagensRecebidas") is True:
-        return "renda"
+        return _depois_das_imagens_enviadas(state)
     return "imagensPendentes" if (state.get("tentativasImagens") or 0) >= MAXIMO_TENTATIVAS_IMAGENS else "imagens"
 
 
 async def imagens_pendentes(state: PlanoSaudeState) -> Atualizacao:
     return {"statusFinal": "handoff_humano", "motivoHandoff": "imagens_pendentes", "mensagemFinal": MENSAGEM_IMAGENS_PENDENTES}
+
+
+def texto_situacao(state: PlanoSaudeState) -> str:
+    return TEXTO_SITUACAO if not state.get("tentativasSituacao") else TEXTO_SITUACAO_NOVAMENTE
+
+
+async def preparar_pergunta_situacao(state: PlanoSaudeState) -> Atualizacao:
+    return dict(await preparar_pergunta("situacao", texto_situacao(state)))
+
+
+async def pedir_situacao(state: PlanoSaudeState) -> Atualizacao:
+    resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_situacao(state), "tipo": "texto"})
+    relato = resposta.strip()
+    if len(relato) >= TAMANHO_MINIMO_SITUACAO:
+        return {"relato": relato}
+    return {"tentativasSituacao": (state.get("tentativasSituacao") or 0) + 1}
+
+
+def depois_da_situacao(state: PlanoSaudeState) -> str:
+    if _texto(state.get("relato")):
+        return "renda"
+    return "situacaoNaoInformada" if (state.get("tentativasSituacao") or 0) >= MAXIMO_TENTATIVAS_SITUACAO else "situacao"
+
+
+async def situacao_nao_informada(state: PlanoSaudeState) -> Atualizacao:
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "situacao_nao_informada", "mensagemFinal": MENSAGEM_SITUACAO_NAO_INFORMADA}
 
 
 def interpretar_renda(resposta: str) -> float | None:
@@ -246,6 +282,7 @@ def montar_resumo(state: PlanoSaudeState) -> str:
         ("E-mail", _texto(state.get("email"))),
         ("Telefone", _texto(state.get("telefone"))),
         ("Endereço", _endereco(state.get("endereco"))),
+        ("Situação", _texto(state.get("relato"))),
         ("Renda mensal", _reais(renda) if renda is not None else ""),
     ]
     return "\n".join(f"{rotulo}: {valor or NAO_INFORMADO}" for rotulo, valor in linhas)
@@ -294,6 +331,9 @@ _construtor.add_node("outraPessoa", outra_pessoa)
 _construtor.add_node("prepararPerguntaImagens", preparar_pergunta_imagens)
 _construtor.add_node("pedirImagens", pedir_imagens)
 _construtor.add_node("imagensPendentes", imagens_pendentes)
+_construtor.add_node("prepararPerguntaSituacao", preparar_pergunta_situacao)
+_construtor.add_node("pedirSituacao", pedir_situacao)
+_construtor.add_node("situacaoNaoInformada", situacao_nao_informada)
 _construtor.add_node("prepararPerguntaRenda", preparar_pergunta_renda)
 _construtor.add_node("pedirRenda", pedir_renda)
 _construtor.add_node("rendaNaoEntendida", renda_nao_entendida)
@@ -317,13 +357,29 @@ _construtor.add_edge("prepararPerguntaParaQuem", "pedirParaQuem")
 _construtor.add_conditional_edges(
     "pedirParaQuem",
     depois_de_para_quem,
-    {"imagens": "prepararPerguntaImagens", "renda": "prepararPerguntaRenda", "outraPessoa": "outraPessoa"},
+    {
+        "imagens": "prepararPerguntaImagens",
+        "situacao": "prepararPerguntaSituacao",
+        "renda": "prepararPerguntaRenda",
+        "outraPessoa": "outraPessoa",
+    },
 )
 _construtor.add_edge("prepararPerguntaImagens", "pedirImagens")
 _construtor.add_conditional_edges(
     "pedirImagens",
     depois_das_imagens,
-    {"renda": "prepararPerguntaRenda", "imagens": "prepararPerguntaImagens", "imagensPendentes": "imagensPendentes"},
+    {
+        "situacao": "prepararPerguntaSituacao",
+        "renda": "prepararPerguntaRenda",
+        "imagens": "prepararPerguntaImagens",
+        "imagensPendentes": "imagensPendentes",
+    },
+)
+_construtor.add_edge("prepararPerguntaSituacao", "pedirSituacao")
+_construtor.add_conditional_edges(
+    "pedirSituacao",
+    depois_da_situacao,
+    {"renda": "prepararPerguntaRenda", "situacao": "prepararPerguntaSituacao", "situacaoNaoInformada": "situacaoNaoInformada"},
 )
 _construtor.add_edge("prepararPerguntaRenda", "pedirRenda")
 _construtor.add_conditional_edges(
@@ -337,7 +393,16 @@ _construtor.add_conditional_edges(
     depois_da_confirmacao,
     {"concluir": "concluir", "renda": "prepararPerguntaRenda", "naoConfirmado": "naoConfirmado"},
 )
-for _fim in ("presencial", "canalNaoEntendido", "outraPessoa", "imagensPendentes", "rendaNaoEntendida", "naoConfirmado", "concluir"):
+for _fim in (
+    "presencial",
+    "canalNaoEntendido",
+    "outraPessoa",
+    "imagensPendentes",
+    "situacaoNaoInformada",
+    "rendaNaoEntendida",
+    "naoConfirmado",
+    "concluir",
+):
     _construtor.add_edge(_fim, END)
 
 _fabrica = FabricaGrafo(_construtor)
