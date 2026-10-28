@@ -38,6 +38,7 @@ from maria.shared.types import (
     DadosPessoa,
     DadosProcesso,
     OrgaoAtendimento,
+    OrgaosPrimeiroAtendimento,
     OrgaosViolenciaDomestica,
     Plantao,
     ResultadoCadastroPessoa,
@@ -455,6 +456,39 @@ async def consultar_orgaos_violencia_domestica(indicacao_ro: bool, id_pessoa: in
     # "CONTACTAR_CRC": "não achei nada, ligue 129" (só com RO). Igualdade estrita.
     if _js.prop(corpo, "codigo") == "CONTACTAR_CRC":
         return _contactar_crc(_js.prop(corpo, "mensagem"))
+    orgaos = _orgaos(_js.coalesce(_js.prop(corpo, "dados"), []))
+    return {"encontrado": len(orgaos) > 0, "orgaos": orgaos}
+
+
+async def consultar_orgaos_primeiro_atendimento(id_pessoa: int, id_assunto: int) -> OrgaosPrimeiroAtendimento:
+    """Órgãos habilitados para o assunto, escolhidos pelo endereço cadastrado da pessoa
+    (o CEP que a Tykhe manda não entra). Lista vazia vira `encontrado: False`.
+    Sem `idPessoa` o Verde responde 400; com `idPessoa` inexistente, 500."""
+    if not VERDE_JWT_TOKEN:
+        logger.warn(MENSAGEM_MOCK, **contexto_atual())
+        orgao: OrgaoAtendimento = {
+            "id": 1358,
+            "nome": "Núcleo de Primeiro Atendimento Cível de Teste (mock)",
+            "enderecos": [
+                {
+                    "logradouro": "Rua de Teste",
+                    "numero": "1",
+                    "bairro": "Centro",
+                    "municipio": "Município de Teste",
+                    "uf": "RJ",
+                    "horariosUrgenciaFormatado": "Seg a Sex, 11:00-17:00",
+                }
+            ],
+        }
+        return {"encontrado": True, "orgaos": [orgao]}
+    inicio = _agora_ms()
+    url = f"{VERDE_API_URL}/orgao/primeiro-atendimento?idAssunto={_js.texto_template(id_assunto)}&idPessoa={_js.texto_template(id_pessoa)}"
+    resultado = await chamar_verde_com_retry("orgao-primeiro-atendimento", _requisicao("GET", url, com_accept=True, ler_corpo=True))
+    if not resultado.ok or resultado.res is None:
+        await _fechar(resultado)
+        return cast(OrgaosPrimeiroAtendimento, _com_falha_infra({"encontrado": False, "orgaos": []}, resultado.falha_infra))
+    corpo = _js.json_parse(resultado.res.content)
+    _sucesso("orgao-primeiro-atendimento", inicio)
     orgaos = _orgaos(_js.coalesce(_js.prop(corpo, "dados"), []))
     return {"encontrado": len(orgaos) > 0, "orgaos": orgaos}
 

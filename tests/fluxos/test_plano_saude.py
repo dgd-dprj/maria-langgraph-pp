@@ -3,6 +3,7 @@
 import pytest
 
 from maria.fluxos.plano_saude.api import (
+    ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
     ID_MUNICIPIO_RIO,
     MENSAGEM_FALHA_INFRA_VERDE,
     MENSAGEM_FORA_DO_RIO,
@@ -10,7 +11,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_OUTRA_PESSOA,
 )
 from maria.fluxos.plano_saude.graph import interpretar_canal, interpretar_renda, montar_resumo, obter_grafo
-from maria.shared.types import DadosCep
+from maria.shared.types import DadosCep, DadosPessoa, OrgaoAtendimento, OrgaosPrimeiroAtendimento
 from tests.fluxos.conftest import Fluxo, pergunta, texto
 
 # Sem CEP o fluxo nem começa (#331); o mock do Verde devolve o Rio para qualquer CEP que não seja "00000000".
@@ -350,3 +351,83 @@ async def test_sem_cep_encerra_sem_consultar_o_verde(monkeypatch: pytest.MonkeyP
 async def test_mock_do_verde_trata_cep_00000000_como_nao_encontrado() -> None:
     r = await _fluxo().iniciar({"endereco": {"cep": "00000000"}})
     assert r["motivoHandoff"] == "municipio_nao_identificado"
+
+
+FORA_DO_RIO: DadosCep = {"encontrado": True, "idMunicipio": 3000}
+UNIDADE: OrgaoAtendimento = {
+    "id": 1358,
+    "nome": "NÚCLEO DE PRIMEIRO ATENDIMENTO CÍVEL DE NITERÓI",
+    "enderecos": [
+        {
+            "logradouro": "Rua Visconde de Sepetiba",
+            "numero": "519",
+            "complemento": "3º andar",
+            "bairro": "Centro",
+            "municipio": "Niterói",
+            "uf": "RJ",
+            "horariosUrgenciaFormatado": "Seg a Sex, 11:00-17:00",
+        }
+    ],
+}
+
+
+def _verde_fora_do_rio(monkeypatch: pytest.MonkeyPatch, pessoa: DadosPessoa, orgaos: OrgaosPrimeiroAtendimento) -> list[tuple[int, int]]:
+    _verde_devolve(monkeypatch, FORA_DO_RIO)
+    consultas: list[tuple[int, int]] = []
+
+    async def consultar_pessoa(cpf: str) -> DadosPessoa:
+        return pessoa
+
+    async def consultar_orgaos(id_pessoa: int, id_assunto: int) -> OrgaosPrimeiroAtendimento:
+        consultas.append((id_pessoa, id_assunto))
+        return orgaos
+
+    monkeypatch.setattr("maria.fluxos.plano_saude.graph.consultar_pessoa_por_cpf", consultar_pessoa)
+    monkeypatch.setattr("maria.fluxos.plano_saude.graph.consultar_orgaos_primeiro_atendimento", consultar_orgaos)
+    return consultas
+
+
+async def test_fora_do_rio_com_pessoa_no_verde_indica_a_unidade_e_encerra_com_atendimento_humano(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    consultas = _verde_fora_do_rio(monkeypatch, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]})
+    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
+    assert consultas == [(12, ID_ASSUNTO_UNIDADE_FORA_DO_RIO)]
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "fora_do_rio"
+    assert (
+        "NÚCLEO DE PRIMEIRO ATENDIMENTO CÍVEL DE NITERÓI, Rua Visconde de Sepetiba, 519 3º andar, Centro, Niterói/RJ" in r["mensagemFinal"]
+    )
+    assert "Seg a Sex, 11:00-17:00" in r["mensagemFinal"]
+
+
+@pytest.mark.parametrize(
+    ("entrada", "pessoa", "orgaos"),
+    [
+        ({}, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]}),
+        ({"cpf": "11111111111"}, {"encontrado": False}, {"encontrado": True, "orgaos": [UNIDADE]}),
+        ({"cpf": "11111111111"}, {"encontrado": False, "falhaInfra": True}, {"encontrado": True, "orgaos": [UNIDADE]}),
+        ({"cpf": "11111111111"}, {"encontrado": True, "idPessoa": 12}, {"encontrado": False, "orgaos": []}),
+        ({"cpf": "11111111111"}, {"encontrado": True, "idPessoa": 12}, {"encontrado": False, "orgaos": [], "falhaInfra": True}),
+        ({"cpf": "11111111111"}, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [{"id": 1, "nome": "Sem endereço"}]}),
+    ],
+)
+async def test_fora_do_rio_sem_unidade_encerra_com_a_mensagem_generica(
+    monkeypatch: pytest.MonkeyPatch, entrada: dict[str, object], pessoa: DadosPessoa, orgaos: OrgaosPrimeiroAtendimento
+) -> None:
+    _verde_fora_do_rio(monkeypatch, pessoa, orgaos)
+    r = await _fluxo().iniciar({**COM_CEP, **entrada})
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "fora_do_rio"
+    assert r["mensagemFinal"] == MENSAGEM_FORA_DO_RIO
+
+
+async def test_fora_do_rio_pula_orgao_sem_endereco_e_usa_o_proximo(monkeypatch: pytest.MonkeyPatch) -> None:
+    _verde_fora_do_rio(
+        monkeypatch,
+        {"encontrado": True, "idPessoa": 12},
+        {"encontrado": True, "orgaos": [{"id": 1, "nome": "Sem endereço"}, UNIDADE]},
+    )
+    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
+    assert "NITERÓI" in r["mensagemFinal"]
+    assert "Sem endereço" not in r["mensagemFinal"]
