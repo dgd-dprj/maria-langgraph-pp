@@ -182,12 +182,12 @@ async def test_com_relato_nao_pergunta_a_situacao() -> None:
     assert "renda" in texto(r)
 
 
-async def test_situacao_curta_repete_e_na_terceira_encerra() -> None:
+async def test_situacao_com_menos_de_tres_palavras_repete_e_na_terceira_encerra() -> None:
     f = _fluxo()
     await f.iniciar({k: v for k, v in DADOS.items() if k != "relato"} | {"imagensRecebidas": True})
-    r = await f.responder("por aqui", "true", "ok")
+    r = await f.responder("por aqui", "true", "ajuda")
     assert "um pouco mais de detalhe" in texto(r)
-    r = await f.responder("não", "")
+    r = await f.responder("negaram tudo", "")
     assert pergunta(r) is None
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "situacao_nao_informada"

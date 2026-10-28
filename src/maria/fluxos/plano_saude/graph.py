@@ -43,7 +43,7 @@ MAXIMO_TENTATIVAS_CANAL = 3
 MAXIMO_TENTATIVAS_IMAGENS = 3
 MAXIMO_TENTATIVAS_SITUACAO = 3
 MAXIMO_TENTATIVAS_RENDA = 3
-TAMANHO_MINIMO_SITUACAO = 5
+PALAVRAS_MINIMAS_SITUACAO = 3
 MAXIMO_TENTATIVAS_CONFIRMACAO = 3
 RENDA_MAXIMA = 10_000_000
 
@@ -177,7 +177,7 @@ async def preparar_pergunta_situacao(state: PlanoSaudeState) -> Atualizacao:
 async def pedir_situacao(state: PlanoSaudeState) -> Atualizacao:
     resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_situacao(state), "tipo": "texto"})
     relato = resposta.strip()
-    if len(relato) >= TAMANHO_MINIMO_SITUACAO:
+    if len(relato.split()) >= PALAVRAS_MINIMAS_SITUACAO:
         return {"relato": relato}
     return {"tentativasSituacao": (state.get("tentativasSituacao") or 0) + 1}
 
