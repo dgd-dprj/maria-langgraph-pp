@@ -376,7 +376,7 @@ async def consultar_cep(cep: str) -> DadosCep:
     resultado = await chamar_verde_com_retry("cep", _requisicao("GET", url, com_accept=True, ler_corpo=True))
     if not resultado.ok or resultado.res is None:
         await _fechar(resultado)
-        return {"encontrado": False}
+        return cast(DadosCep, _com_falha_infra({"encontrado": False}, resultado.falha_infra))
     corpo = _js.json_parse(resultado.res.content)
     _sucesso("cep", inicio)
     dados = _js.prop(corpo, "dados")
