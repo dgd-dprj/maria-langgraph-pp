@@ -74,6 +74,7 @@ async def test_outra_pessoa_encerra_com_o_texto_mock_e_atendimento_humano() -> N
 
 
 DADOS = {
+    "relato": "O plano negou a minha cirurgia",
     "cpf": "00000000000",
     "nome": "Pessoa de Teste",
     "dataNascimento": "1990-01-01",
@@ -161,6 +162,44 @@ async def test_renda_invalida_repete_e_na_terceira_encerra() -> None:
     assert r["motivoHandoff"] == "renda_nao_entendida"
 
 
+async def test_sem_relato_pergunta_a_situacao_antes_da_renda() -> None:
+    f = _fluxo()
+    await f.iniciar({k: v for k, v in DADOS.items() if k != "relato"} | {"imagensRecebidas": True})
+    r = await f.responder("por aqui", "true")
+    p = pergunta(r)
+    assert p is not None and p["tipo"] == "texto"
+    assert "o que aconteceu" in texto(r)
+    r = await f.responder("O plano negou a minha cirurgia")
+    assert "renda" in texto(r)
+    assert (await f.estado())["relato"] == "O plano negou a minha cirurgia"
+
+
+async def test_com_relato_nao_pergunta_a_situacao() -> None:
+    f = _fluxo()
+    await f.iniciar({**DADOS, "imagensRecebidas": True})
+    r = await f.responder("por aqui", "true")
+    assert "o que aconteceu" not in texto(r)
+    assert "renda" in texto(r)
+
+
+async def test_situacao_curta_repete_e_na_terceira_encerra() -> None:
+    f = _fluxo()
+    await f.iniciar({k: v for k, v in DADOS.items() if k != "relato"} | {"imagensRecebidas": True})
+    r = await f.responder("por aqui", "true", "ok")
+    assert "um pouco mais de detalhe" in texto(r)
+    r = await f.responder("não", "")
+    assert pergunta(r) is None
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "situacao_nao_informada"
+
+
+async def test_situacao_pergunta_depois_das_imagens_quando_sem_aviso() -> None:
+    f = _fluxo()
+    await f.iniciar({k: v for k, v in DADOS.items() if k != "relato"})
+    r = await f.responder("por aqui", "true", "sim")
+    assert "o que aconteceu" in texto(r)
+
+
 async def test_resumo_mostra_os_dados_como_vieram_e_a_renda() -> None:
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
@@ -175,6 +214,7 @@ async def test_resumo_mostra_os_dados_como_vieram_e_a_renda() -> None:
         "E-mail: teste@exemplo.org",
         "Telefone: 21999990000",
         "Endereço: Rua de Teste, 1, Centro, Rio de Janeiro/RJ, CEP 20000000",
+        "Situação: O plano negou a minha cirurgia",
         "Renda mensal: R$ 2.500,00",
     ):
         assert esperado in resumo
@@ -183,7 +223,7 @@ async def test_resumo_mostra_os_dados_como_vieram_e_a_renda() -> None:
 def test_resumo_trata_vazio_e_ausente_como_nao_informado_e_aceita_cpf_numerico() -> None:
     resumo = montar_resumo({"cpf": 11111111111, "nome": "", "endereco": {}, "renda": 0.0})  # type: ignore[typeddict-item]
     assert "CPF: 11111111111" in resumo
-    for rotulo in ("Nome", "Data de nascimento", "E-mail", "Telefone", "Endereço"):
+    for rotulo in ("Nome", "Data de nascimento", "E-mail", "Telefone", "Endereço", "Situação"):
         assert f"{rotulo}: não informado" in resumo
     assert "Renda mensal: R$ 0,00" in resumo
 

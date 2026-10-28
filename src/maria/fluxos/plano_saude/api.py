@@ -15,7 +15,7 @@ HORARIO_NUDECON = "de segunda a sexta, das 11h às 16h"
 
 def extrair_metadados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:
     metadados: dict[str, Any] = {}
-    for chave in ("canal", "paraSi", "renda", "motivoHandoff"):
+    for chave in ("canal", "paraSi", "relato", "renda", "motivoHandoff"):
         valor = values.get(chave)
         if valor is not None:
             metadados[chave] = valor
@@ -25,6 +25,7 @@ def extrair_metadados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:
 # Provisório: o texto final, com documentos e prazo, é da #335; o envio ao NUDECON, da #345.
 MENSAGEM_CONCLUIDO = "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você."
 MENSAGEM_IMAGENS_PENDENTES = "Não recebi as imagens dos documentos. Vou encaminhar seu atendimento para a equipe dar continuidade."
+MENSAGEM_SITUACAO_NAO_INFORMADA = "Não consegui entender a sua situação. Vou encaminhar seu atendimento para a equipe dar continuidade."
 MENSAGEM_RENDA_NAO_ENTENDIDA = "Não consegui entender a sua renda. Vou encaminhar seu atendimento para a equipe dar continuidade."
 MENSAGEM_DADOS_NAO_CONFIRMADOS = "Não consegui confirmar seus dados. Vou encaminhar seu atendimento para a equipe dar continuidade."
 # Provisório (mock decidido pelo Ícaro em 2026-10-26): a coleta dos dados da outra pessoa é da #347.

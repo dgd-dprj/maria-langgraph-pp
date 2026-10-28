@@ -15,7 +15,7 @@ from maria.shared.tokens_acumulados import CanalTokensGastos
 CanalAtendimento = Literal["aqui", "email", "presencial"]
 
 MotivoHandoffPlanoSaude = Literal[
-    "outra_pessoa", "canal_nao_entendido", "imagens_pendentes", "renda_nao_entendida", "dados_nao_confirmados"
+    "outra_pessoa", "canal_nao_entendido", "imagens_pendentes", "situacao_nao_informada", "renda_nao_entendida", "dados_nao_confirmados"
 ]
 
 
@@ -44,6 +44,9 @@ class PlanoSaudeState(TypedDict, total=False):
     tentativasCanal: int | None
     paraSi: bool | None
     tentativasImagens: int | None
+    # Situação em palavras da pessoa. Vem do orquestrador (#334) ou da pergunta da Maria; é dado sensível, nunca vai para log.
+    relato: str | None
+    tentativasSituacao: int | None
     renda: float | None
     tentativasRenda: int | None
     confirmado: bool | None
