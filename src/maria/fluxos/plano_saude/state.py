@@ -15,7 +15,15 @@ from maria.shared.tokens_acumulados import CanalTokensGastos
 CanalAtendimento = Literal["aqui", "email", "presencial"]
 
 MotivoHandoffPlanoSaude = Literal[
-    "outra_pessoa", "canal_nao_entendido", "imagens_pendentes", "situacao_nao_informada", "renda_nao_entendida", "dados_nao_confirmados"
+    "outra_pessoa",
+    "canal_nao_entendido",
+    "imagens_pendentes",
+    "situacao_nao_informada",
+    "renda_nao_entendida",
+    "dados_nao_confirmados",
+    "fora_do_rio",
+    "municipio_nao_identificado",
+    "falha_infra_verde",
 ]
 
 

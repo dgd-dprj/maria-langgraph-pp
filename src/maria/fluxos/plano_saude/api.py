@@ -12,6 +12,9 @@ from typing import Any
 # Rascunho do time, não validado pelo NUDECON (#329, #335).
 HORARIO_NUDECON = "de segunda a sexta, das 11h às 16h"
 
+# `municipio.id` que o `GET /cep` do Verde devolve para o Rio de Janeiro (informado pelo Ícaro em 2026-10-28).
+ID_MUNICIPIO_RIO = 3643
+
 
 def extrair_metadados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:
     metadados: dict[str, Any] = {}
@@ -41,4 +44,11 @@ MENSAGEM_PRESENCIAL = (
 MENSAGEM_CANAL_NAO_ENTENDIDO = (
     "Não consegui entender como você prefere seguir. Vou encaminhar seu atendimento para a equipe dar continuidade."
 )
+# Provisório: a orientação de qual unidade procurar fora do Rio é da #331.
+MENSAGEM_FORA_DO_RIO = (
+    "O NUDECON atende quem mora no município do Rio de Janeiro. "
+    "Vou encaminhar seu atendimento para a equipe te orientar sobre onde procurar atendimento."
+)
+MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO = "Não consegui confirmar o seu município. Vou encaminhar seu atendimento para a equipe."
+MENSAGEM_FALHA_INFRA_VERDE = "Não consegui consultar o seu endereço agora. Vou encaminhar seu atendimento para a equipe."
 MENSAGEM_HANDOFF = "Vou encaminhar seu atendimento para um atendente humano."

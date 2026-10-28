@@ -5,9 +5,13 @@ documentos, situação (só quando o relato não veio), renda e confirmação do
 "outra pessoa" encerra com o texto provisório e `atendimento_humano` (coleta dos
 dados dela: #347). Falta o encaminhamento ao NUDECON pelo Verde (#265, #345).
 
+Antes da primeira pergunta, o fluxo confere no Verde (`GET /cep` com `endereco.cep`)
+se o município é o Rio. Fora do Rio, e em qualquer falha da conferência, encerra
+com atendimento humano: o assistido não pode ficar sem atendimento (#331).
+
 Premissas desta etapa, a confirmar: a Tykhe coleta as imagens e avisa com
 `imagensRecebidas` em `dadosConhecidos` (#336); sem o aviso, a Maria pergunta se
-a pessoa já enviou. Sem consulta ao Verde. O relato chega do orquestrador no canal
+a pessoa já enviou. O relato chega do orquestrador no canal
 `relato` (#334, ainda não entregue pela rota); sem ele, a Maria pergunta a situação.
 
 A pergunta do canal é de texto, com as opções escritas na própria pergunta: o
@@ -26,17 +30,22 @@ from langgraph.types import interrupt
 from maria.fluxos._fabrica import FabricaGrafo, GrafoCompilado
 from maria.fluxos.plano_saude.api import (
     HORARIO_NUDECON,
+    ID_MUNICIPIO_RIO,
     MENSAGEM_CANAL_NAO_ENTENDIDO,
     MENSAGEM_CONCLUIDO,
     MENSAGEM_DADOS_NAO_CONFIRMADOS,
+    MENSAGEM_FALHA_INFRA_VERDE,
+    MENSAGEM_FORA_DO_RIO,
     MENSAGEM_IMAGENS_PENDENTES,
+    MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
     MENSAGEM_OUTRA_PESSOA,
     MENSAGEM_PRESENCIAL,
     MENSAGEM_RENDA_NAO_ENTENDIDA,
     MENSAGEM_SITUACAO_NAO_INFORMADA,
 )
-from maria.fluxos.plano_saude.state import CanalAtendimento, PlanoSaudeState
+from maria.fluxos.plano_saude.state import CanalAtendimento, MotivoHandoffPlanoSaude, PlanoSaudeState
 from maria.ia.reescrever import preparar_pergunta
+from maria.integracoes.verde import consultar_cep
 from maria.shared.respostas import resposta_eh_sim
 
 MAXIMO_TENTATIVAS_CANAL = 3
@@ -68,6 +77,31 @@ Atualizacao = dict[str, Any]
 
 def _sem_acento(texto: str) -> str:
     return "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn").lower()
+
+
+async def verificar_municipio(state: PlanoSaudeState) -> Atualizacao:
+    """Só o Rio segue para a conversa. Fora do Rio, sem CEP, CEP que o Verde não resolve
+    e falha do Verde encerram com atendimento humano, cada um com o seu motivo."""
+    cep = _texto((state.get("endereco") or {}).get("cep"))
+    if not cep:
+        return _encerrar_por_municipio("municipio_nao_identificado", MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO)
+    dados = await consultar_cep(cep)
+    if dados.get("falhaInfra"):
+        return _encerrar_por_municipio("falha_infra_verde", MENSAGEM_FALHA_INFRA_VERDE)
+    id_municipio = dados.get("idMunicipio") if dados.get("encontrado") else None
+    if id_municipio is None:
+        return _encerrar_por_municipio("municipio_nao_identificado", MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO)
+    if id_municipio != ID_MUNICIPIO_RIO:
+        return _encerrar_por_municipio("fora_do_rio", MENSAGEM_FORA_DO_RIO)
+    return {}
+
+
+def _encerrar_por_municipio(motivo: MotivoHandoffPlanoSaude, mensagem: str) -> Atualizacao:
+    return {"statusFinal": "handoff_humano", "motivoHandoff": motivo, "mensagemFinal": mensagem}
+
+
+def depois_do_municipio(state: PlanoSaudeState) -> str:
+    return "encerrar" if state.get("statusFinal") else "canal"
 
 
 def interpretar_canal(resposta: str) -> CanalAtendimento | None:
@@ -321,6 +355,7 @@ async def concluir(state: PlanoSaudeState) -> Atualizacao:
 
 
 _construtor = StateGraph(PlanoSaudeState)
+_construtor.add_node("verificarMunicipio", verificar_municipio)
 _construtor.add_node("prepararPerguntaCanal", preparar_pergunta_canal)
 _construtor.add_node("pedirCanal", pedir_canal)
 _construtor.add_node("presencial", presencial)
@@ -341,7 +376,8 @@ _construtor.add_node("prepararPerguntaConfirmacao", preparar_pergunta_confirmaca
 _construtor.add_node("pedirConfirmacao", pedir_confirmacao)
 _construtor.add_node("naoConfirmado", nao_confirmado)
 _construtor.add_node("concluir", concluir)
-_construtor.add_edge(START, "prepararPerguntaCanal")
+_construtor.add_edge(START, "verificarMunicipio")
+_construtor.add_conditional_edges("verificarMunicipio", depois_do_municipio, {"canal": "prepararPerguntaCanal", "encerrar": END})
 _construtor.add_edge("prepararPerguntaCanal", "pedirCanal")
 _construtor.add_conditional_edges(
     "pedirCanal",
