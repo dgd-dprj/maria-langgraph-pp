@@ -14,6 +14,9 @@ HORARIO_NUDECON = "de segunda a sexta, das 11h às 16h"
 
 # `municipio.id` que o `GET /cep` do Verde devolve para o Rio de Janeiro (informado pelo Ícaro em 2026-10-28).
 ID_MUNICIPIO_RIO = 3643
+# Provisório (decisão do Ícaro em 2026-10-28): assunto qualquer só para o Verde indicar a unidade de quem mora fora do Rio.
+# O assunto definitivo (3312 ou 8420, por tipo de pedido) e a lista de unidades dependem da reunião com os responsáveis e da #265.
+ID_ASSUNTO_UNIDADE_FORA_DO_RIO = 3050
 
 
 def extrair_metadados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:
@@ -48,6 +51,10 @@ MENSAGEM_CANAL_NAO_ENTENDIDO = (
 MENSAGEM_FORA_DO_RIO = (
     "O NUDECON atende quem mora no município do Rio de Janeiro. "
     "Vou encaminhar seu atendimento para a equipe te orientar sobre onde procurar atendimento."
+)
+MENSAGEM_FORA_DO_RIO_COM_UNIDADE = (
+    "O NUDECON atende quem mora no município do Rio de Janeiro. Pelo seu endereço, procure: {unidade}. "
+    "Vou encaminhar seu atendimento para a equipe também."
 )
 MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO = "Não consegui confirmar o seu município. Vou encaminhar seu atendimento para a equipe."
 MENSAGEM_FALHA_INFRA_VERDE = "Não consegui consultar o seu endereço agora. Vou encaminhar seu atendimento para a equipe."

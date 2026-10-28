@@ -136,6 +136,15 @@ class OrgaosViolenciaDomestica(TypedDict, total=False):
     mensagemCrc: str
 
 
+class OrgaosPrimeiroAtendimento(TypedDict, total=False):
+    """`GET /orgao/primeiro-atendimento`: órgãos habilitados para o assunto e a pessoa."""
+
+    encontrado: Required[bool]
+    orgaos: Required[list[OrgaoAtendimento]]
+    # Mesmo racional de DadosPessoa.falhaInfra.
+    falhaInfra: bool
+
+
 class Plantao(TypedDict, total=False):
     """GET /integra/plantao/vigente: lista vazia = fora de horário de plantão."""
 
