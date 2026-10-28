@@ -51,6 +51,8 @@ class PlanoSaudeState(TypedDict, total=False):
     canal: CanalAtendimento | None
     tentativasCanal: int | None
     paraSi: bool | None
+    # Mora fora do município do Rio: a conversa conclui com a unidade que ele deve procurar.
+    foraDoRio: bool | None
     tentativasImagens: int | None
     # Situação em palavras da pessoa. Vem do orquestrador (#334) ou da pergunta da Maria; é dado sensível, nunca vai para log.
     relato: str | None

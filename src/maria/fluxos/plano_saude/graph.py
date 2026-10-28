@@ -6,8 +6,9 @@ documentos, situação (só quando o relato não veio), renda e confirmação do
 dados dela: #347). Falta o encaminhamento ao NUDECON pelo Verde (#265, #345).
 
 Antes da primeira pergunta, o fluxo confere no Verde (`GET /cep` com `endereco.cep`)
-se o município é o Rio. Fora do Rio, e em qualquer falha da conferência, encerra
-com atendimento humano: o assistido não pode ficar sem atendimento (#331).
+se o município é o Rio. Fora do Rio, conclui com a unidade que o Verde indica para a
+pessoa (nome, endereço e horário). Sem a unidade, e em qualquer falha da conferência,
+encerra com atendimento humano: o assistido não pode ficar sem atendimento (#331).
 
 Premissas desta etapa, a confirmar: a Tykhe coleta as imagens e avisa com
 `imagensRecebidas` em `dadosConhecidos` (#336); sem o aviso, a Maria pergunta se
@@ -30,6 +31,7 @@ from langgraph.types import interrupt
 from maria.fluxos._fabrica import FabricaGrafo, GrafoCompilado
 from maria.fluxos.plano_saude.api import (
     HORARIO_NUDECON,
+    HORARIO_UNIDADE_PADRAO,
     ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
     ID_MUNICIPIO_RIO,
     MENSAGEM_CANAL_NAO_ENTENDIDO,
@@ -95,27 +97,34 @@ async def verificar_municipio(state: PlanoSaudeState) -> Atualizacao:
     if id_municipio is None:
         return _encerrar_por_municipio("municipio_nao_identificado", MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO)
     if id_municipio != ID_MUNICIPIO_RIO:
-        return _encerrar_por_municipio("fora_do_rio", await _mensagem_fora_do_rio(state))
+        unidade = await _unidade_fora_do_rio(state)
+        if unidade:
+            return {
+                "statusFinal": "concluido",
+                "foraDoRio": True,
+                "mensagemFinal": MENSAGEM_FORA_DO_RIO_COM_UNIDADE.format(unidade=unidade),
+            }
+        return _encerrar_por_municipio("fora_do_rio", MENSAGEM_FORA_DO_RIO)
     return {}
 
 
-async def _mensagem_fora_do_rio(state: PlanoSaudeState) -> str:
-    """Indica a unidade que o Verde habilita para a pessoa (pelo endereço cadastrado dela). Sem CPF, pessoa
-    fora do Verde, falha ou lista sem endereço, fica a mensagem genérica: o atendimento vai ao humano de qualquer jeito."""
+async def _unidade_fora_do_rio(state: PlanoSaudeState) -> str:
+    """A unidade que o Verde habilita para a pessoa (pelo endereço cadastrado dela), ou vazio quando não dá para
+    saber: sem CPF, pessoa fora do Verde, falha do Verde ou lista sem endereço. Aí o atendimento vai ao humano."""
     cpf = _texto(state.get("cpf"))
     if not cpf:
-        return MENSAGEM_FORA_DO_RIO
+        return ""
     pessoa = await consultar_pessoa_por_cpf(cpf)
     id_pessoa = pessoa.get("idPessoa")
     if not pessoa.get("encontrado") or not isinstance(id_pessoa, int) or id_pessoa <= 0:
-        return MENSAGEM_FORA_DO_RIO
+        return ""
     orgaos = await consultar_orgaos_primeiro_atendimento(id_pessoa, ID_ASSUNTO_UNIDADE_FORA_DO_RIO)
-    unidade = next((texto for orgao in orgaos["orgaos"] if (texto := _descrever_unidade(orgao))), None)
-    return MENSAGEM_FORA_DO_RIO_COM_UNIDADE.format(unidade=unidade) if unidade else MENSAGEM_FORA_DO_RIO
+    return next((texto for orgao in orgaos["orgaos"] if (texto := _descrever_unidade(orgao))), "")
 
 
 def _descrever_unidade(orgao: OrgaoAtendimento) -> str:
-    """ "Nome, Rua X, 35 13º andar, Bairro, Município/UF. Horário: ..."; vazio quando o órgão não traz endereço."""
+    """ "Nome, Rua X, 35 13º andar, Bairro, Município/UF. Horário: ..."; vazio quando o órgão não traz endereço.
+    Sem horário no Verde, vale o padrão provisório."""
     enderecos = orgao.get("enderecos") or []
     endereco = enderecos[0] if enderecos else {}
     logradouro = _texto(endereco.get("logradouro"))
@@ -124,8 +133,10 @@ def _descrever_unidade(orgao: OrgaoAtendimento) -> str:
     numero = " ".join(p for p in (_texto(endereco.get("numero")), _texto(endereco.get("complemento"))) if p)
     cidade = "/".join(p for p in (_texto(endereco.get("municipio")), _texto(endereco.get("uf"))) if p)
     local = ", ".join(p for p in (f"{logradouro}, {numero}" if numero else logradouro, _texto(endereco.get("bairro")), cidade) if p)
-    horario = _texto(endereco.get("horariosUrgenciaFormatado")) or _texto(endereco.get("horariosAtendimentoFormatado"))
-    return f"{_texto(orgao.get('nome'))}, {local}" + (f". Horário: {horario}" if horario else "")
+    horario = (
+        _texto(endereco.get("horariosUrgenciaFormatado")) or _texto(endereco.get("horariosAtendimentoFormatado")) or HORARIO_UNIDADE_PADRAO
+    )
+    return f"{_texto(orgao.get('nome'))}, {local}. Horário: {horario}"
 
 
 def _encerrar_por_municipio(motivo: MotivoHandoffPlanoSaude, mensagem: str) -> Atualizacao:

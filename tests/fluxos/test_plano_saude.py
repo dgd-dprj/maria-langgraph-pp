@@ -3,6 +3,7 @@
 import pytest
 
 from maria.fluxos.plano_saude.api import (
+    HORARIO_UNIDADE_PADRAO,
     ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
     ID_MUNICIPIO_RIO,
     MENSAGEM_FALHA_INFRA_VERDE,
@@ -387,18 +388,30 @@ def _verde_fora_do_rio(monkeypatch: pytest.MonkeyPatch, pessoa: DadosPessoa, org
     return consultas
 
 
-async def test_fora_do_rio_com_pessoa_no_verde_indica_a_unidade_e_encerra_com_atendimento_humano(
-    monkeypatch: pytest.MonkeyPatch,
-) -> None:
+async def test_fora_do_rio_com_pessoa_no_verde_conclui_com_a_unidade(monkeypatch: pytest.MonkeyPatch) -> None:
     consultas = _verde_fora_do_rio(monkeypatch, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]})
-    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
+    f = _fluxo()
+    r = await f.iniciar({**COM_CEP, "cpf": "11111111111"})
     assert consultas == [(12, ID_ASSUNTO_UNIDADE_FORA_DO_RIO)]
-    assert r["statusFinal"] == "handoff_humano"
-    assert r["motivoHandoff"] == "fora_do_rio"
-    assert (
-        "NÚCLEO DE PRIMEIRO ATENDIMENTO CÍVEL DE NITERÓI, Rua Visconde de Sepetiba, 519 3º andar, Centro, Niterói/RJ" in r["mensagemFinal"]
-    )
-    assert "Seg a Sex, 11:00-17:00" in r["mensagemFinal"]
+    assert pergunta(r) is None
+    assert r["statusFinal"] == "concluido"
+    assert "motivoHandoff" not in r
+    assert (await f.estado())["foraDoRio"] is True
+    assert "CÍVEL DE NITERÓI, Rua Visconde de Sepetiba, 519 3º andar, Centro, Niterói/RJ" in r["mensagemFinal"]
+    assert "Horário: Seg a Sex, 11:00-17:00" in r["mensagemFinal"]
+
+
+async def test_fora_do_rio_sem_horario_no_verde_usa_o_horario_padrao(monkeypatch: pytest.MonkeyPatch) -> None:
+    sem_horario: OrgaoAtendimento = {
+        "id": 1,
+        "nome": "NÚCLEO DE TESTE",
+        "enderecos": [{"logradouro": "Rua A", "municipio": "Niterói", "uf": "RJ"}],
+    }
+    _verde_fora_do_rio(monkeypatch, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [sem_horario]})
+    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
+    assert r["statusFinal"] == "concluido"
+    assert f"Horário: {HORARIO_UNIDADE_PADRAO}" in r["mensagemFinal"]
+    assert HORARIO_UNIDADE_PADRAO == "de segunda a sexta, das 10h às 17h"
 
 
 @pytest.mark.parametrize(
@@ -429,5 +442,6 @@ async def test_fora_do_rio_pula_orgao_sem_endereco_e_usa_o_proximo(monkeypatch: 
         {"encontrado": True, "orgaos": [{"id": 1, "nome": "Sem endereço"}, UNIDADE]},
     )
     r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
+    assert r["statusFinal"] == "concluido"
     assert "NITERÓI" in r["mensagemFinal"]
     assert "Sem endereço" not in r["mensagemFinal"]
