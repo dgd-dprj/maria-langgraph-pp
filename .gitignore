@@ -9,6 +9,7 @@ build/
 *.egg-info/
 .env
 *.log
+.env.rag
 
 # LangGraph API
 .langgraph_api

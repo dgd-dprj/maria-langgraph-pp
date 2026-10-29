@@ -20,7 +20,11 @@ from maria.app import criar_app
 async def cliente(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[httpx.AsyncClient]:
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("VERDE_JWT_TOKEN", raising=False)
-    for variavel in ("MOCK_CLASSIFICACAO_FLOWID", "MOCK_CLASSIFICACAO_FLOWIDS", "ORQUESTRADOR_INCLUIR_PLANEJADOS"):
+    for variavel in (
+        "MOCK_CLASSIFICACAO_FLOWID",
+        "MOCK_CLASSIFICACAO_FLOWIDS",
+        "ORQUESTRADOR_INCLUIR_PLANEJADOS",
+    ):
         monkeypatch.delenv(variavel, raising=False)
     app = criar_app(pre_aquecer=False)
     async with app.router.lifespan_context(app):

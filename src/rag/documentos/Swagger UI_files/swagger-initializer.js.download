@@ -1,0 +1,27 @@
+window.onload = function () {
+  //<editor-fold desc="Changeable Configuration Block">
+
+  // the following lines will be replaced by docker/configurator, when it runs in a docker-container
+  const cookies = document.cookie.split(";").map(c => c.trim());
+  const appJson = cookies.find(c => c.startsWith("swagger-app-json="));
+  window.ui = SwaggerUIBundle({
+    url: "../api/doc" + appJson.split("=")[1],
+    dom_id: '#swagger-ui',
+    deepLinking: true,
+    defaultModelsExpandDepth: -1,
+    defaultExpandDepth: 0,
+    docExpansion: "none",
+    presets: [
+      SwaggerUIBundle.presets.apis,
+      SwaggerUIStandalonePreset
+    ],
+    plugins: [
+      SwaggerUIBundle.plugins.DownloadUrl
+    ],
+    layout: "StandaloneLayout",
+    tagsSorter: "alpha",
+    operationsSorter: "alpha"
+  });
+
+  //</editor-fold>
+};

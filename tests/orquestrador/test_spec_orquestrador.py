@@ -111,7 +111,7 @@ def test_1_topologia_igual_a_de_develop() -> None:
 
 
 def test_1_constantes() -> None:
-    assert (graph.CANDIDATOS_MAXIMOS, graph.LIMITE_RODADAS, graph.LIMITE_RODADAS_SUMARIZACAO) == (10, 5, 3)
+    assert (graph.CANDIDATOS_MAXIMOS, graph.LIMITE_RODADAS, graph.LIMITE_RODADAS_SUMARIZACAO) == (15, 5, 3)
 
 
 # ---- 2. interrupt ---------------------------------------------------------------------
