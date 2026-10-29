@@ -101,7 +101,7 @@ Ferramentas fora do Python: o **Node.js** só é preciso para os hooks do Claude
 
 - [`docs/arquitetura.md`](docs/arquitetura.md): visão geral, decisões de infraestrutura e o porquê de cada uma, persistência, observabilidade.
 - [`docs/fluxo-orquestrador.md`](docs/fluxo-orquestrador.md): como o relato livre vira um fluxo, um encaminhamento à Tykhe ou uma pergunta de desambiguação.
-- [`docs/fluxo-pessoa-presa.md`](docs/fluxo-pessoa-presa.md) e [`docs/fluxo-violencia-domestica.md`](docs/fluxo-violencia-domestica.md): regras de negócio de cada fluxo.
+- [`docs/fluxo-pessoa-presa.md`](docs/fluxo-pessoa-presa.md), [`docs/fluxo-violencia-domestica.md`](docs/fluxo-violencia-domestica.md) e [`docs/fluxo-plano-saude.md`](docs/fluxo-plano-saude.md): regras de negócio de cada fluxo.
 - [`docs/contrato-tykhe.md`](docs/contrato-tykhe.md): o que a API expõe para a Tykhe e o formato das respostas.
 - [`docs/integracao-verde.md`](docs/integracao-verde.md): cada endpoint do Verde usado, o formato real das respostas e os defeitos encontrados ao vivo.
 - [`docs/ia.md`](docs/ia.md): cada chamada de IA, o padrão comum de retentativa, simulação e flags.
