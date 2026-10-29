@@ -104,6 +104,8 @@ async def verificar_municipio(state: PlanoSaudeState) -> Atualizacao:
         return _encerrar_por_municipio("municipio_nao_identificado", MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO)
     if id_municipio != ID_MUNICIPIO_RIO:
         unidade = await _unidade_fora_do_rio(state)
+        if unidade is None:
+            return _encerrar_por_municipio("falha_infra_verde", MENSAGEM_FALHA_INFRA_VERDE)
         if unidade:
             return {
                 "statusFinal": "concluido",
@@ -114,17 +116,22 @@ async def verificar_municipio(state: PlanoSaudeState) -> Atualizacao:
     return {}
 
 
-async def _unidade_fora_do_rio(state: PlanoSaudeState) -> str:
-    """A unidade que o Verde habilita para a pessoa (pelo endereço cadastrado dela), ou vazio quando não dá para
-    saber: sem CPF, pessoa fora do Verde, falha do Verde ou lista sem endereço. Aí o atendimento vai ao humano."""
+async def _unidade_fora_do_rio(state: PlanoSaudeState) -> str | None:
+    """A unidade que o Verde habilita para a pessoa (pelo endereço cadastrado dela), vazio quando não dá para
+    saber (sem CPF, pessoa fora do Verde ou lista sem endereço) e None quando o Verde falha. Nos dois últimos
+    casos o atendimento vai ao humano, cada um com o seu motivo."""
     cpf = _texto(state.get("cpf"))
     if not cpf:
         return ""
     pessoa = await consultar_pessoa_por_cpf(cpf)
+    if pessoa.get("falhaInfra"):
+        return None
     id_pessoa = pessoa.get("idPessoa")
     if not pessoa.get("encontrado") or not isinstance(id_pessoa, int) or id_pessoa <= 0:
         return ""
     orgaos = await consultar_orgaos_primeiro_atendimento(id_pessoa, ID_ASSUNTO_UNIDADE_FORA_DO_RIO)
+    if orgaos.get("falhaInfra"):
+        return None
     return next((texto for orgao in orgaos["orgaos"] if (texto := _descrever_unidade(orgao))), "")
 
 

@@ -420,9 +420,7 @@ async def test_fora_do_rio_sem_horario_no_verde_usa_o_horario_padrao(monkeypatch
     [
         ({}, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]}),
         ({"cpf": "11111111111"}, {"encontrado": False}, {"encontrado": True, "orgaos": [UNIDADE]}),
-        ({"cpf": "11111111111"}, {"encontrado": False, "falhaInfra": True}, {"encontrado": True, "orgaos": [UNIDADE]}),
         ({"cpf": "11111111111"}, {"encontrado": True, "idPessoa": 12}, {"encontrado": False, "orgaos": []}),
-        ({"cpf": "11111111111"}, {"encontrado": True, "idPessoa": 12}, {"encontrado": False, "orgaos": [], "falhaInfra": True}),
         ({"cpf": "11111111111"}, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [{"id": 1, "nome": "Sem endereço"}]}),
     ],
 )
@@ -434,6 +432,23 @@ async def test_fora_do_rio_sem_unidade_encerra_com_a_mensagem_generica(
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "fora_do_rio"
     assert r["mensagemFinal"] == MENSAGEM_FORA_DO_RIO
+
+
+@pytest.mark.parametrize(
+    ("pessoa", "orgaos"),
+    [
+        ({"encontrado": False, "falhaInfra": True}, {"encontrado": True, "orgaos": [UNIDADE]}),
+        ({"encontrado": True, "idPessoa": 12}, {"encontrado": False, "orgaos": [], "falhaInfra": True}),
+    ],
+)
+async def test_fora_do_rio_com_falha_do_verde_na_unidade_encerra_com_falha_infra_verde(
+    monkeypatch: pytest.MonkeyPatch, pessoa: DadosPessoa, orgaos: OrgaosPrimeiroAtendimento
+) -> None:
+    _verde_fora_do_rio(monkeypatch, pessoa, orgaos)
+    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "falha_infra_verde"
+    assert r["mensagemFinal"] == MENSAGEM_FALHA_INFRA_VERDE
 
 
 async def test_fora_do_rio_pula_orgao_sem_endereco_e_usa_o_proximo(monkeypatch: pytest.MonkeyPatch) -> None:
