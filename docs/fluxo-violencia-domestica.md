@@ -4,7 +4,7 @@
 
 Vítima de violência doméstica buscando ajuda/proteção/encaminhamento jurídico.
 
-![Diagrama do fluxo violência doméstica](https://maria-langgraph-pp-docs-185327115563.s3.amazonaws.com/diagramas/violencia-domestica.png)
+![Diagrama do fluxo violência doméstica](https://maria-langgraph-pp-docs-185327115563.s3.amazonaws.com/diagramas/violencia-domestica-v2.png)
 
 ## Passo a passo
 
