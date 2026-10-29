@@ -21,10 +21,13 @@ tipo `opcoes` ainda está por confirmar com a Tykhe (#336).
 
 from __future__ import annotations
 
+import functools
 import re
 import unicodedata
+from collections.abc import Awaitable, Callable, Hashable, Mapping
 from typing import Any
 
+from langgraph.errors import GraphBubbleUp
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
@@ -37,6 +40,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_CANAL_NAO_ENTENDIDO,
     MENSAGEM_CONCLUIDO,
     MENSAGEM_DADOS_NAO_CONFIRMADOS,
+    MENSAGEM_ERRO_INTERNO,
     MENSAGEM_FALHA_INFRA_VERDE,
     MENSAGEM_FORA_DO_RIO,
     MENSAGEM_FORA_DO_RIO_COM_UNIDADE,
@@ -50,6 +54,8 @@ from maria.fluxos.plano_saude.api import (
 from maria.fluxos.plano_saude.state import CanalAtendimento, MotivoHandoffPlanoSaude, PlanoSaudeState
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.verde import consultar_cep, consultar_orgaos_primeiro_atendimento, consultar_pessoa_por_cpf
+from maria.shared.contexto import contexto_atual
+from maria.shared.logger import logger
 from maria.shared.respostas import resposta_eh_sim
 from maria.shared.types import OrgaoAtendimento
 
@@ -397,32 +403,73 @@ async def concluir(state: PlanoSaudeState) -> Atualizacao:
     return {"statusFinal": "concluido", "mensagemFinal": MENSAGEM_CONCLUIDO}
 
 
+def _deu_erro(state: PlanoSaudeState) -> bool:
+    return state.get("motivoHandoff") == "erro_interno"
+
+
+def _protegido(no: Callable[[PlanoSaudeState], Awaitable[Atualizacao]]) -> Callable[..., Any]:
+    """Falha inesperada em qualquer nó encerra com atendimento humano, e não com 500: o assistido não pode
+    ficar sem atendimento. O interrupt do LangGraph passa (é um GraphBubbleUp). O log leva só o nome do nó
+    e o tipo do erro, nunca a mensagem, que pode carregar dado da pessoa."""
+
+    @functools.wraps(no)
+    async def com_guarda(state: PlanoSaudeState) -> Atualizacao:
+        try:
+            return await no(state)
+        except GraphBubbleUp:
+            raise
+        except Exception as erro:
+            logger.error(
+                "[plano-saude] falha inesperada no fluxo: encerra com atendimento humano",
+                **contexto_atual(),
+                no=no.__name__,
+                tipoErro=type(erro).__name__,
+            )
+            return {"statusFinal": "handoff_humano", "motivoHandoff": "erro_interno", "mensagemFinal": MENSAGEM_ERRO_INTERNO}
+
+    return com_guarda
+
+
+def _seguir(origem: str, destino: str) -> None:
+    """Aresta fixa que, depois de uma falha, vai ao fim em vez de seguir para o próximo nó."""
+    _condicional(origem, lambda state: "seguir", {"seguir": destino})
+
+
+def _condicional(origem: str, roteador: Callable[[PlanoSaudeState], str], destinos: Mapping[str, str]) -> None:
+    def roteador_com_guarda(state: PlanoSaudeState) -> str:
+        return "erroInterno" if _deu_erro(state) else roteador(state)
+
+    caminhos: dict[Hashable, str] = {chave: destino for chave, destino in destinos.items()}
+    caminhos["erroInterno"] = END
+    _construtor.add_conditional_edges(origem, roteador_com_guarda, caminhos)
+
+
 _construtor = StateGraph(PlanoSaudeState)
-_construtor.add_node("verificarMunicipio", verificar_municipio)
-_construtor.add_node("prepararPerguntaCanal", preparar_pergunta_canal)
-_construtor.add_node("pedirCanal", pedir_canal)
-_construtor.add_node("presencial", presencial)
-_construtor.add_node("canalNaoEntendido", canal_nao_entendido)
-_construtor.add_node("prepararPerguntaParaQuem", preparar_pergunta_para_quem)
-_construtor.add_node("pedirParaQuem", pedir_para_quem)
-_construtor.add_node("outraPessoa", outra_pessoa)
-_construtor.add_node("prepararPerguntaImagens", preparar_pergunta_imagens)
-_construtor.add_node("pedirImagens", pedir_imagens)
-_construtor.add_node("imagensPendentes", imagens_pendentes)
-_construtor.add_node("prepararPerguntaSituacao", preparar_pergunta_situacao)
-_construtor.add_node("pedirSituacao", pedir_situacao)
-_construtor.add_node("situacaoNaoInformada", situacao_nao_informada)
-_construtor.add_node("prepararPerguntaRenda", preparar_pergunta_renda)
-_construtor.add_node("pedirRenda", pedir_renda)
-_construtor.add_node("rendaNaoEntendida", renda_nao_entendida)
-_construtor.add_node("prepararPerguntaConfirmacao", preparar_pergunta_confirmacao)
-_construtor.add_node("pedirConfirmacao", pedir_confirmacao)
-_construtor.add_node("naoConfirmado", nao_confirmado)
-_construtor.add_node("concluir", concluir)
+_construtor.add_node("verificarMunicipio", _protegido(verificar_municipio))
+_construtor.add_node("prepararPerguntaCanal", _protegido(preparar_pergunta_canal))
+_construtor.add_node("pedirCanal", _protegido(pedir_canal))
+_construtor.add_node("presencial", _protegido(presencial))
+_construtor.add_node("canalNaoEntendido", _protegido(canal_nao_entendido))
+_construtor.add_node("prepararPerguntaParaQuem", _protegido(preparar_pergunta_para_quem))
+_construtor.add_node("pedirParaQuem", _protegido(pedir_para_quem))
+_construtor.add_node("outraPessoa", _protegido(outra_pessoa))
+_construtor.add_node("prepararPerguntaImagens", _protegido(preparar_pergunta_imagens))
+_construtor.add_node("pedirImagens", _protegido(pedir_imagens))
+_construtor.add_node("imagensPendentes", _protegido(imagens_pendentes))
+_construtor.add_node("prepararPerguntaSituacao", _protegido(preparar_pergunta_situacao))
+_construtor.add_node("pedirSituacao", _protegido(pedir_situacao))
+_construtor.add_node("situacaoNaoInformada", _protegido(situacao_nao_informada))
+_construtor.add_node("prepararPerguntaRenda", _protegido(preparar_pergunta_renda))
+_construtor.add_node("pedirRenda", _protegido(pedir_renda))
+_construtor.add_node("rendaNaoEntendida", _protegido(renda_nao_entendida))
+_construtor.add_node("prepararPerguntaConfirmacao", _protegido(preparar_pergunta_confirmacao))
+_construtor.add_node("pedirConfirmacao", _protegido(pedir_confirmacao))
+_construtor.add_node("naoConfirmado", _protegido(nao_confirmado))
+_construtor.add_node("concluir", _protegido(concluir))
 _construtor.add_edge(START, "verificarMunicipio")
-_construtor.add_conditional_edges("verificarMunicipio", depois_do_municipio, {"canal": "prepararPerguntaCanal", "encerrar": END})
-_construtor.add_edge("prepararPerguntaCanal", "pedirCanal")
-_construtor.add_conditional_edges(
+_condicional("verificarMunicipio", depois_do_municipio, {"canal": "prepararPerguntaCanal", "encerrar": END})
+_seguir("prepararPerguntaCanal", "pedirCanal")
+_condicional(
     "pedirCanal",
     depois_do_canal,
     {
@@ -432,8 +479,8 @@ _construtor.add_conditional_edges(
         "canal": "prepararPerguntaCanal",
     },
 )
-_construtor.add_edge("prepararPerguntaParaQuem", "pedirParaQuem")
-_construtor.add_conditional_edges(
+_seguir("prepararPerguntaParaQuem", "pedirParaQuem")
+_condicional(
     "pedirParaQuem",
     depois_de_para_quem,
     {
@@ -443,8 +490,8 @@ _construtor.add_conditional_edges(
         "outraPessoa": "outraPessoa",
     },
 )
-_construtor.add_edge("prepararPerguntaImagens", "pedirImagens")
-_construtor.add_conditional_edges(
+_seguir("prepararPerguntaImagens", "pedirImagens")
+_condicional(
     "pedirImagens",
     depois_das_imagens,
     {
@@ -454,20 +501,20 @@ _construtor.add_conditional_edges(
         "imagensPendentes": "imagensPendentes",
     },
 )
-_construtor.add_edge("prepararPerguntaSituacao", "pedirSituacao")
-_construtor.add_conditional_edges(
+_seguir("prepararPerguntaSituacao", "pedirSituacao")
+_condicional(
     "pedirSituacao",
     depois_da_situacao,
     {"renda": "prepararPerguntaRenda", "situacao": "prepararPerguntaSituacao", "situacaoNaoInformada": "situacaoNaoInformada"},
 )
-_construtor.add_edge("prepararPerguntaRenda", "pedirRenda")
-_construtor.add_conditional_edges(
+_seguir("prepararPerguntaRenda", "pedirRenda")
+_condicional(
     "pedirRenda",
     depois_da_renda,
     {"confirmacao": "prepararPerguntaConfirmacao", "renda": "prepararPerguntaRenda", "rendaNaoEntendida": "rendaNaoEntendida"},
 )
-_construtor.add_edge("prepararPerguntaConfirmacao", "pedirConfirmacao")
-_construtor.add_conditional_edges(
+_seguir("prepararPerguntaConfirmacao", "pedirConfirmacao")
+_condicional(
     "pedirConfirmacao",
     depois_da_confirmacao,
     {"concluir": "concluir", "renda": "prepararPerguntaRenda", "naoConfirmado": "naoConfirmado"},
