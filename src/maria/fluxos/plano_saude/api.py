@@ -58,4 +58,6 @@ MENSAGEM_FORA_DO_RIO = (
 MENSAGEM_FORA_DO_RIO_COM_UNIDADE = "O NUDECON atende quem mora no município do Rio de Janeiro. Pelo seu endereço, procure: {unidade}."
 MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO = "Não consegui confirmar o seu município. Vou encaminhar seu atendimento para a equipe."
 MENSAGEM_FALHA_INFRA_VERDE = "Não consegui consultar o seu endereço agora. Vou encaminhar seu atendimento para a equipe."
+# Qualquer falha inesperada do fluxo: o assistido não pode ficar sem atendimento (#329).
+MENSAGEM_ERRO_INTERNO = "Tive um problema para continuar o seu atendimento. Vou encaminhar para a equipe dar continuidade."
 MENSAGEM_HANDOFF = "Vou encaminhar seu atendimento para um atendente humano."

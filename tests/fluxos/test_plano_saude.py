@@ -6,6 +6,7 @@ from maria.fluxos.plano_saude.api import (
     HORARIO_UNIDADE_PADRAO,
     ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
     ID_MUNICIPIO_RIO,
+    MENSAGEM_ERRO_INTERNO,
     MENSAGEM_FALHA_INFRA_VERDE,
     MENSAGEM_FORA_DO_RIO,
     MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
@@ -445,3 +446,51 @@ async def test_fora_do_rio_pula_orgao_sem_endereco_e_usa_o_proximo(monkeypatch: 
     assert r["statusFinal"] == "concluido"
     assert "NITERÓI" in r["mensagemFinal"]
     assert "Sem endereço" not in r["mensagemFinal"]
+
+
+def _quebrar(monkeypatch: pytest.MonkeyPatch, alvo: str) -> None:
+    def falhar(*args: object, **kwargs: object) -> None:
+        raise RuntimeError("falha de teste com CPF 11111111111")
+
+    monkeypatch.setattr(f"maria.fluxos.plano_saude.graph.{alvo}", falhar)
+
+
+async def test_falha_inesperada_na_entrada_encerra_com_atendimento_humano(monkeypatch: pytest.MonkeyPatch) -> None:
+    _quebrar(monkeypatch, "consultar_cep")
+    f = _fluxo()
+    r = await f.iniciar(COM_CEP)
+    assert pergunta(r) is None
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "erro_interno"
+    assert r["mensagemFinal"] == MENSAGEM_ERRO_INTERNO
+    assert "11111111111" not in r["mensagemFinal"]
+
+
+@pytest.mark.parametrize(
+    ("alvo", "respostas"),
+    [
+        ("interpretar_canal", ["por aqui"]),
+        ("resposta_eh_sim", ["por aqui", "true"]),
+        ("interpretar_renda", ["por aqui", "true", "2500"]),
+    ],
+)
+async def test_falha_inesperada_no_meio_da_conversa_encerra_sem_perguntar_mais_nada(
+    monkeypatch: pytest.MonkeyPatch, alvo: str, respostas: list[str]
+) -> None:
+    f = _fluxo()
+    await f.iniciar({**COM_CEP, "imagensRecebidas": True, "relato": "O plano negou a minha cirurgia"})
+    _quebrar(monkeypatch, alvo)
+    r = await f.responder(*respostas)
+    assert pergunta(r) is None
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "erro_interno"
+    assert r["mensagemFinal"] == MENSAGEM_ERRO_INTERNO
+
+
+async def test_falha_ao_preparar_a_pergunta_encerra_com_atendimento_humano(monkeypatch: pytest.MonkeyPatch) -> None:
+    f = _fluxo()
+    await f.iniciar(COM_CEP)
+    _quebrar(monkeypatch, "preparar_pergunta")
+    r = await f.responder("por aqui")
+    assert pergunta(r) is None
+    assert r["motivoHandoff"] == "erro_interno"
