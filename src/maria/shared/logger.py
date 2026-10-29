@@ -3,7 +3,7 @@
 Cada linha sai como um objeto JSON em stdout, na mesma forma que o `pino()` de
 develop gravava: `level` numérico, `time` em milissegundos, `pid`, `hostname`,
 os campos de negócio no primeiro nível e `msg` por último. `scripts/logs-prod.sh`
-e os painéis do Grafana (CloudWatch Logs Insights) leem essas chaves pelo nome,
+e os painéis do Visor Maria (CloudWatch Logs Insights) leem essas chaves pelo nome,
 então elas não mudam.
 
 Uso: `logger.info("[verde] apenado: chamada concluída", chatId=..., duracaoMs=...)`.

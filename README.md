@@ -92,7 +92,6 @@ src/maria/
 tests/                # espelha src/maria/; fixtures de contrato em tests/fixtures/
 scripts/              # utilitários de manutenção, fora da imagem (ver scripts/README.md)
 infra/terraform/      # infraestrutura AWS
-infra/grafana/        # painéis e alertas versionados
 ```
 
 Ferramentas fora do Python: o **Node.js** só é preciso para os hooks do Claude Code (`.claude/hooks/`), para o `scripts/logs-prod.sh` (`pino-pretty`) e para gerar diagramas (`mermaid-cli`). Nada da aplicação depende dele.

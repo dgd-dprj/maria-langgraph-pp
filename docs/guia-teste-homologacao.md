@@ -211,7 +211,7 @@ Em todo caso que começa com um relato livre (A, B, C e os de controle), anote t
 
 Não precisa escrever relatos a mais: basta anotar os que você já escreveu para os casos. Essas anotações viram a base de relatos rotulados que a **#256** usa para medir se a Maria classifica certo. A base é montada a partir das suas anotações, e não dos logs.
 
-**Os testes entram no painel do Grafana** do release como atendimentos normais. Informe as datas e horários do teste a quem acompanha o painel.
+**Os testes entram no painel de acompanhamento (Visor Maria)** do release como atendimentos normais. Informe as datas e horários do teste a quem acompanha o painel.
 
 ## 7. Para quem dá suporte ao teste
 

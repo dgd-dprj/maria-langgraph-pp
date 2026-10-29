@@ -52,24 +52,6 @@ variable "desired_count" {
   description = "Tasks desejadas — fixo por enquanto, sem autoscaling."
 }
 
-variable "grafana_container_port" {
-  type        = number
-  default     = 3000
-  description = "Porta HTTP do Grafana (padrão da imagem oficial)."
-}
-
-variable "grafana_cpu" {
-  type        = number
-  default     = 256
-  description = "CPU da task do Grafana (unidades) — uso de 1 pessoa, tráfego baixo."
-}
-
-variable "grafana_memory" {
-  type        = number
-  default     = 512
-  description = "Memória da task do Grafana (MiB)."
-}
-
 # ── Referência ao state do stack antigo (VPC/subnets/RDS compartilhados) ──────
 variable "old_state_bucket" {
   type        = string
