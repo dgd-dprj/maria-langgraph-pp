@@ -934,6 +934,20 @@ Duas coisas diferentes:
 - **Ajustes no repositório:** o título do commit de squash passou a ser o título do PR (com `COMMIT_OR_PR_TITLE`, o squash do #287 saiu com o título da primeira versão, `7af101d`), e o rebase merge foi desligado. A exclusão automática da branch depois do merge **continua desligada**, para não apagar a branch reaproveitada do Ícaro a cada merge. **Corrigido em 2026-10-23: a exclusão automática foi religada** (Nicole). O Ícaro apagou a branch reaproveitada depois do #315, e o motivo sumiu; se uma sessão recriar a branch com o mesmo nome, nada quebra, porque `develop` aceita merge commit. O bloqueio de exclusão por ruleset para `claude/*` não foi feito: não está confirmado que a exclusão automática o respeita, e sem ele o risco é baixo. O aviso do merge commit continua. **Os dois avisos (merge commit em `develop` e exclusão automática desligada) estão também no `CONTRIBUTING.md` e no nome do ruleset de `develop`, que é onde alguém olharia antes de "corrigir".**
 - **Verificação:** as regras efetivas foram lidas pela API (`GET /repos/…/rules/branches/{develop,main}`), e os PRs abertos (#295 e #301) continuaram mergeáveis. O endpoint antigo de proteção (`/branches/{branch}/protection`) não mostra rulesets e continua respondendo "not protected". **Não foi feito** um push de teste em `develop`: se a regra falhasse, o push dispararia um deploy no release no meio do teste da equipe.
 
+## PR só com mudança de código (decidido em 2026-10-27)
+
+- **Decisão da Nicole:** não se abre pull request só para mudança de texto. A regra vale para as issues abertas e para as que vierem. Registro na [#208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6448782819); a regra é escopo da #357.
+- **O que ganha PR:** mudança de código de fato: `src/`, `tests/`, `scripts/`, `infra/`, `.github/`, `Dockerfile`, `pyproject.toml`, `uv.lock` ou configuração que muda o que roda.
+- **O que não ganha PR próprio:** documentação (inclusive `docs/migracao/`), `README.md`, `CONTRIBUTING.md`, este `MIGRACAO.md`, `CLAUDE.md`, `.claude/` (skills) e comentário ou docstring sem mudança de lógica.
+  - O texto vai junto no próximo PR com código, num commit próprio `:books: docs:`.
+  - Até lá, o registro fica na issue e no comentário da #208.
+  - Issue só de texto não ganha branch nem PR. Ela fecha com o `Closes #N` do PR de código.
+- **Mensagem que o assistido vê, em `src/`, conta como código:** muda o comportamento e segue as regras da janela das correções.
+- **Exceção:** só com decisão registrada na #208.
+- **Por quê:** das 30 últimas execuções do CI em PR (#199 a #228), 19 eram de PR com título `:books: docs:` (levantamento da #357). Cada PR a mais é mais uma rodada de CI, revisão e merge, e repete o problema de "muita branch" de 2026-10-23.
+- **Efeito na #357:** a parte de CI (filtro para PR só de `.md`) ficou em espera, para o Ícaro decidir se ainda vale como rede de segurança para as exceções.
+- **Onde está escrita:** `docs/padroes-pull-request.md` ("Quando abrir PR"), `docs/padroes-issues.md`, as skills `padroes-pull-request` e `padroes-issues` e o `CLAUDE.md`. Entrou junto com a #353 (corte de 15 candidatos no orquestrador), o primeiro PR com código depois da decisão.
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.
