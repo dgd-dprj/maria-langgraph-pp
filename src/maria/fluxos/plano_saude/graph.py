@@ -103,7 +103,9 @@ async def verificar_municipio(state: PlanoSaudeState) -> Atualizacao:
     if id_municipio is None:
         return _encerrar_por_municipio("municipio_nao_identificado", MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO)
     if id_municipio != ID_MUNICIPIO_RIO:
-        unidade = await _unidade_fora_do_rio(state)
+        unidade, falha_infra = await _unidade_fora_do_rio(state)
+        if falha_infra:
+            return _encerrar_por_municipio("falha_infra_verde", MENSAGEM_FALHA_INFRA_VERDE)
         if unidade:
             return {
                 "statusFinal": "concluido",
@@ -114,18 +116,23 @@ async def verificar_municipio(state: PlanoSaudeState) -> Atualizacao:
     return {}
 
 
-async def _unidade_fora_do_rio(state: PlanoSaudeState) -> str:
-    """A unidade que o Verde habilita para a pessoa (pelo endereço cadastrado dela), ou vazio quando não dá para
-    saber: sem CPF, pessoa fora do Verde, falha do Verde ou lista sem endereço. Aí o atendimento vai ao humano."""
+async def _unidade_fora_do_rio(state: PlanoSaudeState) -> tuple[str, bool]:
+    """A unidade que o Verde habilita para a pessoa (pelo endereço cadastrado dela) e se o Verde falhou (#376).
+    Unidade vazia sem falha: sem CPF, pessoa fora do Verde ou lista sem endereço. Nos dois casos sem unidade o
+    atendimento vai ao humano, e só o motivo muda."""
     cpf = _texto(state.get("cpf"))
     if not cpf:
-        return ""
+        return "", False
     pessoa = await consultar_pessoa_por_cpf(cpf)
+    if pessoa.get("falhaInfra"):
+        return "", True
     id_pessoa = pessoa.get("idPessoa")
     if not pessoa.get("encontrado") or not isinstance(id_pessoa, int) or id_pessoa <= 0:
-        return ""
+        return "", False
     orgaos = await consultar_orgaos_primeiro_atendimento(id_pessoa, ID_ASSUNTO_UNIDADE_FORA_DO_RIO)
-    return next((texto for orgao in orgaos["orgaos"] if (texto := _descrever_unidade(orgao))), "")
+    if orgaos.get("falhaInfra"):
+        return "", True
+    return next((texto for orgao in orgaos["orgaos"] if (texto := _descrever_unidade(orgao))), ""), False
 
 
 def _descrever_unidade(orgao: OrgaoAtendimento) -> str:
