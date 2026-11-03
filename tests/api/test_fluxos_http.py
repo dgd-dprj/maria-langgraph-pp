@@ -161,6 +161,14 @@ async def test_pp_completo_sem_processo_handoff_com_metadados_preenchidos_49(
 PLANO_SAUDE_COM_CEP = {"endereco": {"cep": "20000000"}}
 
 
+@pytest.fixture
+def no_release(cliente: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # O fluxo está em teste (#324): só liga onde MARIA_AMBIENTE é "release". Depende do `cliente`,
+    # que apaga a variável ao subir, para ligar depois dele.
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
+
+
+@pytest.mark.usefixtures("no_release")
 async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
     r = await cliente.post(
         "/atendimentos",
@@ -174,6 +182,7 @@ async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClien
     assert "das 11h às 16h" in corpo["resposta"]
 
 
+@pytest.mark.usefixtures("no_release")
 async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
     chat_id = f"teste-ps-http-{next(_ids)}"
     await cliente.post(
@@ -191,6 +200,7 @@ async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: ht
     assert "outra pessoa" in corpo["resposta"]
 
 
+@pytest.mark.usefixtures("no_release")
 async def test_plano_saude_sem_municipio_do_rio_encerra_na_criacao_com_atendimento_humano(
     cliente: httpx.AsyncClient, auth: dict[str, str]
 ) -> None:

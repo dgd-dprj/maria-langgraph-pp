@@ -24,7 +24,7 @@ import httpx
 import pytest
 
 from maria.app import criar_app
-from tests.api.casos_aposentados import CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr1")
@@ -64,6 +64,7 @@ def _norm(texto: str | None) -> str | None:
 async def cliente_conferencia(monkeypatch: pytest.MonkeyPatch) -> Any:
     monkeypatch.setenv("APP_ENV", "test")
     monkeypatch.setenv("API_KEY", "chave-conferencia")
+    monkeypatch.setenv("MARIA_AMBIENTE", AMBIENTE_DAS_CONFERENCIAS)  # #324: o contrato vale na produção
     for variavel in (
         "DATABASE_URL",
         "VERDE_JWT_TOKEN",

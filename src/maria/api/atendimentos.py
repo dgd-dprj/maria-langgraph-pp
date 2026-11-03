@@ -239,7 +239,8 @@ async def _fluxo_do_chat(chat_id: Any) -> tuple[FluxoConfig, str] | Resposta:
     if not _js.verdadeiro(fluxo_id):
         return Resposta(404, {"erro": "atendimento não encontrado"})
     assert fluxo_id is not None
-    fluxo = await buscar_fluxo(fluxo_id)
+    # A conversa já começou: um fluxo em teste desligado depois disso termina normalmente (#324).
+    fluxo = await buscar_fluxo(fluxo_id, conversa_em_andamento=True)
     if fluxo is None:
         return Resposta(404, {"erro": "fluxo não encontrado — ver GET /fluxos"})
     return fluxo, fluxo_id

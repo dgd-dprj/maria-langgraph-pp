@@ -30,7 +30,7 @@ import pytest
 from maria.api.webhook_whatsapp import limpar_conversas_ativas_de_teste
 from maria.app import criar_app
 from tests.api.campos_posteriores import sem_campos_posteriores
-from tests.api.casos_aposentados import CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr2")
@@ -124,6 +124,7 @@ async def _conferir(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
     for variavel in _VARIAVEIS:
         monkeypatch.delenv(variavel, raising=False)
     monkeypatch.setenv("API_KEY", "chave-conferencia")
+    monkeypatch.setenv("MARIA_AMBIENTE", AMBIENTE_DAS_CONFERENCIAS)  # #324: o contrato vale na produção
     limpar_conversas_ativas_de_teste()
     app = criar_app(pre_aquecer=False)
     por_caso: dict[str, list[str]] = {}
