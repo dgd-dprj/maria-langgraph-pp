@@ -29,14 +29,15 @@ from maria.fluxos._fabrica import FabricaGrafo, GrafoCompilado
 from maria.fluxos.pessoa_presa.api import (
     MENSAGEM_FALHA_CADASTRO,
     MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA,
+    MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO,
     MENSAGEM_HANDOFF_SEM_NUMERO_PROCESSO,
 )
 from maria.fluxos.pessoa_presa.state import PessoaPresaState
 from maria.ia.classificar import classificar_entre_opcoes
 from maria.ia.extrair import extrair_campos_livre
 from maria.ia.reescrever import preparar_pergunta
-from maria.integracoes.verde import consultar_apenado_por_rg
-from maria.integracoes.verde import consultar_processo as consultar_processo_verde
+from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_apenado_por_rg
+from maria.integracoes.verde import consultar_processo_com_status as consultar_processo_verde
 from maria.shared import _js
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.cadastro_pessoa.graph import grafo as subgrafo_cadastro_pessoa
@@ -225,8 +226,8 @@ async def pedir_numero_processo(state: PessoaPresaState) -> Atualizacao:
 
 async def consultar_processo(state: PessoaPresaState) -> Atualizacao:
     # Sem contagem de tentativas: o processo não tem retry neste fluxo.
-    dados = await consultar_processo_verde(_js.coalesce(state.get("numeroProcesso"), ""))
-    return {"dadosProcesso": dados}
+    dados, status = await consultar_processo_verde(_js.coalesce(state.get("numeroProcesso"), ""))
+    return {"dadosProcesso": dados, "statusConsultaProcesso": status}
 
 
 async def preparar_pergunta_rg(state: PessoaPresaState) -> Atualizacao:
@@ -363,10 +364,13 @@ async def concluir(state: PessoaPresaState) -> Atualizacao:
             "mensagemFinal": MENSAGEM_HANDOFF_SEM_NUMERO_PROCESSO,
         }
     if _js.opt(_ler(state, "dadosProcesso"), "origem") != ORIGEM_PROCESSO_SUPORTADA:
+        # #341/#352: o motivo continua o mesmo (o contrato não muda); só a mensagem
+        # deixa de falar em origem quando o Verde respondeu que não achou o número.
+        nao_localizado = state.get("statusConsultaProcesso") in STATUS_PROCESSO_NAO_LOCALIZADO
         return {
             "statusFinal": "handoff_humano",
             "motivoHandoff": "origem_processo_nao_suportada",
-            "mensagemFinal": MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA,
+            "mensagemFinal": MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO if nao_localizado else MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA,
         }
     if not dados_apenado_atendidos(state):
         # Sem mensagemFinal: a rota usa a mensagemHandoff do FluxoConfig.
