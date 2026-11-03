@@ -92,7 +92,7 @@ O orquestrador recebe menos entrada externa que os fluxos. **A Tykhe não pré-p
 ## 1. Contexto
 
 Um grafo de 5 nós que classifica o relato livre entre as opções do catálogo e, quando sobra mais de uma, pergunta até convergir:
-- **`classificar`:** na 1ª rodada, faz o retrieval no catálogo completo (`buscarCandidatos`, `CANDIDATOS_MAXIMOS = 10`) e classifica; nas seguintes, classifica só dentro de `candidatosRestantes`.
+- **`classificar`:** na 1ª rodada, faz o retrieval no catálogo completo (`buscarCandidatos`, `CANDIDATOS_MAXIMOS = 10` em develop; 15 no Python desde a #353, decisão de 2026-11-03) e classifica; nas seguintes, classifica só dentro de `candidatosRestantes`.
 - **Roteamento (`depoisDeClassificar`):**
   - 0 candidatos: `naoIdentificado`;
   - 1 candidato: `identificado`;
@@ -107,7 +107,7 @@ Topologia: `START → classificar`; `classificar ⇢ {naoIdentificado, identific
 ## 2. Contrato
 
 - **Nomes:** os de develop para nós e canais (camelCase), como nos fluxos. Os rótulos do roteamento são `nenhum`, `um` e `muitos`.
-- **Constantes:** `CANDIDATOS_MAXIMOS = 10`, `LIMITE_RODADAS = 5` e `LIMITE_RODADAS_SUMARIZACAO = 3`, com os comentários de origem (#28, #43, #47).
+- **Constantes:** `CANDIDATOS_MAXIMOS = 10` (15 desde a #353, 2026-11-03), `LIMITE_RODADAS = 5` e `LIMITE_RODADAS_SUMARIZACAO = 3`, com os comentários de origem (#28, #43, #47).
 - **`obter_grafo()`:** pela `FabricaGrafo`, compilado com o checkpointer do processo. Fica fora do `langgraph.json`, como em develop.
 - **Interrupt:** `{"pergunta": …, "tipo": "texto"}`, sem a chave `opcoes`. O fallback do payload é "Pra te ajudar melhor, pode contar com mais detalhes o que você precisa?".
 - **`CandidatoOrquestrador`:** `{id, nome, descricao}`.
@@ -139,7 +139,7 @@ Topologia: `START → classificar`; `classificar ⇢ {naoIdentificado, identific
 
 ### 3.3 Concorrência
 
-`buscarPerguntaRealCompartilhada` faz `Promise.all` de até 10 consultas (`:109`). O Python usa `asyncio.gather` no mesmo pool. O pool de `perguntas` tem no máximo 10 conexões (`shared/pool.py`, igual ao `pg`), o mesmo número de `CANDIDATOS_MAXIMOS`. Um atendimento sozinho cabe no pool. **(lido)** Com atendimentos simultâneos na desambiguação, as consultas que passarem do limite esperam na fila, sem erro, até o prazo do pool (`timeout=120`, decisão provisória da #208). Teste com 10 candidatos contra a store em memória e, no CI, contra Postgres.
+`buscarPerguntaRealCompartilhada` faz `Promise.all` de até 10 consultas (`:109`). O Python usa `asyncio.gather` no mesmo pool. O pool de `perguntas` tem no máximo 10 conexões (`shared/pool.py`, igual ao `pg`), que era o mesmo número de `CANDIDATOS_MAXIMOS` até a #353. **Desde 2026-11-03, com o corte em 15, um atendimento sozinho pode fazer até 15 consultas: as 5 a mais esperam na fila do pool, sem erro** (corpo do PR #360). Com 10 candidatos ou menos, um atendimento sozinho cabe no pool. **(lido)** Com atendimentos simultâneos na desambiguação, as consultas que passarem do limite esperam na fila, sem erro, até o prazo do pool (`timeout=120`, decisão provisória da #208). Teste com 10 candidatos contra a store em memória e, no CI, contra Postgres.
 
 ### 3.4 Guardas de ambiente
 

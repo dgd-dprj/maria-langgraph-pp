@@ -45,7 +45,7 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 | 3 | #327 | Gerador de fluxo novo |
 | 4 | #324 | Fluxo em teste, ligado só no release |
 | 5 | #325 | Pontos de IA com o mesmo contrato |
-| 6 | #326 | Medir a busca por similaridade antes de o catálogo passar de 10 |
+| 6 | #326 | Medir a busca por similaridade antes de o catálogo passar de 15 (era 10 até a #353, decisão de 2026-11-03) |
 
 **O molde (#323):** as regras A1 a A12 foram tiradas dos fluxos existentes. A Nicole acrescentou duas:
 - **A13:** toda saída da IA de um conjunto fechado é conferida contra a lista fixa (#212).
@@ -68,6 +68,7 @@ Pessoa presa não passa na A13 nem na A14, e violência doméstica não passa na
 **Critério de liberação da busca por similaridade (#326):**
 - Nenhum relato da base rotulada perde o fluxo certo no corte.
 - O corte não acrescenta mais de 1 s ao p95, que hoje é de 3,3 s.
+- **Desde 2026-11-03 (decisão da Nicole, #353, PR #360), o corte da 1ª rodada é de 15**, e não de 10. O critério acima passa a valer acima de 15 opções, e a medição usa catálogos de 16 e 17 opções. A medição da #353 não cumpre este critério: o destino principal fica fora dos candidatos em 31 de 265 relatos, e o p95 de ponta a ponta não foi medido.
 
 ## Modelo de branch
 
