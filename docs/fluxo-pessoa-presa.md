@@ -52,7 +52,7 @@ Mesmo racional de `docs/fluxo-violencia-domestica.md`: a Tykhe consome este flux
 A conclusão (`concluir`, em `src/maria/fluxos/pessoa_presa/graph.py`) checa, nesta ordem:
 
 1. **Sem número de processo** (`temProcesso === false`) → `handoff_humano`, motivo `sem_numero_processo`. Mesmo com RG/nome/parentesco todos ok — sem processo não tem como acompanhar a situação de verdade (issue #49).
-2. **Processo com origem não suportada** (`dadosProcesso.origem !== "SEEU"`) → `handoff_humano`, motivo `origem_processo_nao_suportada`. Só processos de origem **SEEU** são resolvidos pelo bot; qualquer outra origem (ou processo não encontrado) cai aqui (issue #51).
+2. **Processo com origem não suportada** (`dadosProcesso.origem !== "SEEU"`) → `handoff_humano`, motivo `origem_processo_nao_suportada`. Só processos de origem **SEEU** são resolvidos pelo bot; qualquer outra origem (ou processo não encontrado) cai aqui (issue #51). A mensagem depende do caso (#341/#352, decisão de 2026-11-03, sem mudar o motivo): quando o Verde responde que não achou o número (400, 404 ou 422), a pessoa ouve "Não consegui localizar esse número de processo no sistema. Vou encaminhar seu atendimento pra equipe conferir com você."; com outra origem, falha de infra (#239) ou `dados` sem `id`, continua a mensagem de origem não tratada.
 3. **Situação/tipo de preso/regime fora do permitido** → `handoff_humano`, motivo `dados_pessoa_nao_atendidos` (issue #57):
    - `situacao` precisa estar em: `ATIVO`, `RESDOM`, `TRABALHO EXTRAMURO`, `BAIXA HOSPITALAR`, `VPF`, `VPF/TRABALHO EXTRAMURO`, `VPF/ATIVIDADE EDUCACIONAL`, `ABERTO/DOMICÍLIO COVID-19` (comparado sem prefixo `"EM "`, que o Verde usa de forma inconsistente).
    - `tipoPreso` precisa ser `CONDENADO` (não `PROVISÓRIO`).
