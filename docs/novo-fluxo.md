@@ -90,6 +90,26 @@ Para gerar o uuid: `uv run python -c "import uuid; print(uuid.uuid4())"`.
 
 O registro já basta para o fluxo aparecer em `GET /fluxos`, aceitar `POST /atendimentos` com o novo `flowId` e entrar no catálogo do orquestrador. Para abrir o grafo no LangGraph Studio, acrescente também a linha `"meu_fluxo": "./src/maria/fluxos/meu_fluxo/graph.py:criar_grafo"` em `langgraph.json`.
 
+### 2.1. Registre como fluxo em teste (#324)
+
+Um fluxo novo entra com `em_teste=True` no `FluxoConfig`. Assim a equipe testa no release, e ele não chega a quem usa a Maria:
+
+```python
+    ID_MEU_FLUXO: FluxoConfig(
+        nome="meu-fluxo",
+        # ...
+        em_teste=True,
+    ),
+```
+
+- **Ligado só no release.** O fluxo em teste só liga onde `MARIA_AMBIENTE` é exatamente `release`. A variável é declarada no Terraform de cada ambiente: `producao` no `ecs.tf` e `release` no `release.tf`, e um teste do CI confere os dois valores.
+- **Na dúvida, desligado.** Variável ausente, vazia, `producao`, `Release` ou qualquer outro valor contam como produção. Uma variável esquecida ou copiada errada nunca liga um fluxo em teste.
+- **Desligado,** o fluxo não aparece em `GET /fluxos` nem no catálogo do orquestrador, e `POST /atendimentos` com o id dele responde como a um id desconhecido (404). Uma conversa que já começou nele termina normalmente; só conversas novas ficam bloqueadas.
+- **Na sua máquina,** ponha `MARIA_AMBIENTE=release` no `.env` para ver o fluxo em teste.
+- **Ao subir,** a aplicação registra no log o ambiente e os fluxos ligados (`evento: "fluxos_ligados"`).
+- **Para ir para produção,** abra um PR que tira o `em_teste=True`, com o resultado do teste da equipe e o registro na #208. Nunca troque uma variável no console. Esse PR muda `GET /fluxos` na produção, e é nele que os casos das respostas gravadas são aposentados (seção 3, "O que o registro muda em outros testes").
+- **O primeiro fluxo em teste** é o do plano de saúde (NUDECON, #329), por decisão de 2026-11-03: o release `develop` → `main` o leva desligado na produção.
+
 > Um fluxo novo entra no catálogo de classificação. Com mais de 10 opções no catálogo, a busca por similaridade passa a cortar candidatos antes da IA (`CANDIDATOS_MAXIMOS`, #256): hoje são 9 (2 fluxos e 7 tipos da Tykhe), então o 2º fluxo novo já muda esse comportamento. Ver `docs/fluxo-orquestrador.md`.
 
 ## 3. Testes
@@ -138,7 +158,9 @@ Registrar o fluxo muda a resposta de `GET /fluxos` e o catálogo do orquestrador
 - **Listas esperadas no código** — `tests/api/test_app.py` (`GET /fluxos`), `tests/api/test_orquestrador_rota.py` e `tests/fluxos/test_spec_fluxos.py` (o catálogo com os 2 fluxos e os 7 tipos da Tykhe). Atualize a lista esperada para incluir o fluxo novo.
 - **Respostas gravadas contra a versão TypeScript** — `tests/fixtures/contrato/http/`, `tests/fixtures/contrato/conferencia-api-pr1/` e `tests/fixtures/contrato/conferencia-api-pr2/` guardam o corpo de `GET /fluxos` com os 2 fluxos, e são conferidas byte a byte por `tests/api/test_contrato.py`, `tests/api/test_conferencia_pr1.py` e `tests/api/test_conferencia_pr2.py`. **Não edite a fixture.** Ela é evidência da tradução, e não teste de regressão: prova o que a versão TypeScript devolvia. O caso afetado sai da conferência, e o comportamento novo ganha um teste escrito. Ver `MIGRACAO.md`, seção "As respostas gravadas são evidência, não teste de regressão".
 
-  **Como tirar os casos da conferência (#321):** aposente os 6 casos abaixo em `tests/api/casos_aposentados.py`. Cada entrada leva a issue do fluxo, o motivo e o teste escrito que confere a lista nova de `GET /fluxos` (por exemplo, o de `tests/api/test_app.py`, que você já atualizou). Esses 6 casos foram medidos com um fluxo de brinquedo (`tests/api/fluxo_de_brinquedo.py`). São todos `GET /fluxos` respondidos com 200, e o teste do brinquedo avisa se a lista mudar.
+  **Enquanto o fluxo está em teste, as respostas gravadas não mudam (#324).** As três conferências rodam com o ambiente da produção (`AMBIENTE_DAS_CONFERENCIAS = "producao"` em `tests/api/casos_aposentados.py`, igual ao `ecs.tf`), onde o fluxo em teste está desligado: `GET /fluxos` continua com os 2 fluxos das gravações. O que muda no release fica coberto por testes escritos, com `MARIA_AMBIENTE=release` (veja `tests/api/test_fluxo_em_teste.py`). Os casos só saem da conferência no PR que tira o `em_teste=True` para levar o fluxo à produção.
+
+  **Como tirar os casos da conferência (#321), no PR que leva o fluxo à produção:** aposente os 6 casos abaixo em `tests/api/casos_aposentados.py`. Cada entrada leva a issue do fluxo, o motivo e o teste escrito que confere a lista nova de `GET /fluxos` (por exemplo, o de `tests/api/test_app.py`, que você já atualizou). Esses 6 casos foram medidos com um fluxo de brinquedo (`tests/api/fluxo_de_brinquedo.py`). São todos `GET /fluxos` respondidos com 200, e o teste do brinquedo avisa se a lista mudar.
 
   | Conferência | Casos |
   |---|---|

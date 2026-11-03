@@ -64,6 +64,14 @@ Pessoa presa não passa na A13 nem na A14, e violência doméstica não passa na
 - **O padrão é desligado:** só o valor exato `release` liga um fluxo em teste.
 - Uma conversa em andamento termina normalmente.
 - O `.env` local fica documentado.
+- **2026-10-26:** a equipe passou a testar na `main`, e o PR ficou parado: o fluxo em teste só existiria no release, que ninguém usa.
+- **2026-11-03 (Nicole): fluxo novo é testado no release, depois que o teste da equipe acabar.** O desenho volta a valer.
+- **2026-11-03 (Nicole): o próximo release `develop` → `main` leva o fluxo do plano de saúde (NUDECON, #329) desligado na produção**, pelo desenho da #324. Ele é o primeiro fluxo com `em_teste=True`.
+  - **Na produção** (`MARIA_AMBIENTE=producao`, ou sem a variável): `GET /fluxos` é idêntico ao da `main` de hoje (2 fluxos), e `POST /atendimentos` com o `flowId` dele responde exatamente como a um id desconhecido: `404 {"erro":"fluxo não encontrado — ver GET /fluxos"}`. O contrato com a Tykhe não muda.
+  - **No release** (`MARIA_AMBIENTE=release`): 3 fluxos, e o do plano de saúde atende. O orquestrador continua sem oferecê-lo (`oferecer_ao_orquestrador=False`, até a #266).
+  - **Ordem da infraestrutura:** o padrão sem a variável já é desligado, então o código novo pode subir antes ou depois do `terraform apply` sem ligar o fluxo na produção. O apply só acrescenta a variável às duas definições de task e reinicia os dois serviços. No release, o fluxo só liga depois do apply.
+  - **2026-11-04 (Nicole): na produção, o apply vem logo depois do deploy do release na `main`.** Assim, a produção reinicia uma vez só pela #324, no mesmo horário do release, sem um reinício a mais durante o teste da equipe. Entre o deploy e o apply, o padrão mantém o fluxo desligado. No release, o apply continua logo depois do merge em `develop`.
+  - As conferências contra as respostas gravadas passam a rodar com o ambiente da produção (seção "As respostas gravadas são evidência, não teste de regressão"). **Confirmado pela Nicole em 2026-11-04:** só com o ambiente da produção.
 
 **Critério de liberação da busca por similaridade (#326):**
 - Nenhum relato da base rotulada perde o fluxo certo no corte.
@@ -258,6 +266,12 @@ scripts/
   - **O primeiro uso previsto é um fluxo novo.** Um teste registra um fluxo de brinquedo só durante a execução (`tests/api/fluxo_de_brinquedo.py`) e mede os casos que ele muda: 6, todos `GET /fluxos` respondido com 200 (1 no `contrato`, 4 no `pr1` e 1 no `pr2`). A lista está no `docs/novo-fluxo.md`. Se ela mudar, o teste do brinquedo falha.
   - **Verificado por mutação:** sem pular a comparação dos aposentados, 6 testes falham; sem a checagem do caso que voltou a bater, 1 falha.
   - Regra reafirmada na abertura da janela das correções (seção "Janela das correções"): **resposta gravada não se edita**.
+- **Decisão de 2026-11-03 (#324): as conferências rodam com o ambiente da produção, e os 6 casos da #329 saíram da lista de aposentados.**
+  - **O que aconteceu:** a #329 aposentou os 6 casos de `GET /fluxos` quando o fluxo do plano de saúde entrou na lista. Com ele em teste (`em_teste=True`), desligado na produção, `GET /fluxos` da produção volta a ter os 2 fluxos das gravações, e os 6 casos voltaram a bater. O mecanismo da #321 falhou, como devia, e pediu para tirar as entradas.
+  - **A escolha:** as três conferências fixam `MARIA_AMBIENTE` no valor da produção (`AMBIENTE_DAS_CONFERENCIAS = "producao"`, em `tests/api/casos_aposentados.py`), e um teste exige que esse valor seja o mesmo do `infra/terraform/ecs.tf`. As gravações são o contrato com a Tykhe, e esse contrato vale na produção. Os casos deixam de ser aposentados, e a lista fica vazia nas três conferências.
+  - **O release** (com o fluxo em teste ligado) é coberto por testes escritos, e não pelas gravações: `tests/api/test_fluxo_em_teste.py` e `tests/api/test_app.py`. O teste do fluxo de brinquedo continua medindo o que um fluxo novo muda nas conferências.
+  - **Alternativa descartada:** rodar as conferências nos dois ambientes, com os 6 casos aposentados só no release. Dobraria o tempo das três conferências (656 casos) para conferir o que o teste do brinquedo já mede.
+  - **Quando o fluxo sair do teste** (PR que tira o `em_teste=True`), os 6 casos são aposentados de novo, nesse PR, com registro. Nenhuma gravação foi editada.
 
 ## Divergências aceitas
 
