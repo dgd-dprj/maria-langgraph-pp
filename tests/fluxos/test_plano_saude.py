@@ -165,6 +165,9 @@ async def test_depois_da_frente_pede_o_verso_e_guarda_os_links() -> None:
         "https://downloads.tykhe.dev.malicioso.com/arquivos/x?token=y",
         "https://usuario:senha@downloads.tykhe.dev/arquivos/x?token=y",
         "https://downloads.tykhe.dev/arquivos/x token=y",
+        "https://downloads.tykhe.dev:8443/arquivos/x?token=y",
+        "https://downloads.tykhe.dev/outro/x?token=y",
+        "https://downloads.tykhe.dev/arquivos/",
     ],
 )
 async def test_resposta_que_nao_e_link_permitido_repete_a_pergunta_sem_guardar(resposta: str) -> None:
@@ -548,3 +551,12 @@ async def test_falha_do_verde_na_busca_da_unidade_encerra_com_falha_infra_verde(
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "falha_infra_verde"
     assert r["mensagemFinal"] == MENSAGEM_FALHA_INFRA_VERDE
+
+
+async def test_tentativas_de_imagem_zeram_a_cada_imagem_recebida() -> None:
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    await f.responder("por aqui", "true", "oi", "oi")
+    r = await f.responder(LINK_FRENTE)
+    assert pergunta(r)["tipoImagem"] == "carteirinha_verso"  # type: ignore[index]
+    assert (await f.estado())["tentativasImagens"] == 0

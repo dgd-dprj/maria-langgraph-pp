@@ -31,19 +31,21 @@ TAMANHO_MAXIMO_URL_IMAGEM = 2048
 
 
 def url_imagem_valida(texto: str) -> str | None:
-    """A URL que a Tykhe devolveu, se for https de um host permitido e sem credencial na URL; senão `None`."""
+    """A URL que a Tykhe devolveu, se for https de um host permitido, em /arquivos/<id>, sem usuário, senha nem porta; senão `None`."""
     url = texto.strip()
     if not url or len(url) > TAMANHO_MAXIMO_URL_IMAGEM or any(c.isspace() for c in url):
         return None
     try:
         partes = urlsplit(url)
-        host = partes.hostname
-        _ = partes.port
+        host = (partes.hostname or "").lower()
+        porta = partes.port
     except ValueError:
         return None
-    if partes.scheme != "https" or host not in HOSTS_IMAGEM_PERMITIDOS or partes.username or partes.password:
+    if partes.scheme != "https" or host not in HOSTS_IMAGEM_PERMITIDOS or partes.username or partes.password or porta is not None:
         return None
-    return url
+    # Modelo da Tykhe: /arquivos/<idDoArquivo>.
+    id_do_arquivo = partes.path.removeprefix("/arquivos/")
+    return url if partes.path.startswith("/arquivos/") and id_do_arquivo.strip("/") else None
 
 
 def extrair_metadados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:

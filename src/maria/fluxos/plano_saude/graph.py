@@ -265,7 +265,8 @@ async def pedir_imagens(state: PlanoSaudeState) -> Atualizacao:
     if url is None:
         return {"tentativasImagens": (state.get("tentativasImagens") or 0) + 1}
     links = {**(state.get("imagensLinks") or {}), chave: url}
-    return {"imagensLinks": links, "imagensRecebidas": all(c in links for c, _ in TIPOS_IMAGEM) or None}
+    # A contagem de tentativas inválidas zera a cada imagem recebida.
+    return {"imagensLinks": links, "tentativasImagens": 0, "imagensRecebidas": all(c in links for c, _ in TIPOS_IMAGEM) or None}
 
 
 def depois_das_imagens(state: PlanoSaudeState) -> str:
