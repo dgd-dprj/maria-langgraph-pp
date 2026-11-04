@@ -66,6 +66,8 @@ class PlanoSaudeState(TypedDict, total=False):
     confirmado: bool | None
     tentativasConfirmacao: int | None
     statusFinal: Literal["concluido", "handoff_humano"] | None
+    # Para onde a pessoa vai quando a conversa conclui no Rio: `email_enviado` (#336).
+    destino: Literal["email_enviado"] | None
     motivoHandoff: MotivoHandoffPlanoSaude | None
     mensagemFinal: str | None
     perguntaAtualTexto: str | None

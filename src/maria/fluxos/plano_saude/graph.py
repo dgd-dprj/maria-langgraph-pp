@@ -33,6 +33,7 @@ from langgraph.types import interrupt
 
 from maria.fluxos._fabrica import FabricaGrafo, GrafoCompilado
 from maria.fluxos.plano_saude.api import (
+    DESTINO_EMAIL_ENVIADO,
     HORARIO_NUDECON,
     HORARIO_UNIDADE_PADRAO,
     ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
@@ -430,7 +431,7 @@ async def outra_pessoa(state: PlanoSaudeState) -> Atualizacao:
 
 
 async def concluir(state: PlanoSaudeState) -> Atualizacao:
-    return {"statusFinal": "concluido", "mensagemFinal": MENSAGEM_CONCLUIDO}
+    return {"statusFinal": "concluido", "destino": DESTINO_EMAIL_ENVIADO, "mensagemFinal": MENSAGEM_CONCLUIDO}
 
 
 def _deu_erro(state: PlanoSaudeState) -> bool:

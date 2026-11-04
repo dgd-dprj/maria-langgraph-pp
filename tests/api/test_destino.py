@@ -10,7 +10,7 @@ import httpx
 import pytest
 
 from maria.api.atendimentos import destino_do_log, montar_resposta_atendimento
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, buscar_fluxo
+from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, buscar_fluxo
 
 BASE = "/atendimentos"
 _ids = count(1)
@@ -86,3 +86,40 @@ async def test_fluxo_concluido_sem_destino_definido_nao_traz_o_campo() -> None:
     assert corpo["status"] == "concluido"
     assert "destino" not in corpo
     assert destino_do_log(ID_PESSOA_PRESA, "concluido") is None
+
+
+async def test_plano_saude_concluido_no_rio_traz_destino_email_enviado() -> None:
+    fluxo = await buscar_fluxo(ID_PROBLEMAS_PLANO_SAUDE)
+    assert fluxo is not None
+    corpo = montar_resposta_atendimento(
+        fluxo, ID_PROBLEMAS_PLANO_SAUDE, "chat-ficticio", None, {"statusFinal": "concluido", "destino": "email_enviado"}
+    )
+    assert corpo["status"] == "concluido"
+    assert corpo["destino"] == "email_enviado"
+    assert destino_do_log(ID_PROBLEMAS_PLANO_SAUDE, "concluido", "email_enviado") == "email_enviado"
+
+
+async def test_plano_saude_concluido_sem_destino_do_fluxo_nao_traz_o_campo() -> None:
+    fluxo = await buscar_fluxo(ID_PROBLEMAS_PLANO_SAUDE)
+    assert fluxo is not None
+    corpo = montar_resposta_atendimento(fluxo, ID_PROBLEMAS_PLANO_SAUDE, "chat-ficticio", None, {"statusFinal": "concluido"})
+    assert "destino" not in corpo
+
+
+async def test_destino_do_fluxo_nunca_vence_handoff_nem_expirado() -> None:
+    assert destino_do_log(ID_PROBLEMAS_PLANO_SAUDE, "handoff_humano", "email_enviado") == "atendimento_humano"
+    assert destino_do_log(ID_PROBLEMAS_PLANO_SAUDE, "expirado", "email_enviado") == "sessao_expirada"
+
+
+async def test_plano_saude_concluido_no_rio_devolve_destino_na_resposta_e_no_get(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+    chat_id = novo_chat_id()
+    dados = {"endereco": {"cep": "20000000"}, "imagensRecebidas": True, "relato": "O plano negou minha cirurgia"}
+    await cliente.post(BASE, json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": dados}, headers=auth)
+    for resposta in ("por aqui", "true", "2500"):
+        await cliente.post(f"{BASE}/respostas", json={"chatId": chat_id, "resposta": resposta}, headers=auth)
+    final = (await cliente.post(f"{BASE}/respostas", json={"chatId": chat_id, "resposta": "true"}, headers=auth)).json()
+    assert (final["status"], final["destino"]) == ("concluido", "email_enviado")
+    consultado = (await cliente.get(f"{BASE}/{chat_id}", headers=auth)).json()
+    assert consultado["destino"] == "email_enviado"
+    repetido = await cliente.post(f"{BASE}/respostas", json={"chatId": chat_id, "resposta": "oi"}, headers=auth)
+    assert repetido.status_code == 409 and repetido.json()["destino"] == "email_enviado"

@@ -15,6 +15,9 @@ HORARIO_NUDECON = "de segunda a sexta, das 11h às 16h"
 
 # `municipio.id` que o `GET /cep` do Verde devolve para o Rio de Janeiro (informado pelo Ícaro em 2026-10-28).
 ID_MUNICIPIO_RIO = 3643
+# `destino` da conversa que conclui no Rio (decisão do Ícaro, 2026-11-04): os dados vão por e-mail ao departamento.
+# Quem envia o e-mail é a Tykhe (Lambda da #345); a Maria só indica o destino.
+DESTINO_EMAIL_ENVIADO = "email_enviado"
 # Provisório (decisão do Ícaro em 2026-10-28): assunto qualquer só para o Verde indicar a unidade de quem mora fora do Rio.
 # O assunto definitivo (3312 ou 8420, por tipo de pedido) e a lista de unidades dependem da reunião com os responsáveis e da #265.
 ID_ASSUNTO_UNIDADE_FORA_DO_RIO = 3050

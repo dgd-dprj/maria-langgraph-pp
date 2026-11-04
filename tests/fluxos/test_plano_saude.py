@@ -560,3 +560,23 @@ async def test_tentativas_de_imagem_zeram_a_cada_imagem_recebida() -> None:
     r = await f.responder(LINK_FRENTE)
     assert pergunta(r)["tipoImagem"] == "carteirinha_verso"  # type: ignore[index]
     assert (await f.estado())["tentativasImagens"] == 0
+
+
+async def test_conclusao_no_rio_traz_destino_email_enviado() -> None:
+    f = _fluxo()
+    await f.iniciar({**COM_CEP, "imagensRecebidas": True, "relato": "O plano negou a minha cirurgia"})
+    r = await f.responder("por aqui", "true", "2500", "sim")
+    assert r["statusFinal"] == "concluido"
+    assert r["destino"] == "email_enviado"
+
+
+async def test_presencial_e_fora_do_rio_concluem_sem_destino(monkeypatch: pytest.MonkeyPatch) -> None:
+    f = _fluxo()
+    await f.iniciar(COM_CEP)
+    r = await f.responder("presencial")
+    assert r["statusFinal"] == "concluido"
+    assert "destino" not in r
+    _verde_fora_do_rio(monkeypatch, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]})
+    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
+    assert r["statusFinal"] == "concluido"
+    assert "destino" not in r
