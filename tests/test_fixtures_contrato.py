@@ -1,17 +1,20 @@
 """Integridade das fixtures de contrato HTTP (#209).
 
 As fixtures foram gravadas com a aplicação TypeScript de develop @ 4e695f2
-rodando de verdade (receita em comentário da #209). Elas são a única
-referência executável do contrato com a Tykhe até o módulo `api`, que as
-compara byte a byte. Este teste só garante que o conjunto está inteiro e
-coerente; ele não testa a aplicação.
+rodando de verdade (receita em comentário da #209), e regravadas contra
+develop @ 1157a6d (#246). As 8 da instância F, o 401 nas rotas de atendimento
+e mais quatro 500, vieram de develop @ 1157a6d (receita em comentário da #387).
+Elas são a única referência executável do contrato com a Tykhe até o módulo
+`api`, que as compara byte a byte. Este teste só garante que o conjunto está
+inteiro e coerente; ele não testa a aplicação.
 """
 
 import json
 from pathlib import Path
 
 PASTA = Path(__file__).parent / "fixtures" / "contrato"
-TOTAL_DE_CASOS = 50
+TOTAL_DE_CASOS = 58
+TOTAL_DE_INSTANCIAS = 6
 
 
 def _indice() -> list[dict[str, object]]:
@@ -20,7 +23,7 @@ def _indice() -> list[dict[str, object]]:
     return dados
 
 
-def test_indice_tem_os_50_casos_com_nomes_unicos() -> None:
+def test_indice_tem_os_58_casos_com_nomes_unicos() -> None:
     nomes = [caso["nome"] for caso in _indice()]
     assert len(nomes) == TOTAL_DE_CASOS
     assert len(set(nomes)) == TOTAL_DE_CASOS
@@ -64,7 +67,7 @@ def test_logs_nao_carregam_identificadores_da_maquina_de_captura() -> None:
 
 def test_logs_brutos_sao_ndjson_no_envelope_do_pino() -> None:
     arquivos = sorted((PASTA / "logs").glob("*.ndjson"))
-    assert len(arquivos) == 5
+    assert len(arquivos) == TOTAL_DE_INSTANCIAS
     for arquivo in arquivos:
         for numero, linha in enumerate(arquivo.read_text(encoding="utf-8").splitlines(), start=1):
             if not linha.strip():

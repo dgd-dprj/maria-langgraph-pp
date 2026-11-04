@@ -17,7 +17,7 @@ ESTE_TESTE = "tests/api/test_casos_aposentados.py"
 
 
 def test_as_tres_conferencias_e_os_casos_delas() -> None:
-    assert {c: len(nomes_dos_casos(c)) for c in CONFERENCIAS} == {"contrato": 50, "pr1": 343, "pr2": 313}
+    assert {c: len(nomes_dos_casos(c)) for c in CONFERENCIAS} == {"contrato": 58, "pr1": 343, "pr2": 313}
     assert set(CASOS_APOSENTADOS) == set(CONFERENCIAS)
 
 

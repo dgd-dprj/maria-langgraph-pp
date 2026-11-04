@@ -1,0 +1,22 @@
+{
+  "nome": "erro-nao-tratado-webhook-head-challenge-repetido-500",
+  "descricao": "HEAD da verificação com hub.challenge repetido: o mesmo 500, sem corpo",
+  "instancia": {
+    "nome": "f-test-erros-401-500",
+    "env": {
+      "NODE_ENV": "test",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "HEAD",
+    "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=token-verificacao-captura&hub.challenge=a&hub.challenge=b",
+    "headers": {}
+  },
+  "resposta": {
+    "status": 500,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": ""
+  }
+}
