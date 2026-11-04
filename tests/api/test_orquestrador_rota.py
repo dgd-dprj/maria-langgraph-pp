@@ -10,10 +10,12 @@ api e, no PR 2, o de `viaOrquestrador` (#189/#191), que responde pelo
 import uuid
 from collections.abc import AsyncIterator
 from itertools import count
+from typing import Any
 
 import httpx
 import pytest
 
+from maria.api.pipeline import Resposta
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, catalogo_para_classificacao
 from maria.fluxos.tipos_tykhe import TIPOS_TYKHE, TipoTykhe
 from maria.shared.fluxos_planejados_db import FluxoPlanejado, adicionar_planejado_de_teste, remover_planejado_de_teste
@@ -266,3 +268,62 @@ async def test_via_orquestrador_cpf_encontrado_pergunta_confirmacao_189_191(
 async def test_fluxo_nao_oferecido_nao_entra_no_catalogo_do_orquestrador() -> None:
     # #329: o fluxo do NUDECON já está registrado (GET /fluxos), mas só é oferecido com a #266.
     assert ID_PROBLEMAS_PLANO_SAUDE not in [c["id"] for c in await catalogo_para_classificacao()]
+
+
+async def _dados_entregues_ao_fluxo(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch, flow_id: str, corpo_extra: dict[str, Any]
+) -> dict[str, Any]:
+    """Roda a rota com `criar_atendimento` trocado e devolve o `dadosConhecidos` que chegaria ao fluxo."""
+    from dataclasses import replace
+
+    from maria.api import orquestrador as rota
+    from maria.fluxos import fluxos_por_id
+
+    capturado: dict[str, Any] = {}
+
+    async def falso(fluxo: Any, fluxo_id: str, chat_id: str, dados: dict[str, Any], log: Any, via_orquestrador: bool = False) -> Resposta:
+        capturado.update(dados)
+        return Resposta(200, {"status": "em_andamento"})
+
+    monkeypatch.setattr(rota, "criar_atendimento", falso)
+    # O plano de saúde ainda não é oferecido ao orquestrador (#266): para o teste, é.
+    monkeypatch.setitem(fluxos_por_id, flow_id, replace(fluxos_por_id[flow_id], oferecer_ao_orquestrador=True))
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", flow_id)
+    monkeypatch.delenv("MOCK_CLASSIFICACAO_FLOWIDS", raising=False)
+    r = await cliente.post(
+        BASE, json={"chatId": novo_chat_id(), "mensagem": "meu plano negou a cirurgia do meu pai", **corpo_extra}, headers=auth
+    )
+    assert r.status_code == 200
+    return capturado
+
+
+async def test_fluxo_com_usa_relato_recebe_o_relato_no_canal_proprio_334(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dados = await _dados_entregues_ao_fluxo(cliente, auth, monkeypatch, ID_PROBLEMAS_PLANO_SAUDE, {})
+    assert dados["relato"] == "meu plano negou a cirurgia do meu pai"
+
+
+async def test_relato_em_dados_conhecidos_nao_sobrepoe_o_da_triagem_334(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dados = await _dados_entregues_ao_fluxo(
+        cliente, auth, monkeypatch, ID_PROBLEMAS_PLANO_SAUDE, {"dadosConhecidos": {"relato": "texto da Tykhe", "cpf": "00000000000"}}
+    )
+    assert dados["relato"] == "meu plano negou a cirurgia do meu pai"
+    assert dados["cpf"] == "00000000000"
+
+
+async def test_fluxo_sem_usa_relato_nao_recebe_relato_334(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dados = await _dados_entregues_ao_fluxo(cliente, auth, monkeypatch, ID_PESSOA_PRESA, {})
+    assert "relato" not in dados
+
+
+async def test_relato_da_triagem_nao_vai_para_o_log_334(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    await _dados_entregues_ao_fluxo(cliente, auth, monkeypatch, ID_PROBLEMAS_PLANO_SAUDE, {})
+    saida = capsys.readouterr()
+    assert "negou a cirurgia" not in saida.out + saida.err

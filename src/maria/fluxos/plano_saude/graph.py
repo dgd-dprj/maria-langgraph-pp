@@ -13,7 +13,7 @@ encerra com atendimento humano: o assistido não pode ficar sem atendimento (#33
 Premissas desta etapa, a confirmar: a Tykhe coleta as imagens e avisa com
 `imagensRecebidas` em `dadosConhecidos` (#336); sem o aviso, a Maria pergunta se
 a pessoa já enviou. O relato chega do orquestrador no canal
-`relato` (#334, ainda não entregue pela rota); sem ele, a Maria pergunta a situação.
+`relato` (#334, entregue pela rota quando `FluxoConfig.usa_relato`); sem ele, a Maria pergunta a situação.
 
 A pergunta do canal é de texto, com as opções escritas na própria pergunta: o
 tipo `opcoes` ainda está por confirmar com a Tykhe (#336).

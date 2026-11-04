@@ -45,6 +45,10 @@ class FluxoConfig:
     # mas ainda não deve ser escolhido pelo orquestrador: fica fora do catálogo de
     # classificação e a regra A10 não exige `descricao`.
     oferecer_ao_orquestrador: bool = True
+    # Verdadeiro: quando o atendimento nasce no orquestrador (#334), o relato acumulado da triagem
+    # entra no estado inicial no canal `relato` (fora de `dadosConhecidos`, que a Tykhe controla).
+    # O fluxo precisa ter o canal `relato` no `state.py`. É dado sensível: nunca vai para log.
+    usa_relato: bool = False
 
 
 # Id fixo por fluxo, no formato que uma linha de tabela teria (uuid).
@@ -88,6 +92,7 @@ fluxos_por_id: dict[str, FluxoConfig] = {
         mensagem_concluido=api_plano_saude.MENSAGEM_CONCLUIDO,
         mensagem_handoff=api_plano_saude.MENSAGEM_HANDOFF,
         oferecer_ao_orquestrador=False,
+        usa_relato=True,
     ),
 }
 
