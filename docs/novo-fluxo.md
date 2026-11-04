@@ -28,6 +28,8 @@ src/maria/fluxos/<nome>/
 
 O que chega no grafo: na criação, o conteúdo de `dadosConhecidos` vira o estado inicial (menos `viaOrquestrador`, que só a rota do orquestrador grava, #191). Chave que não existe no `state.py` é ignorada pelo LangGraph. O `fluxoId` chega na config do run (`contexto_atual()`, de `src/maria/shared/contexto.py`).
 
+**Relato da triagem (#334).** Fluxo que não deve repetir a pergunta da situação marca `usa_relato=True` no `FluxoConfig` e declara o canal `relato: str | None` no `state.py`. Quando o atendimento nasce no orquestrador, a rota põe o texto acumulado da triagem nesse canal, fora de `dadosConhecidos` (que a Tykhe controla: um `relato` vindo de lá é descartado nesses fluxos). Sem relato, o estado não ganha a chave e o fluxo faz a pergunta normal. O relato é dado sensível: nunca vai para log, resumo de erro nem `metadados`. Fluxos sem a marca não mudam.
+
 Fluxo sem implementação própria ainda (categoria só cadastrada em `fluxos_planejados`, issue #26) usa o grafo compartilhado `src/maria/fluxos/padrao/graph.py` automaticamente — não precisa criar nada até decidir implementar de verdade.
 
 ## 1.1. Precisa de lógica reaproveitável entre fluxos? Use um subgrafo
