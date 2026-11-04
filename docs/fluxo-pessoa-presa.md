@@ -18,7 +18,8 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
      formato válido → consulta Verde (/apenado)
         não encontrado, < 3 tentativas → "Quer tentar de novo?" (sim/não/RG direto)
         não encontrado, 3ª tentativa    → HANDOFF: rg_nao_encontrado
-        encontrado                       → 5. "Confirma que é <nome>?" (sim/não)
+        encontrado                       → 5. "Confirma que a pessoa presa é <nome mascarado>?" (sim/não;
+                                              #393: primeiro nome e iniciais, ex.: "Jose S. P.")
            não confirmado                 → HANDOFF: nome_nao_confirmado
            confirmado                     → 6. "Qual seu parentesco?" (texto, classificado por IA numa lista fechada)
                                               → SEM viaOrquestrador (Tykhe, issue #191): conclui DIRETO, nunca

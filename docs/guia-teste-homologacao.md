@@ -104,7 +104,7 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 1. Relato livre sobre um familiar preso (inventado).
 2. Número do processo → **Sim** e um número de teste (SEEU, se houver), ou **Não**.
 3. RG da pessoa presa → o **RG de teste**.
-4. "Confirma que é <nome>?" → **Sim**.
+4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
 5. Parentesco → por exemplo, "sou a mãe".
 6. CPF de quem está conversando → um CPF inventado (e o cadastro, como no caso A) ou um já cadastrado.
 
