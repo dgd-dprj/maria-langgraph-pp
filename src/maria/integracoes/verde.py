@@ -280,29 +280,45 @@ async def consultar_apenado_por_rg(rg: str) -> DadosApenado:
 
 
 async def consultar_processo(numero: str) -> DadosProcesso:
+    dados, _ = await consultar_processo_com_status(numero)
+    return dados
+
+
+# #341/#352: respostas em que o Verde diz que não achou o número (Swagger de
+# `GET /processo/consultar`): 400 fora do padrão, 404 não encontrado, 422 inválido
+# ou de fora do RJ. Nenhuma é "origem que ainda não consigo tratar".
+STATUS_PROCESSO_NAO_LOCALIZADO = frozenset({400, 404, 422})
+
+
+async def consultar_processo_com_status(numero: str) -> tuple[DadosProcesso, int | None]:
+    """A consulta de processo e, quando o Verde responde que não achou, o status
+    HTTP dessa resposta de negócio (#341). `None` em sucesso, na falha de infra e
+    no modo mock. O status fica fora de `DadosProcesso` porque violência
+    doméstica devolve `dadosProcesso` inteiro à Tykhe, e o contrato não muda."""
     if not VERDE_JWT_TOKEN:
         logger.warn(MENSAGEM_MOCK, **contexto_atual())
         # Issue #51: só origem "SEEU" é resolvida pelo bot.
         if numero == "000000000":
-            return {"encontrado": False}
+            return {"encontrado": False}, None
         if numero == "0000000-00.0000.0.00.0000":
-            return {"encontrado": True, "id": 999999, "origem": "e-Proc (mock)", "nomeAssunto": "Processo de Teste (mock)"}
-        return {"encontrado": True, "id": 999999, "origem": "SEEU", "nomeAssunto": "Processo de Teste (mock)"}
+            return {"encontrado": True, "id": 999999, "origem": "e-Proc (mock)", "nomeAssunto": "Processo de Teste (mock)"}, None
+        return {"encontrado": True, "id": 999999, "origem": "SEEU", "nomeAssunto": "Processo de Teste (mock)"}, None
     inicio = _agora_ms()
     url = f"{VERDE_API_URL}/processo/consultar/{_escapar(numero)}"
     resultado = await chamar_verde_com_retry("processo", _requisicao("GET", url, com_accept=True, ler_corpo=True))
     if not resultado.ok or resultado.res is None:
+        status = resultado.res.status_code if resultado.res is not None and not resultado.falha_infra else None
         await _fechar(resultado)
-        return {"encontrado": False}
+        return {"encontrado": False}, status
     corpo = _js.json_parse(resultado.res.content)
     _sucesso("processo", inicio)
     dados = _js.prop(corpo, "dados")
     if not _js.verdadeiro(dados) or _js.prop(dados, "id") is AUSENTE:
-        return {"encontrado": False}
+        return {"encontrado": False}, None
     saida: dict[str, Any] = {"encontrado": True}
     for chave in ("id", "origem", "instancia", "nomeAssunto", "nomeOrgaoJulgador", "movimentos"):
         _js.definir(saida, chave, _js.prop(dados, chave))
-    return cast(DadosProcesso, saida)
+    return cast(DadosProcesso, saida), None
 
 
 # --- Pessoa (GET /pessoa?cpf=) ---------------------------------------------------

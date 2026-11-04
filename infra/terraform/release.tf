@@ -50,6 +50,24 @@ resource "aws_secretsmanager_secret_version" "app_release" {
   }
 }
 
+# Issue #405 — mesma função Lambda do outro ambiente; segredo próprio para poder trocar a chave de um só.
+resource "aws_secretsmanager_secret" "email_nudecon_release" {
+  name        = "${var.project}-release/email-nudecon"
+  description = "URL e chave da função Lambda de e-mail do NUDECON (maria-email-nudecon) — ambiente release."
+}
+
+resource "aws_secretsmanager_secret_version" "email_nudecon_release" {
+  secret_id = aws_secretsmanager_secret.email_nudecon_release.id
+  secret_string = jsonencode({
+    EMAIL_NUDECON_URL     = "PREENCHER"
+    EMAIL_NUDECON_API_KEY = "PREENCHER"
+  })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
+
 # ── ECS (task + service) ────────────────────────────────────────────────
 resource "aws_cloudwatch_log_group" "api_release" {
   name              = "/ecs/${var.project}-release/api"
@@ -83,13 +101,16 @@ resource "aws_ecs_task_definition" "api_release" {
       # `aws bedrock get-foundation-model`/`list-inference-profiles`).
       { name = "BEDROCK_MODEL_ID", value = "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
     ]
-    secrets = [
+    secrets = concat([
       for k in [
         "VERDE_API_URL", "VERDE_JWT_TOKEN", "VERDE_CLIENT_ID", "DATABASE_URL", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT", "API_KEY",
         "WHATSAPP_API_URL", "WHATSAPP_PHONE_NUMBER_ID", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_VERIFY_TOKEN",
       ] :
       { name = k, valueFrom = "${aws_secretsmanager_secret.app_release.arn}:${k}::" }
-    ]
+      ], [
+      for k in ["EMAIL_NUDECON_URL", "EMAIL_NUDECON_API_KEY"] :
+      { name = k, valueFrom = "${aws_secretsmanager_secret.email_nudecon_release.arn}:${k}::" }
+    ])
     logConfiguration = {
       logDriver = "awslogs"
       options = {

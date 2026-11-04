@@ -28,6 +28,7 @@ async def test_pessoa_presa_primeira_pergunta_sim_nao_sobre_numero_do_processo(c
     corpo = r.json()
     assert r.status_code == 200
     assert corpo["tipoResposta"] == "sim_nao"
+    assert corpo["opcoes"] == ["Sim", "Não"]
     assert "número do processo" in corpo["resposta"]
 
 

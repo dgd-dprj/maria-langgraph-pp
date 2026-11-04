@@ -404,3 +404,27 @@ async def test_parentesco_sem_match_cai_em_outro_issue_17(monkeypatch: pytest.Mo
     monkeypatch.delenv("MOCK_CLASSIFICACAO_PARENTESCO", raising=False)
     r = await _ate_parentesco("um relato qualquer sem relação clara")
     assert r["parentesco"] == "Outro"
+
+
+# ---- #236: CPF vindo da Tykhe, pelo orquestrador ---------------------------------
+# Fora da tradução de develop: decisão de 03/11, na janela das correções (#208).
+
+
+async def test_cpf_da_tykhe_via_orquestrador_conclui_sem_confirmacao_issue_236() -> None:
+    f = _fluxo()
+    await f.iniciar({"cpf": "11111111111", "viaOrquestrador": True})
+    r = await f.responder("true", "0000088-95.2026.8.19.0010", "11111111111", "true", "amigo")
+    assert pergunta(r) is None, "o CPF veio da Tykhe: sem a pergunta com o nome do titular"
+    assert r["statusFinal"] == "concluido"
+    assert r.get("motivoHandoff") is None
+    assert r["dadosPessoa"]["encontrado"] is True
+
+
+async def test_cpf_digitado_via_orquestrador_continua_com_confirmacao_issue_236() -> None:
+    f = _fluxo()
+    await f.iniciar({"viaOrquestrador": True})
+    r_confirma = await f.responder("true", "0000088-95.2026.8.19.0010", "11111111111", "true", "amigo", "11111111111")
+    assert re.search("Confirma que seus dados são", texto(r_confirma)), "CPF digitado na conversa: confirmação como antes"
+    r = await f.responder("sim")
+    assert pergunta(r) is None
+    assert r["statusFinal"] == "concluido"

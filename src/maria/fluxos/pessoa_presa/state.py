@@ -52,3 +52,6 @@ class PessoaPresaState(TypedDict, total=False):
     perguntaAtualViaIA: bool | None
     perguntaAtualTokensTotal: int | None
     tokensGastos: CanalTokensGastos
+    # #341/#352, fora dos 27 de develop: o status da resposta do Verde quando ele
+    # não acha o processo (400, 404, 422). Interno: não vai para os metadados.
+    statusConsultaProcesso: int | None

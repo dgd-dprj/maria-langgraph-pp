@@ -7,6 +7,7 @@ api e, no PR 2, o de `viaOrquestrador` (#189/#191), que responde pelo
 `POST /atendimentos/respostas`, e as conferências por `GET /atendimentos/:chatId`.
 """
 
+import re
 import uuid
 from collections.abc import AsyncIterator
 from itertools import count
@@ -89,16 +90,20 @@ async def test_duas_categorias_planejadas_nao_misturam_estado(
     await adicionar_planejado_de_teste(b)
     monkeypatch.setenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", "true")
     try:
+        chat_a = novo_chat_id()
+        chat_b = novo_chat_id()
         monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", a["id"])
-        res_a = await cliente.post(BASE, json={"chatId": novo_chat_id(), "mensagem": "relato A"}, headers=auth)
+        res_a = await cliente.post(BASE, json={"chatId": chat_a, "mensagem": "relato A"}, headers=auth)
         monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", b["id"])
-        res_b = await cliente.post(BASE, json={"chatId": novo_chat_id(), "mensagem": "relato B"}, headers=auth)
+        res_b = await cliente.post(BASE, json={"chatId": chat_b, "mensagem": "relato B"}, headers=auth)
         assert res_a.json()["flowId"] == a["id"]
         assert res_b.json()["flowId"] == b["id"]
         assert res_a.json()["status"] == "concluido"
         assert res_b.json()["status"] == "concluido"
-        get_a = await cliente.get(f"/atendimentos/{res_a.json()['_links']['self']['href'].rsplit('/', 1)[1]}", headers=auth)
-        get_b = await cliente.get(f"/atendimentos/{res_b.json()['_links']['self']['href'].rsplit('/', 1)[1]}", headers=auth)
+        # Como develop: o GET usa o chatId enviado, o que prova também que o
+        # atendimento ficou gravado nele.
+        get_a = await cliente.get(f"/atendimentos/{chat_a}", headers=auth)
+        get_b = await cliente.get(f"/atendimentos/{chat_b}", headers=auth)
         assert get_a.json()["flowId"] == a["id"], "o GET do chatId A não vaza o flowId de B"
         assert get_b.json()["flowId"] == b["id"], "o GET do chatId B não vaza o flowId de A"
     finally:
@@ -183,7 +188,12 @@ async def test_desambiguacao_com_pergunta_raiz(
         await store.inserir_pergunta(_pergunta_raiz(ID_VIOLENCIA_DOMESTICA, texto_vd))
     try:
         r = await cliente.post(BASE, json={"chatId": novo_chat_id(), "mensagem": "relato ambíguo"}, headers=auth)
-        assert esperado.lower() in r.json()["resposta"].lower()
+        if texto_vd == texto_pp:
+            # Develop: `assert.equal(resposta, "JÁ TEM PROCESSO JUDICIAL?")`, igualdade exata.
+            assert r.json()["resposta"] == esperado, "deveria usar o texto real do banco, não a pergunta genérica de IA"
+        else:
+            # Develop: `assert.match(resposta, /qual dessas opções descreve/i)`.
+            assert re.search(esperado, r.json()["resposta"], re.IGNORECASE)
     finally:
         await store.limpar_flow(ID_PESSOA_PRESA)
         await store.limpar_flow(ID_VIOLENCIA_DOMESTICA)
@@ -262,6 +272,27 @@ async def test_via_orquestrador_cpf_encontrado_pergunta_confirmacao_189_191(
     r_confirma = await responder("11111111111")
     assert "Confirma que seus dados são" in r_confirma.json()["resposta"], "via orquestrador pergunta a confirmação"
     r = await responder("sim")
+    assert r.json()["status"] == "concluido"
+
+
+async def test_via_orquestrador_cpf_da_tykhe_conclui_sem_confirmacao_236(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #236 (03/11): com o CPF em dadosConhecidos, a Maria não mostra o nome do titular
+    # nem pede confirmação. O contrato não muda: mesma rota, mesmos campos e status.
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", ID_VIOLENCIA_DOMESTICA)
+    monkeypatch.delenv("MOCK_CLASSIFICACAO_FLOWIDS", raising=False)
+    chat_id = novo_chat_id()
+    corpo = {"chatId": chat_id, "mensagem": "sou vítima de violência doméstica", "dadosConhecidos": {"cpf": "11111111111"}}
+    await cliente.post(BASE, json=corpo, headers=auth)
+
+    async def responder(resposta: str) -> httpx.Response:
+        return await cliente.post("/atendimentos/respostas", json={"chatId": chat_id, "resposta": resposta}, headers=auth)
+
+    await responder("true")  # é vítima
+    await responder("false")  # sem processo
+    r = await responder("true")  # tem RO; o CPF veio da Tykhe: nem pergunta, nem confirmação
+    assert "Confirma que seus dados são" not in r.json()["resposta"]
     assert r.json()["status"] == "concluido"
 
 
