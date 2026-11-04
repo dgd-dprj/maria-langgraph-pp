@@ -34,6 +34,8 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 2. **Resposta gravada não se edita.** Se uma correção mudar o **valor** de uma resposta gravada em `tests/fixtures/contrato/`, o caso é **aposentado da conferência com registro**: o motivo, a issue e o teste escrito que passa a cobrir o comportamento novo. A fixture fica intacta. Campo novo e opcional continua no mecanismo da #294 (`tests/api/campos_posteriores.py`). Ver "As respostas gravadas são evidência, não teste de regressão".
 3. **Guia de teste:** cada PR de correção que muda comportamento atualiza o `docs/guia-teste-homologacao.md`, e o merge entra em horário combinado com a equipe. Todo merge em `develop` reinicia o release.
 
+**#393, item 1 (decisão da Nicole, 2026-11-04):** com o CPF digitado na conversa, "Confirma que seus dados são: …?" mostra o nome **mascarado**, com o primeiro nome e as iniciais dos outros ("Maria S. S."), e o nome social quando o Verde tiver um. Quem digita o CPF de outra pessoa não vê mais o nome completo dela. Contrato igual e nenhuma resposta gravada aposentada. Os itens 2 a 4 da #393 (a pessoa presa pelo RG, o órgão e o município em violência doméstica e a confirmação no cadastro) continuam aguardando decisão.
+
 ## Padronização de fluxos (decidida em 2026-10-23)
 
 **Decisão da Nicole, registrada na #208.** O objetivo é que um fluxo novo entre sem quebrar a aplicação nem o contrato com a Tykhe, e que a IA entre aos poucos, um ponto por vez. **Nenhuma peça reorganiza pastas nem move código existente: todas acrescentam.**

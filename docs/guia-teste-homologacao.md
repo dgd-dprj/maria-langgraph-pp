@@ -93,6 +93,9 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 **Esperado:** uma mensagem de encaminhamento com o **nome de um órgão** e um **número de protocolo**.
 
 Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro.
+- **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Confirma que seus dados são: Maria S. S.?"). Se o cadastro tiver nome social, é ele que aparece, também mascarado.
+- **Antes da #393:** o nome completo do cadastro.
+- **No cadastro do passo 5,** a confirmação continua com o nome que você acabou de digitar, por inteiro.
 
 > **Este caso grava duas vezes na homologação:** o cadastro no passo 5 (com CPF inventado) e o encaminhamento no passo 6.
 

@@ -21,7 +21,8 @@ Vítima de violência doméstica buscando ajuda/proteção/encaminhamento juríd
 5. [subgrafo `identificarAssistido`] "Qual o seu CPF?"   (texto — pulado se `cpf` já veio em dadosConhecidos)
      → consulta Verde (/pessoa)
      encontrado, SEM viaOrquestrador (Tykhe)      → 6. direto, sem confirmar nada (comportamento de antes da #189)
-     encontrado, COM viaOrquestrador (issue #191) → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
+     encontrado, COM viaOrquestrador (issue #191) → "Confirma que seus dados são: <nome mascarado>?" (sim/não, issue #189;
+                                                       #393: primeiro nome e iniciais, ex.: "Maria S. S.", e o nome social se houver)
                                                        confirmou              → 6.
                                                        NÃO confirmou          → HANDOFF: assistido_nao_confirmado
      não encontrado, < 3 tentativas      → "Quer tentar de novo o CPF?" (sim/não/CPF direto)

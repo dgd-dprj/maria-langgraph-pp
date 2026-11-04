@@ -28,7 +28,8 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
                                                 `identificarAssistido`, issue #183] "Qual o seu CPF?"
                                                  → consulta Verde (/pessoa) — identifica quem está CONVERSANDO,
                                                    diferente do RG acima (que identifica o PRESO)
-                                                 encontrado                     → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
+                                                 encontrado                     → "Confirma que seus dados são: <nome mascarado>?" (sim/não, issue #189;
+                                                                                    #393: primeiro nome e iniciais, ex.: "Maria S. S.", e o nome social se houver)
                                                                                     confirmou    → conclui
                                                                                     NÃO confirmou → HANDOFF: assistido_nao_confirmado
                                                  não encontrado, esgotou (3x)   → [subgrafo `cadastroPessoa`, issue #183]
