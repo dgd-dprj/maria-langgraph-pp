@@ -295,8 +295,54 @@ def test_12_confirmacao_sem_nome_diz_voce() -> None:
 
 async def test_12_confirmacao_com_nome_e_resposta() -> None:
     c = await (await _identificar().iniciar({"cpf": "12345678901", "viaOrquestrador": True})).responder("Sim")
-    assert c.perguntas[0]["pergunta"] == "Confirma que seus dados são: Pessoa de Teste (mock)?"
+    # #393: o nome do mock ("Pessoa de Teste (mock)") sai mascarado.
+    assert c.perguntas[0]["pergunta"] == "Confirma que seus dados são: Pessoa T.?"
     assert (await c.estado())["confirmaAssistido"] is True
+
+
+# ---- #393: o nome do titular sai mascarado na confirmação -------------------------
+# Decisão da Nicole (2026-11-04): quem digita o CPF de outra pessoa não vê o nome
+# completo dela. Só o primeiro nome e as iniciais; o nome social, quando houver.
+
+
+@pytest.mark.parametrize(
+    ("nome", "esperado"),
+    [
+        ("MARIA DA SILVA SANTOS", "Maria S. S."),
+        ("ana de souza e silva", "Ana S. S."),
+        ("João", "João"),
+        ("  JOSÉ   CARLOS  ", "José C."),
+        ("Pessoa de Teste (mock)", "Pessoa T."),
+    ],
+)
+def test_393_nome_mascarado(nome: str, esperado: str) -> None:
+    from maria.subgrafos.identificar_assistido.graph import nome_mascarado
+
+    assert nome_mascarado(nome) == esperado
+
+
+def test_393_confirmacao_prefere_o_nome_social() -> None:
+    from maria.shared.types import DadosPessoa
+    from maria.subgrafos.identificar_assistido.graph import texto_confirma_assistido
+
+    dados: DadosPessoa = {"encontrado": True, "nome": "JOSE CARLOS SILVA", "nomeSocial": "ANA PAULA SILVA"}
+    assert texto_confirma_assistido({"dadosPessoa": dados}) == "Confirma que seus dados são: Ana P. S.?"
+    sem_social: DadosPessoa = {"encontrado": True, "nome": "JOSE CARLOS SILVA", "nomeSocial": ""}
+    assert texto_confirma_assistido({"dadosPessoa": sem_social}) == "Confirma que seus dados são: Jose C. S.?"
+
+
+async def test_393_cpf_digitado_nunca_mostra_o_nome_completo() -> None:
+    c = await (await _identificar().iniciar({"viaOrquestrador": True})).responder("12345678901")
+    pergunta = c.perguntas[-1]["pergunta"]
+    assert pergunta.startswith("Confirma que seus dados são:")
+    assert "de Teste" not in pergunta and "(mock)" not in pergunta
+
+
+def test_393_cadastro_continua_com_o_nome_que_a_pessoa_digitou() -> None:
+    # Item 4 da #393, fora desta mudança: o nome é o que a própria pessoa acabou de digitar.
+    from maria.subgrafos.cadastro_pessoa.graph import texto_confirma_assistido as texto_cadastro
+
+    assert texto_cadastro({"dadosPessoa": {"encontrado": True, "nome": "Fulano de Tal"}}) == "Confirma que seus dados são: Fulano de Tal?"
 
 
 # ---- regra de estado: null da Tykhe e do Verde (spec do fluxos, tabela 0.2) ----

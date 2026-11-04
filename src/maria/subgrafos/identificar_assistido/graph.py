@@ -6,6 +6,9 @@ pai decide olhando `dadosPessoa.encontrado` e `confirmaAssistido`:
 - encontrado e não confirmado (#189);
 - esgotado: não encontrado, ou "não" para tentar de novo, ou falha de infra.
 
+A confirmação mostra o nome mascarado (primeiro nome e iniciais) e prefere o
+nome social (#393).
+
 Nenhum vira handoff aqui; isso fica com o fluxo pai.
 """
 
@@ -55,8 +58,31 @@ def texto_tentar_novamente(state: IdentificarAssistidoState) -> str:
     return f"Não encontrei ninguém com esse CPF (tentativa {_js.texto_template(tentativa)} de 3). Quer tentar de novo?"
 
 
+# Partículas que não viram inicial: "Maria da Silva" fica "Maria S.".
+_PARTICULAS = frozenset({"da", "das", "de", "do", "dos", "e", "di", "du"})
+
+
+def nome_mascarado(nome: str) -> str:
+    """Primeiro nome e as iniciais dos outros: "MARIA DA SILVA SANTOS" vira "Maria S. S."
+    (#393, decisão da Nicole de 2026-11-04). Palavra que não começa com letra, como "(mock)", fica fora."""
+    palavras = [p for p in nome.split() if p[:1].isalpha()]
+    if not palavras:
+        return nome
+    primeiro = palavras[0][:1].upper() + palavras[0][1:].lower()
+    iniciais = [f"{p[:1].upper()}." for p in palavras[1:] if p.lower() not in _PARTICULAS]
+    return " ".join([primeiro, *iniciais])
+
+
 def texto_confirma_assistido(state: IdentificarAssistidoState) -> str:
-    nome = _js.coalesce(_js.opt(state.get("dadosPessoa", _js.AUSENTE), "nome"), "você")
+    # #393: quem digita o CPF de outra pessoa não pode ver o nome completo do titular. A
+    # confirmação mostra o nome mascarado, e o nome social quando o Verde tiver um.
+    dados = state.get("dadosPessoa", _js.AUSENTE)
+    for campo in ("nomeSocial", "nome"):
+        valor = _js.opt(dados, campo)
+        if isinstance(valor, str) and valor.strip():
+            return f"Confirma que seus dados são: {nome_mascarado(valor)}?"
+    # Sem nome em texto, como antes: `nome ?? "você"`.
+    nome = _js.coalesce(_js.opt(dados, "nome"), "você")
     return f"Confirma que seus dados são: {_js.texto_template(nome)}?"
 
 
