@@ -85,10 +85,15 @@ def extrair_interrupt(resultado: Mapping[str, Any]) -> Any:
     return pendentes[0].value if pendentes else None
 
 
-def _dados_coletados(valores: Mapping[str, Any]) -> dict[str, Any]:
+def _dados_coletados(valores: Mapping[str, Any], concluido: bool = False) -> dict[str, Any]:
     # Decisão 2026-09-09: só cpf, e só quando é texto.
     cpf = valores.get("cpf")
-    return {"cpf": cpf} if isinstance(cpf, str) else {}
+    dados: dict[str, Any] = {"cpf": cpf} if isinstance(cpf, str) else {}
+    # #398: os links das imagens (segredo) só na conclusão, para a Tykhe repassá-los à Lambda de e-mail.
+    links = valores.get("imagensLinks")
+    if concluido and isinstance(links, dict) and links:
+        dados["imagens"] = dict(links)
+    return dados
 
 
 def montar_resposta_atendimento(
@@ -96,12 +101,13 @@ def montar_resposta_atendimento(
 ) -> dict[str, Any]:
     """Mesmo corpo para criar, consultar e responder (`atendimentos.ts:194-242`)."""
     metadados = fluxo.extrair_metadados(valores)
-    dados_coletados = _dados_coletados(valores)
     if interrupt is not None:
+        dados_coletados = _dados_coletados(valores)
         return {
             "resposta": _js.opt(interrupt, "pergunta"),
             "tipoResposta": _js.opt(interrupt, "tipo"),
             "opcoes": _js.opt(interrupt, "opcoes"),
+            **({"tipoImagem": interrupt["tipoImagem"]} if isinstance(interrupt, Mapping) and "tipoImagem" in interrupt else {}),
             "status": "em_andamento",
             "flowId": fluxo_id,
             "metadados": metadados,
@@ -109,6 +115,7 @@ def montar_resposta_atendimento(
             "_links": montar_links(chat_id, "em_andamento"),
         }
     status = _js.coalesce(valores.get("statusFinal"), "concluido")
+    dados_coletados = _dados_coletados(valores, concluido=status == "concluido")
     padrao = fluxo.mensagem_concluido if status == "concluido" else fluxo.mensagem_handoff
     corpo: dict[str, Any] = {
         "resposta": _js.coalesce(valores.get("mensagemFinal"), padrao),

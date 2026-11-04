@@ -128,14 +128,53 @@ def test_interpretar_renda(resposta: str, esperado: float | None) -> None:
     assert interpretar_renda(resposta) == esperado
 
 
-async def test_para_mim_sem_aviso_das_imagens_pergunta_se_ja_enviou() -> None:
+LINK_FRENTE = "https://downloads.tykhe.dev/arquivos/id-frente-fake?token=token-frente-fake"
+LINK_VERSO = "https://downloads.tykhe.dev/arquivos/id-verso-fake?token=token-verso-fake"
+
+
+async def test_para_mim_sem_aviso_das_imagens_pede_a_frente_da_carteirinha() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
     r = await f.responder("por e-mail", "true")
     p = pergunta(r)
-    assert p is not None and p["tipo"] == "sim_nao"
-    assert "carteirinha" in texto(r)
+    assert p is not None and p["tipo"] == "link_imagem" and p["tipoImagem"] == "carteirinha_frente"
+    assert "frente" in texto(r)
     assert (await f.estado())["paraSi"] is True
+
+
+async def test_depois_da_frente_pede_o_verso_e_guarda_os_links() -> None:
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    r = await f.responder("por aqui", "true", LINK_FRENTE)
+    p = pergunta(r)
+    assert p is not None and p["tipo"] == "link_imagem" and p["tipoImagem"] == "carteirinha_verso"
+    r = await f.responder(LINK_VERSO)
+    assert "renda" in texto(r)
+    estado = await f.estado()
+    assert estado["imagensRecebidas"] is True
+    assert estado["imagensLinks"] == {"carteirinhaFrente": LINK_FRENTE, "carteirinhaVerso": LINK_VERSO}
+
+
+@pytest.mark.parametrize(
+    "resposta",
+    [
+        "true",
+        "já enviei",
+        "http://downloads.tykhe.dev/arquivos/x?token=y",
+        "https://outro-dominio.com/arquivos/x?token=y",
+        "https://downloads.tykhe.dev.malicioso.com/arquivos/x?token=y",
+        "https://usuario:senha@downloads.tykhe.dev/arquivos/x?token=y",
+        "https://downloads.tykhe.dev/arquivos/x token=y",
+    ],
+)
+async def test_resposta_que_nao_e_link_permitido_repete_a_pergunta_sem_guardar(resposta: str) -> None:
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    r = await f.responder("por aqui", "true", resposta)
+    p = pergunta(r)
+    assert p is not None and p["tipoImagem"] == "carteirinha_frente"
+    assert "Não recebi" in texto(r)
+    assert not (await f.estado()).get("imagensLinks")
 
 
 async def test_com_imagens_recebidas_pula_direto_para_a_renda() -> None:
@@ -147,11 +186,11 @@ async def test_com_imagens_recebidas_pula_direto_para_a_renda() -> None:
     assert "renda" in texto(r)
 
 
-async def test_imagens_nao_enviadas_tres_vezes_encerram_com_atendimento_humano() -> None:
+async def test_imagens_invalidas_tres_vezes_encerram_com_atendimento_humano() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
     r = await f.responder("por aqui", "true", "não")
-    assert "Ainda não recebi" in texto(r)
+    assert "Não recebi" in texto(r)
     r = await f.responder("não", "não")
     assert pergunta(r) is None
     assert r["statusFinal"] == "handoff_humano"
@@ -161,7 +200,7 @@ async def test_imagens_nao_enviadas_tres_vezes_encerram_com_atendimento_humano()
 async def test_imagens_enviadas_seguem_para_a_renda() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
-    r = await f.responder("por aqui", "true", "sim")
+    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO)
     assert "renda" in texto(r)
     assert (await f.estado())["imagensRecebidas"] is True
 
@@ -210,7 +249,7 @@ async def test_situacao_com_menos_de_tres_palavras_repete_e_na_terceira_encerra(
 async def test_situacao_pergunta_depois_das_imagens_quando_sem_aviso() -> None:
     f = _fluxo()
     await f.iniciar({k: v for k, v in DADOS.items() if k != "relato"})
-    r = await f.responder("por aqui", "true", "sim")
+    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO)
     assert "o que aconteceu" in texto(r)
 
 

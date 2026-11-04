@@ -8,6 +8,7 @@ from __future__ import annotations
 
 from collections.abc import Mapping
 from typing import Any
+from urllib.parse import urlsplit
 
 # Rascunho do time, não validado pelo NUDECON (#329, #335).
 HORARIO_NUDECON = "de segunda a sexta, das 11h às 16h"
@@ -19,6 +20,30 @@ ID_MUNICIPIO_RIO = 3643
 ID_ASSUNTO_UNIDADE_FORA_DO_RIO = 3050
 # Provisório (decisão do Ícaro em 2026-10-28): horário da unidade quando o Verde não informa.
 HORARIO_UNIDADE_PADRAO = "de segunda a sexta, das 10h às 17h"
+
+
+# Imagens que a Maria pede à Tykhe, na ordem (#398): (chave do estado, `tipoImagem` do contrato).
+# Lista provisória até a #335 definir os documentos.
+TIPOS_IMAGEM: tuple[tuple[str, str], ...] = (("carteirinhaFrente", "carteirinha_frente"), ("carteirinhaVerso", "carteirinha_verso"))
+# Único domínio dos links de baixar a imagem (modelo informado pela Tykhe em 2026-11-04, #345).
+HOSTS_IMAGEM_PERMITIDOS = frozenset({"downloads.tykhe.dev"})
+TAMANHO_MAXIMO_URL_IMAGEM = 2048
+
+
+def url_imagem_valida(texto: str) -> str | None:
+    """A URL que a Tykhe devolveu, se for https de um host permitido e sem credencial na URL; senão `None`."""
+    url = texto.strip()
+    if not url or len(url) > TAMANHO_MAXIMO_URL_IMAGEM or any(c.isspace() for c in url):
+        return None
+    try:
+        partes = urlsplit(url)
+        host = partes.hostname
+        _ = partes.port
+    except ValueError:
+        return None
+    if partes.scheme != "https" or host not in HOSTS_IMAGEM_PERMITIDOS or partes.username or partes.password:
+        return None
+    return url
 
 
 def extrair_metadados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:

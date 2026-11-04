@@ -55,6 +55,9 @@ class PlanoSaudeState(TypedDict, total=False):
     # Mora fora do município do Rio: a conversa conclui com a unidade que ele deve procurar.
     foraDoRio: bool | None
     tentativasImagens: int | None
+    # Links de baixar as imagens que a Tykhe respondeu (#398): `carteirinhaFrente` e `carteirinhaVerso`.
+    # O token vai na URL, então é segredo: nunca em log, em metadados nem em erro.
+    imagensLinks: dict[str, str] | None
     # Situação em palavras da pessoa. Vem do orquestrador (#334) ou da pergunta da Maria; é dado sensível, nunca vai para log.
     relato: str | None
     tentativasSituacao: int | None
