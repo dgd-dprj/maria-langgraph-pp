@@ -25,6 +25,7 @@ EMAIL_NUDECON_URL = os.environ.get("EMAIL_NUDECON_URL", "")
 EMAIL_NUDECON_API_KEY = os.environ.get("EMAIL_NUDECON_API_KEY", "")
 # Prazo total da chamada: a Lambda baixa as imagens e fala com o SES, e a resposta à Tykhe tem limite de 30 s (#344).
 TIMEOUT_EMAIL_NUDECON_S = 20.0
+TENTATIVAS_EMAIL_NUDECON = 3
 
 
 def protocolo_do_atendimento(chat_id: str) -> str:
@@ -48,24 +49,52 @@ async def enviar_email_nudecon(protocolo: str, dados: Mapping[str, str], imagens
     corpo: dict[str, Any] = {"protocolo": protocolo, "dados": dict(dados)}
     if imagens:
         corpo["imagens"] = dict(imagens)
+    headers = {"authorization": f"Bearer {EMAIL_NUDECON_API_KEY}", "content-type": "application/json"}
+    conteudo = _js.json_stringify(corpo).encode("utf-8")
+    # A função é idempotente pelo `protocolo`: repetir com o mesmo protocolo nunca manda outro e-mail. Por isso 5xx, 409
+    # (envio igual em andamento), falha de rede e prazo são repetidos, dentro do prazo total da chamada.
     try:
         async with asyncio.timeout(TIMEOUT_EMAIL_NUDECON_S):
-            res = await obter_cliente_http().post(
-                EMAIL_NUDECON_URL,
-                headers={"authorization": f"Bearer {EMAIL_NUDECON_API_KEY}", "content-type": "application/json"},
-                content=_js.json_stringify(corpo).encode("utf-8"),
-            )
+            for tentativa in range(1, TENTATIVAS_EMAIL_NUDECON + 1):
+                try:
+                    res = await obter_cliente_http().post(EMAIL_NUDECON_URL, headers=headers, content=conteudo)
+                except httpx.HTTPError as erro:
+                    logger.error(
+                        "[email-nudecon] falha de rede",
+                        protocolo=protocolo,
+                        evento="email_nudecon_falha",
+                        motivo="rede",
+                        tentativa=tentativa,
+                        tipoErro=type(erro).__name__,
+                    )
+                    continue
+                except TimeoutError:
+                    logger.error(
+                        "[email-nudecon] prazo esgotado",
+                        protocolo=protocolo,
+                        evento="email_nudecon_falha",
+                        motivo="timeout",
+                        tentativa=tentativa,
+                    )
+                    continue
+                if res.is_success:
+                    logger.info(
+                        "[email-nudecon] e-mail enviado",
+                        protocolo=protocolo,
+                        evento="email_nudecon_enviado",
+                        status=res.status_code,
+                        tentativa=tentativa,
+                    )
+                    return True
+                logger.error(
+                    "[email-nudecon] função recusou",
+                    protocolo=protocolo,
+                    evento="email_nudecon_falha",
+                    status=res.status_code,
+                    tentativa=tentativa,
+                )
+                if res.status_code < 500 and res.status_code != 409:
+                    return False
     except TimeoutError:
-        logger.error("[email-nudecon] prazo esgotado", protocolo=protocolo, evento="email_nudecon_falha", motivo="timeout")
-        return False
-    except httpx.HTTPError as erro:
-        logger.error(
-            "[email-nudecon] falha de rede", protocolo=protocolo, evento="email_nudecon_falha", motivo="rede", tipoErro=type(erro).__name__
-        )
-        return False
-
-    if not res.is_success:
-        logger.error("[email-nudecon] função recusou", protocolo=protocolo, evento="email_nudecon_falha", status=res.status_code)
-        return False
-    logger.info("[email-nudecon] e-mail enviado", protocolo=protocolo, evento="email_nudecon_enviado", status=res.status_code)
-    return True
+        logger.error("[email-nudecon] prazo total esgotado", protocolo=protocolo, evento="email_nudecon_falha", motivo="timeout")
+    return False

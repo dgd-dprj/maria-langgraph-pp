@@ -78,8 +78,9 @@ async def test_log_nao_leva_dados_link_nem_chave(email_real: TransporteFalso, ca
     saida = capsys.readouterr().out
     for segredo in ("segredo-do-link", "downloads.tykhe.dev", "Fulano", "11111111111", "chave-de-teste"):
         assert segredo not in saida
-    [linha] = [json.loads(x) for x in saida.splitlines() if x.strip()]
-    assert (linha["evento"], linha["protocolo"], linha["status"]) == ("email_nudecon_falha", "NUD-0001", 502)
+    linhas = [json.loads(x) for x in saida.splitlines() if x.strip()]
+    assert len(linhas) == email_nudecon.TENTATIVAS_EMAIL_NUDECON  # 502 é repetido
+    assert {(x["evento"], x["protocolo"], x["status"]) for x in linhas} == {("email_nudecon_falha", "NUD-0001", 502)}
 
 
 async def test_modo_mock_sem_url_ou_chave_nao_chama_a_funcao(transporte: TransporteFalso, capsys: pytest.CaptureFixture[str]) -> None:
@@ -98,3 +99,37 @@ async def test_fora_dos_testes_sem_configuracao_conta_como_falha(
     assert transporte.requisicoes == []
     [linha] = [json.loads(x) for x in capsys.readouterr().out.splitlines() if x.strip()]
     assert (linha["evento"], linha["motivo"]) == ("email_nudecon_falha", "sem_configuracao")
+
+
+def _responder(email_real: TransporteFalso, *respostas: httpx.Response) -> None:
+    fila = list(respostas)
+
+    async def tratar(_req: httpx.Request) -> httpx.Response:
+        return fila.pop(0) if len(fila) > 1 else fila[0]
+
+    email_real.tratador = tratar
+
+
+async def test_5xx_e_409_sao_repetidos_com_o_mesmo_protocolo_ate_dar_certo(email_real: TransporteFalso) -> None:
+    _responder(
+        email_real,
+        httpx.Response(502, json={"erro": "ses"}),
+        httpx.Response(409, json={"erro": "em andamento"}),
+        httpx.Response(200, json={}),
+    )
+    assert await enviar_email_nudecon("NUD-0001", DADOS, IMAGENS) is True
+    assert len(email_real.requisicoes) == 3
+    assert {json.loads(corpo)["protocolo"] for corpo in email_real.corpos} == {"NUD-0001"}
+
+
+async def test_5xx_nas_tres_tentativas_falha(email_real: TransporteFalso) -> None:
+    _responder(email_real, httpx.Response(500, json={"erro": "x"}))
+    assert await enviar_email_nudecon("NUD-0001", DADOS, IMAGENS) is False
+    assert len(email_real.requisicoes) == email_nudecon.TENTATIVAS_EMAIL_NUDECON
+
+
+@pytest.mark.parametrize("status", [400, 401, 413])
+async def test_4xx_nao_e_repetido(email_real: TransporteFalso, status: int) -> None:
+    _responder(email_real, httpx.Response(status, json={"erro": "x"}))
+    assert await enviar_email_nudecon("NUD-0001", DADOS, IMAGENS) is False
+    assert len(email_real.requisicoes) == 1
