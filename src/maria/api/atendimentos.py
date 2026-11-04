@@ -61,14 +61,17 @@ def _arredondar_js(valor: float) -> int:
     return math.floor(valor + 0.5)
 
 
-def destino_do_log(fluxo_id: str, status_final: Any) -> str | None:
-    """Issue #92: o `destino` do desfecho. Issue #288: também vai na resposta de atendimento encerrado."""
+def destino_do_log(fluxo_id: str, status_final: Any, valores: Mapping[str, Any] | None = None) -> str | None:
+    """Issue #92: o `destino` do desfecho. Issue #288: também vai na resposta de atendimento encerrado.
+    `valores` com `destino` (o fluxo concluído que define o próprio, como `email_enviado`) vale para `concluido`."""
     if status_final == "handoff_humano":
         return "atendimento_humano"
     if status_final == "expirado":
         return "sessao_expirada"
     if fluxo_id == ID_VIOLENCIA_DOMESTICA:
         return "agendamento"
+    if status_final == "concluido" and valores is not None and isinstance(valores.get("destino"), str):
+        return str(valores["destino"])
     return None
 
 
@@ -129,7 +132,7 @@ def montar_resposta_atendimento(
         "_links": montar_links(chat_id, status),
     }
     # #288: o "para onde vai", o mesmo valor que já vai para o log e para a tabela `atendimentos`.
-    destino = destino_do_log(fluxo_id, status)
+    destino = destino_do_log(fluxo_id, status, valores)
     if destino is not None:
         corpo["destino"] = destino
     return corpo
@@ -203,7 +206,7 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         )
         return
     status_final = resultado.get("statusFinal")
-    destino = destino_do_log(fluxo_id, status_final)
+    destino = destino_do_log(fluxo_id, status_final, resultado)
     log.info(
         "atendimento finalizado",
         fluxoId=fluxo_id,

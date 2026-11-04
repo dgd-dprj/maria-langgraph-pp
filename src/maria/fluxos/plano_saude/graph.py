@@ -430,7 +430,7 @@ async def outra_pessoa(state: PlanoSaudeState) -> Atualizacao:
 
 
 async def concluir(state: PlanoSaudeState) -> Atualizacao:
-    return {"statusFinal": "concluido", "mensagemFinal": MENSAGEM_CONCLUIDO}
+    return {"statusFinal": "concluido", "destino": "email_enviado", "mensagemFinal": MENSAGEM_CONCLUIDO}
 
 
 def _deu_erro(state: PlanoSaudeState) -> bool:

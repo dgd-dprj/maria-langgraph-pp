@@ -231,6 +231,7 @@ async def test_plano_saude_imagens_por_link_do_pedido_a_resposta_final_398(
     r = await _responder(cliente, auth, chat_id, "true")
     corpo = r.json()
     assert corpo["status"] == "concluido"
+    assert corpo["destino"] == "email_enviado"
     assert corpo["dadosColetados"]["imagens"] == {"carteirinhaFrente": LINK_FRENTE_HTTP, "carteirinhaVerso": LINK_VERSO_HTTP}
     assert "imagens" not in str(corpo["metadados"])
     saida = capsys.readouterr()
