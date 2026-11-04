@@ -41,6 +41,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_CONCLUIDO,
     MENSAGEM_DADOS_NAO_CONFIRMADOS,
     MENSAGEM_ERRO_INTERNO,
+    MENSAGEM_FALHA_ENVIO_EMAIL,
     MENSAGEM_FALHA_INFRA_VERDE,
     MENSAGEM_FORA_DO_RIO,
     MENSAGEM_FORA_DO_RIO_COM_UNIDADE,
@@ -55,6 +56,7 @@ from maria.fluxos.plano_saude.api import (
 )
 from maria.fluxos.plano_saude.state import CanalAtendimento, MotivoHandoffPlanoSaude, PlanoSaudeState
 from maria.ia.reescrever import preparar_pergunta
+from maria.integracoes.email_nudecon import enviar_email_nudecon, protocolo_do_atendimento
 from maria.integracoes.verde import consultar_cep, consultar_orgaos_primeiro_atendimento, consultar_pessoa_por_cpf
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
@@ -386,10 +388,9 @@ def _reais(valor: float) -> str:
     return f"R$ {inteiro.replace(',', '.')},{centavos}"
 
 
-def montar_resumo(state: PlanoSaudeState) -> str:
-    """Os dados da Tykhe como vieram, mais a renda. Dado ausente aparece como "não informado"."""
+def _linhas_resumo(state: PlanoSaudeState) -> list[tuple[str, str]]:
     renda = state.get("renda")
-    linhas = [
+    return [
         ("Nome", _texto(state.get("nome"))),
         ("CPF", _texto(state.get("cpf"))),
         ("Data de nascimento", _texto(state.get("dataNascimento"))),
@@ -399,7 +400,11 @@ def montar_resumo(state: PlanoSaudeState) -> str:
         ("Situação", _texto(state.get("relato"))),
         ("Renda mensal", _reais(renda) if renda is not None else ""),
     ]
-    return "\n".join(f"{rotulo}: {valor or NAO_INFORMADO}" for rotulo, valor in linhas)
+
+
+def montar_resumo(state: PlanoSaudeState) -> str:
+    """Os dados da Tykhe como vieram, mais a renda. Dado ausente aparece como "não informado"."""
+    return "\n".join(f"{rotulo}: {valor or NAO_INFORMADO}" for rotulo, valor in _linhas_resumo(state))
 
 
 async def preparar_pergunta_confirmacao(state: PlanoSaudeState) -> Atualizacao:
@@ -431,6 +436,12 @@ async def outra_pessoa(state: PlanoSaudeState) -> Atualizacao:
 
 
 async def concluir(state: PlanoSaudeState) -> Atualizacao:
+    # #405: o e-mail ao NUDECON sai aqui, e `email_enviado` só vale depois da confirmação da função.
+    contexto = contexto_atual()
+    dados = {rotulo: valor or NAO_INFORMADO for rotulo, valor in _linhas_resumo(state)}
+    enviado = await enviar_email_nudecon(protocolo_do_atendimento(contexto.get("chatId", "")), dados, state.get("imagensLinks") or {})
+    if not enviado:
+        return {"statusFinal": "handoff_humano", "motivoHandoff": "falha_envio_email", "mensagemFinal": MENSAGEM_FALHA_ENVIO_EMAIL}
     return {"statusFinal": "concluido", "destino": "email_enviado", "mensagemFinal": MENSAGEM_CONCLUIDO}
 
 
