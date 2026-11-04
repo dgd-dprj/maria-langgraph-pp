@@ -39,13 +39,13 @@ resource "aws_ecs_task_definition" "api" {
       # mesmo fix já validado em release.tf e local.
       { name = "BEDROCK_MODEL_ID", value = "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
     ]
-    secrets = concat([
+    # Issue #405 — produção ainda não chama a Lambda de e-mail (o plano de saúde só roda no release, #324):
+    # EMAIL_NUDECON_URL/EMAIL_NUDECON_API_KEY ficam fora daqui. O segredo `email-nudecon` de produção já existe
+    # (secrets.tf) e a role de execução já o lê; para ligar, basta pôr as duas chaves nesta lista, como em release.tf.
+    secrets = [
       for k in ["VERDE_API_URL", "VERDE_JWT_TOKEN", "VERDE_CLIENT_ID", "DATABASE_URL", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT", "API_KEY"] :
       { name = k, valueFrom = "${aws_secretsmanager_secret.app.arn}:${k}::" }
-      ], [
-      for k in ["EMAIL_NUDECON_URL", "EMAIL_NUDECON_API_KEY"] :
-      { name = k, valueFrom = "${aws_secretsmanager_secret.email_nudecon.arn}:${k}::" }
-    ])
+    ]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
