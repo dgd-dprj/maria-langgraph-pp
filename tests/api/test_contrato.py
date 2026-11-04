@@ -183,5 +183,5 @@ async def test_fluxo_novo_muda_so_os_casos_medidos(
     nome: str = request.node.callspec.params["instancia"]
     registrar_fluxo_de_brinquedo(monkeypatch)
     por_caso = await _conferir(instancia, nome, capsys)
-    assert casos_que_falharam(por_caso) == CASOS_DE_UM_FLUXO_NOVO["contrato"] & set(por_caso)
+    assert casos_que_falharam(por_caso, "contrato") == CASOS_DE_UM_FLUXO_NOVO["contrato"] & set(por_caso)
     assert falhas_da_conferencia(por_caso, aposentados_do_brinquedo("contrato")) == []

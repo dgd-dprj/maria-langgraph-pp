@@ -6,7 +6,8 @@ por IA). Vindo do orquestrador, identifica quem pede (`identificar_assistido`)
 e cadastra quem não foi encontrado (`cadastro_pessoa`).
 
 Reproduzido de develop, com issues abertas para depois da migração:
-- `pedirConfirmaNome` mostra o nome do apenado a partir do RG digitado (#236);
+- `pedirConfirmaNome` mostrava o nome do apenado a partir do RG digitado (#236);
+  desde a #393, mostra o nome mascarado (primeiro nome e iniciais);
 - parentesco não validado, e a lista difere da do SIPEN (#212);
 - `situacao`, `tipoPreso` ou `regime` com `null` do Verde lançam TypeError no
   `concluir`, como o `null.toUpperCase()` de develop (spec 05, 3.2).
@@ -39,6 +40,7 @@ from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_apenado_por_rg
 from maria.integracoes.verde import consultar_processo_com_status as consultar_processo_verde
 from maria.shared import _js
+from maria.shared.nomes import nome_mascarado
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.cadastro_pessoa.graph import grafo as subgrafo_cadastro_pessoa
 from maria.subgrafos.identificar_assistido.graph import grafo as subgrafo_identificar_assistido
@@ -164,6 +166,9 @@ def texto_tentar_novamente(state: PessoaPresaState) -> str:
 
 def texto_confirma_nome(state: PessoaPresaState) -> str:
     nome = _js.coalesce(_js.opt(_ler(state, "dadosApenado"), "nome"), "essa pessoa")
+    # #393 (decisão da Nicole, 2026-11-04): quem digita o RG de qualquer pessoa não vê o nome completo dela.
+    if isinstance(nome, str) and nome.strip() and nome != "essa pessoa":
+        return f"Confirma que a pessoa presa é {nome_mascarado(nome)}?"
     return f"Confirma que a pessoa presa é {_js.texto_template(nome)}?"
 
 

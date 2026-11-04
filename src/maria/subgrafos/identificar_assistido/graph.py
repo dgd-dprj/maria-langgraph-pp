@@ -9,6 +9,9 @@ pai decide olhando `dadosPessoa.encontrado` e `confirmaAssistido`:
 A confirmação só existe pelo orquestrador (#191) e com o CPF digitado na
 conversa. Com o CPF vindo da Tykhe, não há confirmação (#236, decisão de 03/11).
 
+A confirmação mostra o nome mascarado (primeiro nome e iniciais) e prefere o
+nome social (#393).
+
 Nenhum vira handoff aqui; isso fica com o fluxo pai.
 """
 
@@ -23,6 +26,7 @@ from langgraph.types import interrupt
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.verde import consultar_pessoa_por_cpf
 from maria.shared import _js
+from maria.shared.nomes import nome_mascarado
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.identificar_assistido.state import IdentificarAssistidoState
 
@@ -59,7 +63,15 @@ def texto_tentar_novamente(state: IdentificarAssistidoState) -> str:
 
 
 def texto_confirma_assistido(state: IdentificarAssistidoState) -> str:
-    nome = _js.coalesce(_js.opt(state.get("dadosPessoa", _js.AUSENTE), "nome"), "você")
+    # #393: quem digita o CPF de outra pessoa não pode ver o nome completo do titular. A
+    # confirmação mostra o nome mascarado, e o nome social quando o Verde tiver um.
+    dados = state.get("dadosPessoa", _js.AUSENTE)
+    for campo in ("nomeSocial", "nome"):
+        valor = _js.opt(dados, campo)
+        if isinstance(valor, str) and valor.strip():
+            return f"Confirma que seus dados são: {nome_mascarado(valor)}?"
+    # Sem nome em texto, como antes: `nome ?? "você"`.
+    nome = _js.coalesce(_js.opt(dados, "nome"), "você")
     return f"Confirma que seus dados são: {_js.texto_template(nome)}?"
 
 

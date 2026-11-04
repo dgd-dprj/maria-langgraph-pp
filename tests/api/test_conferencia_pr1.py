@@ -127,5 +127,5 @@ async def test_fluxo_novo_muda_so_os_casos_medidos(cliente_conferencia: httpx.As
     # #321: com um fluxo a mais, quebram só os casos medidos; aposentados, a conferência passa.
     registrar_fluxo_de_brinquedo(monkeypatch)
     por_caso = await _conferir(cliente_conferencia, monkeypatch)
-    assert casos_que_falharam(por_caso) == CASOS_DE_UM_FLUXO_NOVO["pr1"]
+    assert casos_que_falharam(por_caso, "pr1") == CASOS_DE_UM_FLUXO_NOVO["pr1"]
     assert falhas_da_conferencia(por_caso, aposentados_do_brinquedo("pr1")) == []

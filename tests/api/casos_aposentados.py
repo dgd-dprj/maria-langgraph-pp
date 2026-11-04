@@ -57,15 +57,24 @@ def nomes_dos_casos(conferencia: str) -> list[str]:
 # Fluxo "Problemas com plano de saúde" (NUDECON, #329) muda a lista de GET /fluxos; o teste escrito é o de test_app.py.
 _FLUXO_NOVO = CasoAposentado(issue=329, motivo="fluxo novo muda a lista de GET /fluxos", teste="tests/api/test_app.py")
 
+# #393 (decisão da Nicole, 2026-11-04): "Confirma que a pessoa presa é …?" mostra o nome mascarado.
+_NOME_MASCARADO = CasoAposentado(
+    issue=393, motivo="o nome do apenado sai mascarado na confirmação do RG", teste="tests/fluxos/test_pessoa_presa.py"
+)
+
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
-    "contrato": {"fluxos-200": _FLUXO_NOVO},
+    "contrato": {
+        "fluxos-200": _FLUXO_NOVO,
+        "pessoa-presa-resposta-rg-200": _NOME_MASCARADO,
+        "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
+    },
     "pr1": {
         "fluxos": _FLUXO_NOVO,
         "fluxos_query": _FLUXO_NOVO,
         "auth_bearer_espacos_fluxos": _FLUXO_NOVO,
         "auth_bearer_duplo_espaco_fluxos": _FLUXO_NOVO,
     },
-    "pr2": {"rota_get_fluxos_codificado": _FLUXO_NOVO},
+    "pr2": {"rota_get_fluxos_codificado": _FLUXO_NOVO, "pp_rg": _NOME_MASCARADO, "pp_get_confirma_nome": _NOME_MASCARADO},
 }
 
 

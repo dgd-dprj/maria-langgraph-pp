@@ -93,6 +93,9 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 **Esperado:** uma mensagem de encaminhamento com o **nome de um órgão** e um **número de protocolo**.
 
 Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro. Isso vale para o CPF digitado na conversa; se a Tykhe já mandou o CPF, não há confirmação (#236).
+- **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Confirma que seus dados são: Maria S. S.?"). Se o cadastro tiver nome social, é ele que aparece, também mascarado.
+- **Antes da #393:** o nome completo do cadastro.
+- **No cadastro do passo 5,** a confirmação continua com o nome que você acabou de digitar, por inteiro.
 
 > **Este caso grava duas vezes na homologação:** o cadastro no passo 5 (com CPF inventado) e o encaminhamento no passo 6.
 
@@ -101,7 +104,7 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 1. Relato livre sobre um familiar preso (inventado).
 2. Número do processo → **Sim** e um número de teste (SEEU, se houver), ou **Não**.
 3. RG da pessoa presa → o **RG de teste**.
-4. "Confirma que é <nome>?" → **Sim**.
+4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
 5. Parentesco → por exemplo, "sou a mãe".
 6. CPF de quem está conversando → um CPF inventado (e o cadastro, como no caso A) ou um já cadastrado.
 
