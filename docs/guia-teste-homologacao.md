@@ -107,7 +107,8 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 
 **Esperado:**
 - sem número de processo: "Já confirmei os dados da pessoa presa, mas como você não tem o número do processo, vou encaminhar seu atendimento pra equipe localizar isso e dar continuidade.";
-- com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui."
+- com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui.";
+- **com um número de processo que o Verde não acha** (por exemplo, um número inventado, no passo 2): **depois da #341,** "Não consegui localizar esse número de processo no sistema. Vou encaminhar seu atendimento pra equipe conferir com você." **Antes da #341,** a mensagem dizia que o processo "tem uma origem que ainda não consigo tratar por aqui". Um processo que existe, mas não é do SEEU, continua com a mensagem da origem.
 
 > **Este caso só grava se cair no cadastro** (passo 6 com um CPF que não existe). Pessoa presa não cria encaminhamento no Verde.
 
