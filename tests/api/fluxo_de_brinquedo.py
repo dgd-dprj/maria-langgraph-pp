@@ -10,7 +10,7 @@ import pytest
 from maria.fluxos import FluxoConfig, fluxos_por_id
 from maria.fluxos.padrao import api as api_padrao
 from maria.fluxos.padrao.graph import obter_grafo
-from tests.api.casos_aposentados import CONFERENCIAS, CasoAposentado
+from tests.api.casos_aposentados import CASOS_APOSENTADOS, CONFERENCIAS, CasoAposentado
 
 ID_BRINQUEDO = "0b1d7c1e-0000-4000-8000-00000000b21d"
 
@@ -39,13 +39,20 @@ def registrar_fluxo_de_brinquedo(monkeypatch: pytest.MonkeyPatch) -> None:
     )
 
 
-def casos_que_falharam(por_caso: Mapping[str, list[str]]) -> set[str]:
-    return {nome for nome, falhas in por_caso.items() if falhas}
+def aposentados_por_outro_motivo(conferencia: str) -> dict[str, CasoAposentado]:
+    """Casos aposentados por uma mudança de comportamento, e não por fluxo novo (a #393, por exemplo).
+    Eles falham com ou sem o fluxo de brinquedo, então ficam fora da medição do que um fluxo novo muda."""
+    return {nome: caso for nome, caso in CASOS_APOSENTADOS[conferencia].items() if nome not in CASOS_DE_UM_FLUXO_NOVO[conferencia]}
+
+
+def casos_que_falharam(por_caso: Mapping[str, list[str]], conferencia: str) -> set[str]:
+    """Os casos que falharam com o fluxo de brinquedo, sem os aposentados por outro motivo."""
+    return {nome for nome, falhas in por_caso.items() if falhas} - set(aposentados_por_outro_motivo(conferencia))
 
 
 def aposentados_do_brinquedo(conferencia: str) -> dict[str, CasoAposentado]:
-    """Os casos medidos, aposentados como um fluxo novo faria."""
+    """Os casos medidos, aposentados como um fluxo novo faria, mais os aposentados por outro motivo."""
     return {
         nome: CasoAposentado(issue=321, motivo="fluxo novo muda a lista de GET /fluxos", teste=CONFERENCIAS[conferencia])
         for nome in CASOS_DE_UM_FLUXO_NOVO[conferencia]
-    }
+    } | aposentados_por_outro_motivo(conferencia)

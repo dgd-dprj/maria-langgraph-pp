@@ -316,7 +316,7 @@ async def test_12_confirmacao_com_nome_e_resposta() -> None:
     ],
 )
 def test_393_nome_mascarado(nome: str, esperado: str) -> None:
-    from maria.subgrafos.identificar_assistido.graph import nome_mascarado
+    from maria.shared.nomes import nome_mascarado
 
     assert nome_mascarado(nome) == esperado
 

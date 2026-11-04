@@ -23,6 +23,7 @@ from langgraph.types import interrupt
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.verde import consultar_pessoa_por_cpf
 from maria.shared import _js
+from maria.shared.nomes import nome_mascarado
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.identificar_assistido.state import IdentificarAssistidoState
 
@@ -56,21 +57,6 @@ def cpf_veio_de_dados_conhecidos(state: IdentificarAssistidoState) -> bool:
 def texto_tentar_novamente(state: IdentificarAssistidoState) -> str:
     tentativa = _js.coalesce(state.get("tentativasCpf"), 1)
     return f"Não encontrei ninguém com esse CPF (tentativa {_js.texto_template(tentativa)} de 3). Quer tentar de novo?"
-
-
-# Partículas que não viram inicial: "Maria da Silva" fica "Maria S.".
-_PARTICULAS = frozenset({"da", "das", "de", "do", "dos", "e", "di", "du"})
-
-
-def nome_mascarado(nome: str) -> str:
-    """Primeiro nome e as iniciais dos outros: "MARIA DA SILVA SANTOS" vira "Maria S. S."
-    (#393, decisão da Nicole de 2026-11-04). Palavra que não começa com letra, como "(mock)", fica fora."""
-    palavras = [p for p in nome.split() if p[:1].isalpha()]
-    if not palavras:
-        return nome
-    primeiro = palavras[0][:1].upper() + palavras[0][1:].lower()
-    iniciais = [f"{p[:1].upper()}." for p in palavras[1:] if p.lower() not in _PARTICULAS]
-    return " ".join([primeiro, *iniciais])
 
 
 def texto_confirma_assistido(state: IdentificarAssistidoState) -> str:
