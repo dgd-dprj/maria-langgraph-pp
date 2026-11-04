@@ -94,6 +94,8 @@ class DadosCep(TypedDict, total=False):
     bairro: str
     municipio: str
     logradouro: str
+    # Mesmo racional de DadosPessoa.falhaInfra: o Verde falhou (401/403/5xx), não "CEP não encontrado".
+    falhaInfra: bool
 
 
 class HorarioUrgencia(TypedDict, total=False):
@@ -132,6 +134,15 @@ class OrgaosViolenciaDomestica(TypedDict, total=False):
     # mensagemCrc vem pronta do Verde ("...ligar 129").
     contactarCrc: bool
     mensagemCrc: str
+
+
+class OrgaosPrimeiroAtendimento(TypedDict, total=False):
+    """`GET /orgao/primeiro-atendimento`: órgãos habilitados para o assunto e a pessoa."""
+
+    encontrado: Required[bool]
+    orgaos: Required[list[OrgaoAtendimento]]
+    # Mesmo racional de DadosPessoa.falhaInfra.
+    falhaInfra: bool
 
 
 class Plantao(TypedDict, total=False):

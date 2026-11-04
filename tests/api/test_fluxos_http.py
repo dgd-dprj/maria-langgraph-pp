@@ -157,9 +157,15 @@ async def test_pp_completo_sem_processo_handoff_com_metadados_preenchidos_49(
 # --- Problemas com plano de saúde (NUDECON, #329) ---
 
 
+# O fluxo confere o município pelo CEP antes de perguntar (#331); o mock do Verde devolve o Rio.
+PLANO_SAUDE_COM_CEP = {"endereco": {"cep": "20000000"}}
+
+
 async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
     r = await cliente.post(
-        "/atendimentos", json={"chatId": f"teste-ps-http-{next(_ids)}", "flowId": ID_PROBLEMAS_PLANO_SAUDE}, headers=auth
+        "/atendimentos",
+        json={"chatId": f"teste-ps-http-{next(_ids)}", "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": PLANO_SAUDE_COM_CEP},
+        headers=auth,
     )
     corpo = r.json()
     assert r.status_code == 200
@@ -170,7 +176,11 @@ async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClien
 
 async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
     chat_id = f"teste-ps-http-{next(_ids)}"
-    await cliente.post("/atendimentos", json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE}, headers=auth)
+    await cliente.post(
+        "/atendimentos",
+        json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": PLANO_SAUDE_COM_CEP},
+        headers=auth,
+    )
     await _responder(cliente, auth, chat_id, "por aqui")
     r = await _responder(cliente, auth, chat_id, "false")
     corpo = r.json()
@@ -179,3 +189,16 @@ async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: ht
     assert corpo["destino"] == "atendimento_humano"
     assert corpo["metadados"]["motivoHandoff"] == "outra_pessoa"
     assert "outra pessoa" in corpo["resposta"]
+
+
+async def test_plano_saude_sem_municipio_do_rio_encerra_na_criacao_com_atendimento_humano(
+    cliente: httpx.AsyncClient, auth: dict[str, str]
+) -> None:
+    r = await cliente.post(
+        "/atendimentos", json={"chatId": f"teste-ps-http-{next(_ids)}", "flowId": ID_PROBLEMAS_PLANO_SAUDE}, headers=auth
+    )
+    corpo = r.json()
+    assert r.status_code == 200
+    assert corpo["status"] == "handoff_humano"
+    assert corpo["destino"] == "atendimento_humano"
+    assert corpo["metadados"]["motivoHandoff"] == "municipio_nao_identificado"

@@ -12,6 +12,8 @@ Vai contribuir? Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) (fluxo de issue, branch
 
 ## Rodando local
 
+Para subir a API com um Postgres local, use `docker compose up --build` e confira com `curl -s http://127.0.0.1:3001/health` (seção 6.1 do guia abaixo).
+
 O guia completo, testado numa pasta limpa, está em [`docs/rodar-localmente.md`](docs/rodar-localmente.md): instalação, os dois modos (sem AWS e com o Bedrock real), como chamar o orquestrador e responder às perguntas, e problemas comuns.
 
 O mínimo (Python 3.12 e [uv](https://docs.astral.sh/uv/)):
@@ -90,7 +92,6 @@ src/maria/
 tests/                # espelha src/maria/; fixtures de contrato em tests/fixtures/
 scripts/              # utilitários de manutenção, fora da imagem (ver scripts/README.md)
 infra/terraform/      # infraestrutura AWS
-infra/grafana/        # painéis e alertas versionados
 ```
 
 Ferramentas fora do Python: o **Node.js** só é preciso para os hooks do Claude Code (`.claude/hooks/`), para o `scripts/logs-prod.sh` (`pino-pretty`) e para gerar diagramas (`mermaid-cli`). Nada da aplicação depende dele.

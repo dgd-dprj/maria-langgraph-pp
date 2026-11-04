@@ -108,6 +108,9 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
 # statement, terraform-drift.yml falha com AccessDenied nos 2 secrets
 # do Grafana (achado ao vivo 2026-09-21). Continua restrito aos 4
 # secrets deste projeto, nunca um wildcard pra conta toda.
+#
+# Issue #380 — o Grafana saiu: os 2 secrets dele deixaram a lista, que voltou a
+# ter só os 2 secrets de app.
 data "aws_iam_policy_document" "github_actions_read_app_secrets" {
   statement {
     sid     = "ReadAppSecretsForTokenCheckAndTerraformRefresh"
@@ -115,8 +118,6 @@ data "aws_iam_policy_document" "github_actions_read_app_secrets" {
     resources = [
       aws_secretsmanager_secret.app.arn,
       aws_secretsmanager_secret.app_release.arn,
-      aws_secretsmanager_secret.grafana.arn,
-      aws_secretsmanager_secret.grafana_postgres_readonly.arn,
     ]
   }
 }

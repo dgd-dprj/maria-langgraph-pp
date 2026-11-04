@@ -153,6 +153,14 @@ def _literal_vector(vetor: Sequence[float]) -> str:
     return "[" + ",".join(str(v) for v in vetor) + "]"
 
 
+def _preencher_dimensoes(vetor: Sequence[float]) -> Sequence[float]:
+    # O embedding falso (APP_ENV=test) tem 16 posições e a coluna é vector(1024):
+    # sem completar com zeros, o INSERT falha. Zeros não mudam o cosseno.
+    if len(vetor) >= DIMENSOES:
+        return vetor
+    return [*vetor, *([0] * (DIMENSOES - len(vetor)))]
+
+
 class _BuscaPostgres:
     def __init__(self, pool: PoolAsync) -> None:
         self._pool = pool
@@ -182,7 +190,7 @@ class _BuscaPostgres:
                 """INSERT INTO fluxo_embeddings (id, nome, descricao, embedding)
              VALUES (%(id)s, %(nome)s, %(descricao)s, %(embedding)s::vector)
              ON CONFLICT (id) DO UPDATE SET nome = %(nome)s, descricao = %(descricao)s, embedding = %(embedding)s::vector""",
-                {"id": f["id"], "nome": f["nome"], "descricao": f["descricao"], "embedding": _literal_vector(vetor)},
+                {"id": f["id"], "nome": f["nome"], "descricao": f["descricao"], "embedding": _literal_vector(_preencher_dimensoes(vetor))},
             )
 
     async def _indexar(self, catalogo: Sequence[FluxoParaIndexar]) -> None:
@@ -208,7 +216,7 @@ class _BuscaPostgres:
         if len(catalogo) <= k:
             return list(catalogo)
         await self.garantir_indexado(catalogo)
-        embedding_mensagem = _literal_vector(await gerar_embedding(mensagem))
+        embedding_mensagem = _literal_vector(_preencher_dimensoes(await gerar_embedding(mensagem)))
         inicio = time.monotonic()
         async with self._pool.connection() as conexao:
             linhas = await (
