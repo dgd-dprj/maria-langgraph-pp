@@ -13,7 +13,9 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_OUTRA_PESSOA,
 )
 from maria.fluxos.plano_saude.graph import interpretar_canal, interpretar_renda, montar_resumo, obter_grafo
+from maria.integracoes.email_nudecon import ResultadoEmail
 from maria.shared.types import DadosCep, DadosPessoa, OrgaoAtendimento, OrgaosPrimeiroAtendimento
+from tests.conftest import EmailNudeconFalso
 from tests.fluxos.conftest import Fluxo, pergunta, texto
 
 # Sem CEP o fluxo nem começa (#331); o mock do Verde devolve o Rio para qualquer CEP que não seja "00000000".
@@ -562,3 +564,38 @@ async def test_tentativas_de_imagem_zeram_a_cada_imagem_recebida() -> None:
     r = await f.responder(LINK_FRENTE)
     assert pergunta(r)["tipoImagem"] == "carteirinha_verso"  # type: ignore[index]
     assert (await f.estado())["tentativasImagens"] == 0
+
+
+async def test_confirmacao_envia_o_email_com_dados_imagens_e_protocolo_proprio(email_nudecon: EmailNudeconFalso) -> None:
+    f = _fluxo()
+    await f.iniciar({**COM_CEP, "nome": "Fulano Fictício", "relato": "O plano negou a minha cirurgia"})
+    await f.responder("por aqui", "true")
+    await f.responder(LINK_FRENTE, LINK_VERSO)
+    r = await f.responder("2500", "sim")
+    assert r["statusFinal"] == "concluido" and r["destino"] == "email_enviado"
+    assert len(email_nudecon.chamadas) == 1
+    chamada = email_nudecon.chamadas[0]
+    assert str(chamada["protocolo"]).startswith("NUD-") and "teste-plano-saude" not in str(chamada["protocolo"])
+    assert chamada["dados"]["Nome"] == "Fulano Fictício"  # type: ignore[index]
+    assert chamada["dados"]["Renda mensal"] == "R$ 2.500,00"  # type: ignore[index]
+    assert chamada["imagens"] == {"carteirinhaFrente": LINK_FRENTE, "carteirinhaVerso": LINK_VERSO}
+
+
+async def test_falha_no_envio_do_email_leva_ao_atendimento_humano(email_nudecon: EmailNudeconFalso) -> None:
+    email_nudecon.resultado = ResultadoEmail(ok=False, motivo="http_502")
+    f = _fluxo()
+    await f.iniciar({**COM_CEP, "imagensRecebidas": True, "relato": "O plano negou a minha cirurgia"})
+    r = await f.responder("por aqui", "true", "2500", "sim")
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "falha_envio_email"
+    assert "destino" not in r
+    assert email_nudecon.chamadas[0]["imagens"] is None
+
+
+async def test_presencial_e_fora_do_rio_nao_enviam_email(email_nudecon: EmailNudeconFalso, monkeypatch: pytest.MonkeyPatch) -> None:
+    f = _fluxo()
+    await f.iniciar(COM_CEP)
+    await f.responder("presencial")
+    _verde_fora_do_rio(monkeypatch, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]})
+    await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
+    assert email_nudecon.chamadas == []

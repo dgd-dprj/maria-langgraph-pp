@@ -55,6 +55,8 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 | `WHATSAPP_API_URL` | `https://graph.facebook.com/v21.0` | API da Meta para o bridge do WhatsApp ([`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md)) |
 | `WHATSAPP_PHONE_NUMBER_ID` | ausente | Número do WhatsApp na Meta. Sem ele (ou sem o token), o envio é simulado e só registrado no log |
 | `WHATSAPP_ACCESS_TOKEN` | ausente | Token da Meta para enviar mensagens |
+| `EMAIL_NUDECON_URL` | ausente | URL da função Lambda `maria-email-nudecon` (#405). Sem ela e sem a chave, o plano de saúde que conclui por e-mail no Rio vai ao atendimento humano |
+| `EMAIL_NUDECON_CHAVE` | ausente | Chave `Bearer` da função de e-mail (segredo; só no Secrets Manager, nunca no código) |
 | `WHATSAPP_VERIFY_TOKEN` | ausente | Token da verificação do webhook (`GET /webhook/whatsapp`). Sem ele, a verificação sempre devolve 403 |
 | `MOCK_CLASSIFICACAO_FLOWID` | ausente | Com `APP_ENV=test`, o fluxo que a classificação simulada escolhe. Sem ela, o relato vai para `outros` |
 | `MOCK_CLASSIFICACAO_FLOWIDS` | ausente | Com `APP_ENV=test`, vários ids separados por vírgula: simula um relato ambíguo (desambiguação) |

@@ -87,4 +87,6 @@ MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO = "Não consegui confirmar o seu município.
 MENSAGEM_FALHA_INFRA_VERDE = "Não consegui consultar o seu endereço agora. Vou encaminhar seu atendimento para a equipe."
 # Qualquer falha inesperada do fluxo: o assistido não pode ficar sem atendimento (#329).
 MENSAGEM_ERRO_INTERNO = "Tive um problema para continuar o seu atendimento. Vou encaminhar para a equipe dar continuidade."
+# O e-mail ao NUDECON não saiu (#405): o assistido não pode ficar sem atendimento.
+MENSAGEM_FALHA_ENVIO_EMAIL = "Tive um problema para enviar o seu atendimento ao NUDECON. Vou encaminhar para a equipe dar continuidade."
 MENSAGEM_HANDOFF = "Vou encaminhar seu atendimento para um atendente humano."

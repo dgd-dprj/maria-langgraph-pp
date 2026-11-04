@@ -24,6 +24,7 @@ MotivoHandoffPlanoSaude = Literal[
     "fora_do_rio",
     "municipio_nao_identificado",
     "falha_infra_verde",
+    "falha_envio_email",
     "erro_interno",
 ]
 
@@ -56,6 +57,8 @@ class PlanoSaudeState(TypedDict, total=False):
     foraDoRio: bool | None
     # Para onde o atendimento concluído vai (`email_enviado`: o Rio, por e-mail; `unidade_informada`: presencial ou fora do Rio).
     destino: str | None
+    # Protocolo do e-mail ao NUDECON (#405): gerado pela Maria, nunca o `chatId`; é a chave de idempotência da função.
+    protocoloEmail: str | None
     tentativasImagens: int | None
     # Links de baixar as imagens que a Tykhe respondeu (#398): `carteirinhaFrente` e `carteirinhaVerso`.
     # O token vai na URL, então é segredo: nunca em log, em metadados nem em erro.

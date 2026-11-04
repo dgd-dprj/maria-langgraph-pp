@@ -24,6 +24,7 @@ from __future__ import annotations
 import functools
 import re
 import unicodedata
+import uuid
 from collections.abc import Awaitable, Callable, Hashable, Mapping
 from typing import Any
 
@@ -41,6 +42,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_CONCLUIDO,
     MENSAGEM_DADOS_NAO_CONFIRMADOS,
     MENSAGEM_ERRO_INTERNO,
+    MENSAGEM_FALHA_ENVIO_EMAIL,
     MENSAGEM_FALHA_INFRA_VERDE,
     MENSAGEM_FORA_DO_RIO,
     MENSAGEM_FORA_DO_RIO_COM_UNIDADE,
@@ -55,6 +57,7 @@ from maria.fluxos.plano_saude.api import (
 )
 from maria.fluxos.plano_saude.state import CanalAtendimento, MotivoHandoffPlanoSaude, PlanoSaudeState
 from maria.ia.reescrever import preparar_pergunta
+from maria.integracoes.email_nudecon import enviar_email_nudecon
 from maria.integracoes.verde import consultar_cep, consultar_orgaos_primeiro_atendimento, consultar_pessoa_por_cpf
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
@@ -386,10 +389,9 @@ def _reais(valor: float) -> str:
     return f"R$ {inteiro.replace(',', '.')},{centavos}"
 
 
-def montar_resumo(state: PlanoSaudeState) -> str:
-    """Os dados da Tykhe como vieram, mais a renda. Dado ausente aparece como "não informado"."""
+def _linhas_resumo(state: PlanoSaudeState) -> list[tuple[str, str]]:
     renda = state.get("renda")
-    linhas = [
+    return [
         ("Nome", _texto(state.get("nome"))),
         ("CPF", _texto(state.get("cpf"))),
         ("Data de nascimento", _texto(state.get("dataNascimento"))),
@@ -399,7 +401,16 @@ def montar_resumo(state: PlanoSaudeState) -> str:
         ("Situação", _texto(state.get("relato"))),
         ("Renda mensal", _reais(renda) if renda is not None else ""),
     ]
-    return "\n".join(f"{rotulo}: {valor or NAO_INFORMADO}" for rotulo, valor in linhas)
+
+
+def montar_resumo(state: PlanoSaudeState) -> str:
+    """Os dados da Tykhe como vieram, mais a renda. Dado ausente aparece como "não informado"."""
+    return "\n".join(f"{rotulo}: {valor or NAO_INFORMADO}" for rotulo, valor in _linhas_resumo(state))
+
+
+def montar_dados_email(state: PlanoSaudeState) -> dict[str, str]:
+    """Os mesmos campos do resumo que a pessoa confirmou, no formato `rótulo: valor` da função de e-mail (#405)."""
+    return {rotulo: valor or NAO_INFORMADO for rotulo, valor in _linhas_resumo(state)}
 
 
 async def preparar_pergunta_confirmacao(state: PlanoSaudeState) -> Atualizacao:
@@ -417,7 +428,7 @@ async def pedir_confirmacao(state: PlanoSaudeState) -> Atualizacao:
 
 def depois_da_confirmacao(state: PlanoSaudeState) -> str:
     if state.get("confirmado"):
-        return "concluir"
+        return "enviarEmail"
     # A correção por campo fica para outra issue (#329); por ora só a renda se refaz.
     return "naoConfirmado" if (state.get("tentativasConfirmacao") or 0) >= MAXIMO_TENTATIVAS_CONFIRMACAO else "renda"
 
@@ -428,6 +439,25 @@ async def nao_confirmado(state: PlanoSaudeState) -> Atualizacao:
 
 async def outra_pessoa(state: PlanoSaudeState) -> Atualizacao:
     return {"statusFinal": "handoff_humano", "motivoHandoff": "outra_pessoa", "mensagemFinal": MENSAGEM_OUTRA_PESSOA}
+
+
+async def enviar_email(state: PlanoSaudeState) -> Atualizacao:
+    """Só chega aqui quem mora no Rio e escolheu e-mail. O protocolo é o mesmo em toda nova tentativa (a função não reenvia).
+    Falha de qualquer tipo leva ao atendimento humano: a função não enviou e ninguém do NUDECON recebeu o caso (#405)."""
+    protocolo = state.get("protocoloEmail") or f"NUD-{uuid.uuid4().hex[:12].upper()}"
+    resultado = await enviar_email_nudecon(protocolo, montar_dados_email(state), state.get("imagensLinks"))
+    if resultado.ok:
+        return {"protocoloEmail": protocolo}
+    return {
+        "protocoloEmail": protocolo,
+        "statusFinal": "handoff_humano",
+        "motivoHandoff": "falha_envio_email",
+        "mensagemFinal": MENSAGEM_FALHA_ENVIO_EMAIL,
+    }
+
+
+def depois_do_envio(state: PlanoSaudeState) -> str:
+    return "encerrar" if state.get("statusFinal") else "concluir"
 
 
 async def concluir(state: PlanoSaudeState) -> Atualizacao:
@@ -496,6 +526,7 @@ _construtor.add_node("rendaNaoEntendida", _protegido(renda_nao_entendida))
 _construtor.add_node("prepararPerguntaConfirmacao", _protegido(preparar_pergunta_confirmacao))
 _construtor.add_node("pedirConfirmacao", _protegido(pedir_confirmacao))
 _construtor.add_node("naoConfirmado", _protegido(nao_confirmado))
+_construtor.add_node("enviarEmail", _protegido(enviar_email))
 _construtor.add_node("concluir", _protegido(concluir))
 _construtor.add_edge(START, "verificarMunicipio")
 _condicional("verificarMunicipio", depois_do_municipio, {"canal": "prepararPerguntaCanal", "encerrar": END})
@@ -548,8 +579,9 @@ _seguir("prepararPerguntaConfirmacao", "pedirConfirmacao")
 _condicional(
     "pedirConfirmacao",
     depois_da_confirmacao,
-    {"concluir": "concluir", "renda": "prepararPerguntaRenda", "naoConfirmado": "naoConfirmado"},
+    {"enviarEmail": "enviarEmail", "renda": "prepararPerguntaRenda", "naoConfirmado": "naoConfirmado"},
 )
+_condicional("enviarEmail", depois_do_envio, {"concluir": "concluir", "encerrar": END})
 for _fim in (
     "presencial",
     "canalNaoEntendido",
