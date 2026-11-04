@@ -7,6 +7,7 @@ from maria.fluxos.plano_saude.api import (
     ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
     ID_MUNICIPIO_RIO,
     MENSAGEM_ERRO_INTERNO,
+    MENSAGEM_FALHA_ENVIO_EMAIL,
     MENSAGEM_FALHA_INFRA_VERDE,
     MENSAGEM_FORA_DO_RIO,
     MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
@@ -562,3 +563,47 @@ async def test_tentativas_de_imagem_zeram_a_cada_imagem_recebida() -> None:
     r = await f.responder(LINK_FRENTE)
     assert pergunta(r)["tipoImagem"] == "carteirinha_verso"  # type: ignore[index]
     assert (await f.estado())["tentativasImagens"] == 0
+
+
+# ── #405: a Maria chama a Lambda de e-mail ao concluir ──────────────────────────────────────────────────────────
+def _email_devolve(monkeypatch: pytest.MonkeyPatch, enviado: bool) -> list[tuple[str, dict[str, str], dict[str, str]]]:
+    chamadas: list[tuple[str, dict[str, str], dict[str, str]]] = []
+
+    async def enviar(protocolo: str, dados: dict[str, str], imagens: dict[str, str]) -> bool:
+        chamadas.append((protocolo, dados, imagens))
+        return enviado
+
+    monkeypatch.setattr("maria.fluxos.plano_saude.graph.enviar_email_nudecon", enviar)
+    return chamadas
+
+
+async def test_concluir_envia_o_e_mail_com_os_dados_e_os_links_antes_de_devolver_email_enviado(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas = _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO, "Preciso de um remédio", "2500", "sim")
+    assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
+    [(protocolo, dados, imagens)] = chamadas
+    assert protocolo.startswith("NUD-")
+    assert dados["Renda mensal"] == "R$ 2.500,00"
+    assert dados["Nome"] == DADOS["nome"]
+    assert imagens == {"carteirinhaFrente": LINK_FRENTE, "carteirinhaVerso": LINK_VERSO}
+
+
+async def test_falha_no_envio_do_e_mail_encerra_com_atendimento_humano_sem_destino(monkeypatch: pytest.MonkeyPatch) -> None:
+    _email_devolve(monkeypatch, False)
+    f = _fluxo()
+    await f.iniciar({**DADOS, "imagensRecebidas": True})
+    r = await f.responder("por aqui", "true", "2500", "sim")
+    assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "falha_envio_email")
+    assert r["mensagemFinal"] == MENSAGEM_FALHA_ENVIO_EMAIL
+    assert r.get("destino") is None
+
+
+async def test_presencial_e_fora_do_rio_nao_chamam_a_funcao_de_e_mail(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas = _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    r = await f.responder("presencial")
+    assert r["statusFinal"] == "concluido"
+    assert chamadas == []
