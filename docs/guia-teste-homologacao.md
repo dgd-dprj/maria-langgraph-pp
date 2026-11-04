@@ -13,7 +13,7 @@
 > - **o cadastro de pessoa:** quando o CPF não é encontrado 3 vezes, a Maria pede nome, data de nascimento e endereço. **O registro é criado logo depois do último dado de endereço;**
 > - **o encaminhamento de violência doméstica:** **o registro é criado logo depois do "Sim" em "Confirma que seus dados são…?"**.
 >
-> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**.
+> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**. **Desde a #236 (2026-11-03), o mesmo vale quando o CPF vem da Tykhe** (em `dadosConhecidos`), mesmo começando pelo relato livre: a Maria não mostra o nome e não pede confirmação. A pergunta só aparece quando a pessoa digita o CPF na conversa.
 
 Este guia é para a equipe que vai testar a Maria no ambiente de homologação (o release), depois da troca da versão TypeScript pela versão em Python (2026-10-21, #268).
 
@@ -92,7 +92,7 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 
 **Esperado:** uma mensagem de encaminhamento com o **nome de um órgão** e um **número de protocolo**.
 
-Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro.
+Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro. Isso vale para o CPF digitado na conversa; se a Tykhe já mandou o CPF, não há confirmação (#236).
 
 > **Este caso grava duas vezes na homologação:** o cadastro no passo 5 (com CPF inventado) e o encaminhamento no passo 6.
 

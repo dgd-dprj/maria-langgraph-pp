@@ -6,6 +6,9 @@ pai decide olhando `dadosPessoa.encontrado` e `confirmaAssistido`:
 - encontrado e não confirmado (#189);
 - esgotado: não encontrado, ou "não" para tentar de novo, ou falha de infra.
 
+A confirmação só existe pelo orquestrador (#191) e com o CPF digitado na
+conversa. Com o CPF vindo da Tykhe, não há confirmação (#236, decisão de 03/11).
+
 Nenhum vira handoff aqui; isso fica com o fluxo pai.
 """
 
@@ -73,10 +76,10 @@ async def preparar_pergunta_cpf(state: IdentificarAssistidoState) -> Atualizacao
 
 async def pedir_cpf(state: IdentificarAssistidoState) -> Atualizacao:
     if cpf_veio_de_dados_conhecidos(state):
-        return {}
+        return {"cpfDaTykhe": True}
     # Sem validação de formato: o valor é gravado como veio (achado A5).
     resposta: str = interrupt({"pergunta": _js.coalesce(state.get("perguntaAtualTexto"), TEXTO_CPF), "tipo": "texto"})
-    return {"cpf": resposta}
+    return {"cpf": resposta, "cpfDaTykhe": False}
 
 
 async def consultar_pessoa(state: IdentificarAssistidoState) -> Atualizacao:
@@ -107,7 +110,7 @@ async def pergunta_tentar_novamente_cpf(state: IdentificarAssistidoState) -> Atu
     )
     if cpf_formato_valido(resposta):
         # CPF digitado direto no retry: gravado como veio, com pontuação.
-        return {"querTentarNovamenteCpf": True, "cpf": resposta, "digitouCpfDireto": True}
+        return {"querTentarNovamenteCpf": True, "cpf": resposta, "digitouCpfDireto": True, "cpfDaTykhe": False}
     return {"querTentarNovamenteCpf": resposta_eh_sim(resposta), "digitouCpfDireto": False}
 
 
@@ -117,15 +120,22 @@ def depois_de_pergunta_tentar_cpf(state: IdentificarAssistidoState) -> str:
     return "consultarPessoa" if _js.verdadeiro(state.get("digitouCpfDireto", _js.AUSENTE)) else "pedirCpf"
 
 
-async def preparar_pergunta_confirma_assistido(state: IdentificarAssistidoState) -> Atualizacao:
+def pergunta_confirma_assistido(state: IdentificarAssistidoState) -> bool:
     # Issue #191: só pergunta quando veio do orquestrador.
-    if not _js.verdadeiro(state.get("viaOrquestrador", _js.AUSENTE)):
+    # Issue #236 (decisão de 03/11): com o CPF vindo da Tykhe, não pergunta.
+    # A pessoa já se identificou lá, e a pergunta mostraria o nome do titular.
+    # Com o CPF digitado na conversa, a confirmação continua como antes.
+    return _js.verdadeiro(state.get("viaOrquestrador", _js.AUSENTE)) and not state.get("cpfDaTykhe", False)
+
+
+async def preparar_pergunta_confirma_assistido(state: IdentificarAssistidoState) -> Atualizacao:
+    if not pergunta_confirma_assistido(state):
         return {}
     return dict(await preparar_pergunta("confirmaAssistido", texto_confirma_assistido(state)))
 
 
 async def pedir_confirma_assistido(state: IdentificarAssistidoState) -> Atualizacao:
-    if not _js.verdadeiro(state.get("viaOrquestrador", _js.AUSENTE)):
+    if not pergunta_confirma_assistido(state):
         return {}
     resposta: str = interrupt(
         {

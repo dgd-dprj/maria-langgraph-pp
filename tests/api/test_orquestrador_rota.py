@@ -275,6 +275,27 @@ async def test_via_orquestrador_cpf_encontrado_pergunta_confirmacao_189_191(
     assert r.json()["status"] == "concluido"
 
 
+async def test_via_orquestrador_cpf_da_tykhe_conclui_sem_confirmacao_236(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #236 (03/11): com o CPF em dadosConhecidos, a Maria não mostra o nome do titular
+    # nem pede confirmação. O contrato não muda: mesma rota, mesmos campos e status.
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", ID_VIOLENCIA_DOMESTICA)
+    monkeypatch.delenv("MOCK_CLASSIFICACAO_FLOWIDS", raising=False)
+    chat_id = novo_chat_id()
+    corpo = {"chatId": chat_id, "mensagem": "sou vítima de violência doméstica", "dadosConhecidos": {"cpf": "11111111111"}}
+    await cliente.post(BASE, json=corpo, headers=auth)
+
+    async def responder(resposta: str) -> httpx.Response:
+        return await cliente.post("/atendimentos/respostas", json={"chatId": chat_id, "resposta": resposta}, headers=auth)
+
+    await responder("true")  # é vítima
+    await responder("false")  # sem processo
+    r = await responder("true")  # tem RO; o CPF veio da Tykhe: nem pergunta, nem confirmação
+    assert "Confirma que seus dados são" not in r.json()["resposta"]
+    assert r.json()["status"] == "concluido"
+
+
 async def test_fluxo_nao_oferecido_nao_entra_no_catalogo_do_orquestrador() -> None:
     # #329: o fluxo do NUDECON já está registrado (GET /fluxos), mas só é oferecido com a #266.
     assert ID_PROBLEMAS_PLANO_SAUDE not in [c["id"] for c in await catalogo_para_classificacao()]
