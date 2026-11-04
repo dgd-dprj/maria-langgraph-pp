@@ -172,11 +172,21 @@ scripts/
 
 ### Contrato HTTP
 
-- Status, content-type e corpo de toda resposta, inclusive de erro, idênticos às fixtures de `tests/fixtures/contrato/`. Elas foram gravadas com a aplicação TypeScript de develop @ `4e695f2` rodando de verdade: 50 casos e as linhas de log de cada uma das 5 instâncias. A receita está anexada à #209. A comparação byte a byte acontece no módulo `api`.
+- Status, content-type e corpo de toda resposta, inclusive de erro, idênticos às fixtures de `tests/fixtures/contrato/`. Elas foram gravadas com a aplicação TypeScript de develop @ `4e695f2` rodando de verdade e regravadas em develop @ `1157a6d` (commit `b8d6e64`, spec 07, decisão D-1): 50 casos e as linhas de log de cada uma das 5 instâncias. A receita está anexada à #209. A comparação byte a byte acontece no módulo `api`.
 - **Fixtures que refletem a store em memória, e não a de produção.** A captura rodou sem `DATABASE_URL`, como os testes de develop. Onde as duas stores divergem, a fixture registra o comportamento da memória:
   - **`ttl-confirmacao-200`**: depois de confirmar "quer continuar?", a store em memória devolve a resposta pendente, e a fixture mostra o fluxo avançando com ela. **Em produção, a store Postgres devolve `NULL`, e a resposta da pessoa é descartada** ([#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217)). A fixture é contrato da store em memória; não serve de prova do comportamento de produção nesse caminho.
 - **Identificadores da máquina de captura trocados nas linhas de log, antes do primeiro commit.** O valor dessas fixtures está nos nomes de campo e na ordem do envelope, e não nos valores de ambiente. O `hostname` virou `maquina-de-captura` (166 linhas). O IP de rede interna nas linhas "Server listening" virou `192.0.2.10`, da faixa reservada para documentação (RFC 5737; 5 linhas). Os caminhos locais nos `stack` de erro, com o usuário e a pasta temporária, viraram o prefixo `C:\captura\develop-ts\` (39 linhas). A ordem das chaves não mudou, e um teste impede que esses dados voltem. A chave de API já tinha sido mascarada na captura (`Bearer <API_KEY>`).
 - Os sete formatos de corpo de erro de develop são reproduzidos, inclusive o 400 de validação com corpo `{}`, que é o mais contraintuitivo (tabela na #208). O 500 vaza a mensagem interna (#210) e o 400 não dá motivo (#211): os dois são tratados depois da migração.
+- **Critérios 1 e 2 da #208, aprovados pela Nicole em 2026-11-03.**
+  - **Critério 1 (suíte de develop traduzida):** os 192 testes TypeScript de develop @ `a3a1a31` têm correspondente no pytest. Das 5 diferenças sem registro, todas foram alinhadas aos cenários de develop, sem mudar `src/`. Os 12 testes de integração com o Bedrock real passaram na primeira rodada registrada (13 s).
+  - **Critério 2 (contrato da Tykhe):** `tests/api/test_contrato.py::test_fixtures_byte_a_byte` cobre o caminho feliz (23 fixtures 200), a validação (5 com `{}`), a autenticação (3) e o não tratado (1, tudo menos `message`, conferido por mutação), e vai além: os 7 formatos de erro, o `Location` e as linhas de log.
+  - **Lacunas registradas:**
+    - "idêntico" não vale à letra no 500, que é comparado como JSON, sem a formatação;
+    - o campo `destino` sai da comparação (#294);
+    - a `fluxos-200` foi aposentada (#329);
+    - há uma única fixture de 500, e o 401 só é exercitado no `GET /fluxos`;
+    - tudo roda sem Postgres.
+  - As fixtures extras de 500 e 401 ficam na [#387](https://github.com/dgd-dprj/maria-langgraph-pp/issues/387).
 
 ### Especificações dos módulos (decisões já tomadas, antes das issues)
 
@@ -238,7 +248,7 @@ scripts/
 
 **Não edite nada em `tests/fixtures/contrato/`.** Nem quando um teste falhar por causa de uma mudança legítima de contrato.
 
-- **O que elas são:** respostas HTTP e linhas de log gravadas com a versão TypeScript rodando de verdade (as 50 da #209, gravadas em develop @ `4e695f2`, e as das conferências do `api`). Elas **provam que o Python devolve o que o TypeScript devolvia**. É evidência da tradução, e tem valor só enquanto for exatamente o que o servidor real devolveu.
+- **O que elas são:** respostas HTTP e linhas de log gravadas com a versão TypeScript rodando de verdade (as 50 da #209, gravadas em develop @ `4e695f2` e regravadas em `1157a6d`, e as das conferências do `api`). Elas **provam que o Python devolve o que o TypeScript devolvia**. É evidência da tradução, e tem valor só enquanto for exatamente o que o servidor real devolveu.
 - **Por que não editar:** a versão TypeScript não existe mais para regravar. Uma fixture editada à mão deixa de ser observação e passa a ser opinião. Depois de três edições, ninguém sabe mais o que veio do servidor real e o que foi escrito. A evidência some sem aviso.
 - **O contrato atual é conferido por testes escritos:** asserções explícitas sobre status, corpo e campos, como as de `tests/api/test_app.py`. Uma mudança de contrato muda o teste escrito, e o PR diz por quê.
 - **Quando uma mudança legítima quebra a conferência contra a fixture** (o primeiro caso conhecido é um fluxo novo mudando `GET /fluxos`, achado C7 da spec 09): o caso sai da conferência, sem tocar na fixture, e o comportamento novo ganha um teste escrito. O mecanismo para tirar o caso da conferência (por exemplo, uma lista de casos aposentados, com o motivo e o PR de cada um) é definido no primeiro PR que precisar dele. A fixture continua no repositório, intacta.

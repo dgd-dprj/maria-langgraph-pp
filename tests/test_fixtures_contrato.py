@@ -1,7 +1,8 @@
 """Integridade das fixtures de contrato HTTP (#209).
 
 As fixtures foram gravadas com a aplicação TypeScript de develop @ 4e695f2
-rodando de verdade (receita em comentário da #209). Elas são a única
+rodando de verdade (receita em comentário da #209) e regravadas em develop @
+1157a6d (commit b8d6e64, spec 07, decisão D-1). Elas são a única
 referência executável do contrato com a Tykhe até o módulo `api`, que as
 compara byte a byte. Este teste só garante que o conjunto está inteiro e
 coerente; ele não testa a aplicação.
