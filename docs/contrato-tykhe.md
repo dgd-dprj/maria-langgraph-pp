@@ -27,7 +27,7 @@ A Tykhe é o único consumidor esperado desta API — chamada servidor-a-servido
   "tipoResposta": "texto" | "sim_nao" | "opcoes" | "link_imagem",
   "opcoes": ["Sim", "Não"],          // só quando tipoResposta:"sim_nao" (ou "opcoes")
   "status": "em_andamento" | "concluido" | "handoff_humano" | "expirado" | "redirecionado",
-  "destino": "atendimento_humano" | "agendamento" | "email_enviado" | "sessao_expirada",  // só em atendimento encerrado, opcional
+  "destino": "atendimento_humano" | "agendamento" | "email_enviado" | "unidade_informada" | "sessao_expirada",  // só em atendimento encerrado, opcional
   "flowId": "uuid — diz qual schema esperar em `metadados`",
   "metadados": { /* específico por fluxo — ver docs/fluxo-*.md */ },
   "dadosColetados": { "cpf": "..." },  // cross-fluxo, opcional

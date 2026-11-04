@@ -117,6 +117,7 @@ async def verificar_municipio(state: PlanoSaudeState) -> Atualizacao:
         if unidade:
             return {
                 "statusFinal": "concluido",
+                "destino": "unidade_informada",
                 "foraDoRio": True,
                 "mensagemFinal": MENSAGEM_FORA_DO_RIO_COM_UNIDADE.format(unidade=unidade),
             }
@@ -210,7 +211,7 @@ def depois_do_canal(state: PlanoSaudeState) -> str:
 
 
 async def presencial(state: PlanoSaudeState) -> Atualizacao:
-    return {"statusFinal": "concluido", "mensagemFinal": MENSAGEM_PRESENCIAL}
+    return {"statusFinal": "concluido", "destino": "unidade_informada", "mensagemFinal": MENSAGEM_PRESENCIAL}
 
 
 async def canal_nao_entendido(state: PlanoSaudeState) -> Atualizacao:

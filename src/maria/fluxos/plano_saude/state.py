@@ -54,7 +54,7 @@ class PlanoSaudeState(TypedDict, total=False):
     paraSi: bool | None
     # Mora fora do município do Rio: a conversa conclui com a unidade que ele deve procurar.
     foraDoRio: bool | None
-    # Para onde o atendimento concluído vai (`email_enviado`: o Rio, que segue por e-mail).
+    # Para onde o atendimento concluído vai (`email_enviado`: o Rio, por e-mail; `unidade_informada`: presencial ou fora do Rio).
     destino: str | None
     tentativasImagens: int | None
     # Links de baixar as imagens que a Tykhe respondeu (#398): `carteirinhaFrente` e `carteirinhaVerso`.
