@@ -12,6 +12,8 @@ from maria.fluxos.tipos_tykhe import TIPOS_TYKHE
 
 Schema = dict[str, Any]
 
+DESTINOS = ["atendimento_humano", "agendamento", "email_enviado", "unidade_informada", "sessao_expirada"]
+
 # rotas/atendimentos.ts:125-134
 LINKS: Schema = {
     "type": "object",
@@ -39,7 +41,7 @@ RESPOSTA_ATENDIMENTO: Schema = {
         "tipoImagem": {"type": "string"},
         "opcoes": {"type": "array", "items": {"type": "string"}},
         "status": {"type": "string", "enum": ["em_andamento", "concluido", "handoff_humano", "expirado"]},
-        "destino": {"type": "string", "enum": ["atendimento_humano", "agendamento", "sessao_expirada"]},
+        "destino": {"type": "string", "enum": DESTINOS},
         "flowId": {"type": "string", "format": "uuid"},
         "metadados": {"type": "object", "additionalProperties": True},
         "dadosColetados": {
@@ -94,7 +96,7 @@ RESPOSTA_ORQUESTRADOR: Schema = {
         "tipoResposta": {"type": "string", "enum": ["texto", "sim_nao", "opcoes"]},
         "opcoes": {"type": "array", "items": {"type": "string"}},
         "status": {"type": "string", "enum": ["em_andamento", "concluido", "handoff_humano", "redirecionado"]},
-        "destino": {"type": "string", "enum": ["atendimento_humano", "agendamento", "sessao_expirada"]},
+        "destino": {"type": "string", "enum": DESTINOS},
         "tipoCaso": {"type": "string", "enum": [t.tipo_caso for t in TIPOS_TYKHE]},
         "motivoHandoff": {"type": "string", "enum": ["nao_identificado"]},
         "metadados": {"type": "object", "additionalProperties": True},

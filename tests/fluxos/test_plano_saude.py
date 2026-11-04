@@ -59,6 +59,7 @@ async def test_presencial_encerra_sem_perguntar_para_quem() -> None:
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
     assert "presencial" in r["mensagemFinal"]
+    assert r["destino"] == "unidade_informada"
     assert (await f.estado())["canal"] == "presencial"
 
 
@@ -439,6 +440,7 @@ async def test_fora_do_rio_com_pessoa_no_verde_conclui_com_a_unidade(monkeypatch
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
     assert "motivoHandoff" not in r
+    assert r["destino"] == "unidade_informada"
     assert (await f.estado())["foraDoRio"] is True
     assert "CÍVEL DE NITERÓI, Rua Visconde de Sepetiba, 519 3º andar, Centro, Niterói/RJ" in r["mensagemFinal"]
     assert "Horário: Seg a Sex, 11:00-17:00" in r["mensagemFinal"]
