@@ -202,3 +202,38 @@ async def test_plano_saude_sem_municipio_do_rio_encerra_na_criacao_com_atendimen
     assert corpo["status"] == "handoff_humano"
     assert corpo["destino"] == "atendimento_humano"
     assert corpo["metadados"]["motivoHandoff"] == "municipio_nao_identificado"
+
+
+LINK_FRENTE_HTTP = "https://downloads.tykhe.dev/arquivos/id-frente-http?token=segredo-frente-http"
+LINK_VERSO_HTTP = "https://downloads.tykhe.dev/arquivos/id-verso-http?token=segredo-verso-http"
+
+
+async def test_plano_saude_imagens_por_link_do_pedido_a_resposta_final_398(
+    cliente: httpx.AsyncClient, auth: dict[str, str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    chat_id = f"teste-ps-http-{next(_ids)}"
+    dados = {**PLANO_SAUDE_COM_CEP, "relato": "o plano negou a minha cirurgia"}
+    await cliente.post(
+        "/atendimentos", json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": dados}, headers=auth
+    )
+    await _responder(cliente, auth, chat_id, "por aqui")
+    r = await _responder(cliente, auth, chat_id, "true")
+    assert r.json()["tipoResposta"] == "link_imagem"
+    assert r.json()["tipoImagem"] == "carteirinha_frente"
+    r = await _responder(cliente, auth, chat_id, LINK_FRENTE_HTTP)
+    assert r.json()["tipoResposta"] == "link_imagem"
+    assert r.json()["tipoImagem"] == "carteirinha_verso"
+    assert "imagens" not in r.json()["dadosColetados"]
+    r = await _responder(cliente, auth, chat_id, LINK_VERSO_HTTP)
+    assert "renda" in r.json()["resposta"]
+    assert "tipoImagem" not in r.json()
+    await _responder(cliente, auth, chat_id, "2500")
+    r = await _responder(cliente, auth, chat_id, "true")
+    corpo = r.json()
+    assert corpo["status"] == "concluido"
+    assert corpo["dadosColetados"]["imagens"] == {"carteirinhaFrente": LINK_FRENTE_HTTP, "carteirinhaVerso": LINK_VERSO_HTTP}
+    assert "imagens" not in str(corpo["metadados"])
+    saida = capsys.readouterr()
+    assert "segredo-frente-http" not in saida.out + saida.err
+    assert "segredo-verso-http" not in saida.out + saida.err
+    assert "id-frente-http" not in saida.out + saida.err

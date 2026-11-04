@@ -35,13 +35,24 @@ RESPOSTA_ATENDIMENTO: Schema = {
     "type": "object",
     "properties": {
         "resposta": {"type": "string"},
-        "tipoResposta": {"type": "string", "enum": ["texto", "sim_nao", "opcoes"]},
+        "tipoResposta": {"type": "string", "enum": ["texto", "sim_nao", "opcoes", "link_imagem"]},
+        "tipoImagem": {"type": "string"},
         "opcoes": {"type": "array", "items": {"type": "string"}},
         "status": {"type": "string", "enum": ["em_andamento", "concluido", "handoff_humano", "expirado"]},
         "destino": {"type": "string", "enum": ["atendimento_humano", "agendamento", "sessao_expirada"]},
         "flowId": {"type": "string", "format": "uuid"},
         "metadados": {"type": "object", "additionalProperties": True},
-        "dadosColetados": {"type": "object", "properties": {"cpf": {"type": "string"}}},
+        "dadosColetados": {
+            "type": "object",
+            "properties": {
+                "cpf": {"type": "string"},
+                # #398: links de baixar as imagens, só em `concluido` (plano de saúde). Segredo: nunca em log.
+                "imagens": {
+                    "type": "object",
+                    "properties": {"carteirinhaFrente": {"type": "string"}, "carteirinhaVerso": {"type": "string"}},
+                },
+            },
+        },
         "tokensGastos": TOKENS_GASTOS,
         "_links": LINKS,
     },

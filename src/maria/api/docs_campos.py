@@ -43,10 +43,17 @@ DESCRICOES_RESPOSTA: dict[str, Schema] = {
     "dadosColetados": {
         "type": "object",
         "description": (
-            "Dados já coletados pelo fluxo. Hoje só `cpf`, e só quando existe. "
+            "Dados já coletados pelo fluxo. Hoje `cpf`, quando existe, e, no plano de saúde concluído, `imagens` "
+            "(`carteirinhaFrente` e `carteirinhaVerso`: links das imagens, para a Tykhe repassar à função de e-mail; nunca em log). "
             "Só aparece na resposta do fluxo da Maria identificado; nunca no `redirecionado` nem na desambiguação."
         ),
-        "properties": {"cpf": {"type": "string"}},
+        "properties": {
+            "cpf": {"type": "string"},
+            "imagens": {
+                "type": "object",
+                "properties": {"carteirinhaFrente": {"type": "string"}, "carteirinhaVerso": {"type": "string"}},
+            },
+        },
     },
 }
 

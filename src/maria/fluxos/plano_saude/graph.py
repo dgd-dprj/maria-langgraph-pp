@@ -50,6 +50,8 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_PRESENCIAL,
     MENSAGEM_RENDA_NAO_ENTENDIDA,
     MENSAGEM_SITUACAO_NAO_INFORMADA,
+    TIPOS_IMAGEM,
+    url_imagem_valida,
 )
 from maria.fluxos.plano_saude.state import CanalAtendimento, MotivoHandoffPlanoSaude, PlanoSaudeState
 from maria.ia.reescrever import preparar_pergunta
@@ -71,8 +73,14 @@ TEXTO_CANAL = f"O NUDECON atende {HORARIO_NUDECON}. Como você prefere seguir o 
 TEXTO_CANAL_NOVAMENTE = "Não entendi. Você prefere seguir por aqui, por e-mail ou presencialmente?"
 TEXTO_PARA_QUEM = "O atendimento é para você? Responda não se for para outra pessoa."
 # Lista provisória de documentos: a definitiva é da #335.
-TEXTO_IMAGENS = "Envie por aqui as fotos dos documentos: a carteirinha do plano, frente e verso. Já enviou?"
-TEXTO_IMAGENS_NOVAMENTE = "Ainda não recebi as imagens. Envie as fotos da carteirinha do plano, frente e verso. Já enviou?"
+TEXTO_IMAGEM = {
+    "carteirinha_frente": "Envie a foto da frente da carteirinha do plano de saúde.",
+    "carteirinha_verso": "Agora envie a foto do verso da carteirinha do plano de saúde.",
+}
+TEXTO_IMAGEM_NOVAMENTE = {
+    "carteirinha_frente": "Não recebi a foto. Envie a foto da frente da carteirinha do plano de saúde.",
+    "carteirinha_verso": "Não recebi a foto. Envie a foto do verso da carteirinha do plano de saúde.",
+}
 TEXTO_SITUACAO = "Conte em poucas palavras o que aconteceu com o seu plano de saúde."
 TEXTO_SITUACAO_NOVAMENTE = "Preciso de um pouco mais de detalhe. O que o plano de saúde negou ou deixou de fazer?"
 TEXTO_RENDA = "Qual é a sua renda mensal, em reais? Se não tem renda, responda 0."
@@ -229,8 +237,17 @@ def _depois_das_imagens_enviadas(state: PlanoSaudeState) -> str:
     return "renda" if _texto(state.get("relato")) else "situacao"
 
 
+def _proxima_imagem(state: PlanoSaudeState) -> tuple[str, str]:
+    """A próxima imagem que falta pedir: (chave do estado, `tipoImagem` do contrato)."""
+    links = state.get("imagensLinks") or {}
+    return next(((chave, tipo) for chave, tipo in TIPOS_IMAGEM if chave not in links), TIPOS_IMAGEM[-1])
+
+
 def texto_imagens(state: PlanoSaudeState) -> str:
-    return TEXTO_IMAGENS if not state.get("tentativasImagens") else TEXTO_IMAGENS_NOVAMENTE
+    _, tipo = _proxima_imagem(state)
+    if state.get("tentativasImagens"):
+        return TEXTO_IMAGEM_NOVAMENTE[tipo]
+    return TEXTO_IMAGEM[tipo]
 
 
 async def preparar_pergunta_imagens(state: PlanoSaudeState) -> Atualizacao:
@@ -238,12 +255,18 @@ async def preparar_pergunta_imagens(state: PlanoSaudeState) -> Atualizacao:
 
 
 async def pedir_imagens(state: PlanoSaudeState) -> Atualizacao:
+    """Uma pergunta por imagem (`tipoResposta: link_imagem`). A Tykhe responde com a URL de baixar; o link é
+    segredo e só vai para o estado (nunca para log)."""
+    chave, tipo = _proxima_imagem(state)
     resposta: str = interrupt(
-        {"pergunta": state.get("perguntaAtualTexto") or texto_imagens(state), "tipo": "sim_nao", "opcoes": ["Sim", "Não"]}
+        {"pergunta": state.get("perguntaAtualTexto") or texto_imagens(state), "tipo": "link_imagem", "tipoImagem": tipo}
     )
-    if resposta_eh_sim(resposta):
-        return {"imagensRecebidas": True}
-    return {"tentativasImagens": (state.get("tentativasImagens") or 0) + 1}
+    url = url_imagem_valida(resposta)
+    if url is None:
+        return {"tentativasImagens": (state.get("tentativasImagens") or 0) + 1}
+    links = {**(state.get("imagensLinks") or {}), chave: url}
+    # A contagem de tentativas inválidas zera a cada imagem recebida.
+    return {"imagensLinks": links, "tentativasImagens": 0, "imagensRecebidas": all(c in links for c, _ in TIPOS_IMAGEM) or None}
 
 
 def depois_das_imagens(state: PlanoSaudeState) -> str:
