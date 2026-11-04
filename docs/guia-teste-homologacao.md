@@ -134,6 +134,37 @@ Depois de terminar os casos A e B (e o de controle "não sou a vítima"), mande 
 - **#280:** a API diz "atendimento já foi concluído" também depois de um encaminhamento para atendente humano. O que a pessoa vê na Tykhe?
 - **A reabertura pela Tykhe:** a pessoa consegue começar um atendimento novo, ou fica presa na conversa encerrada?
 
+### Caso E. Plano de saúde (NUDECON): só no release (#324, #329)
+
+O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele fica **ligado só no release** e **desligado na produção** (decisão da Nicole de 2026-11-03).
+
+**Na produção (`main`), onde a equipe testa hoje, o fluxo não existe para a Tykhe:**
+- `GET /fluxos` lista só pessoa presa e violência doméstica, como antes;
+- quem abrir o atendimento pelo id do plano de saúde recebe "fluxo não encontrado", a mesma resposta de um id que não existe;
+- **se, testando na `main`, a conversa chegar a uma pergunta sobre plano de saúde, carteirinha ou NUDECON, é defeito:** registre com o horário.
+
+**No release, depois do `terraform apply` do Ícaro:**
+- **Como começar:** o orquestrador ainda **não** oferece o plano de saúde a partir de um relato livre (#266). O fluxo só abre pelo id dele, `84433c84-4776-4b05-a5a0-af8012d8eced`, que precisa estar configurado no fluxo de teste da Tykhe. Confirme com a Nicole antes.
+- **O endereço vem da Tykhe** (o CEP em `dadosConhecidos`). Antes da primeira pergunta, a Maria confere no Verde se o município é o Rio.
+- **As perguntas,** nesta ordem:
+  1. como prefere seguir: por aqui, por e-mail ou presencialmente;
+  2. se o atendimento é para você;
+  3. as fotos da carteirinha do plano, frente e verso;
+  4. o que o plano negou ou deixou de fazer, se o relato não veio;
+  5. a renda mensal;
+  6. a confirmação dos dados.
+
+**Esperado:**
+
+| Caminho | Mensagem final |
+|---|---|
+| Por aqui, para você, com as fotos, tudo confirmado | "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você." |
+| Presencialmente | O horário do NUDECON e o encaminhamento para a equipe |
+| Para outra pessoa | "Entendi que o atendimento é para outra pessoa. Por enquanto não consigo seguir com esse caso por aqui…" |
+| CEP fora do município do Rio | O nome, o endereço e o horário da unidade a procurar; sem a unidade, o encaminhamento para a equipe |
+
+> **Os textos são provisórios,** até o NUDECON validar (#335) e a Tykhe confirmar os destinos e a forma das opções (#336). Diferença de texto não é defeito; anote só o que travar a conversa ou levar ao destino errado. **Este caso não grava nada no Verde:** o envio ao NUDECON ainda não existe (#345).
+
 ### Casos de controle (rápidos)
 
 | Caso | Esperado |
