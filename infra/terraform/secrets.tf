@@ -26,3 +26,22 @@ output "secret_app_arn" {
   value       = aws_secretsmanager_secret.app.arn
   description = "ARN do segredo da aplicação."
 }
+
+# Issue #405 — URL e chave da função Lambda `maria-email-nudecon`, que a Maria chama ao concluir o plano de
+# saúde no Rio. Segredo à parte do `app` (valores preenchidos fora do Terraform, como os outros).
+resource "aws_secretsmanager_secret" "email_nudecon" {
+  name        = "${var.project}-${var.environment}/email-nudecon"
+  description = "URL e chave da função Lambda de e-mail do NUDECON (maria-email-nudecon)."
+}
+
+resource "aws_secretsmanager_secret_version" "email_nudecon" {
+  secret_id = aws_secretsmanager_secret.email_nudecon.id
+  secret_string = jsonencode({
+    EMAIL_NUDECON_URL     = "PREENCHER"
+    EMAIL_NUDECON_API_KEY = "PREENCHER"
+  })
+
+  lifecycle {
+    ignore_changes = [secret_string]
+  }
+}
