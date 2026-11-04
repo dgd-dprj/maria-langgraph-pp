@@ -142,7 +142,7 @@ Depois de terminar os casos A e B (e o de controle "não sou a vítima"), mande 
 | Pedido de pensão alimentícia | Encaminhado à Tykhe: "Entendi. Vou te encaminhar para o atendimento de abertura de um novo caso." |
 | Relato vago, entre pessoa presa e violência doméstica | Uma pergunta de esclarecimento, e depois o fluxo certo |
 | Pessoa presa, RG com ponto e traço, do jeito que aparece no documento (ex.: o RG de teste escrito como `12.345.678-9`) | **Depois da #343:** a Maria aceita e segue para "Confirma que é <nome>?", a mesma pessoa de quando o RG vai só com números. **Antes da #343:** "O RG deve conter apenas números…", repetido a cada tentativa |
-| Pessoa presa, RG com letra (ex.: `12a`) | "O RG deve conter apenas números…" de novo (a recusa continua sem limite até a segunda parte da #343) |
+| Pessoa presa, RG com letra (ex.: `12a`) | "O RG deve conter apenas números…" de novo (a recusa continua sem limite até a #394) |
 
 ## 4. Como reconhecer uma falha do ambiente
 
