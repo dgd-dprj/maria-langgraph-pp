@@ -296,8 +296,9 @@ async def test_via_orquestrador_cpf_da_tykhe_conclui_sem_confirmacao_236(
     assert r.json()["status"] == "concluido"
 
 
-async def test_fluxo_nao_oferecido_nao_entra_no_catalogo_do_orquestrador() -> None:
-    # #329: o fluxo do NUDECON já está registrado (GET /fluxos), mas só é oferecido com a #266.
+async def test_na_producao_o_plano_de_saude_nao_entra_no_catalogo_do_orquestrador() -> None:
+    # #386: o orquestrador oferece o fluxo do NUDECON, mas ele está em teste (#324) e, sem
+    # MARIA_AMBIENTE=release, fica fora do catálogo.
     assert ID_PROBLEMAS_PLANO_SAUDE not in [c["id"] for c in await catalogo_para_classificacao()]
 
 
@@ -305,10 +306,7 @@ async def _dados_entregues_ao_fluxo(
     cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch, flow_id: str, corpo_extra: dict[str, Any]
 ) -> dict[str, Any]:
     """Roda a rota com `criar_atendimento` trocado e devolve o `dadosConhecidos` que chegaria ao fluxo."""
-    from dataclasses import replace
-
     from maria.api import orquestrador as rota
-    from maria.fluxos import fluxos_por_id
 
     capturado: dict[str, Any] = {}
 
@@ -317,9 +315,7 @@ async def _dados_entregues_ao_fluxo(
         return Resposta(200, {"status": "em_andamento"})
 
     monkeypatch.setattr(rota, "criar_atendimento", falso)
-    # O plano de saúde ainda não é oferecido ao orquestrador (#266): para o teste, é. E, por estar em
-    # teste (#324), só liga no release.
-    monkeypatch.setitem(fluxos_por_id, flow_id, replace(fluxos_por_id[flow_id], oferecer_ao_orquestrador=True))
+    # O plano de saúde está em teste (#324): só entra no catálogo do orquestrador no release.
     monkeypatch.setenv("MARIA_AMBIENTE", "release")
     monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", flow_id)
     monkeypatch.delenv("MOCK_CLASSIFICACAO_FLOWIDS", raising=False)

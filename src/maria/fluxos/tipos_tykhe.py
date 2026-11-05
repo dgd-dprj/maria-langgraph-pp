@@ -31,6 +31,15 @@ class TipoTykhe:
     descricao: str
     # Frase de transição devolvida em `resposta`; a Tykhe decide se exibe.
     mensagem: str
+    # Parte da `descricao` que um fluxo da Maria passa a atender: (nome do fluxo, trecho). Quando
+    # esse fluxo está no catálogo, o trecho sai da descrição; quando não está (fluxo em teste
+    # desligado, na produção), a descrição fica exatamente como é (#386).
+    trecho_de_fluxo_da_maria: tuple[str, str] | None = None
+
+    def descricao_no_catalogo(self, fluxos_no_catalogo: set[str]) -> str:
+        if self.trecho_de_fluxo_da_maria is None or self.trecho_de_fluxo_da_maria[0] not in fluxos_no_catalogo:
+            return self.descricao
+        return self.descricao.replace(self.trecho_de_fluxo_da_maria[1], "")
 
 
 TIPOS_TYKHE: tuple[TipoTykhe, ...] = (
@@ -44,6 +53,9 @@ TIPOS_TYKHE: tuple[TipoTykhe, ...] = (
             "que negou cobertura, erro médico, prontuário médico."
         ),
         mensagem="Entendi. Vou te encaminhar para o atendimento de questões de saúde.",
+        # #266 e #386: a negativa de plano de saúde vai para o fluxo do NUDECON onde ele está ligado.
+        # O `tipoCaso` `saude` não muda.
+        trecho_de_fluxo_da_maria=("problemas-plano-de-saude", "plano de saúde que negou cobertura, "),
     ),
     TipoTykhe(
         id="tykhe:novo-processo",

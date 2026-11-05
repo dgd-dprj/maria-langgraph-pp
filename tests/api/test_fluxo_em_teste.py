@@ -81,8 +81,8 @@ async def test_no_release_o_plano_de_saude_aparece_e_atende(
     )
     assert r.status_code == 200
     assert r.json()["status"] == "em_andamento"
-    # Em teste não muda a outra regra: o orquestrador ainda não o oferece (#266).
-    assert ID_PROBLEMAS_PLANO_SAUDE not in [o["id"] for o in await catalogo_para_classificacao()]
+    # No release, o orquestrador também o oferece (#386).
+    assert ID_PROBLEMAS_PLANO_SAUDE in [o["id"] for o in await catalogo_para_classificacao()]
 
 
 @pytest.mark.parametrize("valor", NAO_LIGAM, ids=repr)
