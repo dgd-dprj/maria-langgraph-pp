@@ -159,13 +159,15 @@ async def test_h3_release_saude_publica_continua_com_a_tykhe(
     assert (r.json()["status"], r.json()["tipoCaso"]) == ("redirecionado", "saude")
 
 
-async def test_h4_release_relato_ambiguo_pergunta_antes_de_escolher(
+async def test_h4_release_relato_ambiguo_entre_plano_e_saude_segue_direto_no_fluxo_sem_perguntar(
     cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
+    # #419 (decisão do Ícaro, 2026-11-05): o par plano de saúde x tykhe:saude não gera pergunta de desambiguação.
     _ambiente(monkeypatch, "release")
     monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWIDS", f"{ID_PROBLEMAS_PLANO_SAUDE},tykhe:saude")
-    r = await cliente.post(BASE, json={"chatId": _chat(), "mensagem": "preciso de uma cirurgia"}, headers=auth)
+    corpo = {"chatId": _chat(), "mensagem": "preciso de uma cirurgia", "dadosConhecidos": DADOS_NO_RIO}
+    r = await cliente.post(BASE, json=corpo, headers=auth)
     assert r.status_code == 200
     assert r.json()["status"] == "em_andamento"
-    assert "flowId" not in r.json(), "ainda desambiguando: não escolheu sozinho"
-    assert r.json()["tipoResposta"] == "texto"
+    assert r.json()["flowId"] == ID_PROBLEMAS_PLANO_SAUDE
+    assert r.json()["tipoResposta"] == "texto"  # a 1ª pergunta do fluxo, o canal

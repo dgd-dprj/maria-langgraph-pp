@@ -85,6 +85,17 @@ def _delta_tokens(resultado: Any) -> TokensGastos:
     }
 
 
+# Issue #419 (decisão do Ícaro, 2026-11-05): quando os candidatos são só estes dois, o orquestrador não pergunta
+# nada e segue direto para o fluxo desenhado com o NUDECON (a cirurgia pelo SUS não tem pergunta própria).
+# A chave é o conjunto de ids (a ordem não importa); o valor é o fluxo escolhido.
+ESCOLHA_DIRETA: dict[frozenset[str], str] = {frozenset({ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude"}): ID_PROBLEMAS_PLANO_SAUDE}
+
+
+def resolver_escolha_direta(candidatos: list[CandidatoOrquestrador]) -> list[CandidatoOrquestrador]:
+    escolhido = ESCOLHA_DIRETA.get(frozenset(c["id"] for c in candidatos))
+    return [c for c in candidatos if c["id"] == escolhido] if escolhido else candidatos
+
+
 async def classificar(state: OrquestradorState) -> dict[str, Any]:
     """1ª rodada: retrieval no catálogo completo (issue #8) e classificação.
     Rodadas seguintes: classifica de novo, só DENTRO do que já sobrou."""
@@ -100,6 +111,7 @@ async def classificar(state: OrquestradorState) -> dict[str, Any]:
     # `Map.get` com um valor que não é chave devolve undefined; `dict.get` com
     # lista ou objeto lançaria. Item que não é string não acha nada.
     plausiveis = [por_id[i] for i in _lista_de_ids(resultado.get("ids", _js.AUSENTE)) if isinstance(i, str) and i in por_id]
+    plausiveis = resolver_escolha_direta(plausiveis)
     # Sempre o 1º nó da rodada: sobrescreve (não soma) de propósito, é o início
     # da contagem desta rodada (issue #34). tokensGastosConversa tem reducer de
     # soma; aqui vai só o DELTA desta chamada.
@@ -156,20 +168,6 @@ def mesmo_conjunto_de_opcoes(a: list[OpcaoPergunta], b: list[OpcaoPergunta]) -> 
     return textos_a == textos_b
 
 
-# Issue #419 (decisão do Ícaro, 2026-11-05): o texto do par plano de saúde x cirurgia pelo SUS é do fluxo desenhado com o
-# NUDECON, e não da IA. Vale só para este par; a chave é o conjunto de ids, sem importar a ordem.
-PERGUNTAS_FIXAS_DESAMBIGUACAO: dict[frozenset[str], str] = {
-    frozenset({ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude"}): (
-        "Você quer que a gente ajude a obrigar o plano de saúde a cobrir essa cirurgia, "
-        "ou você precisa de ajuda para conseguir fazer a cirurgia pelo SUS?"
-    ),
-}
-
-
-def pergunta_fixa_dos_candidatos(candidatos: list[CandidatoOrquestrador]) -> str | None:
-    return PERGUNTAS_FIXAS_DESAMBIGUACAO.get(frozenset(c["id"] for c in candidatos))
-
-
 async def buscar_pergunta_real_compartilhada(candidatos: list[CandidatoOrquestrador]) -> str | None:
     """Issue #32: quando TODOS os candidatos restantes têm a mesma pergunta raiz
     do Verde (mesmo texto e mesmas opções), usa o texto real em vez de gerar
@@ -198,9 +196,6 @@ def somar_tokens_rodada(a: int | None, b: int | None) -> int | None:
 
 async def preparar_pergunta_desambiguacao(state: OrquestradorState) -> dict[str, Any]:
     candidatos = _js.coalesce(state.get("candidatosRestantes"), [])
-    pergunta_fixa = pergunta_fixa_dos_candidatos(candidatos)
-    if pergunta_fixa is not None:
-        return {"perguntaAtualTexto": pergunta_fixa}
     pergunta_do_banco = await buscar_pergunta_real_compartilhada(candidatos)
     # Match no banco não chama IA: devolve SÓ a pergunta, e o
     # tokensGastosRodada do `classificar` fica como está.
