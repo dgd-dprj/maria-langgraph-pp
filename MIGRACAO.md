@@ -81,9 +81,10 @@ Pessoa presa não passa na A13 nem na A14, e violência doméstica não passa na
   - **2026-11-05: o merge da `develop` no PR #389** pôs no `ecs.tf` da produção as variáveis da Lambda de e-mail (#408). O apply da produção vem depois do #411, que as tira.
   - **2026-11-05 (Nicole): o orquestrador oferece o plano de saúde (#386, decisão da #266), só no release.**
     - **A produção não muda em nenhum caractere.** Um teste compara o catálogo de classificação e a descrição de `tykhe:saude` com a cópia gravada em 2026-11-05, antes da #386 (`tests/fixtures/orquestrador/catalogo-producao-2026-11-05.json`). A cópia não se regrava.
-    - **No release,** o plano entra no catálogo (10 opções) e a negativa de plano sai da descrição de `tykhe:saude` (`TipoTykhe.trecho_de_fluxo_da_maria`). O `tipoCaso` `saude` não muda.
+    - **No release,** o plano entra no catálogo (10 opções). O `tipoCaso` `saude` não muda.
+    - **Só cirurgia, por enquanto (Nicole, mais tarde no mesmo dia).** O orquestrador manda ao fluxo só a cirurgia negada pelo plano. As outras negativas (exame, tratamento, internação, remédio, reembolso) continuam em `tykhe:saude`, cuja descrição troca "plano de saúde que negou cobertura" por elas (`TipoTykhe.trecho_de_fluxo_da_maria`). O critério H2 da #386 (reembolso vai para o fluxo) fica para depois.
+    - **Futuro:** as outras negativas e, se o NUDECON confirmar, reajuste e cancelamento entram no orquestrador depois de validadas. A pergunta ao NUDECON foi enviada pela Nicole.
     - **A IA de verdade** é conferida num teste de integração com 15 relatos (H1 a H6, versões informais e o SUS escrito de forma popular), rodado à mão depois da aprovação do custo.
-    - **Reajuste e cancelamento** estão na descrição do fluxo marcados como pendentes de confirmação do NUDECON.
 
 **Critério de liberação da busca por similaridade (#326):**
 - Nenhum relato da base rotulada perde o fluxo certo no corte.

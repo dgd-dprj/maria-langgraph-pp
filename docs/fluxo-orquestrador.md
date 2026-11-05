@@ -72,14 +72,15 @@ O fluxo **Problemas com plano de saúde** (NUDECON, #329) está em teste (#324):
 | | Produção | Release |
 |---|---|---|
 | Catálogo | 9 opções, igual ao de 2026-11-05 | 10 opções: o plano entra depois de violência doméstica |
-| Negativa de plano de saúde | `tykhe:saude` (redirecionado, `tipoCaso: "saude"`) | o fluxo do plano, conduzido pela Maria |
-| Descrição de `tykhe:saude` | com "plano de saúde que negou cobertura" | sem esse trecho (`TipoTykhe.trecho_de_fluxo_da_maria`) |
+| Cirurgia negada pelo plano | `tykhe:saude` (redirecionado, `tipoCaso: "saude"`) | o fluxo do plano, conduzido pela Maria |
+| Outras negativas do plano (exame, tratamento, internação, remédio, reembolso) | `tykhe:saude` | `tykhe:saude`, como hoje |
+| Descrição de `tykhe:saude` | com "plano de saúde que negou cobertura" | o trecho vira "plano de saúde que negou exame, tratamento, internação, remédio ou reembolso (não cirurgia)" (`TipoTykhe.trecho_de_fluxo_da_maria`) |
 
 - **A produção não muda em nenhum caractere.** `tests/api/test_orquestrador_plano_saude.py` compara o catálogo e a descrição de `tykhe:saude` com a cópia gravada em 2026-11-05 (`tests/fixtures/orquestrador/`). Nunca regrave essa cópia para fazer o teste passar.
-- **O `tipoCaso` `saude` não muda.** Ele só deixa de cobrir plano de saúde no release.
+- **Por enquanto, só cirurgia** (decisão da Nicole, 2026-11-05). O `tipoCaso` `saude` não muda; no release, ele só deixa de cobrir a cirurgia negada pelo plano.
 - **Relato ambíguo** ("preciso de uma cirurgia") deve devolver o plano e `tykhe:saude` juntos, e o orquestrador pergunta antes de escolher.
 - **Com a IA de verdade,** os cenários H1 a H6 estão em `tests/integracao/ia/test_classificacao_plano_saude.py` (marcador `integracao`, rodado à mão).
-- **Pendente do NUDECON:** se reajuste e cancelamento entram no fluxo. O trecho está marcado na descrição (`src/maria/fluxos/__init__.py`). No bridge do WhatsApp (sem Tykhe por trás), `redirecionado` encerra a conversa com uma orientação fixa (aplicativo Defensoria RJ ou 129).
+- **Futuro:** as outras negativas do plano e, se o NUDECON confirmar, reajuste e cancelamento entram no orquestrador depois de validadas. Ao ampliar, mudam juntos a descrição do fluxo (`src/maria/fluxos/__init__.py`), a troca em `tipos_tykhe.py` e os casos "plano-fora" do teste de integração. No bridge do WhatsApp (sem Tykhe por trás), `redirecionado` encerra a conversa com uma orientação fixa (aplicativo Defensoria RJ ou 129).
 
 ## Contrato HTTP (resumo — ver `docs/contrato-tykhe.md` pro genérico)
 
