@@ -75,7 +75,7 @@ O fluxo **Problemas com plano de saúde** (NUDECON, #329) está em teste (#324):
 | Tudo o que envolve cirurgia com o plano (negativa, demora para autorizar, material ou prótese, reembolso da cirurgia) | `tykhe:saude` (redirecionado, `tipoCaso: "saude"`) | o fluxo do plano, conduzido pela Maria |
 | Outras negativas do plano (exame, tratamento, internação, remédio, reembolso sem cirurgia) | `tykhe:saude` | `tykhe:saude`, como hoje |
 | Cirurgia pelo SUS | `tykhe:saude` | `tykhe:saude`, como hoje |
-| Descrição de `tykhe:saude` | com "plano de saúde que negou cobertura" | o trecho vira "plano de saúde que negou exame, tratamento, internação, remédio ou reembolso sem envolver cirurgia" (`TipoTykhe.trecho_de_fluxo_da_maria`) |
+| Descrição de `tykhe:saude` | com "plano de saúde que negou cobertura" | a frase do plano fica e perde só a cirurgia: "plano de saúde que negou cobertura de exame, remédio, tratamento, internação ou reembolso (menos cirurgia)" (`TipoTykhe.trecho_de_fluxo_da_maria`) |
 
 - **A produção não muda em nenhum caractere.** `tests/api/test_orquestrador_plano_saude.py` compara o catálogo e a descrição de `tykhe:saude` com a cópia gravada em 2026-11-05 (`tests/fixtures/orquestrador/`). Nunca regrave essa cópia para fazer o teste passar.
 - **Por enquanto, só o que envolve cirurgia com o plano** (decisão da Nicole, 2026-11-05). O `tipoCaso` `saude` não muda; no release, ele só deixa de cobrir a cirurgia com o plano.
