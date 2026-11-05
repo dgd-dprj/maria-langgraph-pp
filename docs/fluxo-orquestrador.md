@@ -8,7 +8,7 @@ Usa 4 dos 6 módulos de `src/maria/ia/` (`classificar`, `classificar_fluxos`, `d
 
 ```mermaid
 flowchart TD
-    A(["Relato livre (mensagem)"]) --> B[/"Busca por similaridade no catálogo<br/>(só corta com mais de 15 opções; hoje são 9, #256 e #353)"/]
+    A(["Relato livre (mensagem)"]) --> B[/"Busca por similaridade no catálogo<br/>(só corta com mais de 15 opções; hoje são 9 na produção e 10 no release, #256 e #353)"/]
     B --> C[/"IA: classificar candidatos plausíveis<br/>(nas rodadas seguintes, só entre os que sobraram)"/]
     C --> D{"Quantos candidatos<br/>restaram?"}
     D -->|"0"| R(["redirecionado<br/>tipoCaso: outros"])
@@ -29,7 +29,7 @@ flowchart TD
 
 ## Passo a passo
 
-1. **`classificar`** — 1ª rodada: busca por similaridade (embedding, `fluxo_embeddings`) no catálogo de classificação (`catalogo_para_classificacao()`: 2 fluxos implementados + 7 tipos atendidos pela Tykhe, issue #225; os planejados só entram com `ORQUESTRADOR_INCLUIR_PLANEJADOS=true`), retorna até 15 candidatos (`CANDIDATOS_MAXIMOS`; era 10 até a #353, que mediu o ganho com as 74 categorias ligadas fora do ar). **Com o catálogo de 9 opções, a busca não corta nada:** com até 15 opções, o catálogo inteiro passa sem calcular embedding nenhum (#256). Chama IA (`classificar_fluxos_plausiveis`) pra filtrar quais desses candidatos são plausíveis de verdade a partir do relato. Rodadas seguintes: classifica de novo, mas só **dentro** do subconjunto que já sobrou — nunca alarga de volta pro catálogo todo.
+1. **`classificar`** — 1ª rodada: busca por similaridade (embedding, `fluxo_embeddings`) no catálogo de classificação (`catalogo_para_classificacao()`: 2 fluxos implementados + 7 tipos atendidos pela Tykhe, issue #225; os planejados só entram com `ORQUESTRADOR_INCLUIR_PLANEJADOS=true`), retorna até 15 candidatos (`CANDIDATOS_MAXIMOS`; era 10 até a #353, que mediu o ganho com as 74 categorias ligadas fora do ar). **Com o catálogo de 9 opções (10 no release, com o plano de saúde, #386), a busca não corta nada:** com até 15 opções, o catálogo inteiro passa sem calcular embedding nenhum (#256). Chama IA (`classificar_fluxos_plausiveis`) pra filtrar quais desses candidatos são plausíveis de verdade a partir do relato. Rodadas seguintes: classifica de novo, mas só **dentro** do subconjunto que já sobrou — nunca alarga de volta pro catálogo todo.
 2. Decisão por quantos candidatos restaram (`depois_de_classificar`):
    - **0** → `nenhum` → nó `naoIdentificado` → `redirecionado` com `tipoCaso: "outros"` (issue #225; antes era `handoff_humano`).
    - **1** → `um` → nó `identificado` → segue pra criar o atendimento nesse `flowId`.
@@ -63,7 +63,23 @@ flowchart TD
 | `outros` | Outros (também o destino de relato não identificado) |
 | `sair` | Sair |
 
-Pessoa presa e violência doméstica continuam conduzidos pela Maria. Descrições usadas na classificação: `src/maria/fluxos/tipos_tykhe.py`. No bridge do WhatsApp (sem Tykhe por trás), `redirecionado` encerra a conversa com uma orientação fixa (aplicativo Defensoria RJ ou 129).
+Pessoa presa e violência doméstica continuam conduzidos pela Maria. Descrições usadas na classificação: `src/maria/fluxos/tipos_tykhe.py`.
+
+### Plano de saúde (#386, decisão da #266)
+
+O fluxo **Problemas com plano de saúde** (NUDECON, #329) está em teste (#324): só entra no catálogo onde `MARIA_AMBIENTE` é `release`.
+
+| | Produção | Release |
+|---|---|---|
+| Catálogo | 9 opções, igual ao de 2026-11-05 | 10 opções: o plano entra depois de violência doméstica |
+| Negativa de plano de saúde | `tykhe:saude` (redirecionado, `tipoCaso: "saude"`) | o fluxo do plano, conduzido pela Maria |
+| Descrição de `tykhe:saude` | com "plano de saúde que negou cobertura" | sem esse trecho (`TipoTykhe.trecho_de_fluxo_da_maria`) |
+
+- **A produção não muda em nenhum caractere.** `tests/api/test_orquestrador_plano_saude.py` compara o catálogo e a descrição de `tykhe:saude` com a cópia gravada em 2026-11-05 (`tests/fixtures/orquestrador/`). Nunca regrave essa cópia para fazer o teste passar.
+- **O `tipoCaso` `saude` não muda.** Ele só deixa de cobrir plano de saúde no release.
+- **Relato ambíguo** ("preciso de uma cirurgia") deve devolver o plano e `tykhe:saude` juntos, e o orquestrador pergunta antes de escolher.
+- **Com a IA de verdade,** os cenários H1 a H6 estão em `tests/integracao/ia/test_classificacao_plano_saude.py` (marcador `integracao`, rodado à mão).
+- **Pendente do NUDECON:** se reajuste e cancelamento entram no fluxo. O trecho está marcado na descrição (`src/maria/fluxos/__init__.py`). No bridge do WhatsApp (sem Tykhe por trás), `redirecionado` encerra a conversa com uma orientação fixa (aplicativo Defensoria RJ ou 129).
 
 ## Contrato HTTP (resumo — ver `docs/contrato-tykhe.md` pro genérico)
 

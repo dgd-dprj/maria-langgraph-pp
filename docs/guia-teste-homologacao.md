@@ -145,10 +145,13 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
 **Na produção (`main`), onde a equipe testa hoje, o fluxo não existe para a Tykhe:**
 - `GET /fluxos` lista só pessoa presa e violência doméstica, como antes;
 - quem abrir o atendimento pelo id do plano de saúde recebe "fluxo não encontrado", a mesma resposta de um id que não existe;
+- **um relato livre sobre plano de saúde** ("o plano negou minha cirurgia") continua indo para a Tykhe como questão de saúde (`tipoCaso: "saude"`), como antes (#386);
 - **se, testando na `main`, a conversa chegar a uma pergunta sobre plano de saúde, carteirinha ou NUDECON, é defeito:** registre com o horário.
 
 **No release, depois do `terraform apply` do Ícaro:**
-- **Como começar:** o orquestrador ainda **não** oferece o plano de saúde a partir de um relato livre (#266). O fluxo só abre pelo id dele, `84433c84-4776-4b05-a5a0-af8012d8eced`, que precisa estar configurado no fluxo de teste da Tykhe. Confirme com a Nicole antes.
+- **Como começar, por dois caminhos:**
+  - **pelo relato livre** (orquestrador, #386): "o plano negou minha cirurgia" ou "a Unimed não quer reembolsar" abrem o fluxo; "o posto não tem o remédio" continua indo para a Tykhe como questão de saúde; "preciso de uma cirurgia" faz a Maria perguntar antes de escolher. **A Tykhe ainda não confirmou o `flowId` novo nem os destinos novos (#336):** por enquanto, teste pela API;
+  - **pelo id do fluxo,** `84433c84-4776-4b05-a5a0-af8012d8eced`, que precisa estar configurado no fluxo de teste da Tykhe. Confirme com a Nicole antes.
 - **O endereço vem da Tykhe** (o CEP em `dadosConhecidos`). Antes da primeira pergunta, a Maria confere no Verde se o município é o Rio.
 - **As perguntas,** nesta ordem:
   1. como prefere seguir: por aqui, por e-mail ou presencialmente;

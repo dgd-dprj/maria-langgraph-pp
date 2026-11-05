@@ -112,7 +112,7 @@ Um fluxo novo entra com `em_teste=True` no `FluxoConfig`. Assim a equipe testa n
 - **Para ir para produção,** abra um PR que tira o `em_teste=True`, com o resultado do teste da equipe e o registro na #208. Nunca troque uma variável no console. Esse PR muda `GET /fluxos` na produção, e é nele que os casos das respostas gravadas são aposentados (seção 3, "O que o registro muda em outros testes").
 - **O primeiro fluxo em teste** é o do plano de saúde (NUDECON, #329), por decisão de 2026-11-03: o release `develop` → `main` o leva desligado na produção.
 
-> Um fluxo novo entra no catálogo de classificação. Com mais de 15 opções no catálogo, a busca por similaridade passa a cortar candidatos antes da IA (`CANDIDATOS_MAXIMOS`, #256 e #353): hoje são 9 (2 fluxos e 7 tipos da Tykhe), então o 7º fluxo novo já muda esse comportamento. Ver `docs/fluxo-orquestrador.md`.
+> Um fluxo novo entra no catálogo de classificação. Com mais de 15 opções no catálogo, a busca por similaridade passa a cortar candidatos antes da IA (`CANDIDATOS_MAXIMOS`, #256 e #353): hoje são 9 na produção (2 fluxos e 7 tipos da Tykhe) e 10 no release, com o plano de saúde (#386), então o 7º fluxo novo na produção já muda esse comportamento. Se o fluxo novo atende parte do que um tipo da Tykhe cobre, use `TipoTykhe.trecho_de_fluxo_da_maria` para tirar esse trecho da descrição do tipo só onde o fluxo está ligado. Ver `docs/fluxo-orquestrador.md`.
 
 ## 3. Testes
 
