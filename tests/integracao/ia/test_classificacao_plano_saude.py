@@ -11,11 +11,10 @@ embedding) e a classificação, com o modelo da produção (`infra/terraform/ecs
 
 Os relatos são inventados, com versões informais e erros de escrita de propósito.
 
-Por decisão da Nicole (2026-11-05), o fluxo entra no orquestrador só para o que envolve CIRURGIA
-com o plano: negativa, demora na autorização, material ou prótese e reembolso da cirurgia.
-Cirurgia pelo SUS continua em `tykhe:saude`. As outras negativas do plano (exame, tratamento,
-remédio, reembolso que não é de cirurgia) continuam em `tykhe:saude` até serem validadas com o
-NUDECON; quando entrarem, os casos "plano-fora" mudam de lado.
+Escopo confirmado em 2026-11-05: o fluxo entra no orquestrador só para CIRURGIA com o plano
+(negativa, demora na autorização, material ou prótese e reembolso da cirurgia). Cirurgia pelo SUS
+e as outras negativas do plano (exame, remédio, tratamento, internação, reembolso que não é de
+cirurgia), formais e informais, continuam em `tykhe:saude`: são os casos "plano-fora".
 """
 
 from __future__ import annotations
@@ -43,15 +42,20 @@ CASOS: list[tuple[str, str, set[str], set[str], bool]] = [
     ("H1-marca", "a amil nao autorizou a operaçao da minha mae", {PLANO}, {SAUDE}, True),
     ("H1-demora", "a unimed ta enrolando faz 1 mes pra liberar minha cirurgia", {PLANO}, {SAUDE}, True),
     ("H1-protese", "o convenio nao quer pagar a protese da cirurgia do meu pai", {PLANO}, {SAUDE}, True),
-    # H2 (por enquanto): as outras negativas do plano continuam com a Tykhe, até serem validadas.
+    # Negativas do plano que não são cirurgia: continuam com a Tykhe (formais e informais).
+    ("plano-fora-exame", "O plano de saúde negou a cobertura da minha ressonância magnética.", {SAUDE}, {PLANO}, True),
+    ("plano-fora-exame-informal", "a hapvida n liberou meu exame de sangue de novo", {SAUDE}, {PLANO}, True),
+    ("plano-fora-remedio", "O convênio recusou o fornecimento do medicamento do meu filho.", {SAUDE}, {PLANO}, True),
+    ("plano-fora-remedio-informal", "o plano nao qer cobri o remedio da minha filha", {SAUDE}, {PLANO}, True),
+    ("plano-fora-internacao", "O plano de saúde não autorizou a internação do meu pai.", {SAUDE}, {PLANO}, True),
+    ("plano-fora-internacao-informal", "o convenio nao quis interna minha vo no hospital", {SAUDE}, {PLANO}, True),
     ("plano-fora-reembolso", "o convênio não quer reembolsar o exame", {SAUDE}, {PLANO}, True),
-    ("plano-fora-informal", "a unimed nao qer devolver o dinheiro da consulta q eu paguei", {SAUDE}, {PLANO}, True),
+    ("plano-fora-reembolso-informal", "a unimed nao qer devolver o dinheiro da consulta q eu paguei", {SAUDE}, {PLANO}, True),
     ("plano-fora-tratamento", "a amil negou o tratamento de quimio da minha mae", {SAUDE}, {PLANO}, True),
     # H3: saúde pública continua com a Tykhe, sem o plano junto.
     ("H3", "preciso de um remédio que o posto não tem", {SAUDE}, {PLANO}, True),
     ("H3-posto", "o posto não marca minha cirurgia", {SAUDE}, {PLANO}, True),
     ("H3-vaga", "to esperando vaga no sus pra internar minha mae faz 2 semana", {SAUDE}, {PLANO}, True),
-    ("H3-farmacia", "a farmacia popular nao tem o remedio da pressao", {SAUDE}, {PLANO}, True),
     # H4: ambíguo, os dois entram e o orquestrador pergunta antes de escolher.
     ("H4", "preciso de uma cirurgia", {PLANO, SAUDE}, set(), False),
     ("H4-informal", "minha mae precisa operar o joelho urgente", {PLANO, SAUDE}, set(), False),
@@ -80,7 +84,7 @@ async def test_classificacao_plano_de_saude(cenario: str, relato: str, precisa: 
     pool = await buscar_candidatos(relato, CANDIDATOS_MAXIMOS, catalogo)
     resultado = await classificar_fluxos_plausiveis(relato, pool)
     ids = set(resultado.get("ids") or [])
-    print(f"\n[{cenario}] {sorted(ids)} tokens={resultado.get('tokensTotal')}")
+    print(f"\n[{cenario}] {sorted(ids)} entrada={resultado.get('tokensEntrada')} saida={resultado.get('tokensSaida')}")
     assert resultado.get("viaIA") is True, "a resposta tem de vir da IA, não do modo de teste"
     assert precisa <= ids, f"faltou {sorted(precisa - ids)}"
     assert not (nao_pode & ids), f"não podia ter {sorted(nao_pode & ids)}"

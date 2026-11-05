@@ -6,9 +6,9 @@ comparados, caractere por caractere, com a cópia gravada em 2026-11-05, antes d
 se a produção tiver de mudar, é outra decisão, com registro na #208.
 
 No release, onde o fluxo em teste liga (#324), o plano de saúde entra no catálogo só para o que
-envolve cirurgia com o plano (decisão da Nicole, 2026-11-05); a descrição de `tykhe:saude` troca
-"plano de saúde que negou cobertura" pelas outras negativas do plano, que continuam com a Tykhe
-até serem validadas com o NUDECON. A escolha da IA de verdade (H1 a H6) fica no teste
+envolve cirurgia com o plano (escopo confirmado em 2026-11-05); a descrição de `tykhe:saude`
+mantém "plano de saúde que negou cobertura" e tira só a parte de cirurgia: as outras negativas do
+plano continuam com a Tykhe. A escolha da IA de verdade (H1 a H6) fica no teste
 de integração `tests/integracao/ia/test_classificacao_plano_saude.py`; aqui a classificação é
 simulada e o que se prova é o caminho da rota.
 """
@@ -31,7 +31,7 @@ TEXTO_GRAVADO = GRAVADO.read_text(encoding="utf-8")
 # Valores de MARIA_AMBIENTE que NÃO ligam o fluxo em teste (os mesmos de `test_fluxo_em_teste.py`).
 NAO_LIGAM = [None, "", "producao", "Release", "RELEASE", "release ", " release", "homologacao"]
 TRECHO_PLANO = "plano de saúde que negou cobertura, "
-TROCA_RELEASE = "plano de saúde que negou exame, tratamento, internação, remédio ou reembolso sem envolver cirurgia, "
+TROCA_RELEASE = "plano de saúde que negou cobertura de exame, remédio, tratamento, internação ou reembolso (menos cirurgia), "
 # O CEP faz o fluxo do plano seguir para a 1ª pergunta, em vez de encerrar por não saber o município.
 DADOS_NO_RIO = {"endereco": {"cep": "20000000"}}
 
@@ -102,7 +102,11 @@ async def test_release_catalogo_com_o_plano_so_para_cirurgia(monkeypatch: pytest
     saude_release = next(o for o in catalogo if o["id"] == "tykhe:saude")
     saude_gravada = next(o for o in gravado if o["id"] == "tykhe:saude")
     assert saude_release["descricao"] == saude_gravada["descricao"].replace(TRECHO_PLANO, TROCA_RELEASE)
-    assert "negou cobertura" not in saude_release["descricao"]
+    # A frase do plano fica, e as outras negativas continuam com a Tykhe; sai só a cirurgia.
+    assert "plano de saúde que negou cobertura" in saude_release["descricao"]
+    for fica in ("exame", "remédio", "internação", "reembolso"):
+        assert fica in TROCA_RELEASE, fica
+    assert "(menos cirurgia)" in saude_release["descricao"]
     # O resto do catálogo é o mesmo da produção.
     assert [o for o in catalogo if o["id"] not in (ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude")] == [
         o for o in gravado if o["id"] != "tykhe:saude"
