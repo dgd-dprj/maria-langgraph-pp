@@ -162,7 +162,9 @@ async def criar_atendimento(
     # Registra chatId→flowId ANTES de tocar no grafo: chatId de outro fluxo é 409.
     store = await obter_atendimentos_store()
     registro = await store.registrar(chat_id, fluxo_id)
-    if not registro["ok"]:
+    # `is False`, e não `not`: o Pylance só estreita a união RegistroOk | RegistroConflito pela
+    # comparação com o literal; com `not`, acusava `flowIdExistente` inexistente (o mypy aceita os dois).
+    if registro["ok"] is False:
         existente = registro["flowIdExistente"]
         log.warn("chatId já pertence a outro flowId", chatId=chat_id, fluxoId=fluxo_id, flowIdExistente=existente)
         return Resposta(409, {"erro": f"chatId já está em uso pelo flowId {existente}"})
