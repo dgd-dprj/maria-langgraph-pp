@@ -985,6 +985,7 @@ Duas coisas diferentes:
 - **Por quê:** das 30 últimas execuções do CI em PR (#199 a #228), 19 eram de PR com título `:books: docs:` (levantamento da #357). Cada PR a mais é mais uma rodada de CI, revisão e merge, e repete o problema de "muita branch" de 2026-10-23.
 - **Efeito na #357:** a parte de CI (filtro para PR só de `.md`) ficou em espera, para o Ícaro decidir se ainda vale como rede de segurança para as exceções.
 - **Onde está escrita:** `docs/padroes-pull-request.md` ("Quando abrir PR"), `docs/padroes-issues.md`, as skills `padroes-pull-request` e `padroes-issues` e o `CLAUDE.md`. Entrou junto com a #353 (corte de 15 candidatos no orquestrador), o primeiro PR com código depois da decisão.
+- **Sem issue, com `chore:` (decisão da Nicole, 2026-11-05):** mudança só de tipagem, lint ou formatação, sem mudar comportamento, pode ir sem issue, com o título do PR começando por `chore:`. Os testes continuam obrigatórios. O primeiro caso foi o aviso do Pylance no 409 de `chatId` de outro fluxo (branch `fix/pylance-registro-409`). Alinhar o editor e o CI na checagem de tipos é a #412. Registro no `CLAUDE.md`.
 
 ## Pendências operacionais
 
