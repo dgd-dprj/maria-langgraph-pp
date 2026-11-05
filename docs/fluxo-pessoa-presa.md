@@ -19,7 +19,8 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
      formato válido → consulta Verde (/apenado) só com os dígitos
         não encontrado, < 3 tentativas → "Quer tentar de novo?" (sim/não/RG direto)
         não encontrado, 3ª tentativa    → HANDOFF: rg_nao_encontrado
-        encontrado                       → 5. "Confirma que é <nome>?" (sim/não)
+        encontrado                       → 5. "Confirma que a pessoa presa é <nome mascarado>?" (sim/não;
+                                              #393: primeiro nome e iniciais, ex.: "Jose S. P.")
            não confirmado                 → HANDOFF: nome_nao_confirmado
            confirmado                     → 6. "Qual seu parentesco?" (texto, classificado por IA numa lista fechada)
                                               → SEM viaOrquestrador (Tykhe, issue #191): conclui DIRETO, nunca
@@ -29,7 +30,8 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
                                                 `identificarAssistido`, issue #183] "Qual o seu CPF?"
                                                  → consulta Verde (/pessoa) — identifica quem está CONVERSANDO,
                                                    diferente do RG acima (que identifica o PRESO)
-                                                 encontrado                     → "Confirma que seus dados são: <nome>?" (sim/não, issue #189)
+                                                 encontrado                     → "Confirma que seus dados são: <nome mascarado>?" (sim/não, issue #189;
+                                                                                    #393: primeiro nome e iniciais, ex.: "Maria S. S.", e o nome social se houver); sem a pergunta se o CPF veio da Tykhe (#236)
                                                                                     confirmou    → conclui
                                                                                     NÃO confirmou → HANDOFF: assistido_nao_confirmado
                                                  não encontrado, esgotou (3x)   → [subgrafo `cadastroPessoa`, issue #183]
@@ -53,7 +55,7 @@ Mesmo racional de `docs/fluxo-violencia-domestica.md`: a Tykhe consome este flux
 A conclusão (`concluir`, em `src/maria/fluxos/pessoa_presa/graph.py`) checa, nesta ordem:
 
 1. **Sem número de processo** (`temProcesso === false`) → `handoff_humano`, motivo `sem_numero_processo`. Mesmo com RG/nome/parentesco todos ok — sem processo não tem como acompanhar a situação de verdade (issue #49).
-2. **Processo com origem não suportada** (`dadosProcesso.origem !== "SEEU"`) → `handoff_humano`, motivo `origem_processo_nao_suportada`. Só processos de origem **SEEU** são resolvidos pelo bot; qualquer outra origem (ou processo não encontrado) cai aqui (issue #51).
+2. **Processo com origem não suportada** (`dadosProcesso.origem !== "SEEU"`) → `handoff_humano`, motivo `origem_processo_nao_suportada`. Só processos de origem **SEEU** são resolvidos pelo bot; qualquer outra origem (ou processo não encontrado) cai aqui (issue #51). A mensagem depende do caso (#341/#352, decisão de 2026-11-03, sem mudar o motivo): quando o Verde responde que não achou o número (400, 404 ou 422), a pessoa ouve "Não consegui localizar esse número de processo no sistema. Vou encaminhar seu atendimento pra equipe conferir com você."; com outra origem, falha de infra (#239) ou `dados` sem `id`, continua a mensagem de origem não tratada.
 3. **Situação/tipo de preso/regime fora do permitido** → `handoff_humano`, motivo `dados_pessoa_nao_atendidos` (issue #57):
    - `situacao` precisa estar em: `ATIVO`, `RESDOM`, `TRABALHO EXTRAMURO`, `BAIXA HOSPITALAR`, `VPF`, `VPF/TRABALHO EXTRAMURO`, `VPF/ATIVIDADE EDUCACIONAL`, `ABERTO/DOMICÍLIO COVID-19` (comparado sem prefixo `"EM "`, que o Verde usa de forma inconsistente).
    - `tipoPreso` precisa ser `CONDENADO` (não `PROVISÓRIO`).

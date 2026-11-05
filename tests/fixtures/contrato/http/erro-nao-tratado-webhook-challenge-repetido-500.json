@@ -1,0 +1,28 @@
+{
+  "nome": "erro-nao-tratado-webhook-challenge-repetido-500",
+  "descricao": "Verificação do webhook com hub.challenge repetido: o challenge vira array e o send de text/plain recusa (FST_ERR_REP_INVALID_PAYLOAD_TYPE)",
+  "instancia": {
+    "nome": "f-test-erros-401-500",
+    "env": {
+      "NODE_ENV": "test",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "GET",
+    "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=token-verificacao-captura&hub.challenge=a&hub.challenge=b",
+    "headers": {}
+  },
+  "resposta": {
+    "status": 500,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"statusCode\":500,\"code\":\"FST_ERR_REP_INVALID_PAYLOAD_TYPE\",\"error\":\"Internal Server Error\",\"message\":\"Attempted to send payload of invalid type 'object'. Expected a string or Buffer.\"}",
+    "corpo": {
+      "statusCode": 500,
+      "code": "FST_ERR_REP_INVALID_PAYLOAD_TYPE",
+      "error": "Internal Server Error",
+      "message": "Attempted to send payload of invalid type 'object'. Expected a string or Buffer."
+    }
+  }
+}

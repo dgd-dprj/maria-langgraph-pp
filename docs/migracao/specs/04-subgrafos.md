@@ -104,7 +104,7 @@ Nós que devolvem `{}` (bypass, CEP não encontrado) continuam devolvendo `{}`: 
 
 - **CPF conhecido:** o bypass vale só com `tentativasCpf` 0 (`:35-37`). O CPF vindo de `dadosConhecidos` conta como a tentativa 1.
 - **`depoisDeConsultarPessoa`** (`:64-68`), nesta ordem: `encontrado` → `falhaInfra` → `tentativasCpf >= 3` → tentar de novo.
-- **Confirmação** (`confirmaAssistido`): só pergunta quando `viaOrquestrador`. Se o Verde não trouxer `nome`, o texto vira "Confirma que seus dados são: você?" (`:98`).
+- **Confirmação** (`confirmaAssistido`): só pergunta quando `viaOrquestrador` e o CPF não veio da Tykhe (canal interno `cpfDaTykhe`, #236, 2026-11-03). Se o Verde não trouxer `nome`, o texto vira "Confirma que seus dados são: você?" (`:98`).
 
 ## 4. Casos de erro
 

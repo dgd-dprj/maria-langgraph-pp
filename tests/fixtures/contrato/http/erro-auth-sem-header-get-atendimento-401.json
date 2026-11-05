@@ -1,0 +1,25 @@
+{
+  "nome": "erro-auth-sem-header-get-atendimento-401",
+  "descricao": "GET /atendimentos/:chatId sem Authorization",
+  "instancia": {
+    "nome": "f-test-erros-401-500",
+    "env": {
+      "NODE_ENV": "test",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "GET",
+    "caminho": "/atendimentos/cap-401-1",
+    "headers": {}
+  },
+  "resposta": {
+    "status": 401,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"error\":\"missing authorization header\"}",
+    "corpo": {
+      "error": "missing authorization header"
+    }
+  }
+}

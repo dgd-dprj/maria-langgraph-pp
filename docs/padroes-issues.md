@@ -10,6 +10,16 @@ Toda issue: clara, acionável, testável, com contexto suficiente para ser enten
 - **Achou duplicata depois de abrir:** feche a que foi aberta **por último**, pelo horário de criação do GitHub (`gh issue view <n> --json createdAt`), citando a outra e um motivo que dê para conferir.
 - **Por quê:** em 2026-10-22, as #292 e #293 foram abertas com 18 segundos de diferença, e a #292 foi fechada dizendo que a #293 tinha sido aberta "minutos antes", quando foi depois. Registro em `MIGRACAO.md`, "Aviso de processo". Para quem começa a trabalhar numa issue, a regra equivalente está em [`padroes-branch.md`](padroes-branch.md), "Antes de criar a branch".
 
+## Issue só de texto: sem branch e sem PR próprios
+
+Regra de 2026-10-27 (Nicole, #357), para as issues abertas e para as que vierem.
+
+- Issue cujo trabalho é só de texto não ganha branch nem PR próprios. Exemplos: documentação, índice de issues, padrão, skill, `MIGRACAO.md`.
+- O texto entra junto no próximo PR que tenha mudança de código, num commit `:books: docs:`, e a issue fecha com o `Closes #N` desse PR.
+- Nos critérios de aceitação, escreva onde o texto vai entrar: "entra junto no próximo PR com código".
+- Mensagem que o assistido vê, em `src/`, não é "só texto": muda o comportamento.
+- Regra completa em [`padroes-pull-request.md`](padroes-pull-request.md), "Quando abrir PR".
+
 ## Título
 
 ```

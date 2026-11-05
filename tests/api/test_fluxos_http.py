@@ -28,6 +28,7 @@ async def test_pessoa_presa_primeira_pergunta_sim_nao_sobre_numero_do_processo(c
     corpo = r.json()
     assert r.status_code == 200
     assert corpo["tipoResposta"] == "sim_nao"
+    assert corpo["opcoes"] == ["Sim", "Não"]
     assert "número do processo" in corpo["resposta"]
 
 
@@ -161,6 +162,14 @@ async def test_pp_completo_sem_processo_handoff_com_metadados_preenchidos_49(
 PLANO_SAUDE_COM_CEP = {"endereco": {"cep": "20000000"}}
 
 
+@pytest.fixture
+def no_release(cliente: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> None:
+    # O fluxo está em teste (#324): só liga onde MARIA_AMBIENTE é "release". Depende do `cliente`,
+    # que apaga a variável ao subir, para ligar depois dele.
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
+
+
+@pytest.mark.usefixtures("no_release")
 async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
     r = await cliente.post(
         "/atendimentos",
@@ -174,6 +183,7 @@ async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClien
     assert "das 11h às 16h" in corpo["resposta"]
 
 
+@pytest.mark.usefixtures("no_release")
 async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
     chat_id = f"teste-ps-http-{next(_ids)}"
     await cliente.post(
@@ -191,6 +201,7 @@ async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: ht
     assert "outra pessoa" in corpo["resposta"]
 
 
+@pytest.mark.usefixtures("no_release")
 async def test_plano_saude_sem_municipio_do_rio_encerra_na_criacao_com_atendimento_humano(
     cliente: httpx.AsyncClient, auth: dict[str, str]
 ) -> None:
@@ -202,3 +213,40 @@ async def test_plano_saude_sem_municipio_do_rio_encerra_na_criacao_com_atendimen
     assert corpo["status"] == "handoff_humano"
     assert corpo["destino"] == "atendimento_humano"
     assert corpo["metadados"]["motivoHandoff"] == "municipio_nao_identificado"
+
+
+LINK_FRENTE_HTTP = "https://downloads.tykhe.dev/arquivos/id-frente-http?token=segredo-frente-http"
+LINK_VERSO_HTTP = "https://downloads.tykhe.dev/arquivos/id-verso-http?token=segredo-verso-http"
+
+
+@pytest.mark.usefixtures("no_release")
+async def test_plano_saude_imagens_por_link_do_pedido_a_resposta_final_398(
+    cliente: httpx.AsyncClient, auth: dict[str, str], capsys: pytest.CaptureFixture[str]
+) -> None:
+    chat_id = f"teste-ps-http-{next(_ids)}"
+    dados = {**PLANO_SAUDE_COM_CEP, "relato": "o plano negou a minha cirurgia"}
+    await cliente.post(
+        "/atendimentos", json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": dados}, headers=auth
+    )
+    await _responder(cliente, auth, chat_id, "por aqui")
+    r = await _responder(cliente, auth, chat_id, "true")
+    assert r.json()["tipoResposta"] == "link_imagem"
+    assert r.json()["tipoImagem"] == "carteirinha_frente"
+    r = await _responder(cliente, auth, chat_id, LINK_FRENTE_HTTP)
+    assert r.json()["tipoResposta"] == "link_imagem"
+    assert r.json()["tipoImagem"] == "carteirinha_verso"
+    assert "imagens" not in r.json()["dadosColetados"]
+    r = await _responder(cliente, auth, chat_id, LINK_VERSO_HTTP)
+    assert "renda" in r.json()["resposta"]
+    assert "tipoImagem" not in r.json()
+    await _responder(cliente, auth, chat_id, "2500")
+    r = await _responder(cliente, auth, chat_id, "true")
+    corpo = r.json()
+    assert corpo["status"] == "concluido"
+    assert corpo["destino"] == "email_enviado"
+    assert corpo["dadosColetados"]["imagens"] == {"carteirinhaFrente": LINK_FRENTE_HTTP, "carteirinhaVerso": LINK_VERSO_HTTP}
+    assert "imagens" not in str(corpo["metadados"])
+    saida = capsys.readouterr()
+    assert "segredo-frente-http" not in saida.out + saida.err
+    assert "segredo-verso-http" not in saida.out + saida.err
+    assert "id-frente-http" not in saida.out + saida.err

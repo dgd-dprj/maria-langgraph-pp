@@ -16,7 +16,11 @@ import pytest
 from maria.fluxos import FLUXO_PADRAO, ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, buscar_fluxo, catalogo_para_classificacao
 from maria.fluxos.padrao.graph import _construtor as construtor_padrao
 from maria.fluxos.padrao.graph import obter_grafo as obter_padrao
-from maria.fluxos.pessoa_presa.api import extrair_metadados_pessoa_presa
+from maria.fluxos.pessoa_presa.api import (
+    MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA,
+    MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO,
+    extrair_metadados_pessoa_presa,
+)
 from maria.fluxos.pessoa_presa.graph import _construtor as construtor_pp
 from maria.fluxos.pessoa_presa.graph import normalizar_situacao, rg_formato_valido
 from maria.fluxos.pessoa_presa.graph import obter_grafo as obter_pp
@@ -276,7 +280,8 @@ PERGUNTAS_PP_LIVRE_E_RG_INVALIDO = [
     {"pergunta": "Qual o número do processo? Informe apenas os números.", "tipo": "texto"},
     {"pergunta": "Qual o RG da pessoa presa? Informe apenas os números.", "tipo": "texto"},
     {"pergunta": "O RG deve conter apenas números. Qual o RG da pessoa presa? Informe apenas os números.", "tipo": "texto"},
-    {"pergunta": "Confirma que a pessoa presa é Pessoa de Teste (mock)?", "tipo": "sim_nao", "opcoes": SIM_NAO},
+    # #393: o nome do mock ("Pessoa de Teste (mock)") sai mascarado.
+    {"pergunta": "Confirma que a pessoa presa é Pessoa T.?", "tipo": "sim_nao", "opcoes": SIM_NAO},
     {"pergunta": "Qual seu parentesco com a pessoa presa?", "tipo": "texto"},
 ]
 
@@ -616,7 +621,7 @@ async def test_6_um_no_retry_do_rg_vira_rg_digitado() -> None:
     f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "000000000", "1"])
     estado = await f.estado()
     assert estado["rg"] == "1" and estado["digitouRgDireto"] is True
-    assert perguntas[-1]["pergunta"] == "Confirma que a pessoa presa é Pessoa de Teste (mock)?"
+    assert perguntas[-1]["pergunta"] == "Confirma que a pessoa presa é Pessoa T.?"  # #393: nome mascarado
 
 
 async def test_6_processo_pontuado_de_20_digitos_e_digitado_direto_e_gravado_cru() -> None:
@@ -791,3 +796,48 @@ async def test_3_rg_none_do_rg_invalido_nao_vai_para_os_metadados() -> None:
     # Develop grava undefined, que some do JSON; o None do Python não pode virar null.
     f, _, _ = await _conversa(obter_pp(), {}, ["Não", "abc"])
     assert "rg" not in json.loads(await _metadados(f, extrair_metadados_pessoa_presa))
+
+
+# ---- #341/#352: processo que o Verde não acha não ouve "origem" ----------------------
+# Decisão da Nicole (2026-11-03): o motivo continua origem_processo_nao_suportada (o
+# contrato com a Tykhe não muda); só a mensagem troca, nos três códigos de "não achei".
+
+PP_ATE_O_FIM = [*PP_COM, "123456", "Sim", "amigo"]
+
+
+@pytest.mark.parametrize("status", [400, 404, 422])
+async def test_341_processo_nao_localizado_troca_so_a_mensagem(verde_real: TransporteFalso, status: int) -> None:
+    rotas = _rotas_pp()
+    rotas[("GET", "/processo/consultar/")] = (status, {"mensagem": "erro do Verde"})
+    _verde(verde_real, rotas)
+    f, _, r = await _conversa(obter_pp(), {}, PP_ATE_O_FIM)
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "origem_processo_nao_suportada"
+    assert r["mensagemFinal"] == MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO
+    # O status fica no estado e não vai para os metadados que a Tykhe recebe.
+    assert (await f.estado())["statusConsultaProcesso"] == status
+    assert "statusConsultaProcesso" not in await _metadados(f, extrair_metadados_pessoa_presa)
+
+
+async def test_341_origem_diferente_de_seeu_continua_com_a_mensagem_de_origem(verde_real: TransporteFalso) -> None:
+    rotas = _rotas_pp()
+    rotas[("GET", "/processo/consultar/")] = (200, {"dados": {**PROCESSO, "origem": "e-Proc"}})
+    _verde(verde_real, rotas)
+    _, _, r = await _conversa(obter_pp(), {}, PP_ATE_O_FIM)
+    assert r["motivoHandoff"] == "origem_processo_nao_suportada"
+    assert r["mensagemFinal"] == MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA
+
+
+@pytest.mark.parametrize(
+    "rota",
+    [(503, {"mensagem": "fora do ar"}), (200, {"dados": {"origem": "SEEU"}})],
+    ids=["falha_de_infra", "dados_sem_id"],
+)
+async def test_341_fora_da_decisao_continua_como_hoje(verde_real: TransporteFalso, rota: tuple[int, object]) -> None:
+    # Falha de infra é da #239; dados sem id não entrou na decisão de 03/11.
+    rotas = _rotas_pp()
+    rotas[("GET", "/processo/consultar/")] = rota
+    _verde(verde_real, rotas)
+    _, _, r = await _conversa(obter_pp(), {}, PP_ATE_O_FIM)
+    assert r["motivoHandoff"] == "origem_processo_nao_suportada"
+    assert r["mensagemFinal"] == MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA

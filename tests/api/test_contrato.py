@@ -1,18 +1,20 @@
 """Contrato HTTP com a Tykhe: as fixtures gravadas do servidor TypeScript real
 (develop @ 1157a6d, `tests/fixtures/contrato/`), reproduzidas byte a byte.
 
-Cada instância (A a E) roda numa aplicação nova, com as variáveis de ambiente da
+Cada instância (A a F) roda numa aplicação nova, com as variáveis de ambiente da
 gravação (NODE_ENV vira APP_ENV), e as fixtures são reproduzidas na ordem do
 `indice.json`, porque algumas dependem do estado deixado pelas anteriores.
 
 Compara:
 - status, content-type, Location e o corpo bruto (no 500, tudo menos o valor de
-  `message`, #210; sem os campos posteriores à gravação, `campos_posteriores.py`, #294);
+  `message`, #210, e o 500 sem corpo, do HEAD, byte a byte; sem os campos posteriores à
+  gravação, `campos_posteriores.py`, #294);
 - as linhas de log de cada requisição (as que têm `reqId`), sem `time`, `pid`,
   `hostname`, `reqId`, `responseTime`, o endereço do cliente e o `stack`.
 
 Módulo api (#246): as 31 fixtures do PR 1 e as 19 do PR 2 (`GET /atendimentos/:chatId`,
-`POST /atendimentos/respostas` e `/webhook/whatsapp`), as 50.
+`POST /atendimentos/respostas` e `/webhook/whatsapp`), as 50. Mais as 8 da instância F
+(#387): o 401 em cada rota de atendimento e o 500 por quatro caminhos do webhook, as 58.
 """
 
 from __future__ import annotations
@@ -27,7 +29,7 @@ import pytest
 
 from maria.app import criar_app
 from tests.api.campos_posteriores import sem_campos_posteriores
-from tests.api.casos_aposentados import CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato")
@@ -46,8 +48,8 @@ for _f in FIXTURES:
     INSTANCIAS.setdefault(_f["instancia"]["nome"], []).append(_f)
 
 
-def test_as_50_fixtures_entram() -> None:
-    assert len(FIXTURES) == 50
+def test_as_58_fixtures_entram() -> None:
+    assert len(FIXTURES) == 58
 
 
 def _cabecalhos(f: dict[str, Any]) -> dict[str, str]:
@@ -116,6 +118,7 @@ async def instancia(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
     for chave, valor in env.items():
         monkeypatch.setenv(chave, valor)
     monkeypatch.setenv("API_KEY", CHAVE)
+    monkeypatch.setenv("MARIA_AMBIENTE", AMBIENTE_DAS_CONFERENCIAS)  # #324: o contrato vale na produção
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("VERDE_JWT_TOKEN", raising=False)
     app = criar_app(pre_aquecer=False)
@@ -144,7 +147,7 @@ async def _conferir(cliente: httpx.AsyncClient, nome: str, capsys: pytest.Captur
             falhas.append(f"{f['nome']}: content-type {r.headers.get('content-type')} != {esperado['contentType']}")
         if r.headers.get("location") != esperado["location"]:
             falhas.append(f"{f['nome']}: location {r.headers.get('location')} != {esperado['location']}")
-        if esperado["status"] == 500:
+        if esperado["status"] == 500 and esperado["corpoBruto"] and r.text:
             obtido, esperado_corpo = json.loads(r.text), json.loads(esperado["corpoBruto"])
             obtido.pop("message"), esperado_corpo.pop("message")
             if list(obtido.items()) != list(esperado_corpo.items()):
@@ -183,5 +186,5 @@ async def test_fluxo_novo_muda_so_os_casos_medidos(
     nome: str = request.node.callspec.params["instancia"]
     registrar_fluxo_de_brinquedo(monkeypatch)
     por_caso = await _conferir(instancia, nome, capsys)
-    assert casos_que_falharam(por_caso) == CASOS_DE_UM_FLUXO_NOVO["contrato"] & set(por_caso)
+    assert casos_que_falharam(por_caso, "contrato") == CASOS_DE_UM_FLUXO_NOVO["contrato"] & set(por_caso)
     assert falhas_da_conferencia(por_caso, aposentados_do_brinquedo("contrato")) == []

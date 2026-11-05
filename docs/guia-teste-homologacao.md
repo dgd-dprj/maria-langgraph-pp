@@ -13,7 +13,7 @@
 > - **o cadastro de pessoa:** quando o CPF não é encontrado 3 vezes, a Maria pede nome, data de nascimento e endereço. **O registro é criado logo depois do último dado de endereço;**
 > - **o encaminhamento de violência doméstica:** **o registro é criado logo depois do "Sim" em "Confirma que seus dados são…?"**.
 >
-> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**.
+> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**. **Desde a #236 (2026-11-03), o mesmo vale quando o CPF vem da Tykhe** (em `dadosConhecidos`), mesmo começando pelo relato livre: a Maria não mostra o nome e não pede confirmação. A pergunta só aparece quando a pessoa digita o CPF na conversa.
 
 Este guia é para a equipe que vai testar a Maria no ambiente de homologação (o release), depois da troca da versão TypeScript pela versão em Python (2026-10-21, #268).
 
@@ -92,7 +92,10 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 
 **Esperado:** uma mensagem de encaminhamento com o **nome de um órgão** e um **número de protocolo**.
 
-Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro.
+Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro. Isso vale para o CPF digitado na conversa; se a Tykhe já mandou o CPF, não há confirmação (#236).
+- **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Confirma que seus dados são: Maria S. S.?"). Se o cadastro tiver nome social, é ele que aparece, também mascarado.
+- **Antes da #393:** o nome completo do cadastro.
+- **No cadastro do passo 5,** a confirmação continua com o nome que você acabou de digitar, por inteiro.
 
 > **Este caso grava duas vezes na homologação:** o cadastro no passo 5 (com CPF inventado) e o encaminhamento no passo 6.
 
@@ -101,13 +104,14 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 1. Relato livre sobre um familiar preso (inventado).
 2. Número do processo → **Sim** e um número de teste (SEEU, se houver), ou **Não**.
 3. RG da pessoa presa → o **RG de teste**.
-4. "Confirma que é <nome>?" → **Sim**.
+4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
 5. Parentesco → por exemplo, "sou a mãe".
 6. CPF de quem está conversando → um CPF inventado (e o cadastro, como no caso A) ou um já cadastrado.
 
 **Esperado:**
 - sem número de processo: "Já confirmei os dados da pessoa presa, mas como você não tem o número do processo, vou encaminhar seu atendimento pra equipe localizar isso e dar continuidade.";
-- com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui."
+- com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui.";
+- **com um número de processo que o Verde não acha** (por exemplo, um número inventado, no passo 2): **depois da #341,** "Não consegui localizar esse número de processo no sistema. Vou encaminhar seu atendimento pra equipe conferir com você." **Antes da #341,** a mensagem dizia que o processo "tem uma origem que ainda não consigo tratar por aqui". Um processo que existe, mas não é do SEEU, continua com a mensagem da origem.
 
 > **Este caso só grava se cair no cadastro** (passo 6 com um CPF que não existe). Pessoa presa não cria encaminhamento no Verde.
 
@@ -133,6 +137,40 @@ Depois de terminar os casos A e B (e o de controle "não sou a vítima"), mande 
 **Anote exatamente o que aparece para você em cada canal.** O que a equipe observar responde duas perguntas em aberto:
 - **#280:** a API diz "atendimento já foi concluído" também depois de um encaminhamento para atendente humano. O que a pessoa vê na Tykhe?
 - **A reabertura pela Tykhe:** a pessoa consegue começar um atendimento novo, ou fica presa na conversa encerrada?
+
+### Caso E. Plano de saúde (NUDECON): só no release (#324, #329)
+
+O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele fica **ligado só no release** e **desligado na produção** (decisão da Nicole de 2026-11-03).
+
+**Na produção (`main`), onde a equipe testa hoje, o fluxo não existe para a Tykhe:**
+- `GET /fluxos` lista só pessoa presa e violência doméstica, como antes;
+- quem abrir o atendimento pelo id do plano de saúde recebe "fluxo não encontrado", a mesma resposta de um id que não existe;
+- **um relato livre sobre plano de saúde** ("o plano negou minha cirurgia") continua indo para a Tykhe como questão de saúde (`tipoCaso: "saude"`), como antes (#386);
+- **se, testando na `main`, a conversa chegar a uma pergunta sobre plano de saúde, carteirinha ou NUDECON, é defeito:** registre com o horário.
+
+**No release, depois do `terraform apply` do Ícaro:**
+- **Como começar, por dois caminhos:**
+  - **pelo relato livre** (orquestrador, #386), **por enquanto, só o que envolve cirurgia com o plano:** "o plano negou minha cirurgia", "a Unimed tá demorando pra liberar a cirurgia" ou "o convênio não paga a prótese da cirurgia" abrem o fluxo; "a Unimed não quer reembolsar" e "o posto não tem o remédio" continuam indo para a Tykhe como questão de saúde; "preciso de uma cirurgia" faz a Maria perguntar antes de escolher. **A Tykhe ainda não confirmou o `flowId` novo nem os destinos novos (#336):** por enquanto, teste pela API;
+  - **pelo id do fluxo,** `84433c84-4776-4b05-a5a0-af8012d8eced`, que precisa estar configurado no fluxo de teste da Tykhe. Confirme com a Nicole antes.
+- **O endereço vem da Tykhe** (o CEP em `dadosConhecidos`). Antes da primeira pergunta, a Maria confere no Verde se o município é o Rio.
+- **As perguntas,** nesta ordem:
+  1. como prefere seguir: por aqui, por e-mail ou presencialmente;
+  2. se o atendimento é para você;
+  3. as fotos da carteirinha do plano, frente e verso;
+  4. o que o plano negou ou deixou de fazer, se o relato não veio;
+  5. a renda mensal;
+  6. a confirmação dos dados.
+
+**Esperado:**
+
+| Caminho | Mensagem final |
+|---|---|
+| Por aqui, para você, com as fotos, tudo confirmado | "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você." |
+| Presencialmente | O horário do NUDECON e o encaminhamento para a equipe |
+| Para outra pessoa | "Entendi que o atendimento é para outra pessoa. Por enquanto não consigo seguir com esse caso por aqui…" |
+| CEP fora do município do Rio | O nome, o endereço e o horário da unidade a procurar; sem a unidade, o encaminhamento para a equipe |
+
+> **Os textos são provisórios,** até o NUDECON validar (#335) e a Tykhe confirmar os destinos e a forma das opções (#336). Diferença de texto não é defeito; anote só o que travar a conversa ou levar ao destino errado. **Este caso não grava nada no Verde:** o envio ao NUDECON ainda não existe (#345).
 
 ### Casos de controle (rápidos)
 

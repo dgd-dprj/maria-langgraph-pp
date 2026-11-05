@@ -61,14 +61,17 @@ def _arredondar_js(valor: float) -> int:
     return math.floor(valor + 0.5)
 
 
-def destino_do_log(fluxo_id: str, status_final: Any) -> str | None:
-    """Issue #92: o `destino` do desfecho. Issue #288: também vai na resposta de atendimento encerrado."""
+def destino_do_log(fluxo_id: str, status_final: Any, valores: Mapping[str, Any] | None = None) -> str | None:
+    """Issue #92: o `destino` do desfecho. Issue #288: também vai na resposta de atendimento encerrado.
+    `valores` com `destino` (o fluxo concluído que define o próprio, como `email_enviado`) vale para `concluido`."""
     if status_final == "handoff_humano":
         return "atendimento_humano"
     if status_final == "expirado":
         return "sessao_expirada"
     if fluxo_id == ID_VIOLENCIA_DOMESTICA:
         return "agendamento"
+    if status_final == "concluido" and valores is not None and isinstance(valores.get("destino"), str):
+        return str(valores["destino"])
     return None
 
 
@@ -85,10 +88,15 @@ def extrair_interrupt(resultado: Mapping[str, Any]) -> Any:
     return pendentes[0].value if pendentes else None
 
 
-def _dados_coletados(valores: Mapping[str, Any]) -> dict[str, Any]:
+def _dados_coletados(valores: Mapping[str, Any], concluido: bool = False) -> dict[str, Any]:
     # Decisão 2026-09-09: só cpf, e só quando é texto.
     cpf = valores.get("cpf")
-    return {"cpf": cpf} if isinstance(cpf, str) else {}
+    dados: dict[str, Any] = {"cpf": cpf} if isinstance(cpf, str) else {}
+    # #398: os links das imagens (segredo) só na conclusão, para a Tykhe repassá-los à Lambda de e-mail.
+    links = valores.get("imagensLinks")
+    if concluido and isinstance(links, dict) and links:
+        dados["imagens"] = dict(links)
+    return dados
 
 
 def montar_resposta_atendimento(
@@ -96,12 +104,13 @@ def montar_resposta_atendimento(
 ) -> dict[str, Any]:
     """Mesmo corpo para criar, consultar e responder (`atendimentos.ts:194-242`)."""
     metadados = fluxo.extrair_metadados(valores)
-    dados_coletados = _dados_coletados(valores)
     if interrupt is not None:
+        dados_coletados = _dados_coletados(valores)
         return {
             "resposta": _js.opt(interrupt, "pergunta"),
             "tipoResposta": _js.opt(interrupt, "tipo"),
             "opcoes": _js.opt(interrupt, "opcoes"),
+            **({"tipoImagem": interrupt["tipoImagem"]} if isinstance(interrupt, Mapping) and "tipoImagem" in interrupt else {}),
             "status": "em_andamento",
             "flowId": fluxo_id,
             "metadados": metadados,
@@ -109,6 +118,7 @@ def montar_resposta_atendimento(
             "_links": montar_links(chat_id, "em_andamento"),
         }
     status = _js.coalesce(valores.get("statusFinal"), "concluido")
+    dados_coletados = _dados_coletados(valores, concluido=status == "concluido")
     padrao = fluxo.mensagem_concluido if status == "concluido" else fluxo.mensagem_handoff
     corpo: dict[str, Any] = {
         "resposta": _js.coalesce(valores.get("mensagemFinal"), padrao),
@@ -122,7 +132,7 @@ def montar_resposta_atendimento(
         "_links": montar_links(chat_id, status),
     }
     # #288: o "para onde vai", o mesmo valor que já vai para o log e para a tabela `atendimentos`.
-    destino = destino_do_log(fluxo_id, status)
+    destino = destino_do_log(fluxo_id, status, valores)
     if destino is not None:
         corpo["destino"] = destino
     return corpo
@@ -152,7 +162,9 @@ async def criar_atendimento(
     # Registra chatId→flowId ANTES de tocar no grafo: chatId de outro fluxo é 409.
     store = await obter_atendimentos_store()
     registro = await store.registrar(chat_id, fluxo_id)
-    if not registro["ok"]:
+    # `is False`, e não `not`: o Pylance só estreita a união RegistroOk | RegistroConflito pela
+    # comparação com o literal; com `not`, acusava `flowIdExistente` inexistente (o mypy aceita os dois).
+    if registro["ok"] is False:
         existente = registro["flowIdExistente"]
         log.warn("chatId já pertence a outro flowId", chatId=chat_id, fluxoId=fluxo_id, flowIdExistente=existente)
         return Resposta(409, {"erro": f"chatId já está em uso pelo flowId {existente}"})
@@ -196,7 +208,7 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         )
         return
     status_final = resultado.get("statusFinal")
-    destino = destino_do_log(fluxo_id, status_final)
+    destino = destino_do_log(fluxo_id, status_final, resultado)
     log.info(
         "atendimento finalizado",
         fluxoId=fluxo_id,
@@ -239,7 +251,8 @@ async def _fluxo_do_chat(chat_id: Any) -> tuple[FluxoConfig, str] | Resposta:
     if not _js.verdadeiro(fluxo_id):
         return Resposta(404, {"erro": "atendimento não encontrado"})
     assert fluxo_id is not None
-    fluxo = await buscar_fluxo(fluxo_id)
+    # A conversa já começou: um fluxo em teste desligado depois disso termina normalmente (#324).
+    fluxo = await buscar_fluxo(fluxo_id, conversa_em_andamento=True)
     if fluxo is None:
         return Resposta(404, {"erro": "fluxo não encontrado — ver GET /fluxos"})
     return fluxo, fluxo_id
