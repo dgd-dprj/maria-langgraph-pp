@@ -21,7 +21,7 @@ from maria.subgrafos.identificar_assistido.graph import cpf_formato_valido
 from maria.subgrafos.identificar_assistido.graph import grafo as identificar_assistido
 from maria.subgrafos.identificar_assistido.state import IdentificarAssistidoState
 from tests.integracoes.conftest import TransporteFalso
-from tests.subgrafos.conftest import Conversa, envelope
+from tests.subgrafos.conftest import Conversa, envelope, textos
 
 SEMENTE = {"input": 100, "output": 50, "total": 150}
 
@@ -294,9 +294,98 @@ def test_12_confirmacao_sem_nome_diz_voce() -> None:
 
 
 async def test_12_confirmacao_com_nome_e_resposta() -> None:
-    c = await (await _identificar().iniciar({"cpf": "12345678901", "viaOrquestrador": True})).responder("Sim")
-    assert c.perguntas[0]["pergunta"] == "Confirma que seus dados são: Pessoa de Teste (mock)?"
+    # CPF digitado na conversa: a confirmação continua (#189, #191). Até a #236,
+    # este teste partia do CPF já preenchido, que agora é o caso sem confirmação.
+    c = await (await _identificar().iniciar({"viaOrquestrador": True})).responder("12345678901", "Sim")
+    # #393: o nome do mock ("Pessoa de Teste (mock)") sai mascarado.
+    assert c.perguntas[1]["pergunta"] == "Confirma que seus dados são: Pessoa T.?"
     assert (await c.estado())["confirmaAssistido"] is True
+
+
+# ---- #236: com o CPF vindo da Tykhe, sem confirmação ------------------------------
+# Decisão de 03/11: quem já se identificou na Tykhe não vê a pergunta com o nome
+# do titular. Com o CPF digitado na conversa, nada muda nesta etapa.
+
+
+@pytest.mark.parametrize("cpf", ["12345678901", None])
+async def test_236_cpf_da_tykhe_via_orquestrador_nao_pede_confirmacao(cpf: str | None) -> None:
+    c = await _identificar().iniciar({"cpf": cpf, "viaOrquestrador": True})
+    estado = await c.estado()
+    assert c.perguntas == []
+    assert c.pendente is None
+    assert estado["dadosPessoa"]["encontrado"] is True
+    assert "confirmaAssistido" not in estado, "sem a pergunta, o fluxo pai segue como encontrado"
+
+
+async def test_236_marca_da_origem_do_cpf_nao_chega_ao_pai() -> None:
+    # `cpfDaTykhe` é interno do subgrafo: um pai sem o canal (como os fluxos) não o recebe.
+    c = await Conversa(envelope(_Pai, identificar_assistido)).iniciar({"cpf": "12345678901", "viaOrquestrador": True})
+    estado = await c.estado()
+    assert c.perguntas == []
+    assert "cpfDaTykhe" not in estado
+
+
+async def test_236_cpf_da_tykhe_nao_encontrado_e_cpf_digitado_no_retry_pede_confirmacao() -> None:
+    c = await _identificar().iniciar({"cpf": "00000000000", "viaOrquestrador": True})
+    await c.responder("12345678901")  # digitado direto na pergunta de tentar de novo
+    assert c.perguntas[-1]["pergunta"] == "Confirma que seus dados são: Pessoa T.?"
+    await c.responder("Não")
+    assert (await c.estado())["confirmaAssistido"] is False
+
+
+async def test_236_cpf_da_tykhe_nao_encontrado_e_cpf_digitado_depois_do_sim_pede_confirmacao() -> None:
+    c = await _identificar().iniciar({"cpf": "00000000000", "viaOrquestrador": True})
+    await c.responder("Sim", "12345678901")
+    assert textos(c.perguntas) == [
+        "Não encontrei ninguém com esse CPF (tentativa 1 de 3). Quer tentar de novo?",
+        "Qual o seu CPF? Informe apenas os números.",
+        "Confirma que seus dados são: Pessoa T.?",
+    ]
+
+
+# ---- #393: o nome do titular sai mascarado na confirmação -------------------------
+# Decisão da Nicole (2026-11-04): quem digita o CPF de outra pessoa não vê o nome
+# completo dela. Só o primeiro nome e as iniciais; o nome social, quando houver.
+
+
+@pytest.mark.parametrize(
+    ("nome", "esperado"),
+    [
+        ("MARIA DA SILVA SANTOS", "Maria S. S."),
+        ("ana de souza e silva", "Ana S. S."),
+        ("João", "João"),
+        ("  JOSÉ   CARLOS  ", "José C."),
+        ("Pessoa de Teste (mock)", "Pessoa T."),
+    ],
+)
+def test_393_nome_mascarado(nome: str, esperado: str) -> None:
+    from maria.shared.nomes import nome_mascarado
+
+    assert nome_mascarado(nome) == esperado
+
+
+def test_393_confirmacao_prefere_o_nome_social() -> None:
+    from maria.shared.types import DadosPessoa
+    from maria.subgrafos.identificar_assistido.graph import texto_confirma_assistido
+
+    dados: DadosPessoa = {"encontrado": True, "nome": "JOSE CARLOS SILVA", "nomeSocial": "ANA PAULA SILVA"}
+    assert texto_confirma_assistido({"dadosPessoa": dados}) == "Confirma que seus dados são: Ana P. S.?"
+    sem_social: DadosPessoa = {"encontrado": True, "nome": "JOSE CARLOS SILVA", "nomeSocial": ""}
+    assert texto_confirma_assistido({"dadosPessoa": sem_social}) == "Confirma que seus dados são: Jose C. S.?"
+
+
+async def test_393_cpf_digitado_nunca_mostra_o_nome_completo() -> None:
+    c = await (await _identificar().iniciar({"viaOrquestrador": True})).responder("12345678901")
+    pergunta = c.perguntas[-1]["pergunta"]
+    assert pergunta.startswith("Confirma que seus dados são:")
+    assert "de Teste" not in pergunta and "(mock)" not in pergunta
+
+
+def test_393_cadastro_continua_com_o_nome_que_a_pessoa_digitou() -> None:
+    # Item 4 da #393, fora desta mudança: o nome é o que a própria pessoa acabou de digitar.
+    from maria.subgrafos.cadastro_pessoa.graph import texto_confirma_assistido as texto_cadastro
+
+    assert texto_cadastro({"dadosPessoa": {"encontrado": True, "nome": "Fulano de Tal"}}) == "Confirma que seus dados são: Fulano de Tal?"
 
 
 # ---- regra de estado: null da Tykhe e do Verde (spec do fluxos, tabela 0.2) ----

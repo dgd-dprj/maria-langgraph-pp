@@ -176,6 +176,12 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     # O gasto da triagem vira o ponto de partida do acumulador do fluxo (#35).
     dados = dict(corpo.get("dadosConhecidos") or {})
     dados["tokensGastos"] = _js.coalesce(tokens_conversa, {"input": 0, "output": 0, "total": 0})
+    if fluxo.usa_relato:
+        # #334: o relato só vem da triagem, num canal próprio; um `relato` em dadosConhecidos (da Tykhe) não vale.
+        dados.pop("relato", None)
+        relato = _js.texto_template(resultado.get("mensagem", "")).strip()
+        if relato:
+            dados["relato"] = relato
     # viaOrquestrador como parâmetro, nunca dentro de dadosConhecidos (#191).
     return await criar_atendimento(fluxo, flow_id, chat_id, dados, ctx.log, via_orquestrador=True)
 

@@ -314,6 +314,30 @@ async def test_rg_com_letras_corrige_na_segunda_e_segue() -> None:
     assert re.search("Confirma que a pessoa presa é", texto(r))
 
 
+# ---- #393: o nome da pessoa presa sai mascarado ------------------------------------
+# Decisão da Nicole (2026-11-04): quem digita o RG de qualquer pessoa não vê o nome
+# completo dela. Cobre os casos aposentados pessoa-presa-resposta-rg-200,
+# pessoa-presa-get-metadados-parciais-200, pp_rg e pp_get_confirma_nome
+# (tests/api/casos_aposentados.py).
+
+
+async def test_393_confirmacao_do_rg_mostra_o_nome_mascarado() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "11111111111")
+    assert texto(r) == "Confirma que a pessoa presa é Pessoa T.?"
+    assert "de Teste" not in texto(r) and "(mock)" not in texto(r)
+
+
+def test_393_texto_da_confirmacao_com_nome_real_e_sem_nome() -> None:
+    from maria.fluxos.pessoa_presa.graph import texto_confirma_nome
+
+    assert texto_confirma_nome({"dadosApenado": {"encontrado": True, "nome": "JOSE DOS SANTOS PEREIRA"}}) == (
+        "Confirma que a pessoa presa é Jose S. P.?"
+    )
+    assert texto_confirma_nome({}) == "Confirma que a pessoa presa é essa pessoa?"
+
+
 async def test_extracao_livre_campos_pre_preenchidos_pulam_perguntas_mas_verde_roda() -> None:
     r = await _fluxo().iniciar(
         {"temProcesso": True, "numeroProcesso": "0000088-95.2026.8.19.0010", "rg": "11111111111", "parentesco": "amigo"}
@@ -380,3 +404,27 @@ async def test_parentesco_sem_match_cai_em_outro_issue_17(monkeypatch: pytest.Mo
     monkeypatch.delenv("MOCK_CLASSIFICACAO_PARENTESCO", raising=False)
     r = await _ate_parentesco("um relato qualquer sem relação clara")
     assert r["parentesco"] == "Outro"
+
+
+# ---- #236: CPF vindo da Tykhe, pelo orquestrador ---------------------------------
+# Fora da tradução de develop: decisão de 03/11, na janela das correções (#208).
+
+
+async def test_cpf_da_tykhe_via_orquestrador_conclui_sem_confirmacao_issue_236() -> None:
+    f = _fluxo()
+    await f.iniciar({"cpf": "11111111111", "viaOrquestrador": True})
+    r = await f.responder("true", "0000088-95.2026.8.19.0010", "11111111111", "true", "amigo")
+    assert pergunta(r) is None, "o CPF veio da Tykhe: sem a pergunta com o nome do titular"
+    assert r["statusFinal"] == "concluido"
+    assert r.get("motivoHandoff") is None
+    assert r["dadosPessoa"]["encontrado"] is True
+
+
+async def test_cpf_digitado_via_orquestrador_continua_com_confirmacao_issue_236() -> None:
+    f = _fluxo()
+    await f.iniciar({"viaOrquestrador": True})
+    r_confirma = await f.responder("true", "0000088-95.2026.8.19.0010", "11111111111", "true", "amigo", "11111111111")
+    assert re.search("Confirma que seus dados são", texto(r_confirma)), "CPF digitado na conversa: confirmação como antes"
+    r = await f.responder("sim")
+    assert pergunta(r) is None
+    assert r["statusFinal"] == "concluido"

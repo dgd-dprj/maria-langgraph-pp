@@ -22,8 +22,10 @@ from typing import Literal, Required, TypedDict
 
 class Pergunta(TypedDict, total=False):
     pergunta: Required[str]
-    tipo: Required[Literal["texto", "sim_nao", "opcoes"]]
+    tipo: Required[Literal["texto", "sim_nao", "opcoes", "link_imagem"]]
     opcoes: list[str]
+    # Só em `link_imagem` (#398): qual imagem a Tykhe deve pedir à pessoa.
+    tipoImagem: str
 
 
 class DadosApenado(TypedDict, total=False):

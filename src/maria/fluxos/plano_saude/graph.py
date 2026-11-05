@@ -13,7 +13,7 @@ encerra com atendimento humano: o assistido não pode ficar sem atendimento (#33
 Premissas desta etapa, a confirmar: a Tykhe coleta as imagens e avisa com
 `imagensRecebidas` em `dadosConhecidos` (#336); sem o aviso, a Maria pergunta se
 a pessoa já enviou. O relato chega do orquestrador no canal
-`relato` (#334, ainda não entregue pela rota); sem ele, a Maria pergunta a situação.
+`relato` (#334, entregue pela rota quando `FluxoConfig.usa_relato`); sem ele, a Maria pergunta a situação.
 
 A pergunta do canal é de texto, com as opções escritas na própria pergunta: o
 tipo `opcoes` ainda está por confirmar com a Tykhe (#336).
@@ -41,6 +41,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_CONCLUIDO,
     MENSAGEM_DADOS_NAO_CONFIRMADOS,
     MENSAGEM_ERRO_INTERNO,
+    MENSAGEM_FALHA_ENVIO_EMAIL,
     MENSAGEM_FALHA_INFRA_VERDE,
     MENSAGEM_FORA_DO_RIO,
     MENSAGEM_FORA_DO_RIO_COM_UNIDADE,
@@ -50,9 +51,12 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_PRESENCIAL,
     MENSAGEM_RENDA_NAO_ENTENDIDA,
     MENSAGEM_SITUACAO_NAO_INFORMADA,
+    TIPOS_IMAGEM,
+    url_imagem_valida,
 )
 from maria.fluxos.plano_saude.state import CanalAtendimento, MotivoHandoffPlanoSaude, PlanoSaudeState
 from maria.ia.reescrever import preparar_pergunta
+from maria.integracoes.email_nudecon import enviar_email_nudecon, protocolo_do_atendimento
 from maria.integracoes.verde import consultar_cep, consultar_orgaos_primeiro_atendimento, consultar_pessoa_por_cpf
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
@@ -71,8 +75,14 @@ TEXTO_CANAL = f"O NUDECON atende {HORARIO_NUDECON}. Como você prefere seguir o 
 TEXTO_CANAL_NOVAMENTE = "Não entendi. Você prefere seguir por aqui, por e-mail ou presencialmente?"
 TEXTO_PARA_QUEM = "O atendimento é para você? Responda não se for para outra pessoa."
 # Lista provisória de documentos: a definitiva é da #335.
-TEXTO_IMAGENS = "Envie por aqui as fotos dos documentos: a carteirinha do plano, frente e verso. Já enviou?"
-TEXTO_IMAGENS_NOVAMENTE = "Ainda não recebi as imagens. Envie as fotos da carteirinha do plano, frente e verso. Já enviou?"
+TEXTO_IMAGEM = {
+    "carteirinha_frente": "Envie a foto da frente da carteirinha do plano de saúde.",
+    "carteirinha_verso": "Agora envie a foto do verso da carteirinha do plano de saúde.",
+}
+TEXTO_IMAGEM_NOVAMENTE = {
+    "carteirinha_frente": "Não recebi a foto. Envie a foto da frente da carteirinha do plano de saúde.",
+    "carteirinha_verso": "Não recebi a foto. Envie a foto do verso da carteirinha do plano de saúde.",
+}
 TEXTO_SITUACAO = "Conte em poucas palavras o que aconteceu com o seu plano de saúde."
 TEXTO_SITUACAO_NOVAMENTE = "Preciso de um pouco mais de detalhe. O que o plano de saúde negou ou deixou de fazer?"
 TEXTO_RENDA = "Qual é a sua renda mensal, em reais? Se não tem renda, responda 0."
@@ -109,6 +119,7 @@ async def verificar_municipio(state: PlanoSaudeState) -> Atualizacao:
         if unidade:
             return {
                 "statusFinal": "concluido",
+                "destino": "unidade_informada",
                 "foraDoRio": True,
                 "mensagemFinal": MENSAGEM_FORA_DO_RIO_COM_UNIDADE.format(unidade=unidade),
             }
@@ -202,7 +213,7 @@ def depois_do_canal(state: PlanoSaudeState) -> str:
 
 
 async def presencial(state: PlanoSaudeState) -> Atualizacao:
-    return {"statusFinal": "concluido", "mensagemFinal": MENSAGEM_PRESENCIAL}
+    return {"statusFinal": "concluido", "destino": "unidade_informada", "mensagemFinal": MENSAGEM_PRESENCIAL}
 
 
 async def canal_nao_entendido(state: PlanoSaudeState) -> Atualizacao:
@@ -229,8 +240,17 @@ def _depois_das_imagens_enviadas(state: PlanoSaudeState) -> str:
     return "renda" if _texto(state.get("relato")) else "situacao"
 
 
+def _proxima_imagem(state: PlanoSaudeState) -> tuple[str, str]:
+    """A próxima imagem que falta pedir: (chave do estado, `tipoImagem` do contrato)."""
+    links = state.get("imagensLinks") or {}
+    return next(((chave, tipo) for chave, tipo in TIPOS_IMAGEM if chave not in links), TIPOS_IMAGEM[-1])
+
+
 def texto_imagens(state: PlanoSaudeState) -> str:
-    return TEXTO_IMAGENS if not state.get("tentativasImagens") else TEXTO_IMAGENS_NOVAMENTE
+    _, tipo = _proxima_imagem(state)
+    if state.get("tentativasImagens"):
+        return TEXTO_IMAGEM_NOVAMENTE[tipo]
+    return TEXTO_IMAGEM[tipo]
 
 
 async def preparar_pergunta_imagens(state: PlanoSaudeState) -> Atualizacao:
@@ -238,12 +258,18 @@ async def preparar_pergunta_imagens(state: PlanoSaudeState) -> Atualizacao:
 
 
 async def pedir_imagens(state: PlanoSaudeState) -> Atualizacao:
+    """Uma pergunta por imagem (`tipoResposta: link_imagem`). A Tykhe responde com a URL de baixar; o link é
+    segredo e só vai para o estado (nunca para log)."""
+    chave, tipo = _proxima_imagem(state)
     resposta: str = interrupt(
-        {"pergunta": state.get("perguntaAtualTexto") or texto_imagens(state), "tipo": "sim_nao", "opcoes": ["Sim", "Não"]}
+        {"pergunta": state.get("perguntaAtualTexto") or texto_imagens(state), "tipo": "link_imagem", "tipoImagem": tipo}
     )
-    if resposta_eh_sim(resposta):
-        return {"imagensRecebidas": True}
-    return {"tentativasImagens": (state.get("tentativasImagens") or 0) + 1}
+    url = url_imagem_valida(resposta)
+    if url is None:
+        return {"tentativasImagens": (state.get("tentativasImagens") or 0) + 1}
+    links = {**(state.get("imagensLinks") or {}), chave: url}
+    # A contagem de tentativas inválidas zera a cada imagem recebida.
+    return {"imagensLinks": links, "tentativasImagens": 0, "imagensRecebidas": all(c in links for c, _ in TIPOS_IMAGEM) or None}
 
 
 def depois_das_imagens(state: PlanoSaudeState) -> str:
@@ -362,10 +388,9 @@ def _reais(valor: float) -> str:
     return f"R$ {inteiro.replace(',', '.')},{centavos}"
 
 
-def montar_resumo(state: PlanoSaudeState) -> str:
-    """Os dados da Tykhe como vieram, mais a renda. Dado ausente aparece como "não informado"."""
+def _linhas_resumo(state: PlanoSaudeState) -> list[tuple[str, str]]:
     renda = state.get("renda")
-    linhas = [
+    return [
         ("Nome", _texto(state.get("nome"))),
         ("CPF", _texto(state.get("cpf"))),
         ("Data de nascimento", _texto(state.get("dataNascimento"))),
@@ -375,7 +400,11 @@ def montar_resumo(state: PlanoSaudeState) -> str:
         ("Situação", _texto(state.get("relato"))),
         ("Renda mensal", _reais(renda) if renda is not None else ""),
     ]
-    return "\n".join(f"{rotulo}: {valor or NAO_INFORMADO}" for rotulo, valor in linhas)
+
+
+def montar_resumo(state: PlanoSaudeState) -> str:
+    """Os dados da Tykhe como vieram, mais a renda. Dado ausente aparece como "não informado"."""
+    return "\n".join(f"{rotulo}: {valor or NAO_INFORMADO}" for rotulo, valor in _linhas_resumo(state))
 
 
 async def preparar_pergunta_confirmacao(state: PlanoSaudeState) -> Atualizacao:
@@ -407,7 +436,13 @@ async def outra_pessoa(state: PlanoSaudeState) -> Atualizacao:
 
 
 async def concluir(state: PlanoSaudeState) -> Atualizacao:
-    return {"statusFinal": "concluido", "mensagemFinal": MENSAGEM_CONCLUIDO}
+    # #405: o e-mail ao NUDECON sai aqui, e `email_enviado` só vale depois da confirmação da função.
+    contexto = contexto_atual()
+    dados = {rotulo: valor or NAO_INFORMADO for rotulo, valor in _linhas_resumo(state)}
+    enviado = await enviar_email_nudecon(protocolo_do_atendimento(contexto.get("chatId", "")), dados, state.get("imagensLinks") or {})
+    if not enviado:
+        return {"statusFinal": "handoff_humano", "motivoHandoff": "falha_envio_email", "mensagemFinal": MENSAGEM_FALHA_ENVIO_EMAIL}
+    return {"statusFinal": "concluido", "destino": "email_enviado", "mensagemFinal": MENSAGEM_CONCLUIDO}
 
 
 def _deu_erro(state: PlanoSaudeState) -> bool:

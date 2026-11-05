@@ -1,0 +1,47 @@
+[
+  {
+    "id": "3df874f2-675a-4c43-9ec7-480f7c702f50",
+    "nome": "pessoa-presa",
+    "descricao": "Alguém (geralmente familiar) buscando informação ou encaminhamento sobre uma pessoa que está presa — situação prisional, processo, número do processo, dados do apenado no sistema penitenciário."
+  },
+  {
+    "id": "cabb2495-4e12-4f4a-9956-3d20649059bc",
+    "nome": "violencia-domestica",
+    "descricao": "Mulher vítima de violência doméstica buscando ajuda, proteção ou encaminhamento jurídico — relato de agressão física/psicológica, medo do agressor, com ou sem Boletim de Ocorrência já registrado."
+  },
+  {
+    "id": "tykhe:saude",
+    "nome": "questoes-de-saude",
+    "descricao": "Questões de saúde: pedido de remédio, medicamento, exame, cirurgia, internação, vaga em UTI ou CTI, tratamento, fralda, leite especial, prótese, cadeira de rodas, transferência de hospital, plano de saúde que negou cobertura, erro médico, prontuário médico."
+  },
+  {
+    "id": "tykhe:novo-processo",
+    "nome": "iniciar-novo-processo",
+    "descricao": "Quer iniciar um novo processo ou abrir um caso novo na Defensoria sobre um problema que ainda não tem processo: pensão alimentícia, divórcio, guarda, visita, inventário, imóvel, aluguel, dívida, consumidor, banco, indenização, documentos, entre outros assuntos cíveis e de família."
+  },
+  {
+    "id": "tykhe:andamento-processo",
+    "nome": "ver-andamento-do-processo",
+    "descricao": "Quer saber o andamento, a situação ou novidades de um processo que já existe: número do processo, audiência marcada, sentença, decisão do juiz, prazo, intimação ou citação recebida sobre um processo em curso."
+  },
+  {
+    "id": "tykhe:agendamentos",
+    "nome": "ver-meus-agendamentos",
+    "descricao": "Quer consultar, confirmar, remarcar ou cancelar um agendamento ou atendimento marcado na Defensoria: data, horário, endereço do núcleo, comparecimento."
+  },
+  {
+    "id": "tykhe:ajuda-app",
+    "nome": "ajuda-app-defensoria-rj",
+    "descricao": "Dúvida ou dificuldade com o aplicativo Defensoria RJ ou com o canal digital: não consegue acessar, cadastro, senha, erro no app, como usar, onde encontrar uma função. Também perguntas gerais sobre como funciona a Defensoria."
+  },
+  {
+    "id": "tykhe:outros",
+    "nome": "outros-assuntos",
+    "descricao": "Outros assuntos que não se encaixam nas demais opções."
+  },
+  {
+    "id": "tykhe:sair",
+    "nome": "sair",
+    "descricao": "A pessoa quer encerrar ou sair da conversa: tchau, encerrar, sair, não quero mais, obrigado era só isso."
+  }
+]

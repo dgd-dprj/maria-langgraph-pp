@@ -7,6 +7,7 @@ from maria.fluxos.plano_saude.api import (
     ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
     ID_MUNICIPIO_RIO,
     MENSAGEM_ERRO_INTERNO,
+    MENSAGEM_FALHA_ENVIO_EMAIL,
     MENSAGEM_FALHA_INFRA_VERDE,
     MENSAGEM_FORA_DO_RIO,
     MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
@@ -59,6 +60,7 @@ async def test_presencial_encerra_sem_perguntar_para_quem() -> None:
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
     assert "presencial" in r["mensagemFinal"]
+    assert r["destino"] == "unidade_informada"
     assert (await f.estado())["canal"] == "presencial"
 
 
@@ -128,14 +130,56 @@ def test_interpretar_renda(resposta: str, esperado: float | None) -> None:
     assert interpretar_renda(resposta) == esperado
 
 
-async def test_para_mim_sem_aviso_das_imagens_pergunta_se_ja_enviou() -> None:
+LINK_FRENTE = "https://downloads.tykhe.dev/arquivos/id-frente-fake?token=token-frente-fake"
+LINK_VERSO = "https://downloads.tykhe.dev/arquivos/id-verso-fake?token=token-verso-fake"
+
+
+async def test_para_mim_sem_aviso_das_imagens_pede_a_frente_da_carteirinha() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
     r = await f.responder("por e-mail", "true")
     p = pergunta(r)
-    assert p is not None and p["tipo"] == "sim_nao"
-    assert "carteirinha" in texto(r)
+    assert p is not None and p["tipo"] == "link_imagem" and p["tipoImagem"] == "carteirinha_frente"
+    assert "frente" in texto(r)
     assert (await f.estado())["paraSi"] is True
+
+
+async def test_depois_da_frente_pede_o_verso_e_guarda_os_links() -> None:
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    r = await f.responder("por aqui", "true", LINK_FRENTE)
+    p = pergunta(r)
+    assert p is not None and p["tipo"] == "link_imagem" and p["tipoImagem"] == "carteirinha_verso"
+    r = await f.responder(LINK_VERSO)
+    assert "renda" in texto(r)
+    estado = await f.estado()
+    assert estado["imagensRecebidas"] is True
+    assert estado["imagensLinks"] == {"carteirinhaFrente": LINK_FRENTE, "carteirinhaVerso": LINK_VERSO}
+
+
+@pytest.mark.parametrize(
+    "resposta",
+    [
+        "true",
+        "já enviei",
+        "http://downloads.tykhe.dev/arquivos/x?token=y",
+        "https://outro-dominio.com/arquivos/x?token=y",
+        "https://downloads.tykhe.dev.malicioso.com/arquivos/x?token=y",
+        "https://usuario:senha@downloads.tykhe.dev/arquivos/x?token=y",
+        "https://downloads.tykhe.dev/arquivos/x token=y",
+        "https://downloads.tykhe.dev:8443/arquivos/x?token=y",
+        "https://downloads.tykhe.dev/outro/x?token=y",
+        "https://downloads.tykhe.dev/arquivos/",
+    ],
+)
+async def test_resposta_que_nao_e_link_permitido_repete_a_pergunta_sem_guardar(resposta: str) -> None:
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    r = await f.responder("por aqui", "true", resposta)
+    p = pergunta(r)
+    assert p is not None and p["tipoImagem"] == "carteirinha_frente"
+    assert "Não recebi" in texto(r)
+    assert not (await f.estado()).get("imagensLinks")
 
 
 async def test_com_imagens_recebidas_pula_direto_para_a_renda() -> None:
@@ -147,11 +191,11 @@ async def test_com_imagens_recebidas_pula_direto_para_a_renda() -> None:
     assert "renda" in texto(r)
 
 
-async def test_imagens_nao_enviadas_tres_vezes_encerram_com_atendimento_humano() -> None:
+async def test_imagens_invalidas_tres_vezes_encerram_com_atendimento_humano() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
     r = await f.responder("por aqui", "true", "não")
-    assert "Ainda não recebi" in texto(r)
+    assert "Não recebi" in texto(r)
     r = await f.responder("não", "não")
     assert pergunta(r) is None
     assert r["statusFinal"] == "handoff_humano"
@@ -161,7 +205,7 @@ async def test_imagens_nao_enviadas_tres_vezes_encerram_com_atendimento_humano()
 async def test_imagens_enviadas_seguem_para_a_renda() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
-    r = await f.responder("por aqui", "true", "sim")
+    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO)
     assert "renda" in texto(r)
     assert (await f.estado())["imagensRecebidas"] is True
 
@@ -210,7 +254,7 @@ async def test_situacao_com_menos_de_tres_palavras_repete_e_na_terceira_encerra(
 async def test_situacao_pergunta_depois_das_imagens_quando_sem_aviso() -> None:
     f = _fluxo()
     await f.iniciar({k: v for k, v in DADOS.items() if k != "relato"})
-    r = await f.responder("por aqui", "true", "sim")
+    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO)
     assert "o que aconteceu" in texto(r)
 
 
@@ -397,6 +441,7 @@ async def test_fora_do_rio_com_pessoa_no_verde_conclui_com_a_unidade(monkeypatch
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
     assert "motivoHandoff" not in r
+    assert r["destino"] == "unidade_informada"
     assert (await f.estado())["foraDoRio"] is True
     assert "CÍVEL DE NITERÓI, Rua Visconde de Sepetiba, 519 3º andar, Centro, Niterói/RJ" in r["mensagemFinal"]
     assert "Horário: Seg a Sex, 11:00-17:00" in r["mensagemFinal"]
@@ -509,3 +554,56 @@ async def test_falha_do_verde_na_busca_da_unidade_encerra_com_falha_infra_verde(
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "falha_infra_verde"
     assert r["mensagemFinal"] == MENSAGEM_FALHA_INFRA_VERDE
+
+
+async def test_tentativas_de_imagem_zeram_a_cada_imagem_recebida() -> None:
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    await f.responder("por aqui", "true", "oi", "oi")
+    r = await f.responder(LINK_FRENTE)
+    assert pergunta(r)["tipoImagem"] == "carteirinha_verso"  # type: ignore[index]
+    assert (await f.estado())["tentativasImagens"] == 0
+
+
+# ── #405: a Maria chama a Lambda de e-mail ao concluir ──────────────────────────────────────────────────────────
+def _email_devolve(monkeypatch: pytest.MonkeyPatch, enviado: bool) -> list[tuple[str, dict[str, str], dict[str, str]]]:
+    chamadas: list[tuple[str, dict[str, str], dict[str, str]]] = []
+
+    async def enviar(protocolo: str, dados: dict[str, str], imagens: dict[str, str]) -> bool:
+        chamadas.append((protocolo, dados, imagens))
+        return enviado
+
+    monkeypatch.setattr("maria.fluxos.plano_saude.graph.enviar_email_nudecon", enviar)
+    return chamadas
+
+
+async def test_concluir_envia_o_e_mail_com_os_dados_e_os_links_antes_de_devolver_email_enviado(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas = _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO, "Preciso de um remédio", "2500", "sim")
+    assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
+    [(protocolo, dados, imagens)] = chamadas
+    assert protocolo.startswith("NUD-")
+    assert dados["Renda mensal"] == "R$ 2.500,00"
+    assert dados["Nome"] == DADOS["nome"]
+    assert imagens == {"carteirinhaFrente": LINK_FRENTE, "carteirinhaVerso": LINK_VERSO}
+
+
+async def test_falha_no_envio_do_e_mail_encerra_com_atendimento_humano_sem_destino(monkeypatch: pytest.MonkeyPatch) -> None:
+    _email_devolve(monkeypatch, False)
+    f = _fluxo()
+    await f.iniciar({**DADOS, "imagensRecebidas": True})
+    r = await f.responder("por aqui", "true", "2500", "sim")
+    assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "falha_envio_email")
+    assert r["mensagemFinal"] == MENSAGEM_FALHA_ENVIO_EMAIL
+    assert r.get("destino") is None
+
+
+async def test_presencial_e_fora_do_rio_nao_chamam_a_funcao_de_e_mail(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas = _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    r = await f.responder("presencial")
+    assert r["statusFinal"] == "concluido"
+    assert chamadas == []

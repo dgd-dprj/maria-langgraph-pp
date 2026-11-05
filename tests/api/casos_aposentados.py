@@ -54,18 +54,29 @@ def nomes_dos_casos(conferencia: str) -> list[str]:
     return _nomes_cenarios({"pr1": "conferencia-api-pr1", "pr2": "conferencia-api-pr2"}[conferencia])
 
 
-# Fluxo "Problemas com plano de saúde" (NUDECON, #329) muda a lista de GET /fluxos; o teste escrito é o de test_app.py.
-_FLUXO_NOVO = CasoAposentado(issue=329, motivo="fluxo novo muda a lista de GET /fluxos", teste="tests/api/test_app.py")
+# As três conferências rodam com o ambiente da produção (#324): as gravações são o contrato com a
+# Tykhe, e é na produção que ele vale. Um teste (`test_fluxo_em_teste.py`) exige que este valor seja
+# o mesmo que `infra/terraform/ecs.tf` declara. O que só muda no release, onde os fluxos em teste
+# ligam, é coberto por testes escritos, e não pelas gravações.
+AMBIENTE_DAS_CONFERENCIAS = "producao"
 
+# #393 (decisão da Nicole, 2026-11-04): "Confirma que a pessoa presa é …?" mostra o nome mascarado.
+_NOME_MASCARADO = CasoAposentado(
+    issue=393, motivo="o nome do apenado sai mascarado na confirmação do RG", teste="tests/fluxos/test_pessoa_presa.py"
+)
+
+# Histórico dos casos de `GET /fluxos`: a #329 aposentou 6 (contrato `fluxos-200`; pr1 `fluxos`,
+# `fluxos_query`, `auth_bearer_espacos_fluxos`, `auth_bearer_duplo_espaco_fluxos`; pr2
+# `rota_get_fluxos_codificado`) quando o fluxo do plano de saúde entrou na lista. Com ele em teste,
+# desligado na produção (#324), os 6 voltaram a bater com as gravações e saíram daqui (registro no
+# `MIGRACAO.md`). As gravações não foram editadas.
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
-    "contrato": {"fluxos-200": _FLUXO_NOVO},
-    "pr1": {
-        "fluxos": _FLUXO_NOVO,
-        "fluxos_query": _FLUXO_NOVO,
-        "auth_bearer_espacos_fluxos": _FLUXO_NOVO,
-        "auth_bearer_duplo_espaco_fluxos": _FLUXO_NOVO,
+    "contrato": {
+        "pessoa-presa-resposta-rg-200": _NOME_MASCARADO,
+        "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
     },
-    "pr2": {"rota_get_fluxos_codificado": _FLUXO_NOVO},
+    "pr1": {},
+    "pr2": {"pp_rg": _NOME_MASCARADO, "pp_get_confirma_nome": _NOME_MASCARADO},
 }
 
 

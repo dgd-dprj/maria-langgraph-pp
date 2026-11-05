@@ -111,6 +111,10 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
 #
 # Issue #380 — o Grafana saiu: os 2 secrets dele deixaram a lista, que voltou a
 # ter só os 2 secrets de app.
+#
+# Issue #405 — os 2 secrets `email-nudecon` (release e produção) entram na lista: o
+# `terraform plan` do terraform-drift.yml lê as versões deles no refresh e falhava com
+# AccessDenied (achado ao vivo 2026-11-04, depois do merge do PR #408).
 data "aws_iam_policy_document" "github_actions_read_app_secrets" {
   statement {
     sid     = "ReadAppSecretsForTokenCheckAndTerraformRefresh"
@@ -118,6 +122,8 @@ data "aws_iam_policy_document" "github_actions_read_app_secrets" {
     resources = [
       aws_secretsmanager_secret.app.arn,
       aws_secretsmanager_secret.app_release.arn,
+      aws_secretsmanager_secret.email_nudecon.arn,
+      aws_secretsmanager_secret.email_nudecon_release.arn,
     ]
   }
 }

@@ -58,6 +58,12 @@ MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA = (
     "Já confirmei os dados da pessoa presa, mas o processo informado tem uma origem que ainda não consigo tratar por aqui. "
     "Vou encaminhar seu atendimento pra equipe dar continuidade."
 )
+# #341/#352 (decisão da Nicole, 2026-11-03): quando o Verde responde que não achou
+# o número (400, 404, 422), sem falar em origem nem em tipo de processo. O
+# `motivoHandoff` continua `origem_processo_nao_suportada`.
+MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO = (
+    "Não consegui localizar esse número de processo no sistema. Vou encaminhar seu atendimento pra equipe conferir com você."
+)
 MENSAGEM_FALHA_CADASTRO = (
     "Não consegui localizar nem cadastrar seus dados no sistema. Vou encaminhar seu atendimento pra um atendente confirmar manualmente."
 )

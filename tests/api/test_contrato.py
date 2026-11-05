@@ -29,7 +29,7 @@ import pytest
 
 from maria.app import criar_app
 from tests.api.campos_posteriores import sem_campos_posteriores
-from tests.api.casos_aposentados import CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato")
@@ -118,6 +118,7 @@ async def instancia(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPa
     for chave, valor in env.items():
         monkeypatch.setenv(chave, valor)
     monkeypatch.setenv("API_KEY", CHAVE)
+    monkeypatch.setenv("MARIA_AMBIENTE", AMBIENTE_DAS_CONFERENCIAS)  # #324: o contrato vale na produção
     monkeypatch.delenv("DATABASE_URL", raising=False)
     monkeypatch.delenv("VERDE_JWT_TOKEN", raising=False)
     app = criar_app(pre_aquecer=False)
@@ -185,5 +186,5 @@ async def test_fluxo_novo_muda_so_os_casos_medidos(
     nome: str = request.node.callspec.params["instancia"]
     registrar_fluxo_de_brinquedo(monkeypatch)
     por_caso = await _conferir(instancia, nome, capsys)
-    assert casos_que_falharam(por_caso) == CASOS_DE_UM_FLUXO_NOVO["contrato"] & set(por_caso)
+    assert casos_que_falharam(por_caso, "contrato") == CASOS_DE_UM_FLUXO_NOVO["contrato"] & set(por_caso)
     assert falhas_da_conferencia(por_caso, aposentados_do_brinquedo("contrato")) == []
