@@ -31,15 +31,23 @@ class TipoTykhe:
     descricao: str
     # Frase de transição devolvida em `resposta`; a Tykhe decide se exibe.
     mensagem: str
-    # Parte da `descricao` que um fluxo da Maria passa a atender: (nome do fluxo, trecho). Quando
-    # esse fluxo está no catálogo, o trecho sai da descrição; quando não está (fluxo em teste
-    # desligado, na produção), a descrição fica exatamente como é (#386).
-    trecho_de_fluxo_da_maria: tuple[str, str] | None = None
+    # Parte da `descricao` que um fluxo da Maria passa a atender. Quando esse fluxo está no
+    # catálogo, o trecho é trocado; quando não está (fluxo em teste desligado, na produção), a
+    # descrição fica exatamente como é (#386).
+    trecho_de_fluxo_da_maria: TrechoDeFluxoDaMaria | None = None
 
     def descricao_no_catalogo(self, fluxos_no_catalogo: set[str]) -> str:
-        if self.trecho_de_fluxo_da_maria is None or self.trecho_de_fluxo_da_maria[0] not in fluxos_no_catalogo:
+        t = self.trecho_de_fluxo_da_maria
+        if t is None or t.fluxo not in fluxos_no_catalogo:
             return self.descricao
-        return self.descricao.replace(self.trecho_de_fluxo_da_maria[1], "")
+        return self.descricao.replace(t.trecho, t.troca)
+
+
+@dataclass(frozen=True)
+class TrechoDeFluxoDaMaria:
+    fluxo: str  # `FluxoConfig.nome` do fluxo da Maria
+    trecho: str  # como está na descrição do tipo da Tykhe (aparece uma vez só)
+    troca: str  # o que fica no lugar, com o fluxo no catálogo
 
 
 TIPOS_TYKHE: tuple[TipoTykhe, ...] = (
@@ -53,9 +61,14 @@ TIPOS_TYKHE: tuple[TipoTykhe, ...] = (
             "que negou cobertura, erro médico, prontuário médico."
         ),
         mensagem="Entendi. Vou te encaminhar para o atendimento de questões de saúde.",
-        # #266 e #386: a negativa de plano de saúde vai para o fluxo do NUDECON onde ele está ligado.
-        # O `tipoCaso` `saude` não muda.
-        trecho_de_fluxo_da_maria=("problemas-plano-de-saude", "plano de saúde que negou cobertura, "),
+        # #266 e #386: onde o fluxo do NUDECON está ligado, a CIRURGIA negada pelo plano vai para ele
+        # (decisão da Nicole, 2026-11-05). As outras negativas do plano continuam aqui até serem
+        # validadas com o NUDECON. O `tipoCaso` `saude` não muda.
+        trecho_de_fluxo_da_maria=TrechoDeFluxoDaMaria(
+            fluxo="problemas-plano-de-saude",
+            trecho="plano de saúde que negou cobertura, ",
+            troca="plano de saúde que negou exame, tratamento, internação, remédio ou reembolso (não cirurgia), ",
+        ),
     ),
     TipoTykhe(
         id="tykhe:novo-processo",

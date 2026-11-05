@@ -5,8 +5,10 @@ comparados, caractere por caractere, com a cópia gravada em 2026-11-05, antes d
 (`tests/fixtures/orquestrador/catalogo-producao-2026-11-05.json`). Nunca edite essa cópia:
 se a produção tiver de mudar, é outra decisão, com registro na #208.
 
-No release, onde o fluxo em teste liga (#324), o plano de saúde entra no catálogo e a negativa
-de plano sai da descrição de `tykhe:saude`. A escolha da IA de verdade (H1 a H6) fica no teste
+No release, onde o fluxo em teste liga (#324), o plano de saúde entra no catálogo só para a
+cirurgia negada pelo plano (decisão da Nicole, 2026-11-05); a descrição de `tykhe:saude` troca
+"plano de saúde que negou cobertura" pelas outras negativas do plano, que continuam com a Tykhe
+até serem validadas com o NUDECON. A escolha da IA de verdade (H1 a H6) fica no teste
 de integração `tests/integracao/ia/test_classificacao_plano_saude.py`; aqui a classificação é
 simulada e o que se prova é o caminho da rota.
 """
@@ -29,6 +31,7 @@ TEXTO_GRAVADO = GRAVADO.read_text(encoding="utf-8")
 # Valores de MARIA_AMBIENTE que NÃO ligam o fluxo em teste (os mesmos de `test_fluxo_em_teste.py`).
 NAO_LIGAM = [None, "", "producao", "Release", "RELEASE", "release ", " release", "homologacao"]
 TRECHO_PLANO = "plano de saúde que negou cobertura, "
+TROCA_RELEASE = "plano de saúde que negou exame, tratamento, internação, remédio ou reembolso (não cirurgia), "
 # O CEP faz o fluxo do plano seguir para a 1ª pergunta, em vez de encerrar por não saber o município.
 DADOS_NO_RIO = {"endereco": {"cep": "20000000"}}
 
@@ -82,21 +85,24 @@ def test_a_copia_gravada_e_a_de_antes_da_386() -> None:
     assert ids == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, *(t.id for t in TIPOS_TYKHE)]
 
 
-# ---- release: o plano entra e a saúde perde o trecho ----------------------------------
+# ---- release: o plano entra só para cirurgia ------------------------------------------
 
 
-async def test_release_catalogo_com_o_plano_e_saude_sem_a_negativa_de_plano(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_release_catalogo_com_o_plano_so_para_cirurgia(monkeypatch: pytest.MonkeyPatch) -> None:
     _ambiente(monkeypatch, "release")
     catalogo = await catalogo_para_classificacao()
     gravado = _gravado()
     assert [o["id"] for o in catalogo] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, ID_PROBLEMAS_PLANO_SAUDE, *(t.id for t in TIPOS_TYKHE)]
     plano = catalogo[2]
     assert plano["nome"] == "problemas-plano-de-saude"
-    assert "plano de saúde" in plano["descricao"]
+    assert "cirurgia" in plano["descricao"]
+    # Por enquanto só cirurgia (2026-11-05): as outras negativas ficam com a Tykhe.
+    for fora in ("exame", "reembolso", "tratamento", "remédio", "mensalidade", "cancel"):
+        assert fora not in plano["descricao"].lower(), fora
     saude_release = next(o for o in catalogo if o["id"] == "tykhe:saude")
     saude_gravada = next(o for o in gravado if o["id"] == "tykhe:saude")
-    assert saude_release["descricao"] == saude_gravada["descricao"].replace(TRECHO_PLANO, "")
-    assert "plano" not in saude_release["descricao"].lower()
+    assert saude_release["descricao"] == saude_gravada["descricao"].replace(TRECHO_PLANO, TROCA_RELEASE)
+    assert "negou cobertura" not in saude_release["descricao"]
     # O resto do catálogo é o mesmo da produção.
     assert [o for o in catalogo if o["id"] not in (ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude")] == [
         o for o in gravado if o["id"] != "tykhe:saude"
@@ -104,10 +110,11 @@ async def test_release_catalogo_com_o_plano_e_saude_sem_a_negativa_de_plano(monk
 
 
 def test_trecho_do_plano_aparece_uma_vez_na_descricao_de_saude() -> None:
-    # Sem isso, uma mudança de vírgula na descrição faria o `replace` não tirar nada, em silêncio.
+    # Sem isso, uma mudança de vírgula na descrição faria o `replace` não trocar nada, em silêncio.
     saude = tipo_tykhe_por_id("tykhe:saude")
     assert saude is not None and saude.trecho_de_fluxo_da_maria is not None
-    assert saude.descricao.count(saude.trecho_de_fluxo_da_maria[1]) == 1
+    assert saude.descricao.count(saude.trecho_de_fluxo_da_maria.trecho) == 1
+    assert saude.trecho_de_fluxo_da_maria.troca == TROCA_RELEASE
 
 
 # ---- rota (classificação simulada) -----------------------------------------------------

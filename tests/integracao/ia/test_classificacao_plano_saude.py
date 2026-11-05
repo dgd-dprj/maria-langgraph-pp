@@ -9,8 +9,12 @@ Reproduz a 1ª rodada do orquestrador: o catálogo do release (`MARIA_AMBIENTE=r
 de candidatos (`buscar_candidatos`, que com até 15 opções devolve o catálogo inteiro sem gastar
 embedding) e a classificação, com o modelo da produção (`infra/terraform/ecs.tf`).
 
-Os relatos são inventados, com versões informais e erros de escrita de propósito. Reajuste e
-cancelamento ainda dependem do NUDECON (#386), por isso não entram aqui como esperados.
+Os relatos são inventados, com versões informais e erros de escrita de propósito.
+
+Por decisão da Nicole (2026-11-05), o fluxo entra no orquestrador só para a CIRURGIA negada pelo
+plano. As outras negativas do plano (exame, tratamento, remédio, reembolso) continuam em
+`tykhe:saude` até serem validadas com o NUDECON; quando entrarem, os casos "plano-fora" mudam
+de lado.
 """
 
 from __future__ import annotations
@@ -32,13 +36,14 @@ SAUDE = "tykhe:saude"
 
 # (cenário, relato, ids que precisam estar, ids que não podem estar, "só" = exatamente os de cima)
 CASOS: list[tuple[str, str, set[str], set[str], bool]] = [
-    # H1 e H2: negativa do plano vai para o fluxo, sem a saúde pública junto.
+    # H1: cirurgia negada pelo plano vai para o fluxo, sem a saúde pública junto.
     ("H1", "meu plano de saúde negou minha cirurgia", {PLANO}, {SAUDE}, True),
     ("H1-informal", "o plano nao quis libera minha cirurgia do joelho", {PLANO}, {SAUDE}, True),
-    ("H1-marca", "a amil negou o tratamento de quimio da minha mae", {PLANO}, {SAUDE}, True),
-    ("H2", "o convênio não quer reembolsar o exame", {PLANO}, {SAUDE}, True),
-    ("H2-informal", "a unimed nao qer devolver o dinheiro da consulta q eu paguei", {PLANO}, {SAUDE}, True),
-    ("H2-exame", "meu convenio recusou a ressonancia q o medico pediu", {PLANO}, {SAUDE}, True),
+    ("H1-marca", "a amil nao autorizou a operaçao da minha mae", {PLANO}, {SAUDE}, True),
+    # H2 (por enquanto): as outras negativas do plano continuam com a Tykhe, até serem validadas.
+    ("plano-fora-reembolso", "o convênio não quer reembolsar o exame", {SAUDE}, {PLANO}, True),
+    ("plano-fora-informal", "a unimed nao qer devolver o dinheiro da consulta q eu paguei", {SAUDE}, {PLANO}, True),
+    ("plano-fora-tratamento", "a amil negou o tratamento de quimio da minha mae", {SAUDE}, {PLANO}, True),
     # H3: saúde pública continua com a Tykhe, sem o plano junto.
     ("H3", "preciso de um remédio que o posto não tem", {SAUDE}, {PLANO}, True),
     ("H3-posto", "o posto não marca minha cirurgia", {SAUDE}, {PLANO}, True),

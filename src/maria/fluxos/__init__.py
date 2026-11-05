@@ -104,19 +104,19 @@ fluxos_por_id: dict[str, FluxoConfig] = {
     ),
     # Fluxo Problemas com plano de saúde (NUDECON, #329). Em teste (#324, decisão de 2026-11-03):
     # ligado só no release; na produção some de GET /fluxos e do catálogo, e o flowId responde como
-    # desconhecido. Oferecido ao orquestrador desde a #386 (decisão da #266): onde está ligado, a
-    # negativa de plano sai de `tykhe:saude` (`TipoTykhe.trecho_de_fluxo_da_maria`).
+    # desconhecido. Oferecido ao orquestrador desde a #386 (decisão da #266), SÓ PARA CIRURGIA
+    # (decisão da Nicole, 2026-11-05): onde está ligado, a cirurgia negada pelo plano sai de
+    # `tykhe:saude` (`TipoTykhe.trecho_de_fluxo_da_maria`).
+    # FUTURO: as outras negativas do plano (exame, tratamento, internação, remédio, reembolso) e,
+    # se o NUDECON confirmar, reajuste e cancelamento entram aqui depois de validadas. Até lá,
+    # continuam em `tykhe:saude`. Ao ampliar, mudam juntos esta descrição, a troca em
+    # `tipos_tykhe.py` e os casos de `tests/integracao/ia/test_classificacao_plano_saude.py`.
     ID_PROBLEMAS_PLANO_SAUDE: FluxoConfig(
         nome="problemas-plano-de-saude",
         descricao=(
-            "Problema com plano de saúde particular ou convênio médico: o plano negou ou não autorizou cirurgia, "
-            "exame, tratamento, internação ou remédio, recusou reembolso, "
-            # PENDENTE de confirmação do NUDECON (pergunta a Debora, Virgínia e Jane, 2026-11-05):
-            # reajuste e cancelamento entram no fluxo? Se não entrarem, este trecho sai e a lista
-            # fecha em "ou recusou reembolso".
-            "cancelou o plano ou aumentou a mensalidade. "
-            'A pessoa costuma escrever: "o plano negou a cirurgia", "a Unimed não quer reembolsar", '
-            '"o convênio recusou o exame".'
+            "Plano de saúde particular ou convênio médico que negou ou não autorizou uma cirurgia. "
+            'A pessoa costuma escrever: "o plano negou a cirurgia", "o convênio não autorizou minha operação", '
+            '"a Unimed recusou a cirurgia do meu joelho".'
         ),
         obter_grafo=obter_grafo_plano_saude,
         extrair_metadados=api_plano_saude.extrair_metadados_plano_saude,
