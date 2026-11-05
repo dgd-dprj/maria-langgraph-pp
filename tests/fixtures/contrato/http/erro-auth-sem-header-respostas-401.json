@@ -1,0 +1,31 @@
+{
+  "nome": "erro-auth-sem-header-respostas-401",
+  "descricao": "POST /atendimentos/respostas sem Authorization",
+  "instancia": {
+    "nome": "f-test-erros-401-500",
+    "env": {
+      "NODE_ENV": "test",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "chatId": "cap-401-1",
+      "resposta": "true"
+    }
+  },
+  "resposta": {
+    "status": 401,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"error\":\"missing authorization header\"}",
+    "corpo": {
+      "error": "missing authorization header"
+    }
+  }
+}

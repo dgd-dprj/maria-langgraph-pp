@@ -1,0 +1,50 @@
+{
+  "nome": "erro-nao-tratado-webhook-texto-numero-500",
+  "descricao": "Webhook com text.body numérico: mensagem.texto.trim não é função",
+  "instancia": {
+    "nome": "f-test-erros-401-500",
+    "env": {
+      "NODE_ENV": "test",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/webhook/whatsapp",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "entry": [
+        {
+          "changes": [
+            {
+              "value": {
+                "messages": [
+                  {
+                    "from": "5521000000008",
+                    "type": "text",
+                    "text": {
+                      "body": 7
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "resposta": {
+    "status": 500,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"statusCode\":500,\"error\":\"Internal Server Error\",\"message\":\"mensagem.texto.trim is not a function\"}",
+    "corpo": {
+      "statusCode": 500,
+      "error": "Internal Server Error",
+      "message": "mensagem.texto.trim is not a function"
+    }
+  }
+}

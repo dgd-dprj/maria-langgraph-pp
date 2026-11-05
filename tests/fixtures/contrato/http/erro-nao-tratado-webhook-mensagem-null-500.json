@@ -1,0 +1,44 @@
+{
+  "nome": "erro-nao-tratado-webhook-mensagem-null-500",
+  "descricao": "Webhook com messages: [null]: extrairMensagemWhatsapp lê .type de null",
+  "instancia": {
+    "nome": "f-test-erros-401-500",
+    "env": {
+      "NODE_ENV": "test",
+      "WHATSAPP_VERIFY_TOKEN": "token-verificacao-captura"
+    }
+  },
+  "requisicao": {
+    "metodo": "POST",
+    "caminho": "/webhook/whatsapp",
+    "headers": {
+      "content-type": "application/json"
+    },
+    "corpo": {
+      "entry": [
+        {
+          "changes": [
+            {
+              "value": {
+                "messages": [
+                  null
+                ]
+              }
+            }
+          ]
+        }
+      ]
+    }
+  },
+  "resposta": {
+    "status": 500,
+    "contentType": "application/json; charset=utf-8",
+    "location": null,
+    "corpoBruto": "{\"statusCode\":500,\"error\":\"Internal Server Error\",\"message\":\"Cannot read properties of null (reading 'type')\"}",
+    "corpo": {
+      "statusCode": 500,
+      "error": "Internal Server Error",
+      "message": "Cannot read properties of null (reading 'type')"
+    }
+  }
+}
