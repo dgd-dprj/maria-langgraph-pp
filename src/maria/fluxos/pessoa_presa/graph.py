@@ -104,6 +104,10 @@ _PREFIXO_EM = re.compile(f"^EM{_js.CLASSE_ESPACO_JS}+")
 # `/^\d+$/` de JS: só 0-9 ASCII, com casamento completo (`fullmatch`, e não o
 # `$` do Python, que aceita um `\n` final).
 _SO_DIGITOS_ASCII = re.compile(r"[0-9]+")
+# #343: o RG como aparece no documento ("12.345.678-9"). Ponto, traço (também
+# os do celular: ‐ ‑ – —) e espaços em qualquer posição saem antes de conferir
+# e de consultar o Verde.
+_PONTUACAO_RG = re.compile(f"[.\\-‐‑–—]|{_js.CLASSE_ESPACO_JS}")
 
 
 def _ler(state: PessoaPresaState, canal: str) -> Any:
@@ -147,9 +151,16 @@ def extracao_livre_habilitada() -> bool:
     return os.environ.get("EXTRACAO_LIVRE_IA") == "true"
 
 
+def limpar_rg(rg: str) -> str:
+    """Só os dígitos que vão para o Verde: sem ponto, traço e espaços (#343)."""
+    return _PONTUACAO_RG.sub("", rg)
+
+
 def rg_formato_valido(rg: Any) -> bool:
-    """`z.string().trim().regex(/^\\d+$/)`: o trim vale só para validar."""
-    return isinstance(rg, str) and _SO_DIGITOS_ASCII.fullmatch(_js.trim_js(rg)) is not None
+    """Só dígitos 0-9 depois de `limpar_rg` (#343). Develop recusava tudo o que
+    não fosse só dígitos (`z.string().trim().regex(/^\\d+$/)`), e o RG com ponto
+    e traço caía num laço de recusas."""
+    return isinstance(rg, str) and _SO_DIGITOS_ASCII.fullmatch(limpar_rg(rg)) is not None
 
 
 def rg_veio_da_extracao(state: PessoaPresaState) -> bool:
@@ -264,7 +275,10 @@ async def preparar_pergunta_rg_invalido(state: PessoaPresaState) -> Atualizacao:
 
 
 async def consultar_apenado(state: PessoaPresaState) -> Atualizacao:
-    dados = await consultar_apenado_por_rg(_js.coalesce(state.get("rg"), ""))
+    # O estado e os metadados guardam o RG como a pessoa digitou; o Verde
+    # recebe só os dígitos (#343).
+    rg = _js.coalesce(state.get("rg"), "")
+    dados = await consultar_apenado_por_rg(limpar_rg(rg) if isinstance(rg, str) else rg)
     tentativas: int = _js.coalesce(state.get("tentativasRg"), 0)
     return {"dadosApenado": dados, "tentativasRg": tentativas + 1}
 
@@ -293,7 +307,8 @@ async def pergunta_tentar_novamente(state: PessoaPresaState) -> Atualizacao:
             "opcoes": ["Sim", "Não"],
         }
     )
-    # Qualquer resposta só com dígitos (inclusive "1") é RG digitado direto.
+    # Qualquer resposta só com dígitos (inclusive "1"), com ou sem ponto, traço
+    # e espaços (#343), é RG digitado direto.
     if rg_formato_valido(resposta):
         return {"querTentarNovamente": True, "rg": resposta, "digitouRgDireto": True}
     return {"querTentarNovamente": resposta_eh_sim(resposta), "digitouRgDireto": False}

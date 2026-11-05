@@ -549,15 +549,38 @@ async def test_5_campo_ausente_nao_lanca(verde_real: TransporteFalso) -> None:
         ("\ufeff123", True),  # o trim do JS remove o BOM
         ("\x1c123", False),  # e não remove \x1c, que o strip() do Python removeria
         ("123\n", True),  # o trim remove a quebra final antes da regex
-        ("1\n2", False),
+        ("1\n2", True),  # #343: espaço no meio também sai (develop recusava)
         ("١٢٣", False),  # \d do JS é só ASCII
         ("12a", False),
         ("", False),
         (123, False),  # z.string() recusa número
+        # #343: o RG como aparece no documento (exemplos fictícios)
+        ("12.345.678-9", True),
+        ("12 345 678 9", True),
+        ("12.345.678–9", True),  # traço do celular (U+2013)
+        ("12.345.678-X", False),  # letra continua recusada
+        (".-", False),  # só pontuação não é RG
+        ("12/345", False),  # barra não está entre os sinais aceitos
     ],
 )
-def test_6_rg_formato_como_zod(rg: object, valido: bool) -> None:
+def test_6_rg_formato(rg: object, valido: bool) -> None:
     assert rg_formato_valido(rg) is valido
+
+
+async def test_6_rg_com_ponto_e_traco_consulta_o_verde_so_com_os_digitos_issue_343(verde_real: TransporteFalso) -> None:
+    _verde(verde_real, _rotas_pp())
+    f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "12.345.678-9"])
+    assert _enviados(verde_real, "/apenado") == ['/apenado {"rg":"123456789"}']
+    assert not any(p["pergunta"].startswith("O RG deve conter apenas números.") for p in perguntas)
+    # O estado (e os metadados) guardam o que a pessoa digitou.
+    assert (await f.estado())["rg"] == "12.345.678-9"
+
+
+async def test_6_rg_com_ponto_e_traco_digitado_direto_no_retry_issue_343(verde_real: TransporteFalso) -> None:
+    _verde(verde_real, _rotas_pp(apenado={}))
+    f, _, _ = await _conversa(obter_pp(), {}, ["Não", "000000000", "12.345.678-9"])
+    assert (await f.estado())["digitouRgDireto"] is True
+    assert _enviados(verde_real, "/apenado")[-1] == '/apenado {"rg":"123456789"}'
 
 
 @pytest.mark.parametrize(

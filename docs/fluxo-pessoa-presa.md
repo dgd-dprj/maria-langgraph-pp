@@ -14,8 +14,9 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
      sim → 3. "Qual o número do processo?"     (texto) → consulta Verde (informativo, não bloqueia)
      não → pula pro passo 4
 4. "Qual o RG da pessoa presa?"                (texto)
-     formato inválido (não só números) → pergunta de novo
-     formato válido → consulta Verde (/apenado)
+     ponto, traço e espaços saem antes de conferir (#343): "12.345.678-9" vale como "123456789"
+     formato inválido (sobra algo que não é número) → pergunta de novo (ainda sem limite, #343)
+     formato válido → consulta Verde (/apenado) só com os dígitos
         não encontrado, < 3 tentativas → "Quer tentar de novo?" (sim/não/RG direto)
         não encontrado, 3ª tentativa    → HANDOFF: rg_nao_encontrado
         encontrado                       → 5. "Confirma que a pessoa presa é <nome mascarado>?" (sim/não;
@@ -71,7 +72,7 @@ Outros motivos de handoff, fora dessa função:
 ## Tolerâncias (achadas ao vivo, ver comentários no código)
 
 - **Sim/não tolerante** — aceita `"true"`/`"sim"`/`"s"`/`"yes"` (com/sem acento) como "sim", não só o literal `"true"` que o contrato prevê. A Tykhe às vezes repassa o texto que o usuário digitou/clicou, não o valor normalizado (issue achada 2026-08-31).
-- **RG digitado direto na confirmação de retry** (issue #54) — na pergunta "quer tentar de novo?", se a resposta já é um RG válido (só números), usa direto como novo RG, sem perguntar "qual o RG?" de novo.
+- **RG digitado direto na confirmação de retry** (issue #54) — na pergunta "quer tentar de novo?", se a resposta já é um RG válido (só números, com ou sem ponto, traço e espaços, #343), usa direto como novo RG, sem perguntar "qual o RG?" de novo.
 - **Extração livre por IA** (desligada por padrão, `EXTRACAO_LIVRE_IA=true` liga) — deixa a pessoa contar tudo de uma vez ("processo tal, RG tal, sou mãe dele") e extrai `temProcesso`/`numeroProcesso`/`rg`/`parentesco` de uma vez, pulando as perguntas correspondentes.
 
 ## Dados do Verde usados
