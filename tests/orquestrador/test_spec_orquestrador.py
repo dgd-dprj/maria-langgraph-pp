@@ -484,31 +484,42 @@ def test_7_trim_do_js_e_nao_o_strip() -> None:
     assert not mesmo_conjunto_de_opcoes([{"id": 1, "resposta": "Sim\x1c"}], [{"id": 1, "resposta": "sim"}])
 
 
-# ── #419: pergunta fixa (sem IA) para plano de saúde x cirurgia pelo SUS ──────────────────────────────────────────
-def _candidato(id_: str) -> CandidatoOrquestrador:
-    return {"id": id_, "nome": id_, "descricao": "d"}
-
-
+# ── #419: plano de saúde x cirurgia pelo SUS segue direto no fluxo, sem pergunta ─────────────────────────────────
 @pytest.mark.parametrize("ordem", [[ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude"], ["tykhe:saude", ID_PROBLEMAS_PLANO_SAUDE]])
-async def test_419_plano_de_saude_e_saude_usam_o_texto_fixo_sem_ia_em_qualquer_ordem(modelo: Modelo, ordem: list[str]) -> None:
-    resultado = await graph.preparar_pergunta_desambiguacao(
-        {"mensagem": "preciso de uma cirurgia", "candidatosRestantes": [_candidato(i) for i in ordem]}
-    )
-    assert resultado == {"perguntaAtualTexto": graph.PERGUNTAS_FIXAS_DESAMBIGUACAO[frozenset(ordem)]}
-    assert "obrigar o plano de saúde a cobrir essa cirurgia" in resultado["perguntaAtualTexto"]
-    assert "pelo SUS" in resultado["perguntaAtualTexto"]
+async def test_419_plano_de_saude_e_saude_identificam_o_fluxo_sem_perguntar_em_qualquer_ordem(
+    modelo: Modelo, monkeypatch: pytest.MonkeyPatch, ordem: list[str]
+) -> None:
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
+    modelo.classificacoes = [{"ids": ordem, "viaIA": True, **TOKENS}]
+    r = await Conversa().iniciar("preciso de uma cirurgia")
+    assert pergunta(r) is None
+    assert r["statusFinal"] == "identificado"
+    assert r["flowIdEscolhido"] == ID_PROBLEMAS_PLANO_SAUDE
     assert modelo.textos_desambiguados == []
 
 
-async def test_419_outro_par_de_candidatos_segue_com_ia(modelo: Modelo) -> None:
+async def test_419_outro_par_de_candidatos_segue_com_a_desambiguacao(modelo: Modelo) -> None:
+    modelo.classificacoes = [{"ids": DOIS, "viaIA": True, **TOKENS}]
     modelo.perguntas = [{"pergunta": "P?", "viaIA": True, **TOKENS}]
-    resultado = await graph.preparar_pergunta_desambiguacao({"mensagem": "relato", "candidatosRestantes": [_candidato(i) for i in DOIS]})
-    assert resultado["perguntaAtualTexto"] == "P?"
-    assert len(modelo.textos_desambiguados) == 1
+    r = await Conversa().iniciar()
+    assert pergunta(r) == {"pergunta": "P?", "tipo": "texto"}
 
 
-async def test_419_trio_que_inclui_o_par_nao_usa_o_texto_fixo(modelo: Modelo) -> None:
+async def test_419_trio_que_inclui_o_par_segue_com_a_desambiguacao(modelo: Modelo, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
+    modelo.classificacoes = [{"ids": [ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude", ID_PESSOA_PRESA], "viaIA": True, **TOKENS}]
     modelo.perguntas = [{"pergunta": "P?", "viaIA": True, **TOKENS}]
-    ids = [ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude", ID_PESSOA_PRESA]
-    resultado = await graph.preparar_pergunta_desambiguacao({"mensagem": "relato", "candidatosRestantes": [_candidato(i) for i in ids]})
-    assert resultado["perguntaAtualTexto"] == "P?"
+    r = await Conversa().iniciar()
+    assert pergunta(r) == {"pergunta": "P?", "tipo": "texto"}
+
+
+def test_419_escolha_direta_so_vale_para_o_par() -> None:
+    plano, saude, presa = (_candidato(i) for i in (ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude", ID_PESSOA_PRESA))
+    assert graph.resolver_escolha_direta([saude, plano]) == [plano]
+    assert graph.resolver_escolha_direta([plano]) == [plano]
+    assert graph.resolver_escolha_direta([plano, saude, presa]) == [plano, saude, presa]
+    assert graph.resolver_escolha_direta([]) == []
+
+
+def _candidato(id_: str) -> CandidatoOrquestrador:
+    return {"id": id_, "nome": id_, "descricao": "d"}

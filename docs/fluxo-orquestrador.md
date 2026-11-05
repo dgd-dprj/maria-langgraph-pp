@@ -17,7 +17,7 @@ flowchart TD
     E -->|"tipo da Tykhe"| G(["redirecionado<br/>tipoCaso do tipo"])
     D -->|"2 ou mais"| H{"Rodada já<br/>chegou a 5?"}
     H -->|"sim"| R
-    H -->|"não"| I[/"Pergunta de desambiguação<br/>(texto fixo para plano de saúde x SUS; texto real do Verde se todos compartilham a raiz; senão, IA)"/]
+    H -->|"não"| I[/"Pergunta de desambiguação<br/>(texto real do Verde se todos compartilham a raiz; senão, IA)"/]
     I --> J["interrupt: pergunta à pessoa"]
     J -->|"resposta volta para classificar"| C
     style F fill:#0e8a16,color:#fff
@@ -34,7 +34,8 @@ flowchart TD
    - **0** → `nenhum` → nó `naoIdentificado` → `redirecionado` com `tipoCaso: "outros"` (issue #225; antes era `handoff_humano`).
    - **1** → `um` → nó `identificado` → segue pra criar o atendimento nesse `flowId`.
    - **2+** → `muitos` → precisa desambiguar (próximo passo) — **a menos que já tenha esgotado `LIMITE_RODADAS` (5)**, aí também cai em `nenhum` → `redirecionado`/`outros` (nunca fica perguntando pra sempre).
-3. **`prepararPerguntaDesambiguacao`** — se os candidatos restantes são **exatamente** o fluxo Problemas com plano de saúde e `tykhe:saude`, usa o **texto fixo** de `PERGUNTAS_FIXAS_DESAMBIGUACAO` (#419: "Você quer que a gente ajude a obrigar o plano de saúde a cobrir essa cirurgia, ou você precisa de ajuda para conseguir fazer a cirurgia pelo SUS?"), sem IA e sem consultar o banco, em qualquer ordem dos candidatos; qualquer outro grupo segue abaixo. Antes de gerar pergunta por IA, checa se **todos** os candidatos restantes compartilham literalmente a mesma pergunta raiz do Verde (mesmo texto + mesmas opções, `buscar_pergunta_real_compartilhada`) — se sim, usa esse texto real (não gasta token de IA). Senão, gera pergunta por IA (`gerar_pergunta_desambiguacao`).
+2b. **Escolha direta (#419):** se os candidatos que sobraram são **exatamente** o fluxo Problemas com plano de saúde e `tykhe:saude` (`ESCOLHA_DIRETA`, em qualquer ordem), o orquestrador **não pergunta nada** e identifica direto o fluxo do plano de saúde, que devolve a sua primeira pergunta (o canal). Qualquer outro grupo, inclusive um trio que contenha o par, segue a desambiguação normal.
+3. **`prepararPerguntaDesambiguacao`** — Antes de gerar pergunta por IA, checa se **todos** os candidatos restantes compartilham literalmente a mesma pergunta raiz do Verde (mesmo texto + mesmas opções, `buscar_pergunta_real_compartilhada`) — se sim, usa esse texto real (não gasta token de IA). Senão, gera pergunta por IA (`gerar_pergunta_desambiguacao`).
 4. **`pedirDesambiguacao`** — `interrupt()` pausa esperando a resposta da pessoa (`tipoResposta: "texto"` sempre — decisão deliberada: mostrar nomes internos dos candidatos como menu soava técnico, deixa responder com as próprias palavras). Resposta é concatenada no relato bruto (`mensagem`, auditoria completa) e volta pro `classificar`.
 5. A partir da 3ª rodada (`LIMITE_RODADAS_SUMARIZACAO`), o histórico vira resumo por IA (`sumarizar_relato`) + última resposta verbatim — evita mandar um relato bruto gigante pra classificação/desambiguação depois de várias idas e vindas.
 6. Quando identifica um **tipo da Tykhe** (`src/maria/fluxos/tipos_tykhe.py`): não cria atendimento; responde `status: "redirecionado"` + `tipoCaso` e a Tykhe continua (issue #225). Log: `orquestrador_redirecionado` com `tipoCaso`.
