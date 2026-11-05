@@ -13,7 +13,7 @@
 > - **o cadastro de pessoa:** quando o CPF não é encontrado 3 vezes, a Maria pede nome, data de nascimento e endereço. **O registro é criado logo depois do último dado de endereço;**
 > - **o encaminhamento de violência doméstica:** **o registro é criado logo depois do "Sim" em "Confirma que seus dados são…?"**.
 >
-> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**.
+> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**. **Desde a #236 (2026-11-03), o mesmo vale quando o CPF vem da Tykhe** (em `dadosConhecidos`), mesmo começando pelo relato livre: a Maria não mostra o nome e não pede confirmação. A pergunta só aparece quando a pessoa digita o CPF na conversa.
 
 Este guia é para a equipe que vai testar a Maria no ambiente de homologação (o release), depois da troca da versão TypeScript pela versão em Python (2026-10-21, #268).
 
@@ -92,7 +92,10 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 
 **Esperado:** uma mensagem de encaminhamento com o **nome de um órgão** e um **número de protocolo**.
 
-Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro.
+Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro. Isso vale para o CPF digitado na conversa; se a Tykhe já mandou o CPF, não há confirmação (#236).
+- **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Confirma que seus dados são: Maria S. S.?"). Se o cadastro tiver nome social, é ele que aparece, também mascarado.
+- **Antes da #393:** o nome completo do cadastro.
+- **No cadastro do passo 5,** a confirmação continua com o nome que você acabou de digitar, por inteiro.
 
 > **Este caso grava duas vezes na homologação:** o cadastro no passo 5 (com CPF inventado) e o encaminhamento no passo 6.
 
@@ -101,13 +104,14 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 1. Relato livre sobre um familiar preso (inventado).
 2. Número do processo → **Sim** e um número de teste (SEEU, se houver), ou **Não**.
 3. RG da pessoa presa → o **RG de teste**.
-4. "Confirma que é <nome>?" → **Sim**.
+4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
 5. Parentesco → por exemplo, "sou a mãe".
 6. CPF de quem está conversando → um CPF inventado (e o cadastro, como no caso A) ou um já cadastrado.
 
 **Esperado:**
 - sem número de processo: "Já confirmei os dados da pessoa presa, mas como você não tem o número do processo, vou encaminhar seu atendimento pra equipe localizar isso e dar continuidade.";
-- com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui."
+- com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui.";
+- **com um número de processo que o Verde não acha** (por exemplo, um número inventado, no passo 2): **depois da #341,** "Não consegui localizar esse número de processo no sistema. Vou encaminhar seu atendimento pra equipe conferir com você." **Antes da #341,** a mensagem dizia que o processo "tem uma origem que ainda não consigo tratar por aqui". Um processo que existe, mas não é do SEEU, continua com a mensagem da origem.
 
 > **Este caso só grava se cair no cadastro** (passo 6 com um CPF que não existe). Pessoa presa não cria encaminhamento no Verde.
 

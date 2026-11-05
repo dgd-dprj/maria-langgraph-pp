@@ -28,6 +28,8 @@ src/maria/fluxos/<nome>/
 
 O que chega no grafo: na criação, o conteúdo de `dadosConhecidos` vira o estado inicial (menos `viaOrquestrador`, que só a rota do orquestrador grava, #191). Chave que não existe no `state.py` é ignorada pelo LangGraph. O `fluxoId` chega na config do run (`contexto_atual()`, de `src/maria/shared/contexto.py`).
 
+**Relato da triagem (#334).** Fluxo que não deve repetir a pergunta da situação marca `usa_relato=True` no `FluxoConfig` e declara o canal `relato: str | None` no `state.py`. Quando o atendimento nasce no orquestrador, a rota põe o texto acumulado da triagem nesse canal, fora de `dadosConhecidos` (que a Tykhe controla: um `relato` vindo de lá é descartado nesses fluxos). Sem relato, o estado não ganha a chave e o fluxo faz a pergunta normal. O relato é dado sensível: nunca vai para log, resumo de erro nem `metadados`. Fluxos sem a marca não mudam.
+
 Fluxo sem implementação própria ainda (categoria só cadastrada em `fluxos_planejados`, issue #26) usa o grafo compartilhado `src/maria/fluxos/padrao/graph.py` automaticamente — não precisa criar nada até decidir implementar de verdade.
 
 ## 1.1. Precisa de lógica reaproveitável entre fluxos? Use um subgrafo
@@ -110,7 +112,7 @@ Um fluxo novo entra com `em_teste=True` no `FluxoConfig`. Assim a equipe testa n
 - **Para ir para produção,** abra um PR que tira o `em_teste=True`, com o resultado do teste da equipe e o registro na #208. Nunca troque uma variável no console. Esse PR muda `GET /fluxos` na produção, e é nele que os casos das respostas gravadas são aposentados (seção 3, "O que o registro muda em outros testes").
 - **O primeiro fluxo em teste** é o do plano de saúde (NUDECON, #329), por decisão de 2026-11-03: o release `develop` → `main` o leva desligado na produção.
 
-> Um fluxo novo entra no catálogo de classificação. Com mais de 10 opções no catálogo, a busca por similaridade passa a cortar candidatos antes da IA (`CANDIDATOS_MAXIMOS`, #256): hoje são 9 (2 fluxos e 7 tipos da Tykhe), então o 2º fluxo novo já muda esse comportamento. Ver `docs/fluxo-orquestrador.md`.
+> Um fluxo novo entra no catálogo de classificação. Com mais de 15 opções no catálogo, a busca por similaridade passa a cortar candidatos antes da IA (`CANDIDATOS_MAXIMOS`, #256 e #353): hoje são 9 (2 fluxos e 7 tipos da Tykhe), então o 7º fluxo novo já muda esse comportamento. Ver `docs/fluxo-orquestrador.md`.
 
 ## 3. Testes
 

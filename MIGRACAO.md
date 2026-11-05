@@ -34,6 +34,12 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 2. **Resposta gravada não se edita.** Se uma correção mudar o **valor** de uma resposta gravada em `tests/fixtures/contrato/`, o caso é **aposentado da conferência com registro**: o motivo, a issue e o teste escrito que passa a cobrir o comportamento novo. A fixture fica intacta. Campo novo e opcional continua no mecanismo da #294 (`tests/api/campos_posteriores.py`). Ver "As respostas gravadas são evidência, não teste de regressão".
 3. **Guia de teste:** cada PR de correção que muda comportamento atualiza o `docs/guia-teste-homologacao.md`, e o merge entra em horário combinado com a equipe. Todo merge em `develop` reinicia o release.
 
+**#393, item 1 (decisão da Nicole, 2026-11-04):** com o CPF digitado na conversa, "Confirma que seus dados são: …?" mostra o nome **mascarado**, com o primeiro nome e as iniciais dos outros ("Maria S. S."), e o nome social quando o Verde tiver um. Quem digita o CPF de outra pessoa não vê mais o nome completo dela. Contrato igual e nenhuma resposta gravada aposentada.
+
+**#393, item 2 (decisão da Nicole, 2026-11-04):** depois do RG, "Confirma que a pessoa presa é …?" também mostra o nome mascarado ("Jose S. P."). O contrato não muda, mas o valor de quatro respostas gravadas muda, e os casos saem da conferência com registro (regra 2), em `tests/api/casos_aposentados.py`: `pessoa-presa-resposta-rg-200` e `pessoa-presa-get-metadados-parciais-200` (conferência `contrato`), e `pp_rg` e `pp_get_confirma_nome` (`pr2`). As fixtures ficam intactas; o teste escrito é o `test_393_*` de `tests/fluxos/test_pessoa_presa.py`. A medição da #321 (o que um fluxo novo muda) desconta esses casos, que falham com ou sem fluxo novo.
+
+Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a confirmação no cadastro) continuam aguardando decisão.
+
 ## Padronização de fluxos (decidida em 2026-10-23)
 
 **Decisão da Nicole, registrada na #208.** O objetivo é que um fluxo novo entre sem quebrar a aplicação nem o contrato com a Tykhe, e que a IA entre aos poucos, um ponto por vez. **Nenhuma peça reorganiza pastas nem move código existente: todas acrescentam.**
@@ -45,7 +51,7 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 | 3 | #327 | Gerador de fluxo novo |
 | 4 | #324 | Fluxo em teste, ligado só no release |
 | 5 | #325 | Pontos de IA com o mesmo contrato |
-| 6 | #326 | Medir a busca por similaridade antes de o catálogo passar de 10 |
+| 6 | #326 | Medir a busca por similaridade antes de o catálogo passar de 15 (era 10 até a #353, decisão de 2026-11-03) |
 
 **O molde (#323):** as regras A1 a A12 foram tiradas dos fluxos existentes. A Nicole acrescentou duas:
 - **A13:** toda saída da IA de um conjunto fechado é conferida contra a lista fixa (#212).
@@ -76,6 +82,7 @@ Pessoa presa não passa na A13 nem na A14, e violência doméstica não passa na
 **Critério de liberação da busca por similaridade (#326):**
 - Nenhum relato da base rotulada perde o fluxo certo no corte.
 - O corte não acrescenta mais de 1 s ao p95, que hoje é de 3,3 s.
+- **Desde 2026-11-03 (decisão da Nicole, #353, PR #360), o corte da 1ª rodada é de 15**, e não de 10. O critério acima passa a valer acima de 15 opções, e a medição usa catálogos de 16 e 17 opções. A medição da #353 não cumpre este critério: o destino principal fica fora dos candidatos em 31 de 265 relatos, e o p95 de ponta a ponta não foi medido.
 
 ## Modelo de branch
 
@@ -180,11 +187,21 @@ scripts/
 
 ### Contrato HTTP
 
-- Status, content-type e corpo de toda resposta, inclusive de erro, idênticos às fixtures de `tests/fixtures/contrato/`. Elas foram gravadas com a aplicação TypeScript de develop @ `4e695f2` rodando de verdade: 50 casos e as linhas de log de cada uma das 5 instâncias. A receita está anexada à #209. A comparação byte a byte acontece no módulo `api`.
+- Status, content-type e corpo de toda resposta, inclusive de erro, idênticos às fixtures de `tests/fixtures/contrato/`. Elas foram gravadas com a aplicação TypeScript de develop @ `4e695f2` rodando de verdade e regravadas em develop @ `1157a6d` (commit `b8d6e64`, spec 07, decisão D-1): 50 casos e as linhas de log de cada uma das 5 instâncias. A receita está anexada à #209. A comparação byte a byte acontece no módulo `api`.
 - **Fixtures que refletem a store em memória, e não a de produção.** A captura rodou sem `DATABASE_URL`, como os testes de develop. Onde as duas stores divergem, a fixture registra o comportamento da memória:
   - **`ttl-confirmacao-200`**: depois de confirmar "quer continuar?", a store em memória devolve a resposta pendente, e a fixture mostra o fluxo avançando com ela. **Em produção, a store Postgres devolve `NULL`, e a resposta da pessoa é descartada** ([#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217)). A fixture é contrato da store em memória; não serve de prova do comportamento de produção nesse caminho.
 - **Identificadores da máquina de captura trocados nas linhas de log, antes do primeiro commit.** O valor dessas fixtures está nos nomes de campo e na ordem do envelope, e não nos valores de ambiente. O `hostname` virou `maquina-de-captura` (166 linhas). O IP de rede interna nas linhas "Server listening" virou `192.0.2.10`, da faixa reservada para documentação (RFC 5737; 5 linhas). Os caminhos locais nos `stack` de erro, com o usuário e a pasta temporária, viraram o prefixo `C:\captura\develop-ts\` (39 linhas). A ordem das chaves não mudou, e um teste impede que esses dados voltem. A chave de API já tinha sido mascarada na captura (`Bearer <API_KEY>`).
 - Os sete formatos de corpo de erro de develop são reproduzidos, inclusive o 400 de validação com corpo `{}`, que é o mais contraintuitivo (tabela na #208). O 500 vaza a mensagem interna (#210) e o 400 não dá motivo (#211): os dois são tratados depois da migração.
+- **Critérios 1 e 2 da #208, aprovados pela Nicole em 2026-11-03.**
+  - **Critério 1 (suíte de develop traduzida):** os 192 testes TypeScript de develop @ `a3a1a31` têm correspondente no pytest. Das 5 diferenças sem registro, todas foram alinhadas aos cenários de develop, sem mudar `src/`. Os 12 testes de integração com o Bedrock real passaram na primeira rodada registrada (13 s).
+  - **Critério 2 (contrato da Tykhe):** `tests/api/test_contrato.py::test_fixtures_byte_a_byte` cobre o caminho feliz (23 fixtures 200), a validação (5 com `{}`), a autenticação (3) e o não tratado (1, tudo menos `message`, conferido por mutação), e vai além: os 7 formatos de erro, o `Location` e as linhas de log.
+  - **Lacunas registradas:**
+    - "idêntico" não vale à letra no 500, que é comparado como JSON, sem a formatação;
+    - o campo `destino` sai da comparação (#294);
+    - a `fluxos-200` foi aposentada (#329);
+    - há uma única fixture de 500, e o 401 só é exercitado no `GET /fluxos`;
+    - tudo roda sem Postgres.
+  - As fixtures extras de 500 e 401 ficam na [#387](https://github.com/dgd-dprj/maria-langgraph-pp/issues/387).
 
 ### Especificações dos módulos (decisões já tomadas, antes das issues)
 
@@ -246,7 +263,7 @@ scripts/
 
 **Não edite nada em `tests/fixtures/contrato/`.** Nem quando um teste falhar por causa de uma mudança legítima de contrato.
 
-- **O que elas são:** respostas HTTP e linhas de log gravadas com a versão TypeScript rodando de verdade (as 50 da #209, gravadas em develop @ `4e695f2`, e as das conferências do `api`). Elas **provam que o Python devolve o que o TypeScript devolvia**. É evidência da tradução, e tem valor só enquanto for exatamente o que o servidor real devolveu.
+- **O que elas são:** respostas HTTP e linhas de log gravadas com a versão TypeScript rodando de verdade (as 50 da #209, gravadas em develop @ `4e695f2` e regravadas em `1157a6d`, e as das conferências do `api`). Elas **provam que o Python devolve o que o TypeScript devolvia**. É evidência da tradução, e tem valor só enquanto for exatamente o que o servidor real devolveu.
 - **Por que não editar:** a versão TypeScript não existe mais para regravar. Uma fixture editada à mão deixa de ser observação e passa a ser opinião. Depois de três edições, ninguém sabe mais o que veio do servidor real e o que foi escrito. A evidência some sem aviso.
 - **O contrato atual é conferido por testes escritos:** asserções explícitas sobre status, corpo e campos, como as de `tests/api/test_app.py`. Uma mudança de contrato muda o teste escrito, e o PR diz por quê.
 - **Quando uma mudança legítima quebra a conferência contra a fixture** (o primeiro caso conhecido é um fluxo novo mudando `GET /fluxos`, achado C7 da spec 09): o caso sai da conferência, sem tocar na fixture, e o comportamento novo ganha um teste escrito. O mecanismo para tirar o caso da conferência (por exemplo, uma lista de casos aposentados, com o motivo e o PR de cada um) é definido no primeiro PR que precisar dele. A fixture continua no repositório, intacta.
@@ -947,6 +964,20 @@ Duas coisas diferentes:
 - **A diferença em relação à proposta, e por quê:** a proposta era só squash em `develop`. As sessões do Claude do Ícaro reaproveitam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291 e #295), o que só funciona com merge commit. Com squash obrigatório, o PR seguinte dessa branch traria de novo commits já mergeados e entraria em conflito. O squash obrigatório volta à mesa quando cada PR tiver a própria branch.
 - **Ajustes no repositório:** o título do commit de squash passou a ser o título do PR (com `COMMIT_OR_PR_TITLE`, o squash do #287 saiu com o título da primeira versão, `7af101d`), e o rebase merge foi desligado. A exclusão automática da branch depois do merge **continua desligada**, para não apagar a branch reaproveitada do Ícaro a cada merge. **Corrigido em 2026-10-23: a exclusão automática foi religada** (Nicole). O Ícaro apagou a branch reaproveitada depois do #315, e o motivo sumiu; se uma sessão recriar a branch com o mesmo nome, nada quebra, porque `develop` aceita merge commit. O bloqueio de exclusão por ruleset para `claude/*` não foi feito: não está confirmado que a exclusão automática o respeita, e sem ele o risco é baixo. O aviso do merge commit continua. **Os dois avisos (merge commit em `develop` e exclusão automática desligada) estão também no `CONTRIBUTING.md` e no nome do ruleset de `develop`, que é onde alguém olharia antes de "corrigir".**
 - **Verificação:** as regras efetivas foram lidas pela API (`GET /repos/…/rules/branches/{develop,main}`), e os PRs abertos (#295 e #301) continuaram mergeáveis. O endpoint antigo de proteção (`/branches/{branch}/protection`) não mostra rulesets e continua respondendo "not protected". **Não foi feito** um push de teste em `develop`: se a regra falhasse, o push dispararia um deploy no release no meio do teste da equipe.
+
+## PR só com mudança de código (decidido em 2026-10-27)
+
+- **Decisão da Nicole:** não se abre pull request só para mudança de texto. A regra vale para as issues abertas e para as que vierem. Registro na [#208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6448782819); a regra é escopo da #357.
+- **O que ganha PR:** mudança de código de fato: `src/`, `tests/`, `scripts/`, `infra/`, `.github/`, `Dockerfile`, `pyproject.toml`, `uv.lock` ou configuração que muda o que roda.
+- **O que não ganha PR próprio:** documentação (inclusive `docs/migracao/`), `README.md`, `CONTRIBUTING.md`, este `MIGRACAO.md`, `CLAUDE.md`, `.claude/` (skills) e comentário ou docstring sem mudança de lógica.
+  - O texto vai junto no próximo PR com código, num commit próprio `:books: docs:`.
+  - Até lá, o registro fica na issue e no comentário da #208.
+  - Issue só de texto não ganha branch nem PR. Ela fecha com o `Closes #N` do PR de código.
+- **Mensagem que o assistido vê, em `src/`, conta como código:** muda o comportamento e segue as regras da janela das correções.
+- **Exceção:** só com decisão registrada na #208.
+- **Por quê:** das 30 últimas execuções do CI em PR (#199 a #228), 19 eram de PR com título `:books: docs:` (levantamento da #357). Cada PR a mais é mais uma rodada de CI, revisão e merge, e repete o problema de "muita branch" de 2026-10-23.
+- **Efeito na #357:** a parte de CI (filtro para PR só de `.md`) ficou em espera, para o Ícaro decidir se ainda vale como rede de segurança para as exceções.
+- **Onde está escrita:** `docs/padroes-pull-request.md` ("Quando abrir PR"), `docs/padroes-issues.md`, as skills `padroes-pull-request` e `padroes-issues` e o `CLAUDE.md`. Entrou junto com a #353 (corte de 15 candidatos no orquestrador), o primeiro PR com código depois da decisão.
 
 ## Pendências operacionais
 

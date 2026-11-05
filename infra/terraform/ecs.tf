@@ -43,10 +43,13 @@ resource "aws_ecs_task_definition" "api" {
       # environment, e não em secrets, para não ser copiado com os segredos.
       { name = "MARIA_AMBIENTE", value = "producao" },
     ]
-    secrets = [
+    secrets = concat([
       for k in ["VERDE_API_URL", "VERDE_JWT_TOKEN", "VERDE_CLIENT_ID", "DATABASE_URL", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT", "API_KEY"] :
       { name = k, valueFrom = "${aws_secretsmanager_secret.app.arn}:${k}::" }
-    ]
+      ], [
+      for k in ["EMAIL_NUDECON_URL", "EMAIL_NUDECON_API_KEY"] :
+      { name = k, valueFrom = "${aws_secretsmanager_secret.email_nudecon.arn}:${k}::" }
+    ])
     logConfiguration = {
       logDriver = "awslogs"
       options = {

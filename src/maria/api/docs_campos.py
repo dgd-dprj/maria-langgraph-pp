@@ -34,7 +34,10 @@ DESCRICOES_RESPOSTA: dict[str, Schema] = {
     "destino": {
         "description": (
             "Só em atendimento encerrado: para onde a pessoa vai. `atendimento_humano` (acompanha `handoff_humano`), "
-            "`agendamento` (violência doméstica concluída) ou `sessao_expirada`. Ausente quando o fluxo concluído não tem destino definido."
+            "`agendamento` (violência doméstica concluída), "
+            "`email_enviado` (plano de saúde concluído no Rio, por e-mail), "
+            "`unidade_informada` (plano de saúde presencial ou fora do Rio) ou `sessao_expirada`. "
+            "Ausente quando o fluxo concluído não tem destino definido."
         )
     },
     "flowId": {
@@ -43,10 +46,17 @@ DESCRICOES_RESPOSTA: dict[str, Schema] = {
     "dadosColetados": {
         "type": "object",
         "description": (
-            "Dados já coletados pelo fluxo. Hoje só `cpf`, e só quando existe. "
+            "Dados já coletados pelo fluxo. Hoje `cpf`, quando existe, e, no plano de saúde concluído, `imagens` "
+            "(`carteirinhaFrente` e `carteirinhaVerso`: links das imagens, para a Tykhe repassar à função de e-mail; nunca em log). "
             "Só aparece na resposta do fluxo da Maria identificado; nunca no `redirecionado` nem na desambiguação."
         ),
-        "properties": {"cpf": {"type": "string"}},
+        "properties": {
+            "cpf": {"type": "string"},
+            "imagens": {
+                "type": "object",
+                "properties": {"carteirinhaFrente": {"type": "string"}, "carteirinhaVerso": {"type": "string"}},
+            },
+        },
     },
 }
 

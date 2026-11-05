@@ -60,15 +60,23 @@ def nomes_dos_casos(conferencia: str) -> list[str]:
 # ligam, é coberto por testes escritos, e não pelas gravações.
 AMBIENTE_DAS_CONFERENCIAS = "producao"
 
-# Sem casos aposentados desde a #324. Histórico: a #329 aposentou 6 casos de `GET /fluxos` (contrato
-# `fluxos-200`; pr1 `fluxos`, `fluxos_query`, `auth_bearer_espacos_fluxos`,
-# `auth_bearer_duplo_espaco_fluxos`; pr2 `rota_get_fluxos_codificado`) quando o fluxo do plano de
-# saúde entrou na lista. Com ele em teste, desligado na produção, os 6 voltaram a bater com as
-# gravações e saíram daqui (registro no `MIGRACAO.md`, #324). As gravações não foram editadas.
+# #393 (decisão da Nicole, 2026-11-04): "Confirma que a pessoa presa é …?" mostra o nome mascarado.
+_NOME_MASCARADO = CasoAposentado(
+    issue=393, motivo="o nome do apenado sai mascarado na confirmação do RG", teste="tests/fluxos/test_pessoa_presa.py"
+)
+
+# Histórico dos casos de `GET /fluxos`: a #329 aposentou 6 (contrato `fluxos-200`; pr1 `fluxos`,
+# `fluxos_query`, `auth_bearer_espacos_fluxos`, `auth_bearer_duplo_espaco_fluxos`; pr2
+# `rota_get_fluxos_codificado`) quando o fluxo do plano de saúde entrou na lista. Com ele em teste,
+# desligado na produção (#324), os 6 voltaram a bater com as gravações e saíram daqui (registro no
+# `MIGRACAO.md`). As gravações não foram editadas.
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
-    "contrato": {},
+    "contrato": {
+        "pessoa-presa-resposta-rg-200": _NOME_MASCARADO,
+        "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
+    },
     "pr1": {},
-    "pr2": {},
+    "pr2": {"pp_rg": _NOME_MASCARADO, "pp_get_confirma_nome": _NOME_MASCARADO},
 }
 
 
