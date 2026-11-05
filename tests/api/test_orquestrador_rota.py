@@ -317,8 +317,10 @@ async def _dados_entregues_ao_fluxo(
         return Resposta(200, {"status": "em_andamento"})
 
     monkeypatch.setattr(rota, "criar_atendimento", falso)
-    # O plano de saúde ainda não é oferecido ao orquestrador (#266): para o teste, é.
+    # O plano de saúde ainda não é oferecido ao orquestrador (#266): para o teste, é. E, por estar em
+    # teste (#324), só liga no release.
     monkeypatch.setitem(fluxos_por_id, flow_id, replace(fluxos_por_id[flow_id], oferecer_ao_orquestrador=True))
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
     monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", flow_id)
     monkeypatch.delenv("MOCK_CLASSIFICACAO_FLOWIDS", raising=False)
     r = await cliente.post(

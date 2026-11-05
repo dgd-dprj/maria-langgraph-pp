@@ -8,6 +8,8 @@ A Tykhe é o único consumidor esperado desta API — chamada servidor-a-servido
 
 `GET /fluxos` — lista os `flowId` disponíveis (uuid fixo por fluxo, ver `src/maria/fluxos/__init__.py`). A Tykhe usa isso pra saber qual `flowId` mandar no `POST /atendimentos`.
 
+Um fluxo em teste (`em_teste=True`, #324) só aparece no release (`MARIA_AMBIENTE=release`). Na produção ele não está na lista, e `POST /atendimentos` com o `flowId` dele responde como a um id desconhecido (`404 {"erro":"fluxo não encontrado — ver GET /fluxos"}`). Hoje o único fluxo em teste é o do plano de saúde (NUDECON, #329): a produção lista 2 fluxos, e o release, 3.
+
 ## Ciclo de vida de um atendimento
 
 | Rota | Quando usar |
