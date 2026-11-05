@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from langgraph.types import Command
 
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA
+from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA
 from maria.ia.desambiguar import TEXTO_FALLBACK
 from maria.orquestrador import graph
 from maria.orquestrador.graph import (
@@ -22,6 +22,7 @@ from maria.orquestrador.graph import (
     mesmo_conjunto_de_opcoes,
     obter_grafo,
 )
+from maria.orquestrador.state import CandidatoOrquestrador
 from maria.shared.perguntas_db import PerguntaArvore
 from tests.fluxos.conftest import novo_config, pergunta
 from tests.ia.conftest import BedrockFalso, ferramenta
@@ -481,3 +482,33 @@ def test_7_trim_do_js_e_nao_o_strip() -> None:
     # trim() do JS remove U+FEFF e NÃO remove \x1c; strip() faz o contrário.
     assert mesmo_conjunto_de_opcoes([{"id": 1, "resposta": "﻿Sim"}], [{"id": 1, "resposta": "sim"}])
     assert not mesmo_conjunto_de_opcoes([{"id": 1, "resposta": "Sim\x1c"}], [{"id": 1, "resposta": "sim"}])
+
+
+# ── #419: pergunta fixa (sem IA) para plano de saúde x cirurgia pelo SUS ──────────────────────────────────────────
+def _candidato(id_: str) -> CandidatoOrquestrador:
+    return {"id": id_, "nome": id_, "descricao": "d"}
+
+
+@pytest.mark.parametrize("ordem", [[ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude"], ["tykhe:saude", ID_PROBLEMAS_PLANO_SAUDE]])
+async def test_419_plano_de_saude_e_saude_usam_o_texto_fixo_sem_ia_em_qualquer_ordem(modelo: Modelo, ordem: list[str]) -> None:
+    resultado = await graph.preparar_pergunta_desambiguacao(
+        {"mensagem": "preciso de uma cirurgia", "candidatosRestantes": [_candidato(i) for i in ordem]}
+    )
+    assert resultado == {"perguntaAtualTexto": graph.PERGUNTAS_FIXAS_DESAMBIGUACAO[frozenset(ordem)]}
+    assert "obrigar o plano de saúde a cobrir essa cirurgia" in resultado["perguntaAtualTexto"]
+    assert "pelo SUS" in resultado["perguntaAtualTexto"]
+    assert modelo.textos_desambiguados == []
+
+
+async def test_419_outro_par_de_candidatos_segue_com_ia(modelo: Modelo) -> None:
+    modelo.perguntas = [{"pergunta": "P?", "viaIA": True, **TOKENS}]
+    resultado = await graph.preparar_pergunta_desambiguacao({"mensagem": "relato", "candidatosRestantes": [_candidato(i) for i in DOIS]})
+    assert resultado["perguntaAtualTexto"] == "P?"
+    assert len(modelo.textos_desambiguados) == 1
+
+
+async def test_419_trio_que_inclui_o_par_nao_usa_o_texto_fixo(modelo: Modelo) -> None:
+    modelo.perguntas = [{"pergunta": "P?", "viaIA": True, **TOKENS}]
+    ids = [ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude", ID_PESSOA_PRESA]
+    resultado = await graph.preparar_pergunta_desambiguacao({"mensagem": "relato", "candidatosRestantes": [_candidato(i) for i in ids]})
+    assert resultado["perguntaAtualTexto"] == "P?"
