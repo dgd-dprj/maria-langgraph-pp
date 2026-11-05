@@ -102,18 +102,29 @@ fluxos_por_id: dict[str, FluxoConfig] = {
         # Confirmado ao vivo em 2026-09-10 (GET /assunto/categorias), issue #19.
         id_categoria_assunto_verde=10113,
     ),
-    # Fluxo Problemas com plano de saúde (NUDECON, #329). A conversa está sendo implementada por
-    # etapas; o orquestrador não o oferece. A `descricao` e `oferecer_ao_orquestrador=True`
-    # entram com a #266. Em teste (#324, decisão de 2026-11-03): ligado só no release; na
-    # produção some de GET /fluxos e o flowId responde como desconhecido.
+    # Fluxo Problemas com plano de saúde (NUDECON, #329). Em teste (#324, decisão de 2026-11-03):
+    # ligado só no release; na produção some de GET /fluxos e do catálogo, e o flowId responde como
+    # desconhecido. Oferecido ao orquestrador desde a #386 (decisão da #266), SÓ PARA O QUE ENVOLVE
+    # CIRURGIA (decisão da Nicole, 2026-11-05): onde está ligado, a cirurgia com o plano sai de
+    # `tykhe:saude` (`TipoTykhe.trecho_de_fluxo_da_maria`). Cirurgia pelo SUS continua lá.
+    # FUTURO: as outras negativas do plano (exame, tratamento, internação, remédio, reembolso que
+    # não é de cirurgia) e, se o NUDECON confirmar, reajuste e cancelamento entram aqui depois de
+    # validadas. Até lá, continuam em `tykhe:saude`. Ao ampliar, mudam juntos esta descrição, a
+    # troca em `tipos_tykhe.py` e os casos de `tests/integracao/ia/test_classificacao_plano_saude.py`.
     ID_PROBLEMAS_PLANO_SAUDE: FluxoConfig(
         nome="problemas-plano-de-saude",
-        descricao="",
+        descricao=(
+            "Problema com plano de saúde particular ou convênio médico que envolve uma cirurgia: o plano negou, "
+            "não autorizou ou está demorando para autorizar a cirurgia, não cobre material, prótese ou equipe da "
+            "cirurgia, ou não quer reembolsar uma cirurgia. Cirurgia pelo SUS não entra aqui. "
+            'A pessoa costuma escrever: "o plano negou a cirurgia", "o convênio não autorizou minha operação", '
+            '"a Unimed tá enrolando pra liberar a cirurgia do meu joelho", "o plano não quer pagar a prótese da '
+            'cirurgia".'
+        ),
         obter_grafo=obter_grafo_plano_saude,
         extrair_metadados=api_plano_saude.extrair_metadados_plano_saude,
         mensagem_concluido=api_plano_saude.MENSAGEM_CONCLUIDO,
         mensagem_handoff=api_plano_saude.MENSAGEM_HANDOFF,
-        oferecer_ao_orquestrador=False,
         em_teste=True,
         usa_relato=True,
     ),
@@ -168,11 +179,15 @@ async def catalogo_para_classificacao() -> list[OpcaoCatalogo]:
     mas a tabela fica intacta e `buscar_fluxo` continua resolvendo um planejado
     para o grafo padrão. `ORQUESTRADOR_INCLUIR_PLANEJADOS == "true"`, lido a cada
     chamada, volta a oferecê-los, no fim, com `texto_para_classificacao` (#19).
-    Fluxo em teste desligado não entra (#324)."""
+    Fluxo em teste desligado não entra (#324). Um tipo da Tykhe perde o trecho que
+    um fluxo da Maria no catálogo passou a atender (#386)."""
     implementados: list[OpcaoCatalogo] = [
         {"id": id_, "nome": cfg.nome, "descricao": cfg.descricao} for id_, cfg in fluxos_ligados().items() if cfg.oferecer_ao_orquestrador
     ]
-    tykhe: list[OpcaoCatalogo] = [{"id": t.id, "nome": t.nome, "descricao": t.descricao} for t in TIPOS_TYKHE]
+    nomes_no_catalogo = {o["nome"] for o in implementados}
+    tykhe: list[OpcaoCatalogo] = [
+        {"id": t.id, "nome": t.nome, "descricao": t.descricao_no_catalogo(nomes_no_catalogo)} for t in TIPOS_TYKHE
+    ]
     # `!== "true"` de develop: comparação exata, sem caixa e sem outros valores.
     if os.environ.get("ORQUESTRADOR_INCLUIR_PLANEJADOS") != "true":
         return [*implementados, *tykhe]
