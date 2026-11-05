@@ -11,10 +11,11 @@ embedding) e a classificação, com o modelo da produção (`infra/terraform/ecs
 
 Os relatos são inventados, com versões informais e erros de escrita de propósito.
 
-Por decisão da Nicole (2026-11-05), o fluxo entra no orquestrador só para a CIRURGIA negada pelo
-plano. As outras negativas do plano (exame, tratamento, remédio, reembolso) continuam em
-`tykhe:saude` até serem validadas com o NUDECON; quando entrarem, os casos "plano-fora" mudam
-de lado.
+Por decisão da Nicole (2026-11-05), o fluxo entra no orquestrador só para o que envolve CIRURGIA
+com o plano: negativa, demora na autorização, material ou prótese e reembolso da cirurgia.
+Cirurgia pelo SUS continua em `tykhe:saude`. As outras negativas do plano (exame, tratamento,
+remédio, reembolso que não é de cirurgia) continuam em `tykhe:saude` até serem validadas com o
+NUDECON; quando entrarem, os casos "plano-fora" mudam de lado.
 """
 
 from __future__ import annotations
@@ -40,6 +41,8 @@ CASOS: list[tuple[str, str, set[str], set[str], bool]] = [
     ("H1", "meu plano de saúde negou minha cirurgia", {PLANO}, {SAUDE}, True),
     ("H1-informal", "o plano nao quis libera minha cirurgia do joelho", {PLANO}, {SAUDE}, True),
     ("H1-marca", "a amil nao autorizou a operaçao da minha mae", {PLANO}, {SAUDE}, True),
+    ("H1-demora", "a unimed ta enrolando faz 1 mes pra liberar minha cirurgia", {PLANO}, {SAUDE}, True),
+    ("H1-protese", "o convenio nao quer pagar a protese da cirurgia do meu pai", {PLANO}, {SAUDE}, True),
     # H2 (por enquanto): as outras negativas do plano continuam com a Tykhe, até serem validadas.
     ("plano-fora-reembolso", "o convênio não quer reembolsar o exame", {SAUDE}, {PLANO}, True),
     ("plano-fora-informal", "a unimed nao qer devolver o dinheiro da consulta q eu paguei", {SAUDE}, {PLANO}, True),

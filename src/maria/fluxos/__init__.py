@@ -104,19 +104,22 @@ fluxos_por_id: dict[str, FluxoConfig] = {
     ),
     # Fluxo Problemas com plano de saúde (NUDECON, #329). Em teste (#324, decisão de 2026-11-03):
     # ligado só no release; na produção some de GET /fluxos e do catálogo, e o flowId responde como
-    # desconhecido. Oferecido ao orquestrador desde a #386 (decisão da #266), SÓ PARA CIRURGIA
-    # (decisão da Nicole, 2026-11-05): onde está ligado, a cirurgia negada pelo plano sai de
-    # `tykhe:saude` (`TipoTykhe.trecho_de_fluxo_da_maria`).
-    # FUTURO: as outras negativas do plano (exame, tratamento, internação, remédio, reembolso) e,
-    # se o NUDECON confirmar, reajuste e cancelamento entram aqui depois de validadas. Até lá,
-    # continuam em `tykhe:saude`. Ao ampliar, mudam juntos esta descrição, a troca em
-    # `tipos_tykhe.py` e os casos de `tests/integracao/ia/test_classificacao_plano_saude.py`.
+    # desconhecido. Oferecido ao orquestrador desde a #386 (decisão da #266), SÓ PARA O QUE ENVOLVE
+    # CIRURGIA (decisão da Nicole, 2026-11-05): onde está ligado, a cirurgia com o plano sai de
+    # `tykhe:saude` (`TipoTykhe.trecho_de_fluxo_da_maria`). Cirurgia pelo SUS continua lá.
+    # FUTURO: as outras negativas do plano (exame, tratamento, internação, remédio, reembolso que
+    # não é de cirurgia) e, se o NUDECON confirmar, reajuste e cancelamento entram aqui depois de
+    # validadas. Até lá, continuam em `tykhe:saude`. Ao ampliar, mudam juntos esta descrição, a
+    # troca em `tipos_tykhe.py` e os casos de `tests/integracao/ia/test_classificacao_plano_saude.py`.
     ID_PROBLEMAS_PLANO_SAUDE: FluxoConfig(
         nome="problemas-plano-de-saude",
         descricao=(
-            "Plano de saúde particular ou convênio médico que negou ou não autorizou uma cirurgia. "
+            "Problema com plano de saúde particular ou convênio médico que envolve uma cirurgia: o plano negou, "
+            "não autorizou ou está demorando para autorizar a cirurgia, não cobre material, prótese ou equipe da "
+            "cirurgia, ou não quer reembolsar uma cirurgia. Cirurgia pelo SUS não entra aqui. "
             'A pessoa costuma escrever: "o plano negou a cirurgia", "o convênio não autorizou minha operação", '
-            '"a Unimed recusou a cirurgia do meu joelho".'
+            '"a Unimed tá enrolando pra liberar a cirurgia do meu joelho", "o plano não quer pagar a prótese da '
+            'cirurgia".'
         ),
         obter_grafo=obter_grafo_plano_saude,
         extrair_metadados=api_plano_saude.extrair_metadados_plano_saude,

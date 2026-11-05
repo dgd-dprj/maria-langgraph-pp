@@ -61,13 +61,13 @@ TIPOS_TYKHE: tuple[TipoTykhe, ...] = (
             "que negou cobertura, erro médico, prontuário médico."
         ),
         mensagem="Entendi. Vou te encaminhar para o atendimento de questões de saúde.",
-        # #266 e #386: onde o fluxo do NUDECON está ligado, a CIRURGIA negada pelo plano vai para ele
-        # (decisão da Nicole, 2026-11-05). As outras negativas do plano continuam aqui até serem
-        # validadas com o NUDECON. O `tipoCaso` `saude` não muda.
+        # #266 e #386: onde o fluxo do NUDECON está ligado, tudo o que envolve CIRURGIA com o plano
+        # vai para ele (decisão da Nicole, 2026-11-05). As outras negativas do plano continuam aqui
+        # até serem validadas com o NUDECON. O `tipoCaso` `saude` não muda.
         trecho_de_fluxo_da_maria=TrechoDeFluxoDaMaria(
             fluxo="problemas-plano-de-saude",
             trecho="plano de saúde que negou cobertura, ",
-            troca="plano de saúde que negou exame, tratamento, internação, remédio ou reembolso (não cirurgia), ",
+            troca="plano de saúde que negou exame, tratamento, internação, remédio ou reembolso sem envolver cirurgia, ",
         ),
     ),
     TipoTykhe(

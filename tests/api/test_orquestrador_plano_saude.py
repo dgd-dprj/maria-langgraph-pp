@@ -5,8 +5,8 @@ comparados, caractere por caractere, com a cópia gravada em 2026-11-05, antes d
 (`tests/fixtures/orquestrador/catalogo-producao-2026-11-05.json`). Nunca edite essa cópia:
 se a produção tiver de mudar, é outra decisão, com registro na #208.
 
-No release, onde o fluxo em teste liga (#324), o plano de saúde entra no catálogo só para a
-cirurgia negada pelo plano (decisão da Nicole, 2026-11-05); a descrição de `tykhe:saude` troca
+No release, onde o fluxo em teste liga (#324), o plano de saúde entra no catálogo só para o que
+envolve cirurgia com o plano (decisão da Nicole, 2026-11-05); a descrição de `tykhe:saude` troca
 "plano de saúde que negou cobertura" pelas outras negativas do plano, que continuam com a Tykhe
 até serem validadas com o NUDECON. A escolha da IA de verdade (H1 a H6) fica no teste
 de integração `tests/integracao/ia/test_classificacao_plano_saude.py`; aqui a classificação é
@@ -31,7 +31,7 @@ TEXTO_GRAVADO = GRAVADO.read_text(encoding="utf-8")
 # Valores de MARIA_AMBIENTE que NÃO ligam o fluxo em teste (os mesmos de `test_fluxo_em_teste.py`).
 NAO_LIGAM = [None, "", "producao", "Release", "RELEASE", "release ", " release", "homologacao"]
 TRECHO_PLANO = "plano de saúde que negou cobertura, "
-TROCA_RELEASE = "plano de saúde que negou exame, tratamento, internação, remédio ou reembolso (não cirurgia), "
+TROCA_RELEASE = "plano de saúde que negou exame, tratamento, internação, remédio ou reembolso sem envolver cirurgia, "
 # O CEP faz o fluxo do plano seguir para a 1ª pergunta, em vez de encerrar por não saber o município.
 DADOS_NO_RIO = {"endereco": {"cep": "20000000"}}
 
@@ -96,8 +96,8 @@ async def test_release_catalogo_com_o_plano_so_para_cirurgia(monkeypatch: pytest
     plano = catalogo[2]
     assert plano["nome"] == "problemas-plano-de-saude"
     assert "cirurgia" in plano["descricao"]
-    # Por enquanto só cirurgia (2026-11-05): as outras negativas ficam com a Tykhe.
-    for fora in ("exame", "reembolso", "tratamento", "remédio", "mensalidade", "cancel"):
+    # Por enquanto, só o que envolve cirurgia (2026-11-05): as outras negativas ficam com a Tykhe.
+    for fora in ("exame", "tratamento", "remédio", "internação", "mensalidade", "cancel"):
         assert fora not in plano["descricao"].lower(), fora
     saude_release = next(o for o in catalogo if o["id"] == "tykhe:saude")
     saude_gravada = next(o for o in gravado if o["id"] == "tykhe:saude")
