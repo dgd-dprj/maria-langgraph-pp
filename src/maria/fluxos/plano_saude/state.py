@@ -25,6 +25,7 @@ MotivoHandoffPlanoSaude = Literal[
     "municipio_nao_identificado",
     "falha_infra_verde",
     "falha_envio_email",
+    "imagens_nao_anexadas",
     "erro_interno",
 ]
 
