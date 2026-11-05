@@ -23,7 +23,7 @@ from typing import Any, Literal, cast
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from maria.fluxos import catalogo_para_classificacao
+from maria.fluxos import ID_PROBLEMAS_PLANO_SAUDE, catalogo_para_classificacao
 from maria.fluxos._fabrica import FabricaGrafo, GrafoCompilado
 from maria.ia.classificar_fluxos import classificar_fluxos_plausiveis
 from maria.ia.desambiguar import CandidatoParaDesambiguar, gerar_pergunta_desambiguacao
@@ -156,6 +156,20 @@ def mesmo_conjunto_de_opcoes(a: list[OpcaoPergunta], b: list[OpcaoPergunta]) -> 
     return textos_a == textos_b
 
 
+# Issue #419 (decisão do Ícaro, 2026-11-05): o texto do par plano de saúde x cirurgia pelo SUS é do fluxo desenhado com o
+# NUDECON, e não da IA. Vale só para este par; a chave é o conjunto de ids, sem importar a ordem.
+PERGUNTAS_FIXAS_DESAMBIGUACAO: dict[frozenset[str], str] = {
+    frozenset({ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude"}): (
+        "Você quer que a gente ajude a obrigar o plano de saúde a cobrir essa cirurgia, "
+        "ou você precisa de ajuda para conseguir fazer a cirurgia pelo SUS?"
+    ),
+}
+
+
+def pergunta_fixa_dos_candidatos(candidatos: list[CandidatoOrquestrador]) -> str | None:
+    return PERGUNTAS_FIXAS_DESAMBIGUACAO.get(frozenset(c["id"] for c in candidatos))
+
+
 async def buscar_pergunta_real_compartilhada(candidatos: list[CandidatoOrquestrador]) -> str | None:
     """Issue #32: quando TODOS os candidatos restantes têm a mesma pergunta raiz
     do Verde (mesmo texto e mesmas opções), usa o texto real em vez de gerar
@@ -184,6 +198,9 @@ def somar_tokens_rodada(a: int | None, b: int | None) -> int | None:
 
 async def preparar_pergunta_desambiguacao(state: OrquestradorState) -> dict[str, Any]:
     candidatos = _js.coalesce(state.get("candidatosRestantes"), [])
+    pergunta_fixa = pergunta_fixa_dos_candidatos(candidatos)
+    if pergunta_fixa is not None:
+        return {"perguntaAtualTexto": pergunta_fixa}
     pergunta_do_banco = await buscar_pergunta_real_compartilhada(candidatos)
     # Match no banco não chama IA: devolve SÓ a pergunta, e o
     # tokensGastosRodada do `classificar` fica como está.
