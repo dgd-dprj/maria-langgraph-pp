@@ -968,7 +968,7 @@ Duas coisas diferentes:
 > **Apply único (decisão da Nicole, 2026-11-06):** o Ícaro faz um só apply, limitado por `-target` a três itens: a variável do release (#386), a autorização da `staging` (#427) e o reinício do release com a chave de API nova (#349). Nada além disso entra, por causa do #411. Depois do apply, ele configura a Tykhe uma vez só, com a chave nova, que vai só para a Nicole, por canal privado.
 >
 > **Proteção leve (decisão da Nicole, 2026-11-06), porque a equipe é pequena:** substitui as regras de 2026-10-22 descritas abaixo.
-> - `main` e `staging`: só por PR, CI verde obrigatório (`test` e `imagem`), sem force push e sem apagar a branch, sem exigir revisão aprovada.
+> - `main` e `staging`: só por PR, CI verde obrigatório (`test` e `imagem`), sem force push e sem apagar a branch, sem exigir revisão aprovada, só merge commit (confirmado pela Nicole no mesmo dia, para a promoção seguinte não entrar em conflito).
 > - `develop`: só o CI obrigatório.
 > - Nada além disso. Saem a aprovação e a exigência de branch atualizada em `main`. Os rulesets mudam depois do apply, junto com a criação da `staging`.
 

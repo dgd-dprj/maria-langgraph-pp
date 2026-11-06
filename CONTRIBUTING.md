@@ -27,11 +27,12 @@ Três branches permanentes, no estilo do GitLab Flow (#427, decisão da Nicole d
 | Entrada só por PR | não exigida pelo ruleset | sim | sim |
 | De onde vem o PR | branch de trabalho | só `develop` (conferido pelo CI) | só `staging` (conferido pelo CI) |
 | Revisão aprovada | não exigida | não exigida | não exigida |
+| Método de merge | squash (padrão) ou merge commit | só merge commit | só merge commit |
 | Force push e exclusão da branch | não bloqueados pelo ruleset | bloqueados | bloqueados |
 
 Nada além disso. Na `develop`, o caminho continua sendo o PR: o CI só roda nos PRs, então um push direto chega sem o CI verde e é recusado.
 
-A promoção (`develop` → `staging` e `staging` → `main`) usa sempre merge commit: squash reescreveria commits que já estão na branch de origem, e a promoção seguinte entraria em conflito.
+A promoção (`develop` → `staging` e `staging` → `main`) usa sempre merge commit, e o ruleset das duas branches só aceita esse método: squash reescreveria commits que já estão na branch de origem, e a promoção seguinte entraria em conflito.
 
 Ninguém contorna as regras, nem quem é admin. Numa emergência, um admin desativa o ruleset nas configurações do repositório, e isso fica registrado.
 
