@@ -23,6 +23,7 @@ from maria.api.atendimentos import criar_atendimento, extrair_interrupt
 from maria.api.pipeline import Contexto, Resposta, Rota
 from maria.fluxos import buscar_fluxo
 from maria.fluxos.tipos_tykhe import TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
+from maria.orquestrador.fila import texto_comecando
 from maria.orquestrador.graph import obter_grafo
 from maria.shared import _js
 from maria.shared._js import AUSENTE
@@ -98,14 +99,20 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
 
     interrupt = extrair_interrupt(resultado)
     if interrupt is not None:
+        # #435: a pergunta da ordem dos assuntos ("ordem", "primeiro") sai com a etapa no log; a
+        # desambiguação de sempre não tem etapa, e o log dela não muda.
+        etapa = _js.opt(interrupt, "etapa")
         ctx.log.info(
-            "orquestrador: pergunta de desambiguação enviada",
+            "orquestrador: pergunta de desambiguação enviada"
+            if etapa is AUSENTE
+            else "orquestrador: pergunta da ordem dos assuntos enviada",
             chatId=chat_id,
             evento="orquestrador_pergunta_enviada",
             status="em_andamento",
             tipoResposta=_js.opt(interrupt, "tipo"),
             tokensGastosTotal=tokens_rodada,
             rodada=rodada,
+            **({} if etapa is AUSENTE else {"etapa": etapa}),
         )
         return Resposta(
             200,
@@ -123,6 +130,9 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
 
     status_final = resultado.get("statusFinal")
     flow_id: Any = resultado.get("flowIdEscolhido")
+    # #435 (multi-fluxo, só no release): os outros assuntos do relato, para a Tykhe seguir com eles.
+    pendentes = resultado.get("assuntosPendentes") or []
+    no_log_pendentes = {"assuntosPendentes": len(pendentes)} if pendentes else {}
 
     # #225: relato que não bate com nenhuma opção vai para "outros" da Tykhe.
     if status_final != "identificado" or not _js.verdadeiro(flow_id):
@@ -135,8 +145,9 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
             tipoCaso="outros",
             tokensGastosTotal=tokens_rodada,
             rodada=rodada,
+            **no_log_pendentes,
         )
-        return Resposta(200, _resposta_redirecionada(chat_id, tipo_tykhe_por_caso("outros"), tokens_conversa))
+        return Resposta(200, _com_pendentes(_resposta_redirecionada(chat_id, tipo_tykhe_por_caso("outros"), tokens_conversa), pendentes))
 
     tipo = tipo_tykhe_por_id(flow_id)
     if tipo is not None:
@@ -149,8 +160,9 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
             tipoCaso=tipo.tipo_caso,
             tokensGastosTotal=tokens_rodada,
             rodada=rodada,
+            **no_log_pendentes,
         )
-        return Resposta(200, _resposta_redirecionada(chat_id, tipo, tokens_conversa))
+        return Resposta(200, _com_pendentes(_resposta_redirecionada(chat_id, tipo, tokens_conversa), pendentes))
 
     fluxo = await buscar_fluxo(flow_id)
     if fluxo is None:
@@ -172,18 +184,38 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
         flowId=flow_id,
         tokensGastosTotal=tokens_rodada,
         rodada=rodada,
+        **no_log_pendentes,
     )
     # O gasto da triagem vira o ponto de partida do acumulador do fluxo (#35).
     dados = dict(corpo.get("dadosConhecidos") or {})
     dados["tokensGastos"] = _js.coalesce(tokens_conversa, {"input": 0, "output": 0, "total": 0})
+    fila = resultado.get("fila") or []
     if fluxo.usa_relato:
         # #334: o relato só vem da triagem, num canal próprio; um `relato` em dadosConhecidos (da Tykhe) não vale.
         dados.pop("relato", None)
         relato = _js.texto_template(resultado.get("mensagem", "")).strip()
+        # #435: com vários assuntos, o fluxo recebe só o trecho do assunto dele, e não o relato
+        # inteiro (achado do teste de 06/11: a "Situação" do e-mail ao NUDECON levava a pessoa presa junto).
+        trecho = fila[0].get("evidencia", "").strip() if len(fila) >= 2 else ""
+        if trecho:
+            relato = trecho
         if relato:
             dados["relato"] = relato
     # viaOrquestrador como parâmetro, nunca dentro de dadosConhecidos (#191).
-    return await criar_atendimento(fluxo, flow_id, chat_id, dados, ctx.log, via_orquestrador=True)
+    resposta_fluxo = await criar_atendimento(fluxo, flow_id, chat_id, dados, ctx.log, via_orquestrador=True)
+    if isinstance(resposta_fluxo.corpo, dict) and resposta_fluxo.status == 200:
+        _com_pendentes(resposta_fluxo.corpo, pendentes)
+        texto = resposta_fluxo.corpo.get("resposta")
+        if resultado.get("ordemPerguntada") and fila and isinstance(texto, str):
+            resposta_fluxo.corpo["resposta"] = f"{texto_comecando(fila[0])}\n\n{texto}"
+    return resposta_fluxo
+
+
+def _com_pendentes(corpo: dict[str, Any], pendentes: list[Any]) -> dict[str, Any]:
+    """#435: `assuntosPendentes` só aparece quando há outro assunto. Sem ele, o corpo é o de sempre."""
+    if pendentes:
+        corpo["assuntosPendentes"] = pendentes
+    return corpo
 
 
 ROTAS: tuple[Rota, ...] = (

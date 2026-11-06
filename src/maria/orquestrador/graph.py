@@ -23,11 +23,13 @@ from typing import Any, Literal, cast
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
-from maria.fluxos import ID_PROBLEMAS_PLANO_SAUDE, catalogo_para_classificacao
+from maria.fluxos import ID_PROBLEMAS_PLANO_SAUDE, catalogo_para_classificacao, fluxo_em_teste_liga
 from maria.fluxos._fabrica import FabricaGrafo, GrafoCompilado
 from maria.ia.classificar_fluxos import classificar_fluxos_plausiveis
+from maria.ia.classificar_necessidades import classificar_necessidades
 from maria.ia.desambiguar import CandidatoParaDesambiguar, gerar_pergunta_desambiguacao
 from maria.ia.sumarizar import sumarizar_relato
+from maria.orquestrador import fila as _fila
 from maria.orquestrador.state import CandidatoOrquestrador, OrquestradorState
 from maria.shared import _js
 from maria.shared.embeddings_fluxos import buscar_candidatos
@@ -106,6 +108,8 @@ async def classificar(state: OrquestradorState) -> dict[str, Any]:
     if pool is None:
         # A rota sempre manda `mensagem` no 1º invoke (`body.mensagem ?? ""`).
         pool = await buscar_candidatos(cast(str, state.get("mensagem", _js.AUSENTE)), CANDIDATOS_MAXIMOS, catalogo_completo)
+    if fluxo_em_teste_liga():
+        return await _classificar_por_necessidades(state, catalogo_completo, pool)
     resultado = await classificar_fluxos_plausiveis(texto_para_classificacao(state), pool)
     por_id: dict[str, CandidatoOrquestrador] = {c["id"]: c for c in catalogo_completo}
     # `Map.get` com um valor que não é chave devolve undefined; `dict.get` com
@@ -122,8 +126,31 @@ async def classificar(state: OrquestradorState) -> dict[str, Any]:
     }
 
 
-def depois_de_classificar(state: OrquestradorState) -> Literal["nenhum", "um", "muitos"]:
+async def _classificar_por_necessidades(
+    state: OrquestradorState, catalogo_completo: list[CandidatoOrquestrador], pool: list[CandidatoOrquestrador]
+) -> dict[str, Any]:
+    """Multi-fluxo, fase 1a (#435), só no release.
+
+    - 2 assuntos ou mais: monta a fila, e a Maria pergunta a ordem.
+    - Dúvida entre opções para um mesmo assunto: o caminho de hoje (escolha direta da #419 e desambiguação).
+    - 1 assunto: segue direto, como hoje."""
+    resultado = await classificar_necessidades(texto_para_classificacao(state), pool)
+    por_id: dict[str, CandidatoOrquestrador] = {c["id"]: c for c in catalogo_completo}
+    fila = _fila.montar_fila(resultado["necessidades"])
+    tokens = {"tokensGastosRodada": resultado.get("tokensTotal"), "tokensGastosConversa": _delta_tokens(resultado)}
+    if len(fila) >= 2:
+        return {"fila": fila, **tokens}
+    if len(resultado["idsEmAmbiguidade"]) >= 2:
+        candidatos = [por_id[i] for i in resultado["idsEmAmbiguidade"] if i in por_id]
+    else:
+        candidatos = [por_id[i["id"]] for i in fila if i["id"] in por_id]
+    return {"candidatosRestantes": resolver_escolha_direta(candidatos), "fila": None, **tokens}
+
+
+def depois_de_classificar(state: OrquestradorState) -> Literal["nenhum", "um", "muitos", "fila"]:
     """Esgotar o limite de rodadas com mais de 1 candidato vira "nenhum"."""
+    if len(state.get("fila") or []) >= 2:
+        return "fila"
     n = len(_js.coalesce(state.get("candidatosRestantes"), []))
     if n == 0:
         return "nenhum"
@@ -234,20 +261,77 @@ async def pedir_desambiguacao(state: OrquestradorState) -> dict[str, Any]:
     }
 
 
+# ── Multi-fluxo, fase 1a (#435): a ordem dos assuntos ─────────────────────────
+async def perguntar_ordem(state: OrquestradorState) -> dict[str, Any]:
+    """ "Pode ser assim?" (decisão da Nicole, 06/11).
+
+    Sim: segue a ordem. Não, com 2 assuntos: troca. Não, com 3 ou mais: pergunta qual primeiro.
+    O nome de um assunto ("o do meu filho") põe esse assunto na frente. Resposta que a Maria não
+    entende segue a ordem proposta, sem perguntar de novo."""
+    fila = cast(list[_fila.ItemFila], state.get("fila") or [])
+    resposta = cast(str, interrupt({"pergunta": _fila.texto_ordem(fila), "tipo": "sim_nao", "opcoes": ["Sim", "Não"], "etapa": "ordem"}))
+    escolher = False
+    if _fila.aceitou(resposta):
+        pass
+    elif _fila.recusou(resposta):
+        if len(fila) == 2:
+            fila = _fila.para_frente(fila, 1)
+        else:
+            escolher = True
+    else:
+        posicao = _fila.assunto_escolhido(resposta, fila)
+        if posicao is not None:
+            fila = _fila.para_frente(fila, posicao)
+    return {"fila": fila, "ordemPerguntada": True, "escolherPrimeiro": escolher}
+
+
+def depois_da_ordem(state: OrquestradorState) -> Literal["escolher", "comecar"]:
+    return "escolher" if state.get("escolherPrimeiro") else "comecar"
+
+
+async def perguntar_primeiro(state: OrquestradorState) -> dict[str, Any]:
+    """ "Qual você quer resolver primeiro?" Sem entender a resposta, segue a ordem proposta."""
+    fila = cast(list[_fila.ItemFila], state.get("fila") or [])
+    resposta = cast(str, interrupt({"pergunta": _fila.texto_qual_primeiro(fila), "tipo": "texto", "etapa": "primeiro"}))
+    posicao = _fila.assunto_escolhido(resposta, fila)
+    return {"fila": _fila.para_frente(fila, posicao) if posicao is not None else fila, "escolherPrimeiro": False}
+
+
+async def comecar_fila(state: OrquestradorState) -> dict[str, Any]:
+    """O primeiro assunto da fila segue como um relato de um assunto só; os outros ficam pendentes."""
+    fila = cast(list[_fila.ItemFila], state.get("fila") or [])
+    por_id = {c["id"]: c for c in await catalogo_para_classificacao()}
+    primeiro = por_id.get(fila[0]["id"]) if fila else None
+    return {
+        "candidatosRestantes": [primeiro] if primeiro is not None else [],
+        "assuntosPendentes": [_fila.pendente(i) for i in fila[1:]],
+    }
+
+
+def depois_de_comecar(state: OrquestradorState) -> Literal["um", "nenhum"]:
+    return "um" if state.get("candidatosRestantes") else "nenhum"
+
+
 _construtor = StateGraph(OrquestradorState)
 _construtor.add_node("classificar", classificar)
 _construtor.add_node("identificado", identificado)
 _construtor.add_node("naoIdentificado", nao_identificado)
 _construtor.add_node("prepararPerguntaDesambiguacao", preparar_pergunta_desambiguacao)
 _construtor.add_node("pedirDesambiguacao", pedir_desambiguacao)
+_construtor.add_node("perguntarOrdem", perguntar_ordem)
+_construtor.add_node("perguntarPrimeiro", perguntar_primeiro)
+_construtor.add_node("comecarFila", comecar_fila)
 _construtor.add_edge(START, "classificar")
 _construtor.add_conditional_edges(
     "classificar",
     depois_de_classificar,
-    {"nenhum": "naoIdentificado", "um": "identificado", "muitos": "prepararPerguntaDesambiguacao"},
+    {"nenhum": "naoIdentificado", "um": "identificado", "muitos": "prepararPerguntaDesambiguacao", "fila": "perguntarOrdem"},
 )
 _construtor.add_edge("prepararPerguntaDesambiguacao", "pedirDesambiguacao")
 _construtor.add_edge("pedirDesambiguacao", "classificar")
+_construtor.add_conditional_edges("perguntarOrdem", depois_da_ordem, {"escolher": "perguntarPrimeiro", "comecar": "comecarFila"})
+_construtor.add_edge("perguntarPrimeiro", "comecarFila")
+_construtor.add_conditional_edges("comecarFila", depois_de_comecar, {"um": "identificado", "nenhum": "naoIdentificado"})
 _construtor.add_edge("identificado", END)
 _construtor.add_edge("naoIdentificado", END)
 
@@ -257,3 +341,13 @@ criar_grafo = _fabrica.criar
 
 def obter_grafo() -> GrafoCompilado:
     return _fabrica.obter()
+
+
+async def assuntos_pendentes_do_chat(chat_id: str) -> list[_fila.AssuntoPendente] | None:
+    """Os outros assuntos que o orquestrador guardou para esta conversa (#435), para a resposta final
+    do fluxo. Só no release: na produção, nem lê o checkpoint."""
+    if not fluxo_em_teste_liga():
+        return None
+    estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{chat_id}"}})
+    pendentes = (estado.values or {}).get("assuntosPendentes")
+    return pendentes or None

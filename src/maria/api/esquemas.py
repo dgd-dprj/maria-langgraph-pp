@@ -32,6 +32,22 @@ TOKENS_GASTOS: Schema = {
 # concluído" leva o atendimento inteiro junto do `erro`.
 ERRO_ATENDIMENTOS: Schema = {"type": "object", "properties": {"erro": {"type": "string"}}, "additionalProperties": True}
 
+# #435 (multi-fluxo, fase 1a, só no release): os outros assuntos do relato, para a Tykhe seguir com eles.
+# Só aparece quando há outro assunto. `flowId` quando o assunto é de um fluxo da Maria; `tipoCaso`
+# quando é da Tykhe.
+ASSUNTOS_PENDENTES: Schema = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "nome": {"type": "string"},
+            "urgente": {"type": "boolean"},
+            "flowId": {"type": "string"},
+            "tipoCaso": {"type": "string"},
+        },
+    },
+}
+
 # rotas/atendimentos.ts:146-181
 RESPOSTA_ATENDIMENTO: Schema = {
     "type": "object",
@@ -56,6 +72,7 @@ RESPOSTA_ATENDIMENTO: Schema = {
             },
         },
         "tokensGastos": TOKENS_GASTOS,
+        "assuntosPendentes": ASSUNTOS_PENDENTES,
         "_links": LINKS,
     },
 }
@@ -103,6 +120,7 @@ RESPOSTA_ORQUESTRADOR: Schema = {
         "dadosColetados": {"type": "object", "additionalProperties": True},
         "tokensGastos": TOKENS_GASTOS,
         "flowId": {"type": "string"},
+        "assuntosPendentes": ASSUNTOS_PENDENTES,
         "_links": {"type": "object", "additionalProperties": True},
     },
 }

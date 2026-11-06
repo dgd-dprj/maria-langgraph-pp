@@ -9,6 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
+from maria.orquestrador.fila import AssuntoPendente, ItemFila
 from maria.shared.tokens_acumulados import CanalTokensGastos
 
 
@@ -47,3 +48,12 @@ class OrquestradorState(TypedDict, total=False):
     # Soma de TODOS os tokens desta conversa do orquestrador (issues #35, #69,
     # #92). A rota repassa como dadosConhecidos.tokensGastos ao fluxo escolhido.
     tokensGastosConversa: CanalTokensGastos
+    # Multi-fluxo, fase 1a (#435), só no release. A fila de assuntos do relato, na ordem em que a
+    # Maria vai tratar; None quando o relato tem um assunto só (o caminho de sempre).
+    fila: list[ItemFila] | None
+    # A pessoa recusou a ordem com 3 assuntos ou mais: falta perguntar qual vem primeiro.
+    escolherPrimeiro: bool | None
+    # A Maria perguntou a ordem: a resposta que abre o fluxo começa com "Combinado. Vamos começar…".
+    ordemPerguntada: bool | None
+    # Os assuntos da fila depois do primeiro, para a Tykhe seguir com eles (campo `assuntosPendentes`).
+    assuntosPendentes: list[AssuntoPendente] | None
