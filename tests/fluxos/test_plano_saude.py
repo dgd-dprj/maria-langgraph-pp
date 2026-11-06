@@ -97,7 +97,7 @@ async def test_outra_pessoa_encontrada_segue_o_fluxo_normal_com_os_dados_do_verd
     assert "Nome: MARIA DE TESTE FICTICIA" in resumo and f"CPF: {CPF_OUTRA}" in resumo
     assert "Data de nascimento: 02/02/1991" in resumo and "E-mail: maria@exemplo.org" in resumo
     assert "Telefone: 21988880000" in resumo and "WhatsApp: 21977770000" in resumo
-    assert "Endereço" not in resumo and "Niterói" not in resumo
+    assert "Endereço: Rua Fictícia, nº 2, Centro, Niterói - RJ, CEP. 24020-005" in resumo, "o endereço dela vem do Verde"
     assert "Atendimento para: outra pessoa" in resumo
     for de_quem_pede in ("Pessoa de Teste", "00000000000", "teste@exemplo.org", "21999990000"):
         assert de_quem_pede not in resumo
@@ -106,7 +106,7 @@ async def test_outra_pessoa_encontrada_segue_o_fluxo_normal_com_os_dados_do_verd
     [(_, dados, _)] = chamadas
     assert dados["Nome"] == "MARIA DE TESTE FICTICIA" and dados["CPF"] == CPF_OUTRA and dados["WhatsApp"] == "21977770000"
     assert dados["Atendimento para"] == "outra pessoa (dados do cadastro do Verde)"
-    assert not any("Endereço" in rotulo for rotulo in dados)
+    assert dados["Endereço"] == "Rua Fictícia, nº 2, Centro, Niterói - RJ, CEP. 24020-005"
 
 
 async def test_outra_pessoa_pede_as_imagens_e_a_situacao_quando_faltam(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -127,9 +127,8 @@ async def test_campo_que_o_verde_nao_trouxe_fica_nao_informado_sem_cair_nos_dado
     r = await f.responder("false", CPF_OUTRA, "2500")
     resumo = texto(r)
     assert "Nome: SO NOME" in resumo
-    for rotulo in ("E-mail", "Telefone", "WhatsApp"):
+    for rotulo in ("E-mail", "Telefone", "WhatsApp", "Endereço"):
         assert f"{rotulo}: não informado" in resumo
-    assert "Endereço" not in resumo
 
 
 @pytest.mark.parametrize("cpf_errado", ["123", "abc", "123456789012", ""])
@@ -209,6 +208,21 @@ async def test_dados_da_outra_pessoa_nao_vao_para_metadados_nem_para_log(
         assert dado not in metadados
     saida = capsys.readouterr().out
     for dado in (CPF_OUTRA, "MARIA DE TESTE", "maria@exemplo.org", "21977770000", "21988880000", "Niterói", "02/02/1991"):
+        assert dado not in saida
+
+
+async def test_o_endereco_de_quem_fala_nao_vai_para_log_nem_para_metadados(capsys: pytest.CaptureFixture[str]) -> None:
+    from maria.fluxos.plano_saude.api import extrair_metadados_plano_saude
+
+    f = _fluxo()
+    await f.iniciar(
+        {**DADOS, "imagensRecebidas": True, "endereco": {"cep": "24020005", "logradouro": "Rua Sigilosa", "municipio": "Niterói"}}
+    )
+    await f.responder("true", "2500")
+    estado = await f.estado()
+    assert "Rua Sigilosa" not in json.dumps(extrair_metadados_plano_saude(estado), ensure_ascii=False)
+    saida = capsys.readouterr().out
+    for dado in ("Rua Sigilosa", "24020005", "Niterói"):
         assert dado not in saida
 
 
@@ -403,19 +417,18 @@ async def test_resumo_mostra_os_dados_como_vieram_e_a_renda() -> None:
         "Data de nascimento: 1990-01-01",
         "E-mail: teste@exemplo.org",
         "Telefone: 21999990000",
+        "Endereço: Rua de Teste, 1, Centro, Rio de Janeiro/RJ, CEP 20000000",
         "Situação: O plano negou a minha cirurgia",
         "Renda mensal: R$ 2.500,00",
     ):
         assert esperado in resumo
-    assert "Endereço" not in resumo and "Rua de Teste" not in resumo
 
 
 def test_resumo_trata_vazio_e_ausente_como_nao_informado_e_aceita_cpf_numerico() -> None:
     resumo = montar_resumo({"cpf": 11111111111, "nome": "", "endereco": {}, "renda": 0.0})  # type: ignore[typeddict-item]
     assert "CPF: 11111111111" in resumo
-    for rotulo in ("Nome", "Data de nascimento", "E-mail", "Telefone", "Situação"):
+    for rotulo in ("Nome", "Data de nascimento", "E-mail", "Telefone", "Endereço", "Situação"):
         assert f"{rotulo}: não informado" in resumo
-    assert "Endereço" not in resumo
     assert "Renda mensal: R$ 0,00" in resumo
 
 
@@ -454,7 +467,7 @@ async def test_dados_conhecidos_viram_estado_e_chave_desconhecida_e_ignorada() -
     await f.iniciar({"cpf": "00000000000", "nome": "Fulano de Tal", "endereco": {"uf": "RJ"}, "chaveQueNaoExiste": "x"})
     estado = await f.estado()
     assert estado["cpf"] == "00000000000"
-    assert "endereco" not in estado, "endereço não é mais estado do fluxo (#439)"
+    assert estado["endereco"] == {"uf": "RJ"}
     assert "chaveQueNaoExiste" not in estado
 
 
@@ -483,25 +496,39 @@ async def test_o_fluxo_comeca_direto_em_para_voce_com_ou_sem_endereco_e_de_qualq
     assert consultas == [], "nenhuma consulta ao Verde antes da primeira pergunta"
 
 
-async def test_o_endereco_nao_e_mais_estado_do_fluxo_nem_motivo_de_handoff() -> None:
+async def test_o_endereco_de_quem_fala_continua_no_estado_e_os_motivos_de_municipio_nao_existem_mais() -> None:
     estado = await _fluxo_estado({**DADOS, "endereco": {"cep": "20040020", "municipio": "Rio de Janeiro"}})
-    assert "endereco" not in estado and "foraDoRio" not in estado
+    assert estado["endereco"] == {"cep": "20040020", "municipio": "Rio de Janeiro"}
+    assert "foraDoRio" not in estado
     motivos = get_args(MotivoHandoffPlanoSaude)
     for removido in ("fora_do_rio", "municipio_nao_identificado", "outra_pessoa", "canal_nao_entendido"):
         assert removido not in motivos
 
 
-async def test_quem_mora_fora_do_rio_segue_o_fluxo_normal_ate_o_e_mail_sem_endereco(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_quem_mora_fora_do_rio_segue_o_fluxo_normal_ate_o_e_mail_com_o_endereco_que_a_tykhe_mandou(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
     chamadas = _email_devolve(monkeypatch, True)
+    endereco = {"cep": "24020005", "logradouro": "Rua Fictícia", "numero": "10", "municipio": "Niterói", "uf": "RJ"}
     f = _fluxo()
-    await f.iniciar({**DADOS, "imagensRecebidas": True, "endereco": {"cep": "24020005", "municipio": "Niterói", "uf": "RJ"}})
+    await f.iniciar({**DADOS, "imagensRecebidas": True, "endereco": endereco})
     r = await f.responder("true", "2500")
-    assert "Endereço" not in texto(r) and "Niterói" not in texto(r)
+    assert "Endereço: Rua Fictícia, 10, Niterói/RJ, CEP 24020005" in texto(r), "o município não decide nada: só aparece"
     r = await f.responder("sim")
     assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
     [(_, dados, _)] = chamadas
-    assert not any("Endereço" in rotulo for rotulo in dados)
-    assert "Niterói" not in json.dumps(dados, ensure_ascii=False)
+    assert dados["Endereço"] == "Rua Fictícia, 10, Niterói/RJ, CEP 24020005"
+
+
+async def test_sem_endereco_o_resumo_e_o_e_mail_mostram_nao_informado_sem_handoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas = _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar({k: v for k, v in DADOS.items() if k != "endereco"} | {"imagensRecebidas": True})
+    r = await f.responder("true", "2500")
+    assert "Endereço: não informado" in texto(r)
+    r = await f.responder("sim")
+    assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
+    assert chamadas[0][1]["Endereço"] == "não informado"
 
 
 def _quebrar(monkeypatch: pytest.MonkeyPatch, alvo: str) -> None:

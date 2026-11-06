@@ -7,7 +7,8 @@ renda e confirmação do resumo, e então o e-mail ao NUDECON (#345, #405). A pe
 Se o atendimento é para outra pessoa, a Maria pede o CPF dela, busca os dados no Verde e segue o fluxo
 com os dados dela no lugar dos de quem pede (#433, fase 1 da #347).
 
-O fluxo começa direto em "para quem": não verifica o município nem trabalha com endereço, por enquanto (#439).
+O fluxo começa direto em "para quem": não verifica o município (#439). O endereço de quem fala vem da Tykhe
+(`dadosConhecidos.endereco`) só para o resumo e o e-mail; ausente, aparece como "não informado".
 Qualquer falha encerra com atendimento humano: o assistido não pode ficar sem atendimento.
 
 Premissas desta etapa, a confirmar: a Tykhe coleta as imagens e avisa com
@@ -153,6 +154,7 @@ def _dados_da_outra_pessoa(dados: Mapping[str, Any]) -> dict[str, Any]:
         "email": _texto(dados.get("email")),
         "telefone": _texto(telefones[0].get("numeroTelefone")) if telefones else "",
         "whatsapp": _texto(whatsapp.get("numeroTelefone")) if whatsapp else "",
+        "endereco": _texto(dados.get("endereco")),
     }
 
 
@@ -313,6 +315,22 @@ def _texto(valor: object) -> str:
     return str(valor).strip()
 
 
+def _endereco(endereco: object) -> str:
+    if not isinstance(endereco, dict):
+        return _texto(endereco)
+    cidade = "/".join(p for p in (_texto(endereco.get("municipio")), _texto(endereco.get("uf"))) if p)
+    cep = _texto(endereco.get("cep"))
+    partes = [
+        _texto(endereco.get("logradouro")),
+        _texto(endereco.get("numero")),
+        _texto(endereco.get("complemento")),
+        _texto(endereco.get("bairro")),
+        cidade,
+        f"CEP {cep}" if cep else "",
+    ]
+    return ", ".join(p for p in partes if p)
+
+
 def _reais(valor: float) -> str:
     inteiro, centavos = f"{valor:,.2f}".split(".")
     return f"R$ {inteiro.replace(',', '.')},{centavos}"
@@ -332,6 +350,7 @@ def _linhas_resumo(state: PlanoSaudeState) -> list[tuple[str, str]]:
             ("E-mail", _texto(outra.get("email"))),
             ("Telefone", _texto(outra.get("telefone"))),
             ("WhatsApp", _texto(outra.get("whatsapp"))),
+            ("Endereço", _texto(outra.get("endereco"))),
         ]
     else:
         pessoa = [
@@ -340,6 +359,7 @@ def _linhas_resumo(state: PlanoSaudeState) -> list[tuple[str, str]]:
             ("Data de nascimento", _texto(state.get("dataNascimento"))),
             ("E-mail", _texto(state.get("email"))),
             ("Telefone", _texto(state.get("telefone"))),
+            ("Endereço", _endereco(state.get("endereco"))),
         ]
     return [*pessoa, ("Situação", _texto(state.get("relato"))), ("Renda mensal", _reais(renda) if renda is not None else "")]
 

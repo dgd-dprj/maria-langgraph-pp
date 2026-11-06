@@ -152,7 +152,7 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
 - **Como começar, por dois caminhos:**
   - **pelo relato livre** (orquestrador, #386), **por enquanto, só o que envolve cirurgia com o plano:** "o plano negou minha cirurgia", "a Unimed tá demorando pra liberar a cirurgia" ou "o convênio não paga a prótese da cirurgia" abrem o fluxo; "a Unimed não quer reembolsar" e "o posto não tem o remédio" continuam indo para a Tykhe como questão de saúde; "preciso de uma cirurgia" faz a Maria perguntar antes de escolher. **A Tykhe ainda não confirmou o `flowId` novo nem os destinos novos (#336):** por enquanto, teste pela API;
   - **pelo id do fluxo,** `84433c84-4776-4b05-a5a0-af8012d8eced`, que precisa estar configurado no fluxo de teste da Tykhe. Confirme com a Nicole antes.
-- **Sem endereço e sem verificação de município** (desde 2026-11-06, #439): o fluxo começa direto na primeira pergunta, com ou sem CEP em `dadosConhecidos`, e de qualquer município.
+- **Sem verificação de município** (desde 2026-11-06, #439): o fluxo começa direto na primeira pergunta, com ou sem CEP em `dadosConhecidos`, e de qualquer município. O endereço que a Tykhe manda aparece no resumo ("não informado" se faltar).
 - **As perguntas,** nesta ordem:
   1. se o atendimento é para você;
   2. as fotos da carteirinha do plano, frente e verso;
@@ -168,7 +168,7 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
 |---|---|
 | Para você, com as fotos, tudo confirmado | "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você." |
 | Para outra pessoa (desde 2026-11-06, #433) | A Maria pede o CPF da pessoa atendida, busca os dados dela no Verde e segue com as imagens, a situação, a renda, o resumo (com os dados dela) e a confirmação. CPF com formato errado 3 vezes, CPF que o Verde não acha 3 vezes ou Verde fora do ar levam à equipe |
-| CEP de outro município ou sem CEP (desde 2026-11-06, #439) | Nada muda: o fluxo segue como para qualquer pessoa, sem unidade e sem endereço no resumo |
+| CEP de outro município ou sem CEP (desde 2026-11-06, #439) | Nada muda: o fluxo segue como para qualquer pessoa, sem unidade e sem handoff por município; o endereço aparece no resumo |
 
 > **Os textos são provisórios,** até o NUDECON validar (#335) e a Tykhe confirmar os destinos e a forma das opções (#336). Diferença de texto não é defeito; anote só o que travar a conversa ou levar ao destino errado. **Este caso não grava nada no Verde:** o envio ao NUDECON ainda não existe (#345).
 
