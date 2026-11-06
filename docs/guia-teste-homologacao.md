@@ -105,7 +105,7 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 2. Número do processo → **Sim** e um número de teste (SEEU, se houver), ou **Não**.
 3. RG da pessoa presa → o **RG de teste**.
 4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
-5. Parentesco → por exemplo, "sou a mãe".
+5. Parentesco → por exemplo, "sou a mãe". **Depois da #438:** se o relato do passo 1 já disser o parentesco ("meu primo foi preso", "minha irmã tá presa", "sou a mãe dele"), a Maria **não pergunta** de novo. Ela ainda pergunta quando não dá para saber: "meu filho" (a mãe ou o pai?), erro de digitação ("mu imao"), parente fora da lista ("meu avô") ou dois parentes no relato. Teste os dois jeitos.
 6. CPF de quem está conversando → um CPF inventado (e o cadastro, como no caso A) ou um já cadastrado.
 
 **Esperado:**

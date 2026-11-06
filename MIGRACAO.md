@@ -1015,6 +1015,24 @@ Duas coisas diferentes:
   - os botões na pergunta da ordem;
   - o uso de `assuntosPendentes` para seguir com o próximo assunto.
 
+## Pessoa presa: o parentesco tirado do relato (decidido em 2026-11-06, #438)
+
+- **Achado do teste pela Tykhe (06/11):** quem escrevia "Meu primo foi preso e quero saber quando sai" recebia depois "Qual seu parentesco com a pessoa presa?". O fluxo de pessoa presa não recebe o relato (só o do plano de saúde recebe), e a leitura do relato dentro do fluxo (`EXTRACAO_LIVRE_IA`) está desligada.
+- **Decisão da Nicole:** tirar o parentesco do relato **pelas palavras, sem IA** (entre três opções: palavras, IA, ou palavras e depois IA). Sem custo e previsível.
+- **Como ficou:**
+  - quando o orquestrador abre o fluxo de pessoa presa, `fluxos/pessoa_presa/parentesco.py` lê o relato (ou, com vários assuntos, o trecho do assunto, #435);
+  - o fluxo recebe o `parentesco` e pula a pergunta;
+  - o parentesco é o de quem fala em relação ao preso: "meu tio" é Sobrinho(a), "meu pai" é Filho(a), "sou a mãe dele" é Mãe.
+- **A Maria continua perguntando quando não dá para saber:**
+  - "meu filho" (a mãe ou o pai?);
+  - parente fora da lista do fluxo ("meu avô", "meu sogro", "meu namorado");
+  - dois parentes no relato;
+  - erro de digitação.
+- **Outros pontos:**
+  - um `parentesco` que já vem em `dadosConhecidos` não é trocado;
+  - o log ganha o evento `parentesco_do_relato`, sem o texto do relato;
+  - vale na produção quando for promovida; vai primeiro para o release, pela `develop`.
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.
