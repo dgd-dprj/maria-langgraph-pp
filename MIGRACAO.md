@@ -963,6 +963,8 @@ Duas coisas diferentes:
 
 ## Branches, ambientes e proteção (decidido em 2026-10-22)
 
+> **Revisto em 2026-11-06 (#427, decisão da Nicole):** três branches no estilo do GitLab Flow. `develop` é o dev (só CI, sem deploy), `staging` é o QA (alimenta o release) e `main` é a produção, que não muda. O CI recusa PR para `staging` que não venha da `develop` e PR para `main` que não venha da `staging`. Dev sem servidor próprio, sem custo novo na AWS. Para ligar, nesta ordem: o Ícaro aplica só a confiança OIDC com `refs/heads/staging` (com o #411 já mergeado ou com `-target`, para não levar à produção as mudanças pendentes do `ecs.tf`); cria-se a `staging` com ruleset; o PR da #427 entra na `develop`; a 1ª promoção `develop` → `staging` passa a alimentar o release. O texto abaixo fica como registro.
+
 - **Decisão da Nicole: os nomes ficam como estão até depois do corte.** `develop` faz o papel de staging e alimenta o ambiente `release`, e `main` é a produção. Documentado no `CONTRIBUTING.md` e no `README.md`. **Motivo:** a equipe está testando, e o corte não aconteceu. Renomear branch ou ambiente agora confundiria qualquer problema que aparecesse. Uma branch de integração separada (`develop` → `staging` → `main`) e a troca de nomes ficam para depois do corte, junto com o ambiente novo da #286, onde estão os custos de cada caminho.
 - **Proteção aplicada em 2026-10-22 (#214), por rulesets** (25667365 em `develop`, 25667366 em `main`), sem ninguém na lista de quem contorna:
   - nas duas branches: PR obrigatório, checks `test` e `imagem` (do GitHub Actions), e force push e exclusão bloqueados;

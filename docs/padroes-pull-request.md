@@ -18,7 +18,7 @@ Regra de 2026-10-27 (Nicole, #357), para as issues abertas e para as que vierem.
 - Um PR = uma issue de código, pequeno e focado. Issues só de texto podem ir junto (`Closes #N` de cada uma).
 - Idioma: pt-BR (título e corpo).
 - CI passando antes do merge; apagar branch depois.
-- Merge: **squash** para branch de trabalho → `develop`; **merge commit** (nunca squash) para release `develop` → `main` — squash no release reescreve commits compartilhados e gera conflito no próximo.
+- Merge: **squash** para branch de trabalho → `develop`; **merge commit** (nunca squash) nas promoções `develop` → `staging` (QA) e `staging` → `main` (produção) — squash na promoção reescreve commits compartilhados e gera conflito na próxima (#427).
 
 ## Título
 

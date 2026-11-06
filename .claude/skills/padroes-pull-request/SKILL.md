@@ -23,7 +23,7 @@ A versão completa está em [`docs/padroes-pull-request.md`](../../../docs/padro
 - Um PR = uma issue de código, pequeno e focado. Issues só de texto podem ir junto (`Closes #N` de cada uma).
 - Idioma: pt-BR (título e corpo).
 - CI passando antes do merge; apagar branch depois.
-- Merge: **squash** para branch de trabalho → `develop`; **merge commit** (nunca squash) para release `develop` → `main`.
+- Merge: **squash** para branch de trabalho → `develop`; **merge commit** (nunca squash) nas promoções `develop` → `staging` (QA) e `staging` → `main` (produção) (#427).
 
 ## Título
 
