@@ -26,6 +26,7 @@ MotivoHandoffPlanoSaude = Literal[
     "falha_infra_verde",
     "falha_envio_email",
     "imagens_nao_anexadas",
+    "email_invalido",
     "erro_interno",
 ]
 
@@ -54,6 +55,8 @@ class PlanoSaudeState(TypedDict, total=False):
     canal: CanalAtendimento | None
     tentativasCanal: int | None
     paraSi: bool | None
+    # Canal e-mail (#425): o e-mail da Tykhe com erro conta como a 1ª tentativa; no 3º erro, atendimento humano.
+    tentativasEmail: int | None
     # Mora fora do município do Rio: a conversa conclui com a unidade que ele deve procurar.
     foraDoRio: bool | None
     # Para onde o atendimento concluído vai (`email_enviado`: o Rio, por e-mail; `unidade_informada`: presencial ou fora do Rio).

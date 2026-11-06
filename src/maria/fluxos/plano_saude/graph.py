@@ -1,7 +1,8 @@
 """Fluxo Problemas com plano de saúde (NUDECON, issue #329).
 
-Conversa: canal ("aqui", e-mail ou presencial), "para quem", imagens dos
-documentos, situação (só quando o relato não veio), renda e confirmação do resumo. Presencial encerra com a orientação;
+Conversa: canal ("aqui", e-mail ou presencial), "para quem", e-mail (só no canal e-mail, quando o da Tykhe
+falta ou tem erro, #425), imagens dos documentos, situação (só quando o relato não veio), renda e confirmação
+do resumo. Presencial encerra com a orientação;
 "outra pessoa" encerra com o texto provisório e `atendimento_humano` (coleta dos
 dados dela: #347). Falta o encaminhamento ao NUDECON pelo Verde (#265, #345).
 
@@ -40,6 +41,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_CANAL_NAO_ENTENDIDO,
     MENSAGEM_CONCLUIDO,
     MENSAGEM_DADOS_NAO_CONFIRMADOS,
+    MENSAGEM_EMAIL_INVALIDO,
     MENSAGEM_ERRO_INTERNO,
     MENSAGEM_FALHA_ENVIO_EMAIL,
     MENSAGEM_FALHA_INFRA_VERDE,
@@ -59,12 +61,14 @@ from maria.fluxos.plano_saude.state import CanalAtendimento, MotivoHandoffPlanoS
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.email_nudecon import enviar_email_nudecon, protocolo_do_atendimento
 from maria.integracoes.verde import consultar_cep, consultar_orgaos_primeiro_atendimento, consultar_pessoa_por_cpf
+from maria.shared.conferir_email import conferir_email
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
 from maria.shared.respostas import resposta_eh_sim
 from maria.shared.types import OrgaoAtendimento
 
 MAXIMO_TENTATIVAS_CANAL = 3
+MAXIMO_TENTATIVAS_EMAIL = 3
 MAXIMO_TENTATIVAS_IMAGENS = 3
 MAXIMO_TENTATIVAS_SITUACAO = 3
 MAXIMO_TENTATIVAS_RENDA = 3
@@ -75,6 +79,9 @@ RENDA_MAXIMA = 10_000_000
 TEXTO_CANAL = f"O NUDECON atende {HORARIO_NUDECON}. Como você prefere seguir o atendimento: por aqui, por e-mail ou presencialmente?"
 TEXTO_CANAL_NOVAMENTE = "Não entendi. Você prefere seguir por aqui, por e-mail ou presencialmente?"
 TEXTO_PARA_QUEM = "O atendimento é para você? Responda não se for para outra pessoa."
+# #425: o texto do erro foi pedido pela Nicole em 2026-11-06 ("avisar que não conseguiu enviar porque teve erro no e-mail").
+TEXTO_EMAIL = "Qual é o seu e-mail? Exemplo: nome@gmail.com"
+TEXTO_EMAIL_COM_ERRO = "Não consegui enviar para esse e-mail porque ele parece ter um erro. Pode digitar de novo? Exemplo: nome@gmail.com"
 # Lista provisória de documentos: a definitiva é da #335.
 TEXTO_IMAGEM = {
     "carteirinha_frente": "Envie a foto da frente da carteirinha do plano de saúde.",
@@ -233,7 +240,51 @@ async def pedir_para_quem(state: PlanoSaudeState) -> Atualizacao:
 def depois_de_para_quem(state: PlanoSaudeState) -> str:
     if not state.get("paraSi"):
         return "outraPessoa"
+    return "email" if _falta_email(state) else _depois_do_email(state)
+
+
+def _falta_email(state: PlanoSaudeState) -> bool:
+    """Só o canal e-mail precisa do e-mail certo: é por ele que o NUDECON responde (#425)."""
+    return state.get("canal") == "email" and conferir_email(_texto(state.get("email"))) is None
+
+
+def _depois_do_email(state: PlanoSaudeState) -> str:
     return "imagens" if state.get("imagensRecebidas") is not True else _depois_das_imagens_enviadas(state)
+
+
+def _tentativas_email(state: PlanoSaudeState) -> int:
+    """O e-mail que veio da Tykhe com erro conta como a 1ª tentativa: a pessoa já digitou uma vez."""
+    tentativas = state.get("tentativasEmail")
+    if tentativas is None:
+        return 1 if _texto(state.get("email")) else 0
+    return tentativas
+
+
+def texto_email(state: PlanoSaudeState) -> str:
+    return TEXTO_EMAIL_COM_ERRO if _tentativas_email(state) else TEXTO_EMAIL
+
+
+async def preparar_pergunta_email(state: PlanoSaudeState) -> Atualizacao:
+    return {"tentativasEmail": _tentativas_email(state), **dict(await preparar_pergunta("email", texto_email(state)))}
+
+
+async def pedir_email(state: PlanoSaudeState) -> Atualizacao:
+    """O e-mail digitado só vai para o estado quando passa na conferência; nunca para log (LGPD)."""
+    resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_email(state), "tipo": "texto"})
+    email = conferir_email(resposta)
+    if email is not None:
+        return {"email": email}
+    return {"tentativasEmail": _tentativas_email(state) + 1}
+
+
+def depois_do_email(state: PlanoSaudeState) -> str:
+    if not _falta_email(state):
+        return _depois_do_email(state)
+    return "emailInvalido" if _tentativas_email(state) >= MAXIMO_TENTATIVAS_EMAIL else "email"
+
+
+async def email_invalido(state: PlanoSaudeState) -> Atualizacao:
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "email_invalido", "mensagemFinal": MENSAGEM_EMAIL_INVALIDO}
 
 
 def _depois_das_imagens_enviadas(state: PlanoSaudeState) -> str:
@@ -499,6 +550,9 @@ _construtor.add_node("canalNaoEntendido", _protegido(canal_nao_entendido))
 _construtor.add_node("prepararPerguntaParaQuem", _protegido(preparar_pergunta_para_quem))
 _construtor.add_node("pedirParaQuem", _protegido(pedir_para_quem))
 _construtor.add_node("outraPessoa", _protegido(outra_pessoa))
+_construtor.add_node("prepararPerguntaEmail", _protegido(preparar_pergunta_email))
+_construtor.add_node("pedirEmail", _protegido(pedir_email))
+_construtor.add_node("emailInvalido", _protegido(email_invalido))
 _construtor.add_node("prepararPerguntaImagens", _protegido(preparar_pergunta_imagens))
 _construtor.add_node("pedirImagens", _protegido(pedir_imagens))
 _construtor.add_node("imagensPendentes", _protegido(imagens_pendentes))
@@ -530,10 +584,23 @@ _condicional(
     "pedirParaQuem",
     depois_de_para_quem,
     {
+        "email": "prepararPerguntaEmail",
         "imagens": "prepararPerguntaImagens",
         "situacao": "prepararPerguntaSituacao",
         "renda": "prepararPerguntaRenda",
         "outraPessoa": "outraPessoa",
+    },
+)
+_seguir("prepararPerguntaEmail", "pedirEmail")
+_condicional(
+    "pedirEmail",
+    depois_do_email,
+    {
+        "email": "prepararPerguntaEmail",
+        "emailInvalido": "emailInvalido",
+        "imagens": "prepararPerguntaImagens",
+        "situacao": "prepararPerguntaSituacao",
+        "renda": "prepararPerguntaRenda",
     },
 )
 _seguir("prepararPerguntaImagens", "pedirImagens")
@@ -569,6 +636,7 @@ for _fim in (
     "presencial",
     "canalNaoEntendido",
     "outraPessoa",
+    "emailInvalido",
     "imagensPendentes",
     "situacaoNaoInformada",
     "rendaNaoEntendida",

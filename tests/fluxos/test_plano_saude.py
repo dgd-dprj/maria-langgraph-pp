@@ -6,6 +6,7 @@ from maria.fluxos.plano_saude.api import (
     HORARIO_UNIDADE_PADRAO,
     ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
     ID_MUNICIPIO_RIO,
+    MENSAGEM_EMAIL_INVALIDO,
     MENSAGEM_ERRO_INTERNO,
     MENSAGEM_FALHA_ENVIO_EMAIL,
     MENSAGEM_FALHA_INFRA_VERDE,
@@ -14,7 +15,14 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
     MENSAGEM_OUTRA_PESSOA,
 )
-from maria.fluxos.plano_saude.graph import interpretar_canal, interpretar_renda, montar_resumo, obter_grafo
+from maria.fluxos.plano_saude.graph import (
+    TEXTO_EMAIL,
+    TEXTO_EMAIL_COM_ERRO,
+    interpretar_canal,
+    interpretar_renda,
+    montar_resumo,
+    obter_grafo,
+)
 from maria.integracoes.email_nudecon import ResultadoEmail
 from maria.shared.types import DadosCep, DadosPessoa, OrgaoAtendimento, OrgaosPrimeiroAtendimento
 from tests.fluxos.conftest import Fluxo, pergunta, texto
@@ -630,3 +638,84 @@ async def test_email_enviado_sem_falha_de_imagem_segue_concluido(monkeypatch: py
     await f.iniciar({**DADOS, "imagensRecebidas": True})
     r = await f.responder("por aqui", "true", "2500", "sim")
     assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
+
+
+# ── #425: no canal e-mail, o e-mail com erro ganha nova chance; no 3º erro, atendimento humano ─────────────────────
+SEM_EMAIL = {k: v for k, v in DADOS.items() if k != "email"}
+
+
+async def test_canal_email_sem_email_da_tykhe_pergunta_o_e_mail_e_segue() -> None:
+    f = _fluxo()
+    await f.iniciar(SEM_EMAIL)
+    r = await f.responder("por e-mail", "true")
+    p = pergunta(r)
+    assert p is not None and p["tipo"] == "texto"
+    assert texto(r) == TEXTO_EMAIL
+    r = await f.responder("Pessoa.Teste@Example.com")
+    assert pergunta(r)["tipoImagem"] == "carteirinha_frente"  # type: ignore[index]
+    assert (await f.estado())["email"] == "pessoa.teste@example.com"
+
+
+async def test_canal_email_com_email_da_tykhe_errado_avisa_do_erro_e_aceita_o_novo() -> None:
+    f = _fluxo()
+    await f.iniciar({**DADOS, "email": "teste@gmial.com"})
+    r = await f.responder("por e-mail", "true")
+    assert texto(r) == TEXTO_EMAIL_COM_ERRO
+    r = await f.responder("teste@gmail.com")
+    assert pergunta(r)["tipoImagem"] == "carteirinha_frente"  # type: ignore[index]
+    assert (await f.estado())["email"] == "teste@gmail.com"
+
+
+async def test_email_da_tykhe_errado_conta_como_1a_tentativa_e_no_3o_erro_vai_ao_atendimento_humano() -> None:
+    f = _fluxo()
+    await f.iniciar({**DADOS, "email": "teste@gmail.con"})
+    r = await f.responder("por e-mail", "true", "teste@hotmal.com")
+    assert texto(r) == TEXTO_EMAIL_COM_ERRO
+    r = await f.responder("teste")
+    assert pergunta(r) is None
+    assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "email_invalido")
+    assert r["mensagemFinal"] == MENSAGEM_EMAIL_INVALIDO
+    assert (await f.estado())["email"] == "teste@gmail.con", "e-mail digitado com erro não vai para o estado"
+
+
+async def test_sem_email_da_tykhe_a_pessoa_tem_3_tentativas() -> None:
+    f = _fluxo()
+    await f.iniciar(SEM_EMAIL)
+    r = await f.responder("por e-mail", "true", "nome@", "nome@gmail")
+    assert texto(r) == TEXTO_EMAIL_COM_ERRO
+    r = await f.responder("nome gmail.com")
+    assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "email_invalido")
+
+
+async def test_canal_email_com_email_certo_nao_pergunta_o_e_mail() -> None:
+    f = _fluxo()
+    await f.iniciar(DADOS)
+    r = await f.responder("por e-mail", "true")
+    assert pergunta(r)["tipoImagem"] == "carteirinha_frente"  # type: ignore[index]
+    assert "tentativasEmail" not in await f.estado()
+
+
+@pytest.mark.parametrize("canal", ["por aqui", "presencial"])
+async def test_outros_canais_nao_conferem_o_e_mail(canal: str) -> None:
+    f = _fluxo()
+    await f.iniciar({**DADOS, "email": "teste@gmial.com"})
+    r = await f.responder(canal, "true") if canal == "por aqui" else await f.responder(canal)
+    assert texto(r) != TEXTO_EMAIL_COM_ERRO
+    assert "tentativasEmail" not in await f.estado()
+
+
+async def test_outra_pessoa_no_canal_email_encerra_sem_pedir_o_e_mail() -> None:
+    f = _fluxo()
+    await f.iniciar(SEM_EMAIL)
+    r = await f.responder("por e-mail", "false")
+    assert r["motivoHandoff"] == "outra_pessoa"
+
+
+async def test_e_mail_corrigido_vai_para_o_nudecon(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas = _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar({**SEM_EMAIL, "imagensRecebidas": True})
+    r = await f.responder("por e-mail", "true", "meu e-mail é teste@example.com.", "2500", "sim")
+    assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
+    [(_, dados, _)] = chamadas
+    assert dados["E-mail"] == "teste@example.com"
