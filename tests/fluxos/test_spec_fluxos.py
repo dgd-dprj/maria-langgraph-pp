@@ -278,8 +278,12 @@ PERGUNTAS_PP_LIVRE_E_RG_INVALIDO = [
     },
     {"pergunta": "Você tem o número do processo da pessoa que está presa?", "tipo": "sim_nao", "opcoes": SIM_NAO},
     {"pergunta": "Qual o número do processo? Informe apenas os números.", "tipo": "texto"},
-    {"pergunta": "Qual o RG da pessoa presa? Informe apenas os números.", "tipo": "texto"},
-    {"pergunta": "O RG deve conter apenas números. Qual o RG da pessoa presa? Informe apenas os números.", "tipo": "texto"},
+    {"pergunta": "Qual o RG da pessoa presa? Digite os números com ou sem pontuação. Ex.: 123456789 ou 12.345.678-9.", "tipo": "texto"},
+    {
+        "pergunta": "O RG informado não está em um formato válido. Digite os números com ou sem pontuação. "
+        "Ex.: 123456789 ou 12.345.678-9. Qual o RG da pessoa presa?",
+        "tipo": "texto",
+    },
     # #393: o nome do mock ("Pessoa de Teste (mock)") sai mascarado.
     {"pergunta": "Confirma que a pessoa presa é Pessoa T.?", "tipo": "sim_nao", "opcoes": SIM_NAO},
     {"pergunta": "Qual seu parentesco com a pessoa presa?", "tipo": "texto"},
@@ -316,17 +320,17 @@ async def test_3_cpf_null_da_tykhe_pula_a_pergunta_como_em_develop() -> None:
 
 async def test_3_rg_null_da_tykhe_pergunta_o_rg_divergencia_aceita() -> None:
     # Conflito (spec 05, decisão 1). Develop pula a primeira pergunta, "" falha
-    # no formato e pergunta "O RG deve conter apenas números..."; o Python
+    # no formato e pergunta "O RG informado não está em um formato válido..."; o Python
     # trata None como undefined e faz a pergunta normal. Só o texto muda.
     _, perguntas, _ = await _conversa(obter_pp(), {"rg": None}, ["Não"])
-    assert perguntas[-1]["pergunta"] == "Qual o RG da pessoa presa? Informe apenas os números."
+    assert perguntas[-1]["pergunta"] == "Qual o RG da pessoa presa? Digite os números com ou sem pontuação. Ex.: 123456789 ou 12.345.678-9."
 
 
 async def test_3_rg_none_gravado_pelo_rg_invalido_nao_sobrevive_ao_passo() -> None:
     # Regra de estado: o `rg: undefined` de prepararPerguntaRgInvalido vira None
     # e sobrescreve o RG inválido (omitir manteria "abc" e o bypass pularia).
     f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "abc"])
-    assert perguntas[-1]["pergunta"].startswith("O RG deve conter apenas números.")
+    assert perguntas[-1]["pergunta"].startswith("O RG informado não está em um formato válido.")
     assert (await f.estado())["rg"] is None
 
 
@@ -334,13 +338,13 @@ async def test_3_tem_processo_null_pula_e_cai_em_origem_nao_suportada() -> None:
     # Achado 6 do inventário: `temProcesso: null` não é `=== false`, e não há
     # dadosProcesso, então o desfecho é origem_processo_nao_suportada.
     _, perguntas, r = await _conversa(obter_pp(), {"temProcesso": None}, ["11111111111", "Sim", "amigo"])
-    assert perguntas[0]["pergunta"] == "Qual o RG da pessoa presa? Informe apenas os números."
+    assert perguntas[0]["pergunta"] == "Qual o RG da pessoa presa? Digite os números com ou sem pontuação. Ex.: 123456789 ou 12.345.678-9."
     assert r["motivoHandoff"] == "origem_processo_nao_suportada"
 
 
 async def test_3_numero_processo_null_pula_e_consulta_vazio() -> None:
     _, perguntas, r = await _conversa(obter_pp(), {"temProcesso": True, "numeroProcesso": None}, ["11111111111", "Sim", "amigo"])
-    assert perguntas[0]["pergunta"] == "Qual o RG da pessoa presa? Informe apenas os números."
+    assert perguntas[0]["pergunta"] == "Qual o RG da pessoa presa? Digite os números com ou sem pontuação. Ex.: 123456789 ou 12.345.678-9."
     assert r["dadosProcesso"]["origem"] == "SEEU"
     assert r["statusFinal"] == "concluido"
 
@@ -545,18 +549,18 @@ async def test_5_campo_ausente_nao_lanca(verde_real: TransporteFalso) -> None:
     ("rg", "valido"),
     [
         ("11111111111", True),
-        (" 11111111111 ", True),  # o trim do zod só vale para validar
+        (" 11111111111 ", False),  # espaços são rejeitados antes da consulta
         ("\ufeff123", True),  # o trim do JS remove o BOM
         ("\x1c123", False),  # e não remove \x1c, que o strip() do Python removeria
-        ("123\n", True),  # o trim remove a quebra final antes da regex
-        ("1\n2", True),  # #343: espaço no meio também sai (develop recusava)
+        ("123\n", False),
+        ("1\n2", False),
         ("١٢٣", False),  # \d do JS é só ASCII
         ("12a", False),
         ("", False),
         (123, False),  # z.string() recusa número
         # #343: o RG como aparece no documento (exemplos fictícios)
         ("12.345.678-9", True),
-        ("12 345 678 9", True),
+        ("12 345 678 9", False),
         ("12.345.678–9", True),  # traço do celular (U+2013)
         ("12.345.678-X", False),  # letra continua recusada
         (".-", False),  # só pontuação não é RG
@@ -571,7 +575,7 @@ async def test_6_rg_com_ponto_e_traco_consulta_o_verde_so_com_os_digitos_issue_3
     _verde(verde_real, _rotas_pp())
     f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "12.345.678-9"])
     assert _enviados(verde_real, "/apenado") == ['/apenado {"rg":"123456789"}']
-    assert not any(p["pergunta"].startswith("O RG deve conter apenas números.") for p in perguntas)
+    assert not any(p["pergunta"].startswith("O RG informado não está em um formato válido.") for p in perguntas)
     # O estado (e os metadados) guardam o que a pessoa digitou.
     assert (await f.estado())["rg"] == "12.345.678-9"
 
@@ -612,9 +616,9 @@ def test_6_normalizar_situacao_com_espacos_do_js(situacao: str, normalizada: str
     assert normalizar_situacao(situacao) == normalizada
 
 
-async def test_6_rg_com_espacos_e_gravado_cru() -> None:
+async def test_6_rg_com_espacos_e_rejeitado() -> None:
     f, _, _ = await _conversa(obter_pp(), {}, ["Não", " 11111111111 "])
-    assert (await f.estado())["rg"] == " 11111111111 "
+    assert (await f.estado())["rg"] is None
 
 
 async def test_6_um_no_retry_do_rg_vira_rg_digitado() -> None:

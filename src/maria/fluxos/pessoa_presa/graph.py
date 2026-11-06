@@ -1,7 +1,7 @@
 """Fluxo de pessoa presa (develop: `fluxos/pessoaPresa/graph.ts`).
 
 Perguntas: relato livre (só com `EXTRACAO_LIVRE_IA`), processo, número, RG (até
-3 tentativas), confirmação do nome da pessoa presa e parentesco (classificado
+2 tentativas), confirmação do nome da pessoa presa e parentesco (classificado
 por IA). Vindo do orquestrador, identifica quem pede (`identificar_assistido`)
 e cadastra quem não foi encontrado (`cadastro_pessoa`).
 
@@ -70,8 +70,12 @@ TEXTO_LIVRE = (
 )
 TEXTO_TEM_PROCESSO = "Você tem o número do processo da pessoa que está presa?"
 TEXTO_NUMERO_PROCESSO = "Qual o número do processo? Informe apenas os números."
-TEXTO_RG = "Qual o RG da pessoa presa? Informe apenas os números."
-TEXTO_RG_INVALIDO = "O RG deve conter apenas números. Qual o RG da pessoa presa? Informe apenas os números."
+TEXTO_RG = "Qual o RG da pessoa presa? Digite os números com ou sem pontuação. Ex.: 123456789 ou 12.345.678-9."
+TEXTO_RG_INVALIDO = (
+    "O RG informado não está em um formato válido. Digite os números com ou sem pontuação. "
+    "Ex.: 123456789 ou 12.345.678-9. Qual o RG da pessoa presa?"
+)
+TEXTO_RG_COM_ESPACOS = "O RG não pode conter espaços. Digite o RG como 123456789 ou 12.345.678-9. Qual o RG da pessoa presa?"
 TEXTO_PARENTESCO = "Qual seu parentesco com a pessoa presa?"
 
 PARENTESCOS_PERMITIDOS = [
@@ -105,9 +109,10 @@ _PREFIXO_EM = re.compile(f"^EM{_js.CLASSE_ESPACO_JS}+")
 # `$` do Python, que aceita um `\n` final).
 _SO_DIGITOS_ASCII = re.compile(r"[0-9]+")
 # #343: o RG como aparece no documento ("12.345.678-9"). Ponto, traço (também
-# os do celular: ‐ ‑ – —) e espaços em qualquer posição saem antes de conferir
-# e de consultar o Verde.
+# os do celular: ‐ ‑ – —) saem antes de consultar o Verde; espaços são
+# detectados e rejeitados antes da validação.
 _PONTUACAO_RG = re.compile(f"[.\\-‐‑–—]|{_js.CLASSE_ESPACO_JS}")
+_ESPACO_RG = re.compile(_js.CLASSE_ESPACO_JS)
 
 
 def _ler(state: PessoaPresaState, canal: str) -> Any:
@@ -156,11 +161,18 @@ def limpar_rg(rg: str) -> str:
     return _PONTUACAO_RG.sub("", rg)
 
 
+def rg_com_espacos(rg: Any) -> bool:
+    if not isinstance(rg, str):
+        return False
+    sem_bom = rg.replace("\ufeff", "")
+    return _ESPACO_RG.search(sem_bom) is not None and _SO_DIGITOS_ASCII.fullmatch(limpar_rg(rg)) is not None
+
+
 def rg_formato_valido(rg: Any) -> bool:
     """Só dígitos 0-9 depois de `limpar_rg` (#343). Develop recusava tudo o que
     não fosse só dígitos (`z.string().trim().regex(/^\\d+$/)`), e o RG com ponto
     e traço caía num laço de recusas."""
-    return isinstance(rg, str) and _SO_DIGITOS_ASCII.fullmatch(limpar_rg(rg)) is not None
+    return isinstance(rg, str) and not rg_com_espacos(rg) and _SO_DIGITOS_ASCII.fullmatch(limpar_rg(rg)) is not None
 
 
 def rg_veio_da_extracao(state: PessoaPresaState) -> bool:
@@ -172,7 +184,7 @@ def rg_veio_da_extracao(state: PessoaPresaState) -> bool:
 
 def texto_tentar_novamente(state: PessoaPresaState) -> str:
     tentativa = _js.coalesce(state.get("tentativasRg"), 1)
-    return f"Não encontrei ninguém com esse RG (tentativa {_js.texto_template(tentativa)} de 3). Quer tentar de novo?"
+    return f"Não encontrei ninguém com esse RG (tentativa {_js.texto_template(tentativa)} de 2). Quer tentar de novo?"
 
 
 def texto_confirma_nome(state: PessoaPresaState) -> str:
@@ -249,7 +261,8 @@ async def consultar_processo(state: PessoaPresaState) -> Atualizacao:
 async def preparar_pergunta_rg(state: PessoaPresaState) -> Atualizacao:
     if rg_veio_da_extracao(state):
         return {}
-    return dict(await preparar_pergunta("rg", TEXTO_RG))
+    texto = TEXTO_RG_COM_ESPACOS if rg_com_espacos(state.get("rg")) else TEXTO_RG
+    return dict(await preparar_pergunta("rg", texto))
 
 
 async def pedir_rg(state: PessoaPresaState) -> Atualizacao:
@@ -268,7 +281,8 @@ def depois_de_pedir_rg(state: PessoaPresaState) -> str:
 
 
 async def preparar_pergunta_rg_invalido(state: PessoaPresaState) -> Atualizacao:
-    preparado = await preparar_pergunta("rgInvalido", TEXTO_RG_INVALIDO)
+    texto = TEXTO_RG_COM_ESPACOS if rg_com_espacos(state.get("rg")) else TEXTO_RG_INVALIDO
+    preparado = await preparar_pergunta("rgInvalido", texto)
     # `{ ...preparado, rg: undefined }`: limpa o RG inválido para o pedirRg
     # perguntar de novo (regra de estado: undefined no canal vira None).
     return {**preparado, "rg": None}
@@ -290,7 +304,7 @@ def depois_de_consultar_apenado(state: PessoaPresaState) -> str:
     # Issue #172: falha de infra sai direto, sem o "quer tentar de novo?".
     if _js.verdadeiro(_js.opt(apenado, "falhaInfra")):
         return "naoConfirmado"
-    if _js.coalesce(state.get("tentativasRg"), 0) >= 3:
+    if _js.coalesce(state.get("tentativasRg"), 0) >= 2:
         return "naoConfirmado"
     return "perguntaTentarNovamente"
 
@@ -307,8 +321,10 @@ async def pergunta_tentar_novamente(state: PessoaPresaState) -> Atualizacao:
             "opcoes": ["Sim", "Não"],
         }
     )
-    # Qualquer resposta só com dígitos (inclusive "1"), com ou sem ponto, traço
-    # e espaços (#343), é RG digitado direto.
+    # Qualquer resposta só com dígitos (inclusive "1"), com ponto ou traço (#343),
+    # é RG digitado direto. Espaços são rejeitados no próximo pedido de RG.
+    if rg_com_espacos(resposta):
+        return {"querTentarNovamente": True, "rg": resposta, "digitouRgDireto": False}
     if rg_formato_valido(resposta):
         return {"querTentarNovamente": True, "rg": resposta, "digitouRgDireto": True}
     return {"querTentarNovamente": resposta_eh_sim(resposta), "digitouRgDireto": False}

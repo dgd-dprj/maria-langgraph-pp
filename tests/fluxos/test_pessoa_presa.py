@@ -235,7 +235,7 @@ async def test_rg_nao_encontrado_pergunta_se_quer_tentar_de_novo() -> None:
     r = await f.responder("false", "000000000")
     p = pergunta(r)
     assert p is not None and p["tipo"] == "sim_nao"
-    assert re.search("tentativa 1 de 3", p["pergunta"])
+    assert re.search("tentativa 1 de 2", p["pergunta"])
 
 
 async def test_rg_nao_encontrado_aceita_tentar_de_novo_e_acha_na_segunda() -> None:
@@ -274,18 +274,15 @@ async def test_rg_nao_encontrado_nao_quer_tentar_handoff_direto() -> None:
     assert r_final["statusFinal"] == "handoff_humano"
 
 
-async def test_rg_nao_encontrado_3x_esgota_e_vai_pro_atendente() -> None:
+async def test_rg_nao_encontrado_2x_esgota_e_vai_pro_atendente() -> None:
     f = _fluxo()
     await f.iniciar()
     await f.responder("false")
     r1 = await f.responder("000000000")
-    assert re.search("tentativa 1 de 3", texto(r1))
-    await f.responder("true")
-    r2 = await f.responder("000000000")
-    assert re.search("tentativa 2 de 3", texto(r2))
+    assert re.search("tentativa 1 de 2", texto(r1))
     await f.responder("true")
     r_final = await f.responder("000000000")
-    assert pergunta(r_final) is None, "esgotou as 3 tentativas"
+    assert pergunta(r_final) is None, "esgotou as 2 tentativas"
     assert r_final["statusFinal"] == "handoff_humano"
 
 
@@ -305,6 +302,15 @@ async def test_rg_com_letras_rejeitado_sem_consultar_verde_nem_contar_tentativa(
     assert re.search("RG da pessoa presa|apenas números", texto(r))
     assert r.get("dadosApenado") is None, "não deveria ter chamado consultarApenado"
     assert r.get("tentativasRg") is None, "rejeição de formato não conta tentativa"
+
+
+async def test_rg_com_espacos_rejeitado_com_mensagem_especifica() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "11 111 111 11")
+    assert "não pode conter espaços" in texto(r)
+    assert r.get("dadosApenado") is None, "não deveria consultar o Verde"
+    assert r.get("tentativasRg") is None, "rejeição de espaço não conta tentativa"
 
 
 async def test_rg_com_letras_corrige_na_segunda_e_segue() -> None:
@@ -356,7 +362,7 @@ async def test_extracao_livre_confirmacao_de_nome_nunca_pula() -> None:
 
 async def test_extracao_livre_rg_pre_preenchido_que_falha_entra_no_retry() -> None:
     r = await _fluxo().iniciar({"temProcesso": False, "rg": "000000000"})
-    assert re.search("tentativa 1 de 3", texto(r))
+    assert re.search("tentativa 1 de 2", texto(r))
 
 
 async def test_extracao_livre_rg_pre_preenchido_invalido_e_rejeitado() -> None:
