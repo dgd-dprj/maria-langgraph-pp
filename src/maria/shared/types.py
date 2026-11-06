@@ -72,11 +72,23 @@ class EnderecoDetalhado(TypedDict, total=False):
     idMunicipio: int
 
 
+class TelefoneAssistido(TypedDict, total=False):
+    """Item de `telefonesAssistido` do `GET /pessoa` (só na consulta completa, #433)."""
+
+    numeroTelefone: str
+    inWhatsapp: bool
+    tipo: str
+
+
 class DadosPessoa(TypedDict, total=False):
     encontrado: Required[bool]
     idPessoa: int | None
     nome: str
     nomeSocial: str
+    # Só na consulta completa (`completo=True`, #433): dado de terceiro, nunca em log.
+    dataNascimento: str
+    email: str
+    telefonesAssistido: list[TelefoneAssistido]
     genero: str
     endereco: str
     enderecoDetalhado: EnderecoDetalhado

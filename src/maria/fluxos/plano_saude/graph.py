@@ -35,6 +35,8 @@ from maria.fluxos.plano_saude.api import (
     ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
     ID_MUNICIPIO_RIO,
     MENSAGEM_CONCLUIDO,
+    MENSAGEM_CPF_OUTRA_INVALIDO,
+    MENSAGEM_CPF_OUTRA_NAO_ENCONTRADO,
     MENSAGEM_DADOS_NAO_CONFIRMADOS,
     MENSAGEM_ERRO_INTERNO,
     MENSAGEM_FALHA_ENVIO_EMAIL,
@@ -44,7 +46,6 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_IMAGENS_NAO_ANEXADAS,
     MENSAGEM_IMAGENS_PENDENTES,
     MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
-    MENSAGEM_OUTRA_PESSOA,
     MENSAGEM_RENDA_NAO_ENTENDIDA,
     MENSAGEM_SITUACAO_NAO_INFORMADA,
     TIPOS_IMAGEM,
@@ -59,6 +60,7 @@ from maria.shared.logger import logger
 from maria.shared.respostas import resposta_eh_sim
 from maria.shared.types import OrgaoAtendimento
 
+MAXIMO_TENTATIVAS_CPF_OUTRA = 3
 MAXIMO_TENTATIVAS_IMAGENS = 3
 MAXIMO_TENTATIVAS_SITUACAO = 3
 MAXIMO_TENTATIVAS_RENDA = 3
@@ -67,6 +69,9 @@ MAXIMO_TENTATIVAS_CONFIRMACAO = 3
 RENDA_MAXIMA = 10_000_000
 
 TEXTO_PARA_QUEM = "O atendimento é para você? Responda não se for para outra pessoa."
+TEXTO_CPF_OUTRA = "Qual o CPF da pessoa que será atendida?"
+TEXTO_CPF_OUTRA_INVALIDO = "Não entendi esse CPF. Envie os 11 números do CPF da pessoa que será atendida."
+TEXTO_CPF_OUTRA_NAO_ENCONTRADO = "Não encontrei esse CPF no cadastro. Confira os números e envie de novo o CPF da pessoa que será atendida."
 # Lista provisória de documentos: a definitiva é da #335.
 TEXTO_IMAGEM = {
     "carteirinha_frente": "Envie a foto da frente da carteirinha do plano de saúde.",
@@ -175,8 +180,85 @@ async def pedir_para_quem(state: PlanoSaudeState) -> Atualizacao:
 
 def depois_de_para_quem(state: PlanoSaudeState) -> str:
     if not state.get("paraSi"):
-        return "outraPessoa"
+        return "cpfOutra"
+    return _primeira_etapa_do_pedido(state)
+
+
+def _primeira_etapa_do_pedido(state: PlanoSaudeState) -> str:
+    """Depois de saber para quem é (e, para outra pessoa, de achar o cadastro dela): imagens, situação ou renda."""
     return "imagens" if state.get("imagensRecebidas") is not True else _depois_das_imagens_enviadas(state)
+
+
+def _so_digitos(texto: str) -> str:
+    return re.sub(r"[^0-9]", "", texto)
+
+
+def texto_cpf_outra(state: PlanoSaudeState) -> str:
+    erro = state.get("erroCpfOutra")
+    if erro == "invalido":
+        return TEXTO_CPF_OUTRA_INVALIDO
+    return TEXTO_CPF_OUTRA_NAO_ENCONTRADO if erro == "nao_encontrado" else TEXTO_CPF_OUTRA
+
+
+async def preparar_pergunta_cpf_outra(state: PlanoSaudeState) -> Atualizacao:
+    return dict(await preparar_pergunta("cpfOutra", texto_cpf_outra(state)))
+
+
+async def pedir_cpf_outra(state: PlanoSaudeState) -> Atualizacao:
+    resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_cpf_outra(state), "tipo": "texto"})
+    cpf = _so_digitos(resposta)
+    if len(cpf) == 11:
+        return {"cpfOutraPessoa": cpf, "erroCpfOutra": None}
+    return {"cpfOutraPessoa": None, "erroCpfOutra": "invalido", "tentativasCpfOutra": (state.get("tentativasCpfOutra") or 0) + 1}
+
+
+def depois_do_cpf_outra(state: PlanoSaudeState) -> str:
+    if state.get("cpfOutraPessoa"):
+        return "consultar"
+    return "cpfInvalido" if (state.get("tentativasCpfOutra") or 0) >= MAXIMO_TENTATIVAS_CPF_OUTRA else "cpf"
+
+
+async def cpf_outra_invalido(state: PlanoSaudeState) -> Atualizacao:
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "cpf_outra_pessoa_invalido", "mensagemFinal": MENSAGEM_CPF_OUTRA_INVALIDO}
+
+
+def _dados_da_outra_pessoa(dados: Mapping[str, Any]) -> dict[str, Any]:
+    """Só o que o e-mail ao NUDECON e o resumo usam. Dado de terceiro: nunca em log nem em `metadados`."""
+    telefones = [t for t in (dados.get("telefonesAssistido") or []) if isinstance(t, Mapping) and t.get("numeroTelefone")]
+    whatsapp = next((t for t in telefones if t.get("inWhatsapp") is True), None)
+    return {
+        "nome": _texto(dados.get("nome")),
+        "dataNascimento": _texto(dados.get("dataNascimento")),
+        "email": _texto(dados.get("email")),
+        "telefone": _texto(telefones[0].get("numeroTelefone")) if telefones else "",
+        "whatsapp": _texto(whatsapp.get("numeroTelefone")) if whatsapp else "",
+        "endereco": _texto(dados.get("endereco")),
+    }
+
+
+async def consultar_outra_pessoa(state: PlanoSaudeState) -> Atualizacao:
+    dados = await consultar_pessoa_por_cpf(state.get("cpfOutraPessoa") or "", completo=True)
+    if dados.get("falhaInfra"):
+        return _encerrar_por_municipio("falha_infra_verde", MENSAGEM_FALHA_INFRA_VERDE)
+    if not dados.get("encontrado"):
+        return {"cpfOutraPessoa": None, "erroCpfOutra": "nao_encontrado", "tentativasCpfOutra": (state.get("tentativasCpfOutra") or 0) + 1}
+    return {"dadosOutraPessoa": _dados_da_outra_pessoa(dados), "erroCpfOutra": None}
+
+
+def depois_de_consultar_outra_pessoa(state: PlanoSaudeState) -> str:
+    if state.get("statusFinal"):
+        return "encerrar"
+    if state.get("dadosOutraPessoa"):
+        return _primeira_etapa_do_pedido(state)
+    return "naoEncontrado" if (state.get("tentativasCpfOutra") or 0) >= MAXIMO_TENTATIVAS_CPF_OUTRA else "cpf"
+
+
+async def cpf_outra_nao_encontrado(state: PlanoSaudeState) -> Atualizacao:
+    return {
+        "statusFinal": "handoff_humano",
+        "motivoHandoff": "cpf_outra_pessoa_nao_encontrado",
+        "mensagemFinal": MENSAGEM_CPF_OUTRA_NAO_ENCONTRADO,
+    }
 
 
 def _depois_das_imagens_enviadas(state: PlanoSaudeState) -> str:
@@ -333,17 +415,31 @@ def _reais(valor: float) -> str:
 
 
 def _linhas_resumo(state: PlanoSaudeState) -> list[tuple[str, str]]:
+    """Os dados do resumo e do e-mail ao NUDECON. Para outra pessoa (#433), são os dela, vindos do Verde, no lugar
+    dos de quem pede; campo que o Verde não trouxe fica vazio ("não informado"), sem cair nos dados de quem pede."""
     renda = state.get("renda")
-    return [
-        ("Nome", _texto(state.get("nome"))),
-        ("CPF", _texto(state.get("cpf"))),
-        ("Data de nascimento", _texto(state.get("dataNascimento"))),
-        ("E-mail", _texto(state.get("email"))),
-        ("Telefone", _texto(state.get("telefone"))),
-        ("Endereço", _endereco(state.get("endereco"))),
-        ("Situação", _texto(state.get("relato"))),
-        ("Renda mensal", _reais(renda) if renda is not None else ""),
-    ]
+    outra = state.get("dadosOutraPessoa")
+    if outra:
+        pessoa = [
+            ("Atendimento para", "outra pessoa (dados do cadastro do Verde)"),
+            ("Nome", _texto(outra.get("nome"))),
+            ("CPF", _texto(state.get("cpfOutraPessoa"))),
+            ("Data de nascimento", _texto(outra.get("dataNascimento"))),
+            ("E-mail", _texto(outra.get("email"))),
+            ("Telefone", _texto(outra.get("telefone"))),
+            ("WhatsApp", _texto(outra.get("whatsapp"))),
+            ("Endereço", _texto(outra.get("endereco"))),
+        ]
+    else:
+        pessoa = [
+            ("Nome", _texto(state.get("nome"))),
+            ("CPF", _texto(state.get("cpf"))),
+            ("Data de nascimento", _texto(state.get("dataNascimento"))),
+            ("E-mail", _texto(state.get("email"))),
+            ("Telefone", _texto(state.get("telefone"))),
+            ("Endereço", _endereco(state.get("endereco"))),
+        ]
+    return [*pessoa, ("Situação", _texto(state.get("relato"))), ("Renda mensal", _reais(renda) if renda is not None else "")]
 
 
 def montar_resumo(state: PlanoSaudeState) -> str:
@@ -373,10 +469,6 @@ def depois_da_confirmacao(state: PlanoSaudeState) -> str:
 
 async def nao_confirmado(state: PlanoSaudeState) -> Atualizacao:
     return {"statusFinal": "handoff_humano", "motivoHandoff": "dados_nao_confirmados", "mensagemFinal": MENSAGEM_DADOS_NAO_CONFIRMADOS}
-
-
-async def outra_pessoa(state: PlanoSaudeState) -> Atualizacao:
-    return {"statusFinal": "handoff_humano", "motivoHandoff": "outra_pessoa", "mensagemFinal": MENSAGEM_OUTRA_PESSOA}
 
 
 async def concluir(state: PlanoSaudeState) -> Atualizacao:
@@ -437,7 +529,11 @@ _construtor = StateGraph(PlanoSaudeState)
 _construtor.add_node("verificarMunicipio", _protegido(verificar_municipio))
 _construtor.add_node("prepararPerguntaParaQuem", _protegido(preparar_pergunta_para_quem))
 _construtor.add_node("pedirParaQuem", _protegido(pedir_para_quem))
-_construtor.add_node("outraPessoa", _protegido(outra_pessoa))
+_construtor.add_node("prepararPerguntaCpfOutra", _protegido(preparar_pergunta_cpf_outra))
+_construtor.add_node("pedirCpfOutra", _protegido(pedir_cpf_outra))
+_construtor.add_node("cpfOutraInvalido", _protegido(cpf_outra_invalido))
+_construtor.add_node("consultarOutraPessoa", _protegido(consultar_outra_pessoa))
+_construtor.add_node("cpfOutraNaoEncontrado", _protegido(cpf_outra_nao_encontrado))
 _construtor.add_node("prepararPerguntaImagens", _protegido(preparar_pergunta_imagens))
 _construtor.add_node("pedirImagens", _protegido(pedir_imagens))
 _construtor.add_node("imagensPendentes", _protegido(imagens_pendentes))
@@ -461,7 +557,25 @@ _condicional(
         "imagens": "prepararPerguntaImagens",
         "situacao": "prepararPerguntaSituacao",
         "renda": "prepararPerguntaRenda",
-        "outraPessoa": "outraPessoa",
+        "cpfOutra": "prepararPerguntaCpfOutra",
+    },
+)
+_seguir("prepararPerguntaCpfOutra", "pedirCpfOutra")
+_condicional(
+    "pedirCpfOutra",
+    depois_do_cpf_outra,
+    {"consultar": "consultarOutraPessoa", "cpf": "prepararPerguntaCpfOutra", "cpfInvalido": "cpfOutraInvalido"},
+)
+_condicional(
+    "consultarOutraPessoa",
+    depois_de_consultar_outra_pessoa,
+    {
+        "imagens": "prepararPerguntaImagens",
+        "situacao": "prepararPerguntaSituacao",
+        "renda": "prepararPerguntaRenda",
+        "cpf": "prepararPerguntaCpfOutra",
+        "naoEncontrado": "cpfOutraNaoEncontrado",
+        "encerrar": END,
     },
 )
 _seguir("prepararPerguntaImagens", "pedirImagens")
@@ -494,7 +608,8 @@ _condicional(
     {"concluir": "concluir", "renda": "prepararPerguntaRenda", "naoConfirmado": "naoConfirmado"},
 )
 for _fim in (
-    "outraPessoa",
+    "cpfOutraInvalido",
+    "cpfOutraNaoEncontrado",
     "imagensPendentes",
     "situacaoNaoInformada",
     "rendaNaoEntendida",
