@@ -21,7 +21,8 @@ from langgraph.types import Command
 from maria.api import esquemas
 from maria.api.atendimentos import criar_atendimento, extrair_interrupt
 from maria.api.pipeline import Contexto, Resposta, Rota
-from maria.fluxos import buscar_fluxo
+from maria.fluxos import ID_PESSOA_PRESA, buscar_fluxo
+from maria.fluxos.pessoa_presa.parentesco import parentesco_do_relato
 from maria.fluxos.tipos_tykhe import TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
 from maria.orquestrador.fila import texto_comecando
 from maria.orquestrador.graph import obter_grafo
@@ -190,17 +191,24 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     dados = dict(corpo.get("dadosConhecidos") or {})
     dados["tokensGastos"] = _js.coalesce(tokens_conversa, {"input": 0, "output": 0, "total": 0})
     fila = resultado.get("fila") or []
+    relato = _js.texto_template(resultado.get("mensagem", "")).strip()
+    # #435: com vários assuntos, o fluxo recebe só o trecho do assunto dele, e não o relato
+    # inteiro (achado do teste de 06/11: a "Situação" do e-mail ao NUDECON levava a pessoa presa junto).
+    trecho = fila[0].get("evidencia", "").strip() if len(fila) >= 2 else ""
+    if trecho:
+        relato = trecho
     if fluxo.usa_relato:
         # #334: o relato só vem da triagem, num canal próprio; um `relato` em dadosConhecidos (da Tykhe) não vale.
         dados.pop("relato", None)
-        relato = _js.texto_template(resultado.get("mensagem", "")).strip()
-        # #435: com vários assuntos, o fluxo recebe só o trecho do assunto dele, e não o relato
-        # inteiro (achado do teste de 06/11: a "Situação" do e-mail ao NUDECON levava a pessoa presa junto).
-        trecho = fila[0].get("evidencia", "").strip() if len(fila) >= 2 else ""
-        if trecho:
-            relato = trecho
         if relato:
             dados["relato"] = relato
+    if flow_id == ID_PESSOA_PRESA and "parentesco" not in dados:
+        # #438: "meu primo foi preso" já diz o parentesco; com ele, o fluxo não pergunta de novo.
+        # Pelas palavras, sem IA; na dúvida, None, e o fluxo pergunta como antes.
+        parentesco = parentesco_do_relato(relato)
+        if parentesco is not None:
+            dados["parentesco"] = parentesco
+            ctx.log.info("orquestrador: parentesco lido no relato", chatId=chat_id, evento="parentesco_do_relato", flowId=flow_id)
     # viaOrquestrador como parâmetro, nunca dentro de dadosConhecidos (#191).
     resposta_fluxo = await criar_atendimento(fluxo, flow_id, chat_id, dados, ctx.log, via_orquestrador=True)
     if isinstance(resposta_fluxo.corpo, dict) and resposta_fluxo.status == 200:
