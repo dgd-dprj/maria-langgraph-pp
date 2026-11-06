@@ -14,7 +14,7 @@ Regra de 2026-10-27 (Nicole, #357), para as issues abertas e para as que vierem.
 
 ## Regras gerais
 
-- Destino padrão: `develop` (`hotfix/*` → `main`).
+- Destino padrão: `develop`. Para `staging`, só da `develop`; para `main`, só da `staging` (#427).
 - Um PR = uma issue de código, pequeno e focado. Issues só de texto podem ir junto (`Closes #N` de cada uma).
 - Idioma: pt-BR (título e corpo).
 - CI passando antes do merge; apagar branch depois.
