@@ -154,19 +154,19 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
   - **pelo id do fluxo,** `84433c84-4776-4b05-a5a0-af8012d8eced`, que precisa estar configurado no fluxo de teste da Tykhe. Confirme com a Nicole antes.
 - **O endereço vem da Tykhe** (o CEP em `dadosConhecidos`). Antes da primeira pergunta, a Maria confere no Verde se o município é o Rio.
 - **As perguntas,** nesta ordem:
-  1. como prefere seguir: por aqui, por e-mail ou presencialmente;
-  2. se o atendimento é para você;
-  3. as fotos da carteirinha do plano, frente e verso;
-  4. o que o plano negou ou deixou de fazer, se o relato não veio;
-  5. a renda mensal;
-  6. a confirmação dos dados.
+  1. se o atendimento é para você;
+  2. as fotos da carteirinha do plano, frente e verso;
+  3. o que o plano negou ou deixou de fazer, se o relato não veio;
+  4. a renda mensal;
+  5. a confirmação dos dados.
+
+  (Desde 2026-11-06, #430, a pergunta "como prefere seguir: por aqui, por e-mail ou presencialmente" saiu do fluxo: no Rio tudo segue por e-mail ao NUDECON.)
 
 **Esperado:**
 
 | Caminho | Mensagem final |
 |---|---|
-| Por aqui, para você, com as fotos, tudo confirmado | "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você." |
-| Presencialmente | O horário do NUDECON e o encaminhamento para a equipe |
+| Para você, com as fotos, tudo confirmado | "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você." |
 | Para outra pessoa | "Entendi que o atendimento é para outra pessoa. Por enquanto não consigo seguir com esse caso por aqui…" |
 | CEP fora do município do Rio | O nome, o endereço e o horário da unidade a procurar; sem a unidade, o encaminhamento para a equipe |
 

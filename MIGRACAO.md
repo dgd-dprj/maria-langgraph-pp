@@ -999,7 +999,7 @@ Duas coisas diferentes:
 ## Plano de saúde: escolha direta e e-mail do assistido (decidido em 2026-11-05 e 2026-11-06)
 
 - **Escolha direta (#419, decisão do Ícaro, 2026-11-05):** quando os candidatos são só o plano de saúde e `tykhe:saude`, o orquestrador entra direto no fluxo do plano, sem pergunta. Só no release. Risco aceito: cirurgia pelo SUS que a IA deixar ambígua entra no fluxo do plano. Revisada pela Nicole em 2026-11-06.
-- **E-mail com erro no canal e-mail (#425, decisão da Nicole, 2026-11-06):** conferência do formato e dos erros comuns, sem internet; 3 tentativas; motivo `email_invalido`. **Fica para o futuro:** o Ícaro informou que a Tykhe já cuida do e-mail por enquanto. A implementação está numa branch local.
+- **E-mail com erro no canal e-mail (#425, decisão da Nicole, 2026-11-06):** conferência do formato e dos erros comuns, sem internet; 3 tentativas; motivo `email_invalido`. **Fica para o futuro:** o Ícaro informou que a Tykhe já cuida do e-mail por enquanto, e a issue foi fechada como não planejada no mesmo dia. A implementação está numa branch local. Com a #430 (PR #432), a pergunta do canal saiu do fluxo e tudo no Rio segue por e-mail ao NUDECON. Se a #425 voltar, a pergunta do e-mail precisa de outro ponto de entrada.
 - **Troca de e-mail e telefone gravada no Verde (#426, decisão da Nicole, 2026-11-06):** só com o CPF vindo da Tykhe; recusa ou falha do Verde vai para o atendimento humano; vale para violência doméstica, pessoa presa (o familiar troca o próprio contato) e plano de saúde.
 - **Registro:** [#208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6687566660).
 

@@ -36,7 +36,7 @@ DESCRICOES_RESPOSTA: dict[str, Schema] = {
             "Só em atendimento encerrado: para onde a pessoa vai. `atendimento_humano` (acompanha `handoff_humano`), "
             "`agendamento` (violência doméstica concluída), "
             "`email_enviado` (plano de saúde concluído no Rio, por e-mail), "
-            "`unidade_informada` (plano de saúde presencial ou fora do Rio) ou `sessao_expirada`. "
+            "`unidade_informada` (plano de saúde, fora do Rio com a unidade que ele deve procurar) ou `sessao_expirada`. "
             "Ausente quando o fluxo concluído não tem destino definido."
         )
     },
