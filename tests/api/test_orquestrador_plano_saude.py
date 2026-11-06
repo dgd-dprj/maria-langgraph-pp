@@ -170,4 +170,6 @@ async def test_h4_release_relato_ambiguo_entre_plano_e_saude_segue_direto_no_flu
     assert r.status_code == 200
     assert r.json()["status"] == "em_andamento"
     assert r.json()["flowId"] == ID_PROBLEMAS_PLANO_SAUDE
-    assert r.json()["tipoResposta"] == "texto"  # a 1ª pergunta do fluxo, o canal
+    assert r.json()["tipoResposta"] == "sim_nao"  # a 1ª pergunta do fluxo: para quem é o atendimento (#430)
+    assert r.json()["opcoes"] == ["Sim", "Não"]
+    assert "para você" in r.json()["resposta"]

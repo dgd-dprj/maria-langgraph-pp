@@ -10,9 +10,6 @@ from collections.abc import Mapping
 from typing import Any
 from urllib.parse import urlsplit
 
-# Rascunho do time, não validado pelo NUDECON (#329, #335).
-HORARIO_NUDECON = "de segunda a sexta, das 11h às 16h"
-
 # `municipio.id` que o `GET /cep` do Verde devolve para o Rio de Janeiro (informado pelo Ícaro em 2026-10-28).
 ID_MUNICIPIO_RIO = 3643
 # Provisório (decisão do Ícaro em 2026-10-28): assunto qualquer só para o Verde indicar a unidade de quem mora fora do Rio.
@@ -50,7 +47,7 @@ def url_imagem_valida(texto: str) -> str | None:
 
 def extrair_metadados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:
     metadados: dict[str, Any] = {}
-    for chave in ("canal", "paraSi", "relato", "renda", "foraDoRio", "motivoHandoff"):
+    for chave in ("paraSi", "relato", "renda", "foraDoRio", "motivoHandoff"):
         valor = values.get(chave)
         if valor is not None:
             metadados[chave] = valor
@@ -67,14 +64,6 @@ MENSAGEM_DADOS_NAO_CONFIRMADOS = "Não consegui confirmar seus dados. Vou encami
 MENSAGEM_OUTRA_PESSOA = (
     "Entendi que o atendimento é para outra pessoa. Por enquanto não consigo seguir com esse caso por aqui. "
     "Vou encaminhar seu atendimento para a equipe dar continuidade."
-)
-# Provisório: o endereço do atendimento presencial depende da #335.
-MENSAGEM_PRESENCIAL = (
-    f"Entendi que você prefere o atendimento presencial. O NUDECON atende {HORARIO_NUDECON}. "
-    "Em breve te passo o endereço; por enquanto, vou encaminhar seu atendimento para a equipe dar continuidade."
-)
-MENSAGEM_CANAL_NAO_ENTENDIDO = (
-    "Não consegui entender como você prefere seguir. Vou encaminhar seu atendimento para a equipe dar continuidade."
 )
 # Provisório: a orientação de qual unidade procurar fora do Rio é da #331.
 MENSAGEM_FORA_DO_RIO = (

@@ -170,7 +170,7 @@ def no_release(cliente: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.usefixtures("no_release")
-async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+async def test_plano_saude_primeira_pergunta_e_para_quem_sem_a_pergunta_do_canal(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
     r = await cliente.post(
         "/atendimentos",
         json={"chatId": f"teste-ps-http-{next(_ids)}", "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": PLANO_SAUDE_COM_CEP},
@@ -179,8 +179,10 @@ async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClien
     corpo = r.json()
     assert r.status_code == 200
     assert corpo["status"] == "em_andamento"
-    assert corpo["tipoResposta"] == "texto"
-    assert "das 11h às 16h" in corpo["resposta"]
+    assert corpo["tipoResposta"] == "sim_nao"  # #430: a pergunta do canal saiu do fluxo
+    assert corpo["opcoes"] == ["Sim", "Não"]
+    assert "para você" in corpo["resposta"]
+    assert "canal" not in corpo["metadados"]
 
 
 @pytest.mark.usefixtures("no_release")
@@ -191,7 +193,6 @@ async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: ht
         json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": PLANO_SAUDE_COM_CEP},
         headers=auth,
     )
-    await _responder(cliente, auth, chat_id, "por aqui")
     r = await _responder(cliente, auth, chat_id, "false")
     corpo = r.json()
     assert r.status_code == 200
@@ -228,7 +229,6 @@ async def test_plano_saude_imagens_por_link_do_pedido_a_resposta_final_398(
     await cliente.post(
         "/atendimentos", json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": dados}, headers=auth
     )
-    await _responder(cliente, auth, chat_id, "por aqui")
     r = await _responder(cliente, auth, chat_id, "true")
     assert r.json()["tipoResposta"] == "link_imagem"
     assert r.json()["tipoImagem"] == "carteirinha_frente"

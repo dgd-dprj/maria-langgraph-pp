@@ -1,9 +1,10 @@
 """Fluxo Problemas com plano de saúde (NUDECON, issue #329).
 
-Conversa: canal ("aqui", e-mail ou presencial), "para quem", imagens dos
-documentos, situação (só quando o relato não veio), renda e confirmação do resumo. Presencial encerra com a orientação;
-"outra pessoa" encerra com o texto provisório e `atendimento_humano` (coleta dos
-dados dela: #347). Falta o encaminhamento ao NUDECON pelo Verde (#265, #345).
+Conversa: "para quem", imagens dos documentos, situação (só quando o relato não veio),
+renda e confirmação do resumo, e então o e-mail ao NUDECON (#345, #405). A pergunta do canal
+(aqui, e-mail ou presencial) saiu do fluxo por enquanto (#430): no Rio tudo segue por e-mail.
+"Outra pessoa" encerra com o texto provisório e `atendimento_humano` (coleta dos
+dados dela: #347).
 
 Antes da primeira pergunta, o fluxo confere no Verde (`GET /cep` com `endereco.cep`)
 se o município é o Rio. Fora do Rio, conclui com a unidade que o Verde indica para a
@@ -14,9 +15,6 @@ Premissas desta etapa, a confirmar: a Tykhe coleta as imagens e avisa com
 `imagensRecebidas` em `dadosConhecidos` (#336); sem o aviso, a Maria pergunta se
 a pessoa já enviou. O relato chega do orquestrador no canal
 `relato` (#334, entregue pela rota quando `FluxoConfig.usa_relato`); sem ele, a Maria pergunta a situação.
-
-A pergunta do canal é de texto, com as opções escritas na própria pergunta: o
-tipo `opcoes` ainda está por confirmar com a Tykhe (#336).
 """
 
 from __future__ import annotations
@@ -33,11 +31,9 @@ from langgraph.types import interrupt
 
 from maria.fluxos._fabrica import FabricaGrafo, GrafoCompilado
 from maria.fluxos.plano_saude.api import (
-    HORARIO_NUDECON,
     HORARIO_UNIDADE_PADRAO,
     ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
     ID_MUNICIPIO_RIO,
-    MENSAGEM_CANAL_NAO_ENTENDIDO,
     MENSAGEM_CONCLUIDO,
     MENSAGEM_DADOS_NAO_CONFIRMADOS,
     MENSAGEM_ERRO_INTERNO,
@@ -49,13 +45,12 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_IMAGENS_PENDENTES,
     MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
     MENSAGEM_OUTRA_PESSOA,
-    MENSAGEM_PRESENCIAL,
     MENSAGEM_RENDA_NAO_ENTENDIDA,
     MENSAGEM_SITUACAO_NAO_INFORMADA,
     TIPOS_IMAGEM,
     url_imagem_valida,
 )
-from maria.fluxos.plano_saude.state import CanalAtendimento, MotivoHandoffPlanoSaude, PlanoSaudeState
+from maria.fluxos.plano_saude.state import MotivoHandoffPlanoSaude, PlanoSaudeState
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.email_nudecon import enviar_email_nudecon, protocolo_do_atendimento
 from maria.integracoes.verde import consultar_cep, consultar_orgaos_primeiro_atendimento, consultar_pessoa_por_cpf
@@ -64,7 +59,6 @@ from maria.shared.logger import logger
 from maria.shared.respostas import resposta_eh_sim
 from maria.shared.types import OrgaoAtendimento
 
-MAXIMO_TENTATIVAS_CANAL = 3
 MAXIMO_TENTATIVAS_IMAGENS = 3
 MAXIMO_TENTATIVAS_SITUACAO = 3
 MAXIMO_TENTATIVAS_RENDA = 3
@@ -72,8 +66,6 @@ PALAVRAS_MINIMAS_SITUACAO = 3
 MAXIMO_TENTATIVAS_CONFIRMACAO = 3
 RENDA_MAXIMA = 10_000_000
 
-TEXTO_CANAL = f"O NUDECON atende {HORARIO_NUDECON}. Como você prefere seguir o atendimento: por aqui, por e-mail ou presencialmente?"
-TEXTO_CANAL_NOVAMENTE = "Não entendi. Você prefere seguir por aqui, por e-mail ou presencialmente?"
 TEXTO_PARA_QUEM = "O atendimento é para você? Responda não se for para outra pessoa."
 # Lista provisória de documentos: a definitiva é da #335.
 TEXTO_IMAGEM = {
@@ -169,56 +161,7 @@ def _encerrar_por_municipio(motivo: MotivoHandoffPlanoSaude, mensagem: str) -> A
 
 
 def depois_do_municipio(state: PlanoSaudeState) -> str:
-    return "encerrar" if state.get("statusFinal") else "canal"
-
-
-def interpretar_canal(resposta: str) -> CanalAtendimento | None:
-    """O canal escolhido na resposta livre, ou `None` quando não dá para saber.
-    Mais de um canal citado também é `None`: a pessoa precisa escolher um."""
-    texto = _sem_acento(resposta)
-    achados: set[CanalAtendimento] = set()
-    if re.search(r"presenc|pessoalmente|ir ate|na sede|no local", texto):
-        achados.add("presencial")
-    if re.search(r"e-?mail|correio eletronico", texto):
-        achados.add("email")
-    if re.search(r"\baqui\b|whats|zap|mensagem|conversa|chat", texto):
-        achados.add("aqui")
-    return next(iter(achados)) if len(achados) == 1 else None
-
-
-def texto_canal(state: PlanoSaudeState) -> str:
-    return TEXTO_CANAL if not state.get("tentativasCanal") else TEXTO_CANAL_NOVAMENTE
-
-
-async def preparar_pergunta_canal(state: PlanoSaudeState) -> Atualizacao:
-    return dict(await preparar_pergunta("canal", texto_canal(state)))
-
-
-async def pedir_canal(state: PlanoSaudeState) -> Atualizacao:
-    resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_canal(state), "tipo": "texto"})
-    canal = interpretar_canal(resposta)
-    if canal is not None:
-        return {"canal": canal}
-    return {"canal": None, "tentativasCanal": (state.get("tentativasCanal") or 0) + 1}
-
-
-def depois_do_canal(state: PlanoSaudeState) -> str:
-    canal = state.get("canal")
-    if canal == "presencial":
-        return "presencial"
-    if canal is not None:
-        return "paraQuem"
-    if (state.get("tentativasCanal") or 0) >= MAXIMO_TENTATIVAS_CANAL:
-        return "canalNaoEntendido"
-    return "canal"
-
-
-async def presencial(state: PlanoSaudeState) -> Atualizacao:
-    return {"statusFinal": "concluido", "destino": "unidade_informada", "mensagemFinal": MENSAGEM_PRESENCIAL}
-
-
-async def canal_nao_entendido(state: PlanoSaudeState) -> Atualizacao:
-    return {"statusFinal": "handoff_humano", "motivoHandoff": "canal_nao_entendido", "mensagemFinal": MENSAGEM_CANAL_NAO_ENTENDIDO}
+    return "encerrar" if state.get("statusFinal") else "paraQuem"
 
 
 async def preparar_pergunta_para_quem(state: PlanoSaudeState) -> Atualizacao:
@@ -492,10 +435,6 @@ def _condicional(origem: str, roteador: Callable[[PlanoSaudeState], str], destin
 
 _construtor = StateGraph(PlanoSaudeState)
 _construtor.add_node("verificarMunicipio", _protegido(verificar_municipio))
-_construtor.add_node("prepararPerguntaCanal", _protegido(preparar_pergunta_canal))
-_construtor.add_node("pedirCanal", _protegido(pedir_canal))
-_construtor.add_node("presencial", _protegido(presencial))
-_construtor.add_node("canalNaoEntendido", _protegido(canal_nao_entendido))
 _construtor.add_node("prepararPerguntaParaQuem", _protegido(preparar_pergunta_para_quem))
 _construtor.add_node("pedirParaQuem", _protegido(pedir_para_quem))
 _construtor.add_node("outraPessoa", _protegido(outra_pessoa))
@@ -513,18 +452,7 @@ _construtor.add_node("pedirConfirmacao", _protegido(pedir_confirmacao))
 _construtor.add_node("naoConfirmado", _protegido(nao_confirmado))
 _construtor.add_node("concluir", _protegido(concluir))
 _construtor.add_edge(START, "verificarMunicipio")
-_condicional("verificarMunicipio", depois_do_municipio, {"canal": "prepararPerguntaCanal", "encerrar": END})
-_seguir("prepararPerguntaCanal", "pedirCanal")
-_condicional(
-    "pedirCanal",
-    depois_do_canal,
-    {
-        "presencial": "presencial",
-        "paraQuem": "prepararPerguntaParaQuem",
-        "canalNaoEntendido": "canalNaoEntendido",
-        "canal": "prepararPerguntaCanal",
-    },
-)
+_condicional("verificarMunicipio", depois_do_municipio, {"paraQuem": "prepararPerguntaParaQuem", "encerrar": END})
 _seguir("prepararPerguntaParaQuem", "pedirParaQuem")
 _condicional(
     "pedirParaQuem",
@@ -566,8 +494,6 @@ _condicional(
     {"concluir": "concluir", "renda": "prepararPerguntaRenda", "naoConfirmado": "naoConfirmado"},
 )
 for _fim in (
-    "presencial",
-    "canalNaoEntendido",
     "outraPessoa",
     "imagensPendentes",
     "situacaoNaoInformada",
