@@ -41,6 +41,7 @@ from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_ap
 from maria.integracoes.verde import consultar_processo_com_status as consultar_processo_verde
 from maria.shared import _js
 from maria.shared.nomes import nome_mascarado
+from maria.shared.parentesco import MAE_OU_PAI_DELA, MAE_OU_PAI_DELE, OPCOES_MAE_PAI, ler_resposta_parentesco, texto_mae_ou_pai
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.cadastro_pessoa.graph import grafo as subgrafo_cadastro_pessoa
 from maria.subgrafos.identificar_assistido.graph import grafo as subgrafo_identificar_assistido
@@ -89,6 +90,8 @@ PARENTESCOS_PERMITIDOS = [
     "Avô/Avó",
     "Cunhado(a)",
     "Sogro(a)",
+    # #438 (decisão da Nicole, 2026-11-06): "meu avô foi preso" também é parentesco.
+    "Neto(a)",
     "Outro",
 ]
 
@@ -338,7 +341,8 @@ async def pedir_confirma_nome(state: PessoaPresaState) -> Atualizacao:
 async def preparar_pergunta_parentesco(state: PessoaPresaState) -> Atualizacao:
     if "parentesco" in state:
         return {}
-    return dict(await preparar_pergunta("parentesco", TEXTO_PARENTESCO))
+    # #438: com "meu filho" no relato, "Você é a mãe ou o pai dele?"; com dois parentes, qual deles.
+    return dict(await preparar_pergunta("parentesco", state.get("perguntaParentesco") or TEXTO_PARENTESCO))
 
 
 class ResultadoClassificarParentesco(TypedDict, total=False):
@@ -365,6 +369,15 @@ async def pedir_parentesco(state: PessoaPresaState) -> Atualizacao:
     if "parentesco" in state:
         return {}
     resposta: str = interrupt({"pergunta": _js.coalesce(state.get("perguntaAtualTexto"), TEXTO_PARENTESCO), "tipo": "texto"})
+    opcoes = state.get("opcoesParentesco")
+    if opcoes:
+        # #438: a resposta à pergunta curta é lida pelas palavras ("o primo", "sou a mãe").
+        escolhido = ler_resposta_parentesco(resposta, opcoes)
+        if escolhido in (MAE_OU_PAI_DELE, MAE_OU_PAI_DELA):
+            # Escolheu o filho ou a filha: falta só saber se é a mãe ou o pai (volta à pergunta).
+            return {"perguntaParentesco": texto_mae_ou_pai(escolhido), "opcoesParentesco": dict(OPCOES_MAE_PAI)}
+        if escolhido in PARENTESCOS_PERMITIDOS:
+            return {"parentesco": escolhido, "opcoesParentesco": None}
     classificado = await classificar_parentesco(resposta)
     return {
         "parentesco": classificado["parentesco"],
@@ -414,6 +427,9 @@ def depois_de_confirmar_nome(state: PessoaPresaState) -> str:
 
 
 def depois_de_parentesco(state: PessoaPresaState) -> str:
+    if "parentesco" not in state:
+        # #438: escolheu o filho na pergunta de "qual deles": pergunta se é a mãe ou o pai.
+        return "perguntarDeNovo"
     return "identificar" if _js.verdadeiro(_ler(state, "viaOrquestrador")) else "concluir"
 
 
@@ -509,7 +525,11 @@ _construtor.add_conditional_edges(
     "pedirConfirmaNome", depois_de_confirmar_nome, {"concluir": "prepararPerguntaParentesco", "naoConfirmado": "naoConfirmado"}
 )
 _construtor.add_edge("prepararPerguntaParentesco", "pedirParentesco")
-_construtor.add_conditional_edges("pedirParentesco", depois_de_parentesco, {"identificar": "identificarAssistido", "concluir": "concluir"})
+_construtor.add_conditional_edges(
+    "pedirParentesco",
+    depois_de_parentesco,
+    {"identificar": "identificarAssistido", "concluir": "concluir", "perguntarDeNovo": "prepararPerguntaParentesco"},
+)
 _construtor.add_conditional_edges(
     "identificarAssistido",
     depois_de_identificar_assistido,

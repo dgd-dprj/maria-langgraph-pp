@@ -18,12 +18,13 @@ from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, fluxos_por_i
 BASE = "/atendimentos/orquestrador"
 # O CEP faz o fluxo do plano seguir para a 1ª pergunta (o Verde simulado devolve o Rio).
 DADOS_NO_RIO = {"endereco": {"cep": "20000000"}}
-TRECHO_PLANO = "o plano negou a cirurgia da minha mãe"
+# Sem dizer de quem é a cirurgia: o fluxo do plano pergunta "para você?" (#438 leria "da minha mãe").
+TRECHO_PLANO = "o plano negou a cirurgia"
 NECESSIDADES = [
     {"id": ID_PESSOA_PRESA, "evidencia": "meu irmão está preso"},
     {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": TRECHO_PLANO, "urgente": True},
 ]
-RELATO = "meu irmão está preso e o plano negou a cirurgia da minha mãe"
+RELATO = "meu irmão está preso e o plano negou a cirurgia"
 PENDENTE_PP = {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA}
 
 _ids = count(1)

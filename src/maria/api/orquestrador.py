@@ -21,13 +21,13 @@ from langgraph.types import Command
 from maria.api import esquemas
 from maria.api.atendimentos import criar_atendimento, extrair_interrupt
 from maria.api.pipeline import Contexto, Resposta, Rota
-from maria.fluxos import ID_PESSOA_PRESA, buscar_fluxo
-from maria.fluxos.pessoa_presa.parentesco import parentesco_do_relato
+from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, buscar_fluxo
 from maria.fluxos.tipos_tykhe import TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
 from maria.orquestrador.fila import texto_comecando
 from maria.orquestrador.graph import obter_grafo
 from maria.shared import _js
 from maria.shared._js import AUSENTE
+from maria.shared.parentesco import atendimento_para_si, fala_como_vitima, quem_esta_preso
 
 MENSAGEM_NAO_IDENTIFICADO = (
     "Não consegui identificar como te ajudar a partir do que você escreveu. "
@@ -202,13 +202,9 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
         dados.pop("relato", None)
         if relato:
             dados["relato"] = relato
-    if flow_id == ID_PESSOA_PRESA and "parentesco" not in dados:
-        # #438: "meu primo foi preso" já diz o parentesco; com ele, o fluxo não pergunta de novo.
-        # Pelas palavras, sem IA; na dúvida, None, e o fluxo pergunta como antes.
-        parentesco = parentesco_do_relato(relato)
-        if parentesco is not None:
-            dados["parentesco"] = parentesco
-            ctx.log.info("orquestrador: parentesco lido no relato", chatId=chat_id, evento="parentesco_do_relato", flowId=flow_id)
+    # #438: o que o relato já diz entra nos dados do fluxo. Sem log próprio: os logs gravados de develop
+    # (fixtures de contrato) seguem iguais, e o efeito aparece nas perguntas que o fluxo deixa de fazer.
+    dados.update(_ler_do_relato(flow_id, relato, dados))
     # viaOrquestrador como parâmetro, nunca dentro de dadosConhecidos (#191).
     resposta_fluxo = await criar_atendimento(fluxo, flow_id, chat_id, dados, ctx.log, via_orquestrador=True)
     if isinstance(resposta_fluxo.corpo, dict) and resposta_fluxo.status == 200:
@@ -217,6 +213,20 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
         if resultado.get("ordemPerguntada") and fila and isinstance(texto, str):
             resposta_fluxo.corpo["resposta"] = f"{texto_comecando(fila[0])}\n\n{texto}"
     return resposta_fluxo
+
+
+def _ler_do_relato(flow_id: str, relato: str, dados: dict[str, Any]) -> dict[str, Any]:
+    """#438: o que o relato já diz, pelas palavras, sem IA, para o fluxo não perguntar de novo.
+
+    Nunca troca o que a Tykhe já mandou em `dadosConhecidos`. Na dúvida, nada: o fluxo pergunta."""
+    if flow_id == ID_PESSOA_PRESA and "parentesco" not in dados:
+        return dict(quem_esta_preso(relato))
+    if flow_id == ID_PROBLEMAS_PLANO_SAUDE and "paraSi" not in dados:
+        para_si = atendimento_para_si(relato)
+        return {} if para_si is None else {"paraSi": para_si, "paraSiPeloRelato": True}
+    if flow_id == ID_VIOLENCIA_DOMESTICA and "ehVitima" not in dados:
+        return {"ehVitima": True, "vitimaPeloRelato": True} if fala_como_vitima(relato) else {}
+    return {}
 
 
 def _com_pendentes(corpo: dict[str, Any], pendentes: list[Any]) -> dict[str, Any]:

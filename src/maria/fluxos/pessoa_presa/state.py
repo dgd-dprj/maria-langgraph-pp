@@ -26,6 +26,10 @@ MotivoHandoffPessoaPresa = Literal[
 
 class PessoaPresaState(TypedDict, total=False):
     parentesco: str | None
+    # #438: a pergunta curta tirada do relato ("Você é a mãe ou o pai dele?", "Sobre qual deles…?") e
+    # as respostas que ela aceita (palavra sem acento -> parentesco). None: a pergunta de sempre.
+    perguntaParentesco: str | None
+    opcoesParentesco: dict[str, str] | None
     temProcesso: bool | None
     numeroProcesso: str | None
     dadosProcesso: DadosProcesso | None
