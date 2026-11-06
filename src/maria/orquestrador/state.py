@@ -57,3 +57,7 @@ class OrquestradorState(TypedDict, total=False):
     ordemPerguntada: bool | None
     # Os assuntos da fila depois do primeiro, para a Tykhe seguir com eles (campo `assuntosPendentes`).
     assuntosPendentes: list[AssuntoPendente] | None
+    # #442: os `dadosConhecidos` da 1ª chamada. A resposta à desambiguação ou à ordem volta só com
+    # `{ chatId, resposta }`, e sem isto o fluxo aberto depois começava sem os dados da pessoa. Dado
+    # pessoal: fica no checkpoint, como nos fluxos, e nunca vai para log.
+    dadosConhecidos: dict[str, Any] | None

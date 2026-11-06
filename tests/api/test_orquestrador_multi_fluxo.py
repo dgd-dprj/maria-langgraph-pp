@@ -25,7 +25,7 @@ NECESSIDADES = [
     {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": TRECHO_PLANO, "urgente": True},
 ]
 RELATO = "meu irmão está preso e o plano negou a cirurgia"
-PENDENTE_PP = {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA}
+PENDENTE_PP = {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA, "dadosConhecidos": {"parentesco": "Irmão(a)"}}
 
 _ids = count(1)
 
@@ -132,3 +132,51 @@ async def test_producao_nao_tem_multi_fluxo(cliente: httpx.AsyncClient, auth: di
     assert corpo["flowId"] == ID_PESSOA_PRESA
     assert "assuntosPendentes" not in corpo
     assert corpo["tipoResposta"] != "sim_nao" or "Pode ser assim?" not in corpo["resposta"]
+
+
+async def test_release_o_que_a_pessoa_ja_disse_segue_para_o_proximo_assunto(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """#442: "meu sobrinho foi preso" no 1º relato; quando a Tykhe abre a pessoa presa depois, com o
+    `dadosConhecidos` do item pendente, a Maria não pergunta o parentesco nem o CPF de novo."""
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
+    necessidades = [
+        {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": "o plano negou minha cirurgia", "urgente": True},
+        {"id": ID_PESSOA_PRESA, "evidencia": "meu sobrinho foi preso"},
+    ]
+    monkeypatch.setenv("MOCK_NECESSIDADES", json.dumps(necessidades))
+    chat = _chat()
+    dados = {**DADOS_NO_RIO, "cpf": "11111111111"}
+    relato = "o plano negou minha cirurgia e meu sobrinho foi preso"
+    await cliente.post(BASE, json={"chatId": chat, "mensagem": relato, "dadosConhecidos": dados}, headers=auth)
+    corpo = (await cliente.post(BASE, json={"chatId": chat, "resposta": "true"}, headers=auth)).json()
+    # O plano já sabe que é para a própria pessoa ("minha cirurgia") e vai direto para a foto.
+    assert corpo["tipoResposta"] == "link_imagem"
+    pendente = corpo["assuntosPendentes"][0]
+    assert pendente["flowId"] == ID_PESSOA_PRESA
+    assert pendente["dadosConhecidos"] == {"parentesco": "Tio(a)"}
+
+    for _ in range(3):
+        corpo = (await cliente.post("/atendimentos/respostas", json={"chatId": chat, "resposta": "mandei"}, headers=auth)).json()
+    assert corpo["status"] == "handoff_humano"
+    proximo = corpo["assuntosPendentes"][0]
+    assert proximo["dadosConhecidos"] == {"cpf": "11111111111", "parentesco": "Tio(a)"}
+
+    # A Tykhe abre o próximo assunto com o que a Maria guardou.
+    outro = _chat()
+    corpo = (
+        await cliente.post(
+            "/atendimentos",
+            json={"chatId": outro, "flowId": proximo["flowId"], "dadosConhecidos": proximo["dadosConhecidos"]},
+            headers=auth,
+        )
+    ).json()
+    perguntas = [corpo["resposta"]]
+    for resposta in ("true", "0000088-95.2026.8.19.0010", "11111111111", "true", "true", "true"):
+        if corpo["status"] != "em_andamento":
+            break
+        corpo = (await cliente.post("/atendimentos/respostas", json={"chatId": outro, "resposta": resposta}, headers=auth)).json()
+        perguntas.append(corpo["resposta"])
+    assert "Qual seu parentesco com a pessoa presa?" not in perguntas
+    estado = await fluxos_por_id[ID_PESSOA_PRESA].obter_grafo().aget_state({"configurable": {"thread_id": outro}})
+    assert estado.values["parentesco"] == "Tio(a)"

@@ -153,10 +153,26 @@ def test_para_frente() -> None:
 
 def test_pendente_leva_flow_id_do_fluxo_da_maria_e_tipo_caso_da_tykhe() -> None:
     fila = _tres()
-    assert f.pendente(fila[2]) == {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA}
+    assert f.pendente(fila[2]) == {
+        "nome": "a pessoa presa",
+        "urgente": False,
+        "flowId": ID_PESSOA_PRESA,
+        "dadosConhecidos": {"perguntaParentesco": "Você é a mãe ou o pai dele?", "opcoesParentesco": {"mae": "Mãe", "pai": "Pai"}},
+    }
     assert f.pendente(fila[0]) == {"nome": "a saúde", "urgente": False, "tipoCaso": "saude"}
 
 
 def test_pendente_nao_leva_o_trecho_do_relato() -> None:
     """O trecho do relato fica na Maria: a Tykhe já tem o relato, e o campo não precisa repetir texto da pessoa."""
     assert "evidencia" not in f.pendente(_tres()[0])
+
+
+def test_com_dados_do_fim_leva_o_cpf_so_para_os_fluxos_da_maria() -> None:
+    """#442: o CPF informado no 1º assunto segue para os próximos fluxos; a Tykhe não precisa dele de volta."""
+    pendentes = [f.pendente(i) for i in _tres()]
+    saida = f.com_dados_do_fim(pendentes, {"cpf": "11111111111"})
+    assert "dadosConhecidos" not in saida[0]  # a saúde é da Tykhe
+    assert saida[2]["dadosConhecidos"]["cpf"] == "11111111111"
+    assert saida[2]["dadosConhecidos"]["perguntaParentesco"] == "Você é a mãe ou o pai dele?"
+    assert f.com_dados_do_fim(pendentes, {}) == pendentes
+    assert "cpf" not in pendentes[2].get("dadosConhecidos", {})  # não muda a lista original

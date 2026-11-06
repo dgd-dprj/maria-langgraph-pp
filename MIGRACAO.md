@@ -1046,6 +1046,15 @@ Duas coisas diferentes:
   - 12 pela API, nos três fluxos;
   - ajustados: a topologia da pessoa presa (aresta nova), o H4 do plano ("preciso de uma cirurgia" vai direto para as fotos), o teste da ponte do WhatsApp e o do multi-fluxo, que usavam relatos que agora preenchem a resposta.
 
+## Guardar o que a pessoa já disse e reaproveitar (decidido em 2026-11-06, #442)
+
+- **Pedido da Nicole (06/11):** o que a pessoa diz num assunto, por exemplo que é tio do preso, fica guardado, e a Maria não pergunta de novo nos próximos.
+- **Como ficou (só acréscimo no contrato):**
+  - cada item de um fluxo da Maria em `assuntosPendentes` traz `dadosConhecidos` com o que o trecho daquele assunto já diz, pela leitura da #438 (`fila.dados_do_relato`, a mesma função da rota);
+  - na resposta final do 1º assunto, entra também o CPF informado nele;
+  - a Tykhe repassa o objeto ao abrir o próximo assunto (`POST /atendimentos` com o `flowId` do item), e o fluxo pula o que já sabe;
+  - nunca vai o texto do relato.
+- **Achado durante a implementação:** a resposta à pergunta da ordem (e à desambiguação, também na produção) volta só com `{ chatId, resposta }`, e o fluxo aberto depois começava sem os `dadosConhecidos` da 1ª chamada (CPF, endereço). Agora o orquestrador guarda esses dados no estado dele (`dadosConhecidos`, só no checkpoint, nunca em log) e os usa ao abrir o fluxo; o que a Tykhe mandar de novo vale por cima. A conferência com as respostas e os logs gravados de develop continua igual.
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.

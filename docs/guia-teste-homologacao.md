@@ -203,6 +203,7 @@ Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada
 - **Quando o 1º assunto é da Maria,** o fluxo abre com "Combinado. Vamos começar pela …" antes da 1ª pergunta. Quando é da Tykhe (saúde pública, pensão), o relato é redirecionado como hoje.
 - **A Maria trata só o 1º assunto.** Os outros aparecem em `assuntosPendentes` na resposta da API: na que abre o fluxo e na resposta final. **Pela Tykhe, os outros assuntos ainda não seguem sozinhos**, até a Tykhe usar esse campo. Isso não é defeito.
 - **O plano de saúde recebe só o trecho do relato sobre o plano,** e não a parte da pessoa presa: confira a "Situação" no resumo da confirmação.
+- **O que a pessoa já disse fica guardado (#442):** em "o plano negou minha cirurgia e meu sobrinho foi preso", o item pendente da pessoa presa traz `dadosConhecidos` com `parentesco: "Tio(a)"`. No fim do 1º assunto, traz também o CPF. Abrindo a pessoa presa pela API com esse `dadosConhecidos`, a Maria não pergunta o parentesco. Os dados que a Tykhe mandou na 1ª chamada também valem depois da pergunta da ordem, mesmo se a resposta vier só com `{ chatId, resposta }`.
 
 **Anote como defeito:**
 - um assunto que a Maria não achou;
