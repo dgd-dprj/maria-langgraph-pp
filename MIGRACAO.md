@@ -989,6 +989,13 @@ Duas coisas diferentes:
 - **Onde está escrita:** `docs/padroes-pull-request.md` ("Quando abrir PR"), `docs/padroes-issues.md`, as skills `padroes-pull-request` e `padroes-issues` e o `CLAUDE.md`. Entrou junto com a #353 (corte de 15 candidatos no orquestrador), o primeiro PR com código depois da decisão.
 - **Sem issue, com `chore:` (decisão da Nicole, 2026-11-05):** mudança só de tipagem, lint ou formatação, sem mudar comportamento, pode ir sem issue, com o título do PR começando por `chore:`. Os testes continuam obrigatórios. O primeiro caso foi o aviso do Pylance no 409 de `chatId` de outro fluxo (branch `fix/pylance-registro-409`). Alinhar o editor e o CI na checagem de tipos é a #412. Registro no `CLAUDE.md`.
 
+## Plano de saúde: escolha direta e e-mail do assistido (decidido em 2026-11-05 e 2026-11-06)
+
+- **Escolha direta (#419, decisão do Ícaro, 2026-11-05):** quando os candidatos são só o plano de saúde e `tykhe:saude`, o orquestrador entra direto no fluxo do plano, sem pergunta. Só no release. Risco aceito: cirurgia pelo SUS que a IA deixar ambígua entra no fluxo do plano. Revisada pela Nicole em 2026-11-06.
+- **E-mail com erro no canal e-mail (#425, decisão da Nicole, 2026-11-06):** conferência do formato e dos erros comuns, sem internet; 3 tentativas; motivo `email_invalido`. **Fica para o futuro:** o Ícaro informou que a Tykhe já cuida do e-mail por enquanto. A implementação está numa branch local.
+- **Troca de e-mail e telefone gravada no Verde (#426, decisão da Nicole, 2026-11-06):** só com o CPF vindo da Tykhe; recusa ou falha do Verde vai para o atendimento humano; vale para violência doméstica, pessoa presa (o familiar troca o próprio contato) e plano de saúde.
+- **Registro:** [#208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6687566660).
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.
