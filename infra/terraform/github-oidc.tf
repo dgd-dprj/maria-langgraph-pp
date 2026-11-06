@@ -40,8 +40,11 @@ data "aws_iam_policy_document" "github_actions_assume" {
       # icaroeduardo-lab (id 276099947) pra org dgd-dprj (id 337067883);
       # repo@1347683221 é o mesmo de sempre, confirmado via
       # `gh api repos/dgd-dprj/maria-langgraph-pp --jq .id` depois do transfer.
+      # #427: staging faz o deploy do release (QA). develop continua aqui porque o
+      # terraform-drift.yml roda nela.
       values = [
         "repo:dgd-dprj@337067883/maria-langgraph-pp@1347683221:ref:refs/heads/main",
+        "repo:dgd-dprj@337067883/maria-langgraph-pp@1347683221:ref:refs/heads/staging",
         "repo:dgd-dprj@337067883/maria-langgraph-pp@1347683221:ref:refs/heads/develop",
       ]
     }

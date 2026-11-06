@@ -148,9 +148,9 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
 - **um relato livre sobre plano de saúde** ("o plano negou minha cirurgia") continua indo para a Tykhe como questão de saúde (`tipoCaso: "saude"`), como antes (#386);
 - **se, testando na `main`, a conversa chegar a uma pergunta sobre plano de saúde, carteirinha ou NUDECON, é defeito:** registre com o horário.
 
-**No release, depois do `terraform apply` do Ícaro:**
+**No release (o ambiente de QA, alimentado pela branch `staging` depois da #427), depois do `terraform apply` do Ícaro:**
 - **Como começar, por dois caminhos:**
-  - **pelo relato livre** (orquestrador, #386), **por enquanto, só o que envolve cirurgia com o plano:** "o plano negou minha cirurgia", "a Unimed tá demorando pra liberar a cirurgia" ou "o convênio não paga a prótese da cirurgia" abrem o fluxo; "a Unimed não quer reembolsar" e "o posto não tem o remédio" continuam indo para a Tykhe como questão de saúde; "preciso de uma cirurgia" faz a Maria perguntar antes de escolher. **A Tykhe ainda não confirmou o `flowId` novo nem os destinos novos (#336):** por enquanto, teste pela API;
+  - **pelo relato livre** (orquestrador, #386), **por enquanto, só o que envolve cirurgia com o plano:** "o plano negou minha cirurgia", "a Unimed tá demorando pra liberar a cirurgia" ou "o convênio não paga a prótese da cirurgia" abrem o fluxo; "a Unimed não quer reembolsar" e "o posto não tem o remédio" continuam indo para a Tykhe como questão de saúde; "preciso de uma cirurgia" entra direto no fluxo do plano, sem pergunta (#419); anote o que acontece se a cirurgia for pelo SUS. **A Tykhe ainda não confirmou o `flowId` novo nem os destinos novos (#336):** por enquanto, teste pela API;
   - **pelo id do fluxo,** `84433c84-4776-4b05-a5a0-af8012d8eced`, que precisa estar configurado no fluxo de teste da Tykhe. Confirme com a Nicole antes.
 - **O endereço vem da Tykhe** (o CEP em `dadosConhecidos`). Antes da primeira pergunta, a Maria confere no Verde se o município é o Rio.
 - **As perguntas,** nesta ordem:

@@ -963,6 +963,16 @@ Duas coisas diferentes:
 
 ## Branches, ambientes e proteção (decidido em 2026-10-22)
 
+> **Revisto em 2026-11-06 (#427, decisão da Nicole):** três branches no estilo do GitLab Flow. `develop` é o dev (só CI, sem deploy), `staging` é o QA (alimenta o release) e `main` é a produção, que não muda. O CI recusa PR para `staging` que não venha da `develop` e PR para `main` que não venha da `staging`. Dev sem servidor próprio, sem custo novo na AWS. Para ligar, nesta ordem: o Ícaro aplica só a confiança OIDC com `refs/heads/staging` (com o #411 já mergeado ou com `-target`, para não levar à produção as mudanças pendentes do `ecs.tf`); cria-se a `staging` com ruleset; o PR da #427 entra na `develop`; a 1ª promoção `develop` → `staging` passa a alimentar o release. O texto abaixo fica como registro.
+>
+> **Apply único (decisão da Nicole, 2026-11-06):** o Ícaro faz um só apply, limitado por `-target` a três itens: a variável do release (#386), a autorização da `staging` (#427) e o reinício do release com a chave de API nova (#349). Nada além disso entra, por causa do #411. Depois do apply, ele configura a Tykhe uma vez só, com a chave nova, que vai só para a Nicole, por canal privado.
+>
+> **Proteção leve (decisão da Nicole, 2026-11-06), porque a equipe é pequena:** substitui as regras de 2026-10-22 descritas abaixo.
+> - `main` e `staging`: só por PR, CI verde obrigatório (`test` e `imagem`), sem force push e sem apagar a branch, sem exigir revisão aprovada, só merge commit (confirmado pela Nicole no mesmo dia, para a promoção seguinte não entrar em conflito).
+> - `develop`: CI obrigatório, sem force push e sem apagar a branch (confirmado pela Nicole no mesmo dia).
+> - Nada além disso. Saem a aprovação e a exigência de branch atualizada em `main`.
+> - **Aplicado em 2026-11-06,** antes do apply, com a autorização da Nicole (o Ícaro não estava no computador): `staging` criada a partir da `develop` @ c42ffd7; rulesets 25667365 (`develop`), 25667366 (`main`) e 26723840 (`staging`, novo), conferidos lendo de volta. O apply da autorização na AWS não dá para fazer com o usuário da Nicole (o estado do Terraform responde 403), e o PR da #427 espera por ele.
+
 - **Decisão da Nicole: os nomes ficam como estão até depois do corte.** `develop` faz o papel de staging e alimenta o ambiente `release`, e `main` é a produção. Documentado no `CONTRIBUTING.md` e no `README.md`. **Motivo:** a equipe está testando, e o corte não aconteceu. Renomear branch ou ambiente agora confundiria qualquer problema que aparecesse. Uma branch de integração separada (`develop` → `staging` → `main`) e a troca de nomes ficam para depois do corte, junto com o ambiente novo da #286, onde estão os custos de cada caminho.
 - **Proteção aplicada em 2026-10-22 (#214), por rulesets** (25667365 em `develop`, 25667366 em `main`), sem ninguém na lista de quem contorna:
   - nas duas branches: PR obrigatório, checks `test` e `imagem` (do GitHub Actions), e force push e exclusão bloqueados;
@@ -986,6 +996,13 @@ Duas coisas diferentes:
 - **Efeito na #357:** a parte de CI (filtro para PR só de `.md`) ficou em espera, para o Ícaro decidir se ainda vale como rede de segurança para as exceções.
 - **Onde está escrita:** `docs/padroes-pull-request.md` ("Quando abrir PR"), `docs/padroes-issues.md`, as skills `padroes-pull-request` e `padroes-issues` e o `CLAUDE.md`. Entrou junto com a #353 (corte de 15 candidatos no orquestrador), o primeiro PR com código depois da decisão.
 - **Sem issue, com `chore:` (decisão da Nicole, 2026-11-05):** mudança só de tipagem, lint ou formatação, sem mudar comportamento, pode ir sem issue, com o título do PR começando por `chore:`. Os testes continuam obrigatórios. O primeiro caso foi o aviso do Pylance no 409 de `chatId` de outro fluxo (branch `fix/pylance-registro-409`). Alinhar o editor e o CI na checagem de tipos é a #412. Registro no `CLAUDE.md`.
+
+## Plano de saúde: escolha direta e e-mail do assistido (decidido em 2026-11-05 e 2026-11-06)
+
+- **Escolha direta (#419, decisão do Ícaro, 2026-11-05):** quando os candidatos são só o plano de saúde e `tykhe:saude`, o orquestrador entra direto no fluxo do plano, sem pergunta. Só no release. Risco aceito: cirurgia pelo SUS que a IA deixar ambígua entra no fluxo do plano. Revisada pela Nicole em 2026-11-06.
+- **E-mail com erro no canal e-mail (#425, decisão da Nicole, 2026-11-06):** conferência do formato e dos erros comuns, sem internet; 3 tentativas; motivo `email_invalido`. **Fica para o futuro:** o Ícaro informou que a Tykhe já cuida do e-mail por enquanto, e a issue foi fechada como não planejada no mesmo dia. A implementação está numa branch local. Com a #430 (PR #432), a pergunta do canal saiu do fluxo e tudo no Rio segue por e-mail ao NUDECON. Se a #425 voltar, a pergunta do e-mail precisa de outro ponto de entrada.
+- **Troca de e-mail e telefone gravada no Verde (#426, decisão da Nicole, 2026-11-06):** só com o CPF vindo da Tykhe; recusa ou falha do Verde vai para o atendimento humano; vale para violência doméstica, pessoa presa (o familiar troca o próprio contato) e plano de saúde.
+- **Registro:** [#208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6687566660).
 
 ## Multi-fluxo, fase 1a: vários assuntos, um fluxo por vez (decidido em 2026-11-06, #435)
 

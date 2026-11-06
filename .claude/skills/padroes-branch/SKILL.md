@@ -9,9 +9,11 @@ A versão completa está em [`docs/padroes-branch.md`](../../../docs/padroes-bra
 
 ## Fluxo
 
-- `main` = produção; recebe merge só de `develop` (release) ou `hotfix/*`.
-- `develop` = integração; base de toda branch de trabalho e destino padrão dos PRs.
-- Nunca commitar direto em `main`/`develop` — tudo entra por pull request.
+- `develop` = dev (integração); base de toda branch de trabalho e destino padrão dos PRs.
+- `staging` = QA (alimenta o release); recebe merge só de `develop`.
+- `main` = produção; recebe merge só de `staging`.
+- Correção urgente segue o mesmo caminho: `develop` → `staging` → `main` (#427).
+- Nunca commitar direto em `develop`, `staging` ou `main`: tudo entra por pull request.
 
 ## Nomenclatura
 
@@ -19,13 +21,13 @@ A versão completa está em [`docs/padroes-branch.md`](../../../docs/padroes-bra
 tipo/numero-da-issue-descricao-curta
 ```
 
-- `tipo`: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `perf`, `hotfix`.
+- `tipo`: `feat`, `fix`, `docs`, `refactor`, `chore`, `test`, `ci`, `perf`.
 - `numero-da-issue`: número da issue do GitHub (obrigatório quando existir issue).
 - `descricao-curta`: kebab-case, minúsculas, sem acentos, 2–5 palavras.
 - Sem issue (raro): `tipo/descricao-curta`.
-- `hotfix/*` é a exceção que parte de `main`.
+- Toda branch de trabalho parte de `develop`, inclusive a de correção urgente (#427).
 
-Exemplos: `feat/1-cliente-http-token-env`, `fix/12-banner-503-nao-fecha`, `hotfix/21-crash-ao-abrir-fluxo`.
+Exemplos: `feat/1-cliente-http-token-env`, `fix/12-banner-503-nao-fecha`.
 
 ## Antes de criar a branch: procurar e marcar (obrigatório)
 

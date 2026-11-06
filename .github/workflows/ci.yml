@@ -1,7 +1,8 @@
 name: CI
 
-# PR para develop (fluxo normal) ou main (release develop→main): gate antes do
-# merge. Cada deploy (deploy-release.yml / deploy-prod.yml) roda os mesmos
+# PR para develop (fluxo normal), staging (promoção develop→staging, QA) ou main
+# (release staging→main): gate antes do merge (#427). Cada deploy
+# (deploy-release.yml em staging / deploy-prod.yml em main) roda os mesmos
 # checks de novo depois do merge, como segunda camada de defesa.
 # Os gatilhos de develop e main voltaram no corte da migração (#268). `migration`
 # saiu da lista depois do merge da migration em develop (PR #267, 2026-10-21).
@@ -9,7 +10,7 @@ name: CI
 # renomear um desses jobs bloqueia todo merge até o ruleset ser atualizado.
 on:
   pull_request:
-    branches: [develop, main]
+    branches: [develop, staging, main]
 
 jobs:
   test:
@@ -36,6 +37,23 @@ jobs:
           --health-retries 12
 
     steps:
+      # #427 (GitLab Flow): main só recebe da staging, e staging só recebe da develop.
+      # Os nomes vão por env, nunca interpolados no script (o nome da branch vem de quem abre o PR).
+      - name: Origem do PR
+        env:
+          DESTINO: ${{ github.base_ref }}
+          ORIGEM: ${{ github.head_ref }}
+        run: |
+          case "$DESTINO" in
+            main) esperada=staging ;;
+            staging) esperada=develop ;;
+            *) exit 0 ;;
+          esac
+          if [ "$ORIGEM" != "$esperada" ]; then
+            echo "::error::PR para $DESTINO só pode vir de $esperada (veio de outra branch). Ver CONTRIBUTING.md."
+            exit 1
+          fi
+
       - uses: actions/checkout@v4
 
       - name: Instalar uv
