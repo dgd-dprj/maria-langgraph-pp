@@ -12,7 +12,7 @@ from maria.fluxos.tipos_tykhe import TIPOS_TYKHE
 
 Schema = dict[str, Any]
 
-DESTINOS = ["atendimento_humano", "agendamento", "email_enviado", "unidade_informada", "sessao_expirada"]
+DESTINOS = ["atendimento_humano", "agendamento", "email_enviado", "sessao_expirada"]
 
 # rotas/atendimentos.ts:125-134
 LINKS: Schema = {
