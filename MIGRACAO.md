@@ -969,7 +969,7 @@ Duas coisas diferentes:
 >
 > **Proteção leve (decisão da Nicole, 2026-11-06), porque a equipe é pequena:** substitui as regras de 2026-10-22 descritas abaixo.
 > - `main` e `staging`: só por PR, CI verde obrigatório (`test` e `imagem`), sem force push e sem apagar a branch, sem exigir revisão aprovada, só merge commit (confirmado pela Nicole no mesmo dia, para a promoção seguinte não entrar em conflito).
-> - `develop`: só o CI obrigatório.
+> - `develop`: CI obrigatório, sem force push e sem apagar a branch (confirmado pela Nicole no mesmo dia).
 > - Nada além disso. Saem a aprovação e a exigência de branch atualizada em `main`. Os rulesets mudam depois do apply, junto com a criação da `staging`.
 
 - **Decisão da Nicole: os nomes ficam como estão até depois do corte.** `develop` faz o papel de staging e alimenta o ambiente `release`, e `main` é a produção. Documentado no `CONTRIBUTING.md` e no `README.md`. **Motivo:** a equipe está testando, e o corte não aconteceu. Renomear branch ou ambiente agora confundiria qualquer problema que aparecesse. Uma branch de integração separada (`develop` → `staging` → `main`) e a troca de nomes ficam para depois do corte, junto com o ambiente novo da #286, onde estão os custos de cada caminho.

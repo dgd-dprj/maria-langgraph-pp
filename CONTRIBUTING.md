@@ -28,7 +28,7 @@ Três branches permanentes, no estilo do GitLab Flow (#427, decisão da Nicole d
 | De onde vem o PR | branch de trabalho | só `develop` (conferido pelo CI) | só `staging` (conferido pelo CI) |
 | Revisão aprovada | não exigida | não exigida | não exigida |
 | Método de merge | squash (padrão) ou merge commit | só merge commit | só merge commit |
-| Force push e exclusão da branch | não bloqueados pelo ruleset | bloqueados | bloqueados |
+| Force push e exclusão da branch | bloqueados | bloqueados | bloqueados |
 
 Nada além disso. Na `develop`, o caminho continua sendo o PR: o CI só roda nos PRs, então um push direto chega sem o CI verde e é recusado.
 
