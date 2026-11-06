@@ -25,9 +25,9 @@
     "status": 200,
     "contentType": "application/json; charset=utf-8",
     "location": null,
-    "corpoBruto": "{\"resposta\":\"Qual o RG da pessoa presa? Informe apenas os números.\",\"tipoResposta\":\"texto\",\"status\":\"em_andamento\",\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"metadados\":{\"temProcesso\":false},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-pessoa-presa-1\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}",
+    "corpoBruto": "{\"resposta\":\"Qual o RG da pessoa presa? Digite os números com ou sem pontuação. Ex.: 123456789 ou 12.345.678-9.\",\"tipoResposta\":\"texto\",\"status\":\"em_andamento\",\"flowId\":\"3df874f2-675a-4c43-9ec7-480f7c702f50\",\"metadados\":{\"temProcesso\":false},\"dadosColetados\":{},\"_links\":{\"self\":{\"href\":\"/atendimentos/cap-pessoa-presa-1\"},\"responder\":{\"href\":\"/atendimentos/respostas\",\"method\":\"POST\"}}}",
     "corpo": {
-      "resposta": "Qual o RG da pessoa presa? Informe apenas os números.",
+      "resposta": "Qual o RG da pessoa presa? Digite os números com ou sem pontuação. Ex.: 123456789 ou 12.345.678-9.",
       "tipoResposta": "texto",
       "status": "em_andamento",
       "flowId": "3df874f2-675a-4c43-9ec7-480f7c702f50",
