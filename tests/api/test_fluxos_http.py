@@ -5,6 +5,7 @@ violência doméstica e 2 de pessoa presa), que respondem pelo
 `POST /atendimentos/respostas`.
 """
 
+import json
 from itertools import count
 
 import httpx
@@ -186,7 +187,9 @@ async def test_plano_saude_primeira_pergunta_e_para_quem_sem_a_pergunta_do_canal
 
 
 @pytest.mark.usefixtures("no_release")
-async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+async def test_plano_saude_outra_pessoa_pergunta_o_cpf_e_cpf_invalido_tres_vezes_vai_ao_atendimento_humano(
+    cliente: httpx.AsyncClient, auth: dict[str, str]
+) -> None:
     chat_id = f"teste-ps-http-{next(_ids)}"
     await cliente.post(
         "/atendimentos",
@@ -195,11 +198,35 @@ async def test_plano_saude_outra_pessoa_handoff_com_destino_e_motivo(cliente: ht
     )
     r = await _responder(cliente, auth, chat_id, "false")
     corpo = r.json()
-    assert r.status_code == 200
+    assert (r.status_code, corpo["status"], corpo["tipoResposta"]) == (200, "em_andamento", "texto")
+    assert "CPF da pessoa que será atendida" in corpo["resposta"]
+    assert corpo["metadados"]["paraSi"] is False
+    await _responder(cliente, auth, chat_id, "123")
+    await _responder(cliente, auth, chat_id, "456")
+    r = await _responder(cliente, auth, chat_id, "789")
+    corpo = r.json()
     assert corpo["status"] == "handoff_humano"
     assert corpo["destino"] == "atendimento_humano"
-    assert corpo["metadados"]["motivoHandoff"] == "outra_pessoa"
-    assert "outra pessoa" in corpo["resposta"]
+    assert corpo["metadados"]["motivoHandoff"] == "cpf_outra_pessoa_invalido"
+
+
+@pytest.mark.usefixtures("no_release")
+async def test_plano_saude_outra_pessoa_com_cpf_valido_segue_para_as_imagens_sem_devolver_dado_dela(
+    cliente: httpx.AsyncClient, auth: dict[str, str]
+) -> None:
+    chat_id = f"teste-ps-http-{next(_ids)}"
+    await cliente.post(
+        "/atendimentos",
+        json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": PLANO_SAUDE_COM_CEP},
+        headers=auth,
+    )
+    await _responder(cliente, auth, chat_id, "false")
+    r = await _responder(cliente, auth, chat_id, "529.982.247-25")  # Verde simulado (mock): encontra qualquer CPF
+    corpo = r.json()
+    assert (r.status_code, corpo["status"], corpo["tipoResposta"]) == (200, "em_andamento", "link_imagem")
+    resposta = json.dumps(corpo, ensure_ascii=False)
+    for dado_dela in ("52998224725", "Pessoa de Teste (mock)", "teste@exemplo.org", "21999990000"):
+        assert dado_dela not in resposta, "dado da outra pessoa não volta na resposta da API"
 
 
 @pytest.mark.usefixtures("no_release")

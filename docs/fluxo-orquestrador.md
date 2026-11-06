@@ -68,7 +68,7 @@ Pessoa presa e violência doméstica continuam conduzidos pela Maria. Descriçõ
 
 ### Plano de saúde (#386, decisão da #266)
 
-O fluxo **Problemas com plano de saúde** (NUDECON, #329) está em teste (#324): só entra no catálogo onde `MARIA_AMBIENTE` é `release`.
+O fluxo **Problemas com plano de saúde** (NUDECON, #329) está em teste (#324): só entra no catálogo onde `MARIA_AMBIENTE` é `release`. Se o atendimento for para outra pessoa, o fluxo pede o CPF dela e usa os dados do Verde no resto da conversa (#433), sem voltar ao orquestrador.
 
 | | Produção | Release |
 |---|---|---|

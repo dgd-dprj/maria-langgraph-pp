@@ -970,7 +970,8 @@ Duas coisas diferentes:
 > **Proteção leve (decisão da Nicole, 2026-11-06), porque a equipe é pequena:** substitui as regras de 2026-10-22 descritas abaixo.
 > - `main` e `staging`: só por PR, CI verde obrigatório (`test` e `imagem`), sem force push e sem apagar a branch, sem exigir revisão aprovada, só merge commit (confirmado pela Nicole no mesmo dia, para a promoção seguinte não entrar em conflito).
 > - `develop`: CI obrigatório, sem force push e sem apagar a branch (confirmado pela Nicole no mesmo dia).
-> - Nada além disso. Saem a aprovação e a exigência de branch atualizada em `main`. Os rulesets mudam depois do apply, junto com a criação da `staging`.
+> - Nada além disso. Saem a aprovação e a exigência de branch atualizada em `main`.
+> - **Aplicado em 2026-11-06,** antes do apply, com a autorização da Nicole (o Ícaro não estava no computador): `staging` criada a partir da `develop` @ c42ffd7; rulesets 25667365 (`develop`), 25667366 (`main`) e 26723840 (`staging`, novo), conferidos lendo de volta. O apply da autorização na AWS não dá para fazer com o usuário da Nicole (o estado do Terraform responde 403), e o PR da #427 espera por ele.
 
 - **Decisão da Nicole: os nomes ficam como estão até depois do corte.** `develop` faz o papel de staging e alimenta o ambiente `release`, e `main` é a produção. Documentado no `CONTRIBUTING.md` e no `README.md`. **Motivo:** a equipe está testando, e o corte não aconteceu. Renomear branch ou ambiente agora confundiria qualquer problema que aparecesse. Uma branch de integração separada (`develop` → `staging` → `main`) e a troca de nomes ficam para depois do corte, junto com o ambiente novo da #286, onde estão os custos de cada caminho.
 - **Proteção aplicada em 2026-10-22 (#214), por rulesets** (25667365 em `develop`, 25667366 em `main`), sem ninguém na lista de quem contorna:
@@ -1002,6 +1003,34 @@ Duas coisas diferentes:
 - **E-mail com erro no canal e-mail (#425, decisão da Nicole, 2026-11-06):** conferência do formato e dos erros comuns, sem internet; 3 tentativas; motivo `email_invalido`. **Fica para o futuro:** o Ícaro informou que a Tykhe já cuida do e-mail por enquanto, e a issue foi fechada como não planejada no mesmo dia. A implementação está numa branch local. Com a #430 (PR #432), a pergunta do canal saiu do fluxo e tudo no Rio segue por e-mail ao NUDECON. Se a #425 voltar, a pergunta do e-mail precisa de outro ponto de entrada.
 - **Troca de e-mail e telefone gravada no Verde (#426, decisão da Nicole, 2026-11-06):** só com o CPF vindo da Tykhe; recusa ou falha do Verde vai para o atendimento humano; vale para violência doméstica, pessoa presa (o familiar troca o próprio contato) e plano de saúde.
 - **Registro:** [#208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6687566660).
+
+## Multi-fluxo, fase 1a: vários assuntos, um fluxo por vez (decidido em 2026-11-06, #435)
+
+- **Decisão da Nicole (06/11):** homologar primeiro a versão menor da fase 1 da #279, depois de testar o protótipo no terminal com relatos informais e com erros de digitação. Duas escolhas, feitas por ela entre as opções:
+  - **escopo:** vários assuntos no relato, **um fluxo por vez**, sem mudar o banco. A fila completa na mesma conversa (que muda a chave da tabela `atendimentos` e do checkpoint) fica para depois;
+  - **ordem:** a Maria pergunta **"Pode ser assim?"**, como no protótipo.
+- **O que entrou (só no release; a produção não muda, conferido por teste):**
+  - a classificação por necessidades (`ia/classificar_necessidades.py`), com o prompt da fase 0;
+  - a fila (`orquestrador/fila.py`): a ordem de 28 e 29/10, os nomes simples e a leitura da resposta;
+  - três nós no grafo do orquestrador (`perguntarOrdem`, `perguntarPrimeiro`, `comecarFila`);
+  - o campo `assuntosPendentes`, que é só acréscimo no contrato (`docs/contrato-tykhe.md`).
+- **Diferenças em relação ao protótipo:**
+  - os textos não prometem "tudo aqui mesmo", porque o próximo assunto depende da Tykhe;
+  - o fluxo aberto recebe só o trecho do relato sobre o assunto dele (achado do teste de 06/11: a "Situação" do e-mail ao NUDECON levava junto a pessoa presa).
+- **Dois ajustes no prompt da fase 0, depois do teste com a IA de verdade (06/11):**
+  - os jeitos populares de dizer que alguém foi preso ("rodou", "tá na cana", "foi pra Bangu"): sem eles, "meu filho rodou ontem" ia para "outros";
+  - a cirurgia sem dizer se é pelo plano ou pelo SUS volta a ser dúvida entre as duas opções. Assim a escolha direta da #419 continua levando ao plano; sem isso, "minha mãe precisa operar o joelho" ia para a Tykhe.
+- **Teste com a IA de verdade (06/11, custo aprovado de até US$ 0,17, gasto de cerca de US$ 0,167):**
+  - **rodada completa** com o prompt de antes dos ajustes: 32 casos, 28 passaram;
+  - **4 falhas:** 2 foram corrigidas pelos ajustes acima, 1 era expectativa errada (prótese sem cirurgia é da Tykhe, pelo escopo da #386) e 1 é o risco já aceito na #419 (internação negada pelo convênio indo para o plano);
+  - **com o prompt final, foram conferidos 8 casos.**
+- **Rodada completa com o prompt final (06/11, aprovada até US$ 0,18, gasto de cerca de US$ 0,136):** 30 de 32 casos passaram, inclusive os 22 da #386. Os dois de fronteira tiveram a expectativa ajustada:
+  - "meu marido ta na cana e o convenio cortou o tratamento" contou só a saúde: a pessoa não pede nada sobre o preso, e pela regra de 28/10 a prisão é contexto;
+  - "a amil n quer pagar a protese" foi uma vez para a Tykhe e uma vez para o plano: a prótese pode ser de cirurgia, e os dois destinos valem.
+- **Custo por relato no release:** cerca de 3.330 a 3.440 tokens de entrada na classificação, contra cerca de 2.040 da classificação de antes (medido com `count_tokens`).
+- **A combinar com o Ícaro e a Tykhe:**
+  - os botões na pergunta da ordem;
+  - o uso de `assuntosPendentes` para seguir com o próximo assunto.
 
 ## Pendências operacionais
 

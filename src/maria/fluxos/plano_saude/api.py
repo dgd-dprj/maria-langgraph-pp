@@ -60,10 +60,12 @@ MENSAGEM_IMAGENS_PENDENTES = "Não recebi as imagens dos documentos. Vou encamin
 MENSAGEM_SITUACAO_NAO_INFORMADA = "Não consegui entender a sua situação. Vou encaminhar seu atendimento para a equipe dar continuidade."
 MENSAGEM_RENDA_NAO_ENTENDIDA = "Não consegui entender a sua renda. Vou encaminhar seu atendimento para a equipe dar continuidade."
 MENSAGEM_DADOS_NAO_CONFIRMADOS = "Não consegui confirmar seus dados. Vou encaminhar seu atendimento para a equipe dar continuidade."
-# Provisório (mock decidido pelo Ícaro em 2026-10-26): a coleta dos dados da outra pessoa é da #347.
-MENSAGEM_OUTRA_PESSOA = (
-    "Entendi que o atendimento é para outra pessoa. Por enquanto não consigo seguir com esse caso por aqui. "
-    "Vou encaminhar seu atendimento para a equipe dar continuidade."
+# Outra pessoa (#433): CPF dela inválido ou não achado no Verde, três vezes.
+MENSAGEM_CPF_OUTRA_INVALIDO = (
+    "Não consegui entender o CPF da pessoa que será atendida. Vou encaminhar seu atendimento para a equipe dar continuidade."
+)
+MENSAGEM_CPF_OUTRA_NAO_ENCONTRADO = (
+    "Não consegui encontrar o CPF da pessoa que será atendida. Vou encaminhar seu atendimento para a equipe dar continuidade."
 )
 # Provisório: a orientação de qual unidade procurar fora do Rio é da #331.
 MENSAGEM_FORA_DO_RIO = (

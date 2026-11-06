@@ -61,6 +61,7 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 | `WHATSAPP_VERIFY_TOKEN` | ausente | Token da verificação do webhook (`GET /webhook/whatsapp`). Sem ele, a verificação sempre devolve 403 |
 | `MOCK_CLASSIFICACAO_FLOWID` | ausente | Com `APP_ENV=test`, o fluxo que a classificação simulada escolhe. Sem ela, o relato vai para `outros` |
 | `MOCK_CLASSIFICACAO_FLOWIDS` | ausente | Com `APP_ENV=test`, vários ids separados por vírgula: simula um relato ambíguo (desambiguação) |
+| `MOCK_NECESSIDADES` | ausente | Com `APP_ENV=test` e `MARIA_AMBIENTE=release`, a lista (JSON) de necessidades que a classificação do multi-fluxo simulada devolve: ids ou objetos com `id`, `evidencia` e `urgente` (#435). Sem ela, vale o sentido de `MOCK_CLASSIFICACAO_FLOWID(S)` |
 | `MOCK_CLASSIFICACAO_PARENTESCO` | `Outro` | Com `APP_ENV=test`, o parentesco que a IA simulada devolve no fluxo pessoa presa |
 | `MOCK_SUMARIZACAO_RESUMO` | ausente | Com `APP_ENV=test`, o resumo que a sumarização simulada devolve |
 | `MOCK_CEP_INCOMPLETO` | ausente | No Verde simulado, com `true`, o CEP volta só com a UF, sem cidade nem logradouro (para testar o pedido de endereço completo) |

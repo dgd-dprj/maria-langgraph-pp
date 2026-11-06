@@ -47,6 +47,25 @@ def modelo(monkeypatch: pytest.MonkeyPatch) -> Iterator[Modelo]:
         m.textos_classificados.append(texto)
         return Modelo._proximo(m.classificacoes)
 
+    async def classificar_necessidades(texto: Any, pool: Any) -> dict[str, Any]:
+        """No release (#435), a classificação é por necessidades. O mesmo roteiro serve aos dois
+        caminhos: com `necessidades`, usa como veio; com `ids`, 1 id é uma necessidade e mais de 1 é
+        dúvida entre opções, o mesmo sentido de antes."""
+        m.textos_classificados.append(texto)
+        passo = Modelo._proximo(m.classificacoes)
+        tokens = {k: v for k, v in passo.items() if k.startswith("tokens")}
+        if "necessidades" in passo:
+            return {"necessidades": passo["necessidades"], "idsEmAmbiguidade": passo.get("idsEmAmbiguidade", []), "viaIA": True, **tokens}
+        ids = [i for i in passo.get("ids") or [] if isinstance(i, str)]
+        if len(ids) == 1:
+            return {
+                "necessidades": [{"id": ids[0], "evidencia": "", "evidenciaClara": True, "urgente": False}],
+                "idsEmAmbiguidade": [],
+                "viaIA": True,
+                **tokens,
+            }
+        return {"necessidades": [], "idsEmAmbiguidade": ids, "viaIA": True, **tokens}
+
     async def desambiguar(texto: Any, candidatos: Any) -> dict[str, Any]:
         m.textos_desambiguados.append(texto)
         return Modelo._proximo(m.perguntas)
@@ -60,6 +79,7 @@ def modelo(monkeypatch: pytest.MonkeyPatch) -> Iterator[Modelo]:
         return await buscar_candidatos(mensagem, k, catalogo)
 
     monkeypatch.setattr(graph, "classificar_fluxos_plausiveis", classificar)
+    monkeypatch.setattr(graph, "classificar_necessidades", classificar_necessidades)
     monkeypatch.setattr(graph, "gerar_pergunta_desambiguacao", desambiguar)
     monkeypatch.setattr(graph, "sumarizar_relato", sumarizar)
     monkeypatch.setattr(graph, "buscar_candidatos", buscar)

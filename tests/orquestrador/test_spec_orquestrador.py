@@ -89,6 +89,8 @@ def store(monkeypatch: pytest.MonkeyPatch) -> StoreFalsa:
 
 
 def test_1_topologia_igual_a_de_develop() -> None:
+    """A topologia de develop, mais os 3 nós do multi-fluxo (#435), que só são alcançados no release
+    (a aresta "fila" do `classificar` só sai quando `fluxo_em_teste_liga`)."""
     desenho = obter_grafo().get_graph()
     assert set(desenho.nodes) == {
         "__start__",
@@ -97,6 +99,9 @@ def test_1_topologia_igual_a_de_develop() -> None:
         "naoIdentificado",
         "prepararPerguntaDesambiguacao",
         "pedirDesambiguacao",
+        "perguntarOrdem",
+        "perguntarPrimeiro",
+        "comecarFila",
         "__end__",
     }
     assert {(a.source, a.target, a.conditional) for a in desenho.edges} == {
@@ -108,6 +113,13 @@ def test_1_topologia_igual_a_de_develop() -> None:
         ("pedirDesambiguacao", "classificar", False),
         ("identificado", "__end__", False),
         ("naoIdentificado", "__end__", False),
+        # #435
+        ("classificar", "perguntarOrdem", True),
+        ("perguntarOrdem", "perguntarPrimeiro", True),
+        ("perguntarOrdem", "comecarFila", True),
+        ("perguntarPrimeiro", "comecarFila", False),
+        ("comecarFila", "identificado", True),
+        ("comecarFila", "naoIdentificado", True),
     }
 
 
