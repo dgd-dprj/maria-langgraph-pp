@@ -20,6 +20,7 @@ from langgraph.types import Command
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
 from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
+from maria.orquestrador.graph import assuntos_pendentes_do_chat
 from maria.shared import _js
 from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
@@ -314,7 +315,13 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
         await store.marcar_atividade(chat_id)
         interrupt = extrair_interrupt(resultado)
         await _registrar_rodada(fluxo_id, chat_id, interrupt, resultado, ctx.log)
-        return Resposta(200, montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt, resultado))
+        corpo_resposta = montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt, resultado)
+        if interrupt is None:
+            # #435 (multi-fluxo, só no release): no fim do fluxo, os outros assuntos do relato.
+            pendentes = await assuntos_pendentes_do_chat(chat_id)
+            if pendentes:
+                corpo_resposta["assuntosPendentes"] = pendentes
+        return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)
     if atividade is not None and atividade.get("statusFinal") == "expirado":
