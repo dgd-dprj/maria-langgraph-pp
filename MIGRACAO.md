@@ -1006,7 +1006,10 @@ Duas coisas diferentes:
 - **Teste com a IA de verdade (06/11, custo aprovado de até US$ 0,17, gasto de cerca de US$ 0,167):**
   - **rodada completa** com o prompt de antes dos ajustes: 32 casos, 28 passaram;
   - **4 falhas:** 2 foram corrigidas pelos ajustes acima, 1 era expectativa errada (prótese sem cirurgia é da Tykhe, pelo escopo da #386) e 1 é o risco já aceito na #419 (internação negada pelo convênio indo para o plano);
-  - **com o prompt final, foram conferidos 8 casos.** A rodada completa com o prompt final fica para antes do merge, com o custo aprovado.
+  - **com o prompt final, foram conferidos 8 casos.**
+- **Rodada completa com o prompt final (06/11, aprovada até US$ 0,18, gasto de cerca de US$ 0,136):** 30 de 32 casos passaram, inclusive os 22 da #386. Os dois de fronteira tiveram a expectativa ajustada:
+  - "meu marido ta na cana e o convenio cortou o tratamento" contou só a saúde: a pessoa não pede nada sobre o preso, e pela regra de 28/10 a prisão é contexto;
+  - "a amil n quer pagar a protese" foi uma vez para a Tykhe e uma vez para o plano: a prótese pode ser de cirurgia, e os dois destinos valem.
 - **Custo por relato no release:** cerca de 3.330 a 3.440 tokens de entrada na classificação, contra cerca de 2.040 da classificação de antes (medido com `count_tokens`).
 - **A combinar com o Ícaro e a Tykhe:**
   - os botões na pergunta da ordem;
