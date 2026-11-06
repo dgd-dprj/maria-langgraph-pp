@@ -1015,23 +1015,36 @@ Duas coisas diferentes:
   - os botões na pergunta da ordem;
   - o uso de `assuntosPendentes` para seguir com o próximo assunto.
 
-## Pessoa presa: o parentesco tirado do relato (decidido em 2026-11-06, #438)
+## O relato diz quem é quem: parentesco, para quem é e quem é a vítima (decidido em 2026-11-06, #438)
 
-- **Achado do teste pela Tykhe (06/11):** quem escrevia "Meu primo foi preso e quero saber quando sai" recebia depois "Qual seu parentesco com a pessoa presa?". O fluxo de pessoa presa não recebe o relato (só o do plano de saúde recebe), e a leitura do relato dentro do fluxo (`EXTRACAO_LIVRE_IA`) está desligada.
-- **Decisão da Nicole:** tirar o parentesco do relato **pelas palavras, sem IA** (entre três opções: palavras, IA, ou palavras e depois IA). Sem custo e previsível.
+- **Achado do teste pela Tykhe (06/11):** quem escrevia "Meu primo foi preso e quero saber quando sai" recebia depois "Qual seu parentesco com a pessoa presa?". O relato servia só para o orquestrador escolher o fluxo. Os fluxos não o recebem, salvo o do plano de saúde, e a leitura do relato dentro do fluxo (`EXTRACAO_LIVRE_IA`) está desligada.
+- **Decisões da Nicole:**
+  - pelas palavras, sem IA (entre três opções: palavras, IA, ou palavras e depois IA);
+  - "meu filho foi preso" é sobre o filho: a Maria pergunta só se a pessoa é a mãe ou o pai;
+  - "meu avô" entra: o parentesco "Neto(a)" foi acrescentado à lista do fluxo;
+  - com dois parentes no relato, a Maria reconhece qual está preso;
+  - vale para todos os fluxos, principalmente pessoa presa.
 - **Como ficou:**
-  - quando o orquestrador abre o fluxo de pessoa presa, `fluxos/pessoa_presa/parentesco.py` lê o relato (ou, com vários assuntos, o trecho do assunto, #435);
-  - o fluxo recebe o `parentesco` e pula a pergunta;
-  - o parentesco é o de quem fala em relação ao preso: "meu tio" é Sobrinho(a), "meu pai" é Filho(a), "sou a mãe dele" é Mãe.
-- **A Maria continua perguntando quando não dá para saber:**
-  - "meu filho" (a mãe ou o pai?);
-  - parente fora da lista do fluxo ("meu avô", "meu sogro", "meu namorado");
-  - dois parentes no relato;
-  - erro de digitação.
-- **Outros pontos:**
-  - um `parentesco` que já vem em `dadosConhecidos` não é trocado;
-  - o log ganha o evento `parentesco_do_relato`, sem o texto do relato;
-  - vale na produção quando for promovida; vai primeiro para o release, pela `develop`.
+  - `shared/parentesco.py` lê o relato (ou, com vários assuntos, o trecho do assunto, #435), e o orquestrador entrega aos fluxos o que ele diz;
+  - nunca troca o que a Tykhe já mandou em `dadosConhecidos`;
+  - na dúvida, o fluxo pergunta como antes.
+- **Pessoa presa:**
+  - o parentesco pronto: "meu tio" é Sobrinho(a); "meu avô", Neto(a); "sou a mãe dele", Mãe;
+  - ou uma pergunta curta (`perguntaParentesco` e `opcoesParentesco`): "Você é a mãe ou o pai dele?" ou, com dois presos, "Sobre qual deles é este atendimento?";
+  - quando a resposta escolhe o filho, o fluxo volta e pergunta se é a mãe ou o pai, que é a aresta nova `pedirParentesco` → `prepararPerguntaParentesco`;
+  - com dois parentes, conta o último citado antes da palavra de prisão ("minha mãe disse que meu primo foi preso" é o primo), os da enumeração com o plural ("meu primo e meu irmão foram presos") e o parente depois de "prenderam" ou "levaram".
+- **Plano de saúde:**
+  - "o plano da minha mãe" pula "O atendimento é para você?" com Não, e a Maria segue para o CPF da outra pessoa;
+  - "meu plano negou minha cirurgia" ou "preciso de uma cirurgia" pulam com Sim.
+- **Violência doméstica:**
+  - só o Sim vem do relato ("ele me bate", "fui agredida");
+  - o Não encerra o atendimento, então, quando a vítima parece ser outra pessoa, a Maria pergunta.
+- **Um campo próprio marca o que veio do relato:** `vitimaPeloRelato` e `paraSiPeloRelato`. Achado da conferência com develop: um `ehVitima` mandado pela Tykhe em `dadosConhecidos` continua sem pular a pergunta, como em develop. Os campos não vão para os metadados.
+- **Sem log novo:** os logs gravados de develop (fixtures de contrato) continuam iguais. O efeito aparece nas perguntas que o fluxo deixa de fazer.
+- **Testes:**
+  - 67 casos da leitura;
+  - 12 pela API, nos três fluxos;
+  - ajustados: a topologia da pessoa presa (aresta nova), o H4 do plano ("preciso de uma cirurgia" vai direto para as fotos), o teste da ponte do WhatsApp e o do multi-fluxo, que usavam relatos que agora preenchem a resposta.
 
 ## Pendências operacionais
 
