@@ -10,11 +10,13 @@ Por isso os textos não prometem "tudo aqui mesmo", como o protótipo fazia.
 from __future__ import annotations
 
 import re
-from typing import NotRequired, TypedDict
+from collections.abc import Mapping
+from typing import Any, NotRequired, TypedDict
 
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA
 from maria.fluxos.tipos_tykhe import tipo_tykhe_por_id
 from maria.ia.classificar_necessidades import FORA_DA_LISTA, Necessidade
+from maria.shared.parentesco import atendimento_para_si, fala_como_vitima, quem_esta_preso
 from maria.shared.respostas import normalizar_resposta, resposta_eh_nao, resposta_eh_sim
 
 ID_OUTROS = "tykhe:outros"
@@ -94,6 +96,8 @@ class AssuntoPendente(TypedDict):
     urgente: bool
     flowId: NotRequired[str]
     tipoCaso: NotRequired[str]
+    # #442: o que a Maria já sabe para este assunto; a Tykhe repassa ao abrir o fluxo dele.
+    dadosConhecidos: NotRequired[dict[str, Any]]
 
 
 def montar_fila(necessidades: list[Necessidade]) -> list[ItemFila]:
@@ -202,6 +206,20 @@ def para_frente(fila: list[ItemFila], posicao: int) -> list[ItemFila]:
     return [fila[posicao], *fila[:posicao], *fila[posicao + 1 :]]
 
 
+def dados_do_relato(flow_id: str, relato: str, ja_conhecidos: Mapping[str, Any]) -> dict[str, Any]:
+    """#438: o que o relato já diz, pelas palavras, sem IA, para o fluxo não perguntar de novo.
+
+    Nunca troca o que já se sabe (`dadosConhecidos` da Tykhe). Na dúvida, nada: o fluxo pergunta."""
+    if flow_id == ID_PESSOA_PRESA and "parentesco" not in ja_conhecidos:
+        return dict(quem_esta_preso(relato))
+    if flow_id == ID_PROBLEMAS_PLANO_SAUDE and "paraSi" not in ja_conhecidos:
+        para_si = atendimento_para_si(relato)
+        return {} if para_si is None else {"paraSi": para_si, "paraSiPeloRelato": True}
+    if flow_id == ID_VIOLENCIA_DOMESTICA and "ehVitima" not in ja_conhecidos:
+        return {"ehVitima": True, "vitimaPeloRelato": True} if fala_como_vitima(relato) else {}
+    return {}
+
+
 def pendente(item: ItemFila) -> AssuntoPendente:
     saida: AssuntoPendente = {"nome": item["nome"], "urgente": item["urgente"]}
     tipo = tipo_tykhe_por_id(item["id"])
@@ -209,4 +227,22 @@ def pendente(item: ItemFila) -> AssuntoPendente:
         saida["tipoCaso"] = tipo.tipo_caso
     else:
         saida["flowId"] = item["id"]
+        # #442: o que o trecho deste assunto já diz fica guardado para quando ele for aberto.
+        lido = dados_do_relato(item["id"], item["evidencia"], {})
+        if lido:
+            saida["dadosConhecidos"] = lido
+    return saida
+
+
+def com_dados_do_fim(pendentes: list[AssuntoPendente], dados_coletados: Any) -> list[AssuntoPendente]:
+    """#442: no fim do 1º assunto, o CPF que a pessoa informou nele vai junto para os próximos fluxos."""
+    cpf = dados_coletados.get("cpf") if isinstance(dados_coletados, Mapping) else None
+    if not isinstance(cpf, str) or not cpf:
+        return pendentes
+    saida: list[AssuntoPendente] = []
+    for p in pendentes:
+        p = dict(p)  # type: ignore[assignment]
+        if "flowId" in p:
+            p["dadosConhecidos"] = {"cpf": cpf, **p.get("dadosConhecidos", {})}
+        saida.append(p)
     return saida

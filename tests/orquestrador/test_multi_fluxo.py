@@ -79,7 +79,9 @@ async def test_sim_segue_a_ordem_e_o_resto_fica_pendente(modelo: Modelo, respost
     r = await c.responder(resposta)
     assert pergunta(r) is None
     assert (r["statusFinal"], r["flowIdEscolhido"]) == ("identificado", ID_PROBLEMAS_PLANO_SAUDE)
-    assert r["assuntosPendentes"] == [{"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA}]
+    assert r["assuntosPendentes"] == [
+        {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA, "dadosConhecidos": {"parentesco": "Irmão(a)"}}
+    ]
     assert r["ordemPerguntada"] is True
 
 
@@ -145,7 +147,9 @@ async def test_primeiro_assunto_da_tykhe_e_o_fluxo_da_maria_fica_pendente(modelo
     await c.iniciar()
     r = await c.responder("true")
     assert r["flowIdEscolhido"] == "tykhe:saude"
-    assert r["assuntosPendentes"] == [{"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA}]
+    assert r["assuntosPendentes"] == [
+        {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA, "dadosConhecidos": {"parentesco": "Irmão(a)"}}
+    ]
 
 
 @pytest.mark.usefixtures("release")

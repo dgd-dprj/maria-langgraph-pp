@@ -44,6 +44,8 @@ ASSUNTOS_PENDENTES: Schema = {
             "urgente": {"type": "boolean"},
             "flowId": {"type": "string"},
             "tipoCaso": {"type": "string"},
+            # #442: o que a Maria já sabe para este assunto; a Tykhe repassa em `dadosConhecidos` ao abrir o fluxo.
+            "dadosConhecidos": {"type": "object", "additionalProperties": True},
         },
     },
 }
