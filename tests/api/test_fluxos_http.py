@@ -230,17 +230,18 @@ async def test_plano_saude_outra_pessoa_com_cpf_valido_segue_para_as_imagens_sem
 
 
 @pytest.mark.usefixtures("no_release")
-async def test_plano_saude_sem_municipio_do_rio_encerra_na_criacao_com_atendimento_humano(
+async def test_plano_saude_sem_endereco_nao_encerra_na_criacao_e_comeca_em_para_voce(
     cliente: httpx.AsyncClient, auth: dict[str, str]
 ) -> None:
+    # #439: sem verificação de município, o CEP deixou de ser exigido.
     r = await cliente.post(
         "/atendimentos", json={"chatId": f"teste-ps-http-{next(_ids)}", "flowId": ID_PROBLEMAS_PLANO_SAUDE}, headers=auth
     )
     corpo = r.json()
     assert r.status_code == 200
-    assert corpo["status"] == "handoff_humano"
-    assert corpo["destino"] == "atendimento_humano"
-    assert corpo["metadados"]["motivoHandoff"] == "municipio_nao_identificado"
+    assert (corpo["status"], corpo["tipoResposta"], corpo["opcoes"]) == ("em_andamento", "sim_nao", ["Sim", "Não"])
+    assert "para você" in corpo["resposta"]
+    assert "destino" not in corpo
 
 
 LINK_FRENTE_HTTP = "https://downloads.tykhe.dev/arquivos/id-frente-http?token=segredo-frente-http"

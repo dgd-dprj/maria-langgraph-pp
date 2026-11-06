@@ -1,26 +1,22 @@
 """Fluxo Problemas com plano de saúde (NUDECON, #329): "para quem", imagens, renda e confirmação (sem pergunta do canal, #430)."""
 
 import json
-from typing import Any
+from typing import Any, get_args
 
 import pytest
 
 from maria.fluxos.plano_saude.api import (
-    HORARIO_UNIDADE_PADRAO,
-    ID_ASSUNTO_UNIDADE_FORA_DO_RIO,
-    ID_MUNICIPIO_RIO,
     MENSAGEM_CPF_OUTRA_INVALIDO,
     MENSAGEM_CPF_OUTRA_NAO_ENCONTRADO,
     MENSAGEM_ERRO_INTERNO,
     MENSAGEM_FALHA_ENVIO_EMAIL,
     MENSAGEM_FALHA_INFRA_VERDE,
-    MENSAGEM_FORA_DO_RIO,
     MENSAGEM_IMAGENS_NAO_ANEXADAS,
-    MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
 )
 from maria.fluxos.plano_saude.graph import interpretar_renda, montar_resumo, obter_grafo
+from maria.fluxos.plano_saude.state import MotivoHandoffPlanoSaude
 from maria.integracoes.email_nudecon import ResultadoEmail
-from maria.shared.types import DadosCep, DadosPessoa, OrgaoAtendimento, OrgaosPrimeiroAtendimento
+from maria.shared.types import DadosPessoa
 from tests.fluxos.conftest import Fluxo, pergunta, texto
 
 # Sem CEP o fluxo nem começa (#331); o mock do Verde devolve o Rio para qualquer CEP que não seja "00000000".
@@ -101,7 +97,7 @@ async def test_outra_pessoa_encontrada_segue_o_fluxo_normal_com_os_dados_do_verd
     assert "Nome: MARIA DE TESTE FICTICIA" in resumo and f"CPF: {CPF_OUTRA}" in resumo
     assert "Data de nascimento: 02/02/1991" in resumo and "E-mail: maria@exemplo.org" in resumo
     assert "Telefone: 21988880000" in resumo and "WhatsApp: 21977770000" in resumo
-    assert "Endereço: Rua Fictícia, nº 2, Centro, Niterói - RJ" in resumo
+    assert "Endereço: Rua Fictícia, nº 2, Centro, Niterói - RJ, CEP. 24020-005" in resumo, "o endereço dela vem do Verde"
     assert "Atendimento para: outra pessoa" in resumo
     for de_quem_pede in ("Pessoa de Teste", "00000000000", "teste@exemplo.org", "21999990000"):
         assert de_quem_pede not in resumo
@@ -110,6 +106,7 @@ async def test_outra_pessoa_encontrada_segue_o_fluxo_normal_com_os_dados_do_verd
     [(_, dados, _)] = chamadas
     assert dados["Nome"] == "MARIA DE TESTE FICTICIA" and dados["CPF"] == CPF_OUTRA and dados["WhatsApp"] == "21977770000"
     assert dados["Atendimento para"] == "outra pessoa (dados do cadastro do Verde)"
+    assert dados["Endereço"] == "Rua Fictícia, nº 2, Centro, Niterói - RJ, CEP. 24020-005"
 
 
 async def test_outra_pessoa_pede_as_imagens_e_a_situacao_quando_faltam(monkeypatch: pytest.MonkeyPatch) -> None:
@@ -211,6 +208,21 @@ async def test_dados_da_outra_pessoa_nao_vao_para_metadados_nem_para_log(
         assert dado not in metadados
     saida = capsys.readouterr().out
     for dado in (CPF_OUTRA, "MARIA DE TESTE", "maria@exemplo.org", "21977770000", "21988880000", "Niterói", "02/02/1991"):
+        assert dado not in saida
+
+
+async def test_o_endereco_de_quem_fala_nao_vai_para_log_nem_para_metadados(capsys: pytest.CaptureFixture[str]) -> None:
+    from maria.fluxos.plano_saude.api import extrair_metadados_plano_saude
+
+    f = _fluxo()
+    await f.iniciar(
+        {**DADOS, "imagensRecebidas": True, "endereco": {"cep": "24020005", "logradouro": "Rua Sigilosa", "municipio": "Niterói"}}
+    )
+    await f.responder("true", "2500")
+    estado = await f.estado()
+    assert "Rua Sigilosa" not in json.dumps(extrair_metadados_plano_saude(estado), ensure_ascii=False)
+    saida = capsys.readouterr().out
+    for dado in ("Rua Sigilosa", "24020005", "Niterói"):
         assert dado not in saida
 
 
@@ -459,152 +471,64 @@ async def test_dados_conhecidos_viram_estado_e_chave_desconhecida_e_ignorada() -
     assert "chaveQueNaoExiste" not in estado
 
 
-def _verde_devolve(monkeypatch: pytest.MonkeyPatch, dados: DadosCep) -> list[str]:
-    ceps: list[str] = []
-
-    async def consultar_cep(cep: str) -> DadosCep:
-        ceps.append(cep)
-        return dados
-
-    monkeypatch.setattr("maria.fluxos.plano_saude.graph.consultar_cep", consultar_cep)
-    return ceps
-
-
-async def test_cep_do_rio_segue_para_a_pergunta_para_quem(monkeypatch: pytest.MonkeyPatch) -> None:
-    ceps = _verde_devolve(monkeypatch, {"encontrado": True, "idMunicipio": ID_MUNICIPIO_RIO})
-    r = await _fluxo().iniciar(COM_CEP)
-    assert ceps == ["20000000"]
-    assert "para você" in texto(r)
-    assert "statusFinal" not in r
+# ── Sem verificação de município e sem endereço (#439) ─────────────────────────────────────────────────────────────────
 
 
 @pytest.mark.parametrize(
-    ("dados", "motivo", "mensagem"),
+    "entrada",
     [
-        ({"encontrado": True, "idMunicipio": 3000}, "fora_do_rio", MENSAGEM_FORA_DO_RIO),
-        ({"encontrado": True, "idUf": 19}, "municipio_nao_identificado", MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO),
-        ({"encontrado": False}, "municipio_nao_identificado", MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO),
-        ({"encontrado": False, "falhaInfra": True}, "falha_infra_verde", MENSAGEM_FALHA_INFRA_VERDE),
+        {},
+        {"endereco": {}},
+        COM_CEP,
+        {"endereco": {"cep": "24020005", "municipio": "Niterói", "uf": "RJ"}},
+        {"cpf": "11111111111", "endereco": {"cep": "00000000"}},
     ],
+    ids=["sem endereço", "endereço vazio", "CEP do Rio", "CEP de outro município", "CEP que o Verde não acha"],
 )
-async def test_fora_do_rio_e_falhas_da_conferencia_encerram_com_atendimento_humano(
-    monkeypatch: pytest.MonkeyPatch, dados: DadosCep, motivo: str, mensagem: str
+async def test_o_fluxo_comeca_direto_em_para_voce_com_ou_sem_endereco_e_de_qualquer_municipio(
+    monkeypatch: pytest.MonkeyPatch, entrada: dict[str, Any]
 ) -> None:
-    _verde_devolve(monkeypatch, dados)
-    f = _fluxo()
-    r = await f.iniciar(COM_CEP)
-    assert pergunta(r) is None
-    assert r["statusFinal"] == "handoff_humano"
-    assert r["motivoHandoff"] == motivo
-    assert r["mensagemFinal"] == mensagem
-    # Não chega a perguntar nada.
-    assert "paraSi" not in await f.estado()
-
-
-@pytest.mark.parametrize("entrada", [{}, {"endereco": {}}, {"endereco": {"cep": "  "}}, {"endereco": {"municipio": "Rio de Janeiro"}}])
-async def test_sem_cep_encerra_sem_consultar_o_verde(monkeypatch: pytest.MonkeyPatch, entrada: dict[str, object]) -> None:
-    ceps = _verde_devolve(monkeypatch, {"encontrado": True, "idMunicipio": ID_MUNICIPIO_RIO})
+    consultas = _verde_pessoa(monkeypatch, PESSOA_DO_VERDE)
     r = await _fluxo().iniciar(entrada)
-    assert ceps == []
-    assert r["statusFinal"] == "handoff_humano"
-    assert r["motivoHandoff"] == "municipio_nao_identificado"
+    p = pergunta(r)
+    assert p is not None and p["tipo"] == "sim_nao" and "para você" in texto(r)
+    assert "statusFinal" not in r
+    assert consultas == [], "nenhuma consulta ao Verde antes da primeira pergunta"
 
 
-async def test_mock_do_verde_trata_cep_00000000_como_nao_encontrado() -> None:
-    r = await _fluxo().iniciar({"endereco": {"cep": "00000000"}})
-    assert r["motivoHandoff"] == "municipio_nao_identificado"
+async def test_o_endereco_de_quem_fala_continua_no_estado_e_os_motivos_de_municipio_nao_existem_mais() -> None:
+    estado = await _fluxo_estado({**DADOS, "endereco": {"cep": "20040020", "municipio": "Rio de Janeiro"}})
+    assert estado["endereco"] == {"cep": "20040020", "municipio": "Rio de Janeiro"}
+    assert "foraDoRio" not in estado
+    motivos = get_args(MotivoHandoffPlanoSaude)
+    for removido in ("fora_do_rio", "municipio_nao_identificado", "outra_pessoa", "canal_nao_entendido"):
+        assert removido not in motivos
 
 
-FORA_DO_RIO: DadosCep = {"encontrado": True, "idMunicipio": 3000}
-UNIDADE: OrgaoAtendimento = {
-    "id": 1358,
-    "nome": "NÚCLEO DE PRIMEIRO ATENDIMENTO CÍVEL DE NITERÓI",
-    "enderecos": [
-        {
-            "logradouro": "Rua Visconde de Sepetiba",
-            "numero": "519",
-            "complemento": "3º andar",
-            "bairro": "Centro",
-            "municipio": "Niterói",
-            "uf": "RJ",
-            "horariosUrgenciaFormatado": "Seg a Sex, 11:00-17:00",
-        }
-    ],
-}
-
-
-def _verde_fora_do_rio(monkeypatch: pytest.MonkeyPatch, pessoa: DadosPessoa, orgaos: OrgaosPrimeiroAtendimento) -> list[tuple[int, int]]:
-    _verde_devolve(monkeypatch, FORA_DO_RIO)
-    consultas: list[tuple[int, int]] = []
-
-    async def consultar_pessoa(cpf: str) -> DadosPessoa:
-        return pessoa
-
-    async def consultar_orgaos(id_pessoa: int, id_assunto: int) -> OrgaosPrimeiroAtendimento:
-        consultas.append((id_pessoa, id_assunto))
-        return orgaos
-
-    monkeypatch.setattr("maria.fluxos.plano_saude.graph.consultar_pessoa_por_cpf", consultar_pessoa)
-    monkeypatch.setattr("maria.fluxos.plano_saude.graph.consultar_orgaos_primeiro_atendimento", consultar_orgaos)
-    return consultas
-
-
-async def test_fora_do_rio_com_pessoa_no_verde_conclui_com_a_unidade(monkeypatch: pytest.MonkeyPatch) -> None:
-    consultas = _verde_fora_do_rio(monkeypatch, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]})
-    f = _fluxo()
-    r = await f.iniciar({**COM_CEP, "cpf": "11111111111"})
-    assert consultas == [(12, ID_ASSUNTO_UNIDADE_FORA_DO_RIO)]
-    assert pergunta(r) is None
-    assert r["statusFinal"] == "concluido"
-    assert "motivoHandoff" not in r
-    assert r["destino"] == "unidade_informada"
-    assert (await f.estado())["foraDoRio"] is True
-    assert "CÍVEL DE NITERÓI, Rua Visconde de Sepetiba, 519 3º andar, Centro, Niterói/RJ" in r["mensagemFinal"]
-    assert "Horário: Seg a Sex, 11:00-17:00" in r["mensagemFinal"]
-
-
-async def test_fora_do_rio_sem_horario_no_verde_usa_o_horario_padrao(monkeypatch: pytest.MonkeyPatch) -> None:
-    sem_horario: OrgaoAtendimento = {
-        "id": 1,
-        "nome": "NÚCLEO DE TESTE",
-        "enderecos": [{"logradouro": "Rua A", "municipio": "Niterói", "uf": "RJ"}],
-    }
-    _verde_fora_do_rio(monkeypatch, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [sem_horario]})
-    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
-    assert r["statusFinal"] == "concluido"
-    assert f"Horário: {HORARIO_UNIDADE_PADRAO}" in r["mensagemFinal"]
-    assert HORARIO_UNIDADE_PADRAO == "de segunda a sexta, das 10h às 17h"
-
-
-@pytest.mark.parametrize(
-    ("entrada", "pessoa", "orgaos"),
-    [
-        ({}, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]}),
-        ({"cpf": "11111111111"}, {"encontrado": False}, {"encontrado": True, "orgaos": [UNIDADE]}),
-        ({"cpf": "11111111111"}, {"encontrado": True, "idPessoa": 12}, {"encontrado": False, "orgaos": []}),
-        ({"cpf": "11111111111"}, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [{"id": 1, "nome": "Sem endereço"}]}),
-    ],
-)
-async def test_fora_do_rio_sem_unidade_encerra_com_a_mensagem_generica(
-    monkeypatch: pytest.MonkeyPatch, entrada: dict[str, object], pessoa: DadosPessoa, orgaos: OrgaosPrimeiroAtendimento
+async def test_quem_mora_fora_do_rio_segue_o_fluxo_normal_ate_o_e_mail_com_o_endereco_que_a_tykhe_mandou(
+    monkeypatch: pytest.MonkeyPatch,
 ) -> None:
-    _verde_fora_do_rio(monkeypatch, pessoa, orgaos)
-    r = await _fluxo().iniciar({**COM_CEP, **entrada})
-    assert r["statusFinal"] == "handoff_humano"
-    assert r["motivoHandoff"] == "fora_do_rio"
-    assert r["mensagemFinal"] == MENSAGEM_FORA_DO_RIO
+    chamadas = _email_devolve(monkeypatch, True)
+    endereco = {"cep": "24020005", "logradouro": "Rua Fictícia", "numero": "10", "municipio": "Niterói", "uf": "RJ"}
+    f = _fluxo()
+    await f.iniciar({**DADOS, "imagensRecebidas": True, "endereco": endereco})
+    r = await f.responder("true", "2500")
+    assert "Endereço: Rua Fictícia, 10, Niterói/RJ, CEP 24020005" in texto(r), "o município não decide nada: só aparece"
+    r = await f.responder("sim")
+    assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
+    [(_, dados, _)] = chamadas
+    assert dados["Endereço"] == "Rua Fictícia, 10, Niterói/RJ, CEP 24020005"
 
 
-async def test_fora_do_rio_pula_orgao_sem_endereco_e_usa_o_proximo(monkeypatch: pytest.MonkeyPatch) -> None:
-    _verde_fora_do_rio(
-        monkeypatch,
-        {"encontrado": True, "idPessoa": 12},
-        {"encontrado": True, "orgaos": [{"id": 1, "nome": "Sem endereço"}, UNIDADE]},
-    )
-    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
-    assert r["statusFinal"] == "concluido"
-    assert "NITERÓI" in r["mensagemFinal"]
-    assert "Sem endereço" not in r["mensagemFinal"]
+async def test_sem_endereco_o_resumo_e_o_e_mail_mostram_nao_informado_sem_handoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas = _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar({k: v for k, v in DADOS.items() if k != "endereco"} | {"imagensRecebidas": True})
+    r = await f.responder("true", "2500")
+    assert "Endereço: não informado" in texto(r)
+    r = await f.responder("sim")
+    assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
+    assert chamadas[0][1]["Endereço"] == "não informado"
 
 
 def _quebrar(monkeypatch: pytest.MonkeyPatch, alvo: str) -> None:
@@ -615,7 +539,7 @@ def _quebrar(monkeypatch: pytest.MonkeyPatch, alvo: str) -> None:
 
 
 async def test_falha_inesperada_na_entrada_encerra_com_atendimento_humano(monkeypatch: pytest.MonkeyPatch) -> None:
-    _quebrar(monkeypatch, "consultar_cep")
+    _quebrar(monkeypatch, "preparar_pergunta")
     f = _fluxo()
     r = await f.iniciar(COM_CEP)
     assert pergunta(r) is None
@@ -652,23 +576,6 @@ async def test_falha_ao_preparar_a_pergunta_encerra_com_atendimento_humano(monke
     r = await f.responder("true")
     assert pergunta(r) is None
     assert r["motivoHandoff"] == "erro_interno"
-
-
-@pytest.mark.parametrize(
-    ("pessoa", "orgaos"),
-    [
-        ({"encontrado": False, "falhaInfra": True}, {"encontrado": True, "orgaos": [UNIDADE]}),
-        ({"encontrado": True, "idPessoa": 12}, {"encontrado": False, "orgaos": [], "falhaInfra": True}),
-    ],
-)
-async def test_falha_do_verde_na_busca_da_unidade_encerra_com_falha_infra_verde(
-    monkeypatch: pytest.MonkeyPatch, pessoa: DadosPessoa, orgaos: OrgaosPrimeiroAtendimento
-) -> None:
-    _verde_fora_do_rio(monkeypatch, pessoa, orgaos)
-    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
-    assert r["statusFinal"] == "handoff_humano"
-    assert r["motivoHandoff"] == "falha_infra_verde"
-    assert r["mensagemFinal"] == MENSAGEM_FALHA_INFRA_VERDE
 
 
 async def test_tentativas_de_imagem_zeram_a_cada_imagem_recebida() -> None:
@@ -715,14 +622,6 @@ async def test_falha_no_envio_do_e_mail_encerra_com_atendimento_humano_sem_desti
     assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "falha_envio_email")
     assert r["mensagemFinal"] == MENSAGEM_FALHA_ENVIO_EMAIL
     assert r.get("destino") is None
-
-
-async def test_fora_do_rio_nao_chama_a_funcao_de_e_mail(monkeypatch: pytest.MonkeyPatch) -> None:
-    chamadas = _email_devolve(monkeypatch, True)
-    _verde_fora_do_rio(monkeypatch, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]})
-    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
-    assert (r["statusFinal"], r["destino"]) == ("concluido", "unidade_informada")
-    assert chamadas == []
 
 
 async def test_email_enviado_com_imagem_nao_anexada_vai_ao_atendimento_humano(monkeypatch: pytest.MonkeyPatch) -> None:

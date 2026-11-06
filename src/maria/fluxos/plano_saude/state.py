@@ -19,8 +19,6 @@ MotivoHandoffPlanoSaude = Literal[
     "situacao_nao_informada",
     "renda_nao_entendida",
     "dados_nao_confirmados",
-    "fora_do_rio",
-    "municipio_nao_identificado",
     "falha_infra_verde",
     "falha_envio_email",
     "imagens_nao_anexadas",
@@ -45,6 +43,7 @@ class PlanoSaudeState(TypedDict, total=False):
     dataNascimento: str
     email: str
     telefone: str
+    # Vem da Tykhe (de quem fala), só para mostrar no resumo e no e-mail; o fluxo não verifica o município (#439).
     endereco: EnderecoPlanoSaude
     # Premissa da #329 (a confirmar na #336): a Tykhe avisa que guardou as imagens dos documentos.
     imagensRecebidas: bool | None
@@ -55,9 +54,7 @@ class PlanoSaudeState(TypedDict, total=False):
     tentativasCpfOutra: int | None
     erroCpfOutra: Literal["invalido", "nao_encontrado"] | None
     dadosOutraPessoa: dict[str, Any] | None
-    # Mora fora do município do Rio: a conversa conclui com a unidade que ele deve procurar.
-    foraDoRio: bool | None
-    # Para onde o atendimento concluído vai (`email_enviado`: o Rio, por e-mail; `unidade_informada`: fora do Rio, com a unidade).
+    # Para onde o atendimento concluído vai (`email_enviado`: por e-mail ao NUDECON).
     destino: str | None
     tentativasImagens: int | None
     # Links de baixar as imagens que a Tykhe respondeu (#398): `carteirinhaFrente` e `carteirinhaVerso`.

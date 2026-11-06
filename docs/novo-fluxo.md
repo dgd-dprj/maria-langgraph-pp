@@ -130,7 +130,7 @@ Rodar só os testes do fluxo: `uv run pytest tests/fluxos/test_<nome>.py`. Antes
 | A1 | O estado tem `statusFinal`, e todo fim grava `concluido` ou `handoff_humano` |
 | A2 | O estado tem `tokensGastos: CanalTokensGastos` |
 | A3 | O estado tem `mensagemFinal`; sem valor, vale a mensagem padrão do registro |
-| A4 | Cada pausa manda `pergunta` e `tipo` (`texto` ou `sim_nao`) |
+| A4 | Cada pausa manda `pergunta` e `tipo` (`texto`, `sim_nao`, `opcoes` ou `link_imagem`) |
 | A5 | Pergunta sim/não leva as opções `["Sim", "Não"]`, e a resposta passa por `resposta_eh_sim` |
 | A6 | Cada pergunta é um par: o nó que prepara (`preparar_pergunta`) e o que pede |
 | A7 | O nó que prepara e o que pede pulam pela mesma condição |
