@@ -1,4 +1,6 @@
-"""Fluxo Problemas com plano de saúde (NUDECON, #329): canal, "para quem", imagens, renda e confirmação."""
+"""Fluxo Problemas com plano de saúde (NUDECON, #329): "para quem", imagens, renda e confirmação (sem pergunta do canal, #430)."""
+
+from typing import Any
 
 import pytest
 
@@ -14,7 +16,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
     MENSAGEM_OUTRA_PESSOA,
 )
-from maria.fluxos.plano_saude.graph import interpretar_canal, interpretar_renda, montar_resumo, obter_grafo
+from maria.fluxos.plano_saude.graph import interpretar_renda, montar_resumo, obter_grafo
 from maria.integracoes.email_nudecon import ResultadoEmail
 from maria.shared.types import DadosCep, DadosPessoa, OrgaoAtendimento, OrgaosPrimeiroAtendimento
 from tests.fluxos.conftest import Fluxo, pergunta, texto
@@ -27,59 +29,26 @@ def _fluxo() -> Fluxo:
     return Fluxo(obter_grafo(), "teste-plano-saude")
 
 
-@pytest.mark.parametrize(
-    ("resposta", "esperado"),
-    [
-        ("por aqui mesmo", "aqui"),
-        ("Pelo WhatsApp", "aqui"),
-        ("por e-mail", "email"),
-        ("email", "email"),
-        ("E-MAIL, por favor", "email"),
-        ("presencial", "presencial"),
-        ("Prefiro ir pessoalmente", "presencial"),
-        ("PRESENCIALMENTE", "presencial"),
-        ("tanto faz", None),
-        ("", None),
-        ("por aqui ou por e-mail", None),
-    ],
-)
-def test_interpretar_canal(resposta: str, esperado: str | None) -> None:
-    assert interpretar_canal(resposta) == esperado
-
-
-async def test_primeira_pergunta_e_o_canal_com_o_horario_do_nudecon() -> None:
+async def test_primeira_pergunta_e_para_quem_e_nao_tem_mais_o_canal() -> None:
     r = await _fluxo().iniciar(COM_CEP)
-    p = pergunta(r)
-    assert p is not None and p["tipo"] == "texto"
-    assert "das 11h às 16h" in texto(r)
-    assert "presencialmente" in texto(r)
-
-
-async def test_presencial_encerra_sem_perguntar_para_quem() -> None:
-    f = _fluxo()
-    await f.iniciar(COM_CEP)
-    r = await f.responder("presencial")
-    assert pergunta(r) is None
-    assert r["statusFinal"] == "concluido"
-    assert "presencial" in r["mensagemFinal"]
-    assert r["destino"] == "unidade_informada"
-    assert (await f.estado())["canal"] == "presencial"
-
-
-@pytest.mark.parametrize("canal", ["por aqui", "por e-mail"])
-async def test_aqui_ou_email_seguem_para_a_pergunta_de_para_quem(canal: str) -> None:
-    f = _fluxo()
-    await f.iniciar(COM_CEP)
-    r = await f.responder(canal)
     p = pergunta(r)
     assert p is not None and p["tipo"] == "sim_nao" and p["opcoes"] == ["Sim", "Não"]
     assert "para você" in texto(r)
+    for fora in ("por aqui", "por e-mail", "presencial", "das 11h às 16h"):
+        assert fora not in texto(r).lower()
+    assert "canal" not in await _fluxo_estado(COM_CEP)
+
+
+async def _fluxo_estado(entrada: dict[str, Any]) -> dict[str, Any]:
+    f = _fluxo()
+    await f.iniciar(entrada)
+    return dict(await f.estado())
 
 
 async def test_outra_pessoa_encerra_com_o_texto_mock_e_atendimento_humano() -> None:
     f = _fluxo()
     await f.iniciar(COM_CEP)
-    r = await f.responder("por aqui", "false")
+    r = await f.responder("false")
     assert pergunta(r) is None
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "outra_pessoa"
@@ -139,7 +108,7 @@ LINK_VERSO = "https://downloads.tykhe.dev/arquivos/id-verso-fake?token=token-ver
 async def test_para_mim_sem_aviso_das_imagens_pede_a_frente_da_carteirinha() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
-    r = await f.responder("por e-mail", "true")
+    r = await f.responder("true")
     p = pergunta(r)
     assert p is not None and p["tipo"] == "link_imagem" and p["tipoImagem"] == "carteirinha_frente"
     assert "frente" in texto(r)
@@ -149,7 +118,7 @@ async def test_para_mim_sem_aviso_das_imagens_pede_a_frente_da_carteirinha() -> 
 async def test_depois_da_frente_pede_o_verso_e_guarda_os_links() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
-    r = await f.responder("por aqui", "true", LINK_FRENTE)
+    r = await f.responder("true", LINK_FRENTE)
     p = pergunta(r)
     assert p is not None and p["tipo"] == "link_imagem" and p["tipoImagem"] == "carteirinha_verso"
     r = await f.responder(LINK_VERSO)
@@ -177,7 +146,7 @@ async def test_depois_da_frente_pede_o_verso_e_guarda_os_links() -> None:
 async def test_resposta_que_nao_e_link_permitido_repete_a_pergunta_sem_guardar(resposta: str) -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
-    r = await f.responder("por aqui", "true", resposta)
+    r = await f.responder("true", resposta)
     p = pergunta(r)
     assert p is not None and p["tipoImagem"] == "carteirinha_frente"
     assert "Não recebi" in texto(r)
@@ -187,7 +156,7 @@ async def test_resposta_que_nao_e_link_permitido_repete_a_pergunta_sem_guardar(r
 async def test_com_imagens_recebidas_pula_direto_para_a_renda() -> None:
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
-    r = await f.responder("por aqui", "true")
+    r = await f.responder("true")
     p = pergunta(r)
     assert p is not None and p["tipo"] == "texto"
     assert "renda" in texto(r)
@@ -196,7 +165,7 @@ async def test_com_imagens_recebidas_pula_direto_para_a_renda() -> None:
 async def test_imagens_invalidas_tres_vezes_encerram_com_atendimento_humano() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
-    r = await f.responder("por aqui", "true", "não")
+    r = await f.responder("true", "não")
     assert "Não recebi" in texto(r)
     r = await f.responder("não", "não")
     assert pergunta(r) is None
@@ -207,7 +176,7 @@ async def test_imagens_invalidas_tres_vezes_encerram_com_atendimento_humano() ->
 async def test_imagens_enviadas_seguem_para_a_renda() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
-    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO)
+    r = await f.responder("true", LINK_FRENTE, LINK_VERSO)
     assert "renda" in texto(r)
     assert (await f.estado())["imagensRecebidas"] is True
 
@@ -215,7 +184,7 @@ async def test_imagens_enviadas_seguem_para_a_renda() -> None:
 async def test_renda_invalida_repete_e_na_terceira_encerra() -> None:
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
-    r = await f.responder("por aqui", "true", "muita")
+    r = await f.responder("true", "muita")
     assert "Não entendi" in texto(r)
     r = await f.responder("-50", "nada")
     assert pergunta(r) is None
@@ -225,7 +194,7 @@ async def test_renda_invalida_repete_e_na_terceira_encerra() -> None:
 async def test_sem_relato_pergunta_a_situacao_antes_da_renda() -> None:
     f = _fluxo()
     await f.iniciar({k: v for k, v in DADOS.items() if k != "relato"} | {"imagensRecebidas": True})
-    r = await f.responder("por aqui", "true")
+    r = await f.responder("true")
     p = pergunta(r)
     assert p is not None and p["tipo"] == "texto"
     assert "o que aconteceu" in texto(r)
@@ -237,7 +206,7 @@ async def test_sem_relato_pergunta_a_situacao_antes_da_renda() -> None:
 async def test_com_relato_nao_pergunta_a_situacao() -> None:
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
-    r = await f.responder("por aqui", "true")
+    r = await f.responder("true")
     assert "o que aconteceu" not in texto(r)
     assert "renda" in texto(r)
 
@@ -245,7 +214,7 @@ async def test_com_relato_nao_pergunta_a_situacao() -> None:
 async def test_situacao_com_menos_de_tres_palavras_repete_e_na_terceira_encerra() -> None:
     f = _fluxo()
     await f.iniciar({k: v for k, v in DADOS.items() if k != "relato"} | {"imagensRecebidas": True})
-    r = await f.responder("por aqui", "true", "ajuda")
+    r = await f.responder("true", "ajuda")
     assert "um pouco mais de detalhe" in texto(r)
     r = await f.responder("negaram tudo", "")
     assert pergunta(r) is None
@@ -256,14 +225,14 @@ async def test_situacao_com_menos_de_tres_palavras_repete_e_na_terceira_encerra(
 async def test_situacao_pergunta_depois_das_imagens_quando_sem_aviso() -> None:
     f = _fluxo()
     await f.iniciar({k: v for k, v in DADOS.items() if k != "relato"})
-    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO)
+    r = await f.responder("true", LINK_FRENTE, LINK_VERSO)
     assert "o que aconteceu" in texto(r)
 
 
 async def test_resumo_mostra_os_dados_como_vieram_e_a_renda() -> None:
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
-    r = await f.responder("por aqui", "true", "R$ 2.500,00")
+    r = await f.responder("true", "R$ 2.500,00")
     p = pergunta(r)
     assert p is not None and p["tipo"] == "sim_nao" and p["opcoes"] == ["Sim", "Não"]
     resumo = texto(r)
@@ -291,7 +260,7 @@ def test_resumo_trata_vazio_e_ausente_como_nao_informado_e_aceita_cpf_numerico()
 async def test_confirmar_conclui_com_a_renda_nos_metadados() -> None:
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
-    r = await f.responder("por aqui", "true", "2500", "sim")
+    r = await f.responder("true", "2500", "sim")
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
     estado = await f.estado()
@@ -301,39 +270,21 @@ async def test_confirmar_conclui_com_a_renda_nos_metadados() -> None:
 async def test_nao_confirmar_volta_para_a_renda_e_conserva_o_resto() -> None:
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
-    r = await f.responder("por aqui", "true", "2500", "não")
+    r = await f.responder("true", "2500", "não")
     assert "Vamos corrigir" in texto(r)
     r = await f.responder("3000")
     assert "Renda mensal: R$ 3.000,00" in texto(r)
     estado = await f.estado()
-    assert (estado["canal"], estado["paraSi"], estado["cpf"]) == ("aqui", True, "00000000000")
+    assert (estado["paraSi"], estado["cpf"]) == (True, "00000000000")
 
 
 async def test_tres_nao_na_confirmacao_encerram_com_atendimento_humano() -> None:
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
-    r = await f.responder("por aqui", "true", "2500", "não", "2500", "não", "2500", "não")
+    r = await f.responder("true", "2500", "não", "2500", "não", "2500", "não")
     assert pergunta(r) is None
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "dados_nao_confirmados"
-
-
-async def test_resposta_que_nao_e_canal_repete_a_pergunta_com_outro_texto() -> None:
-    f = _fluxo()
-    primeira = await f.iniciar(COM_CEP)
-    r = await f.responder("tanto faz")
-    assert pergunta(r) is not None
-    assert texto(r) != texto(primeira)
-    assert "Não entendi" in texto(r)
-
-
-async def test_tres_respostas_sem_canal_encerram_com_atendimento_humano() -> None:
-    f = _fluxo()
-    await f.iniciar(COM_CEP)
-    r = await f.responder("tanto faz", "não sei", "qualquer um")
-    assert pergunta(r) is None
-    assert r["statusFinal"] == "handoff_humano"
-    assert r["motivoHandoff"] == "canal_nao_entendido"
 
 
 async def test_dados_conhecidos_viram_estado_e_chave_desconhecida_e_ignorada() -> None:
@@ -356,11 +307,11 @@ def _verde_devolve(monkeypatch: pytest.MonkeyPatch, dados: DadosCep) -> list[str
     return ceps
 
 
-async def test_cep_do_rio_segue_para_a_pergunta_do_canal(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_cep_do_rio_segue_para_a_pergunta_para_quem(monkeypatch: pytest.MonkeyPatch) -> None:
     ceps = _verde_devolve(monkeypatch, {"encontrado": True, "idMunicipio": ID_MUNICIPIO_RIO})
     r = await _fluxo().iniciar(COM_CEP)
     assert ceps == ["20000000"]
-    assert "Como você prefere seguir" in texto(r)
+    assert "para você" in texto(r)
     assert "statusFinal" not in r
 
 
@@ -383,8 +334,8 @@ async def test_fora_do_rio_e_falhas_da_conferencia_encerram_com_atendimento_huma
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == motivo
     assert r["mensagemFinal"] == mensagem
-    # Não chega a perguntar nada: o canal fica vazio.
-    assert "canal" not in await f.estado()
+    # Não chega a perguntar nada.
+    assert "paraSi" not in await f.estado()
 
 
 @pytest.mark.parametrize("entrada", [{}, {"endereco": {}}, {"endereco": {"cep": "  "}}, {"endereco": {"municipio": "Rio de Janeiro"}}])
@@ -514,9 +465,8 @@ async def test_falha_inesperada_na_entrada_encerra_com_atendimento_humano(monkey
 @pytest.mark.parametrize(
     ("alvo", "respostas"),
     [
-        ("interpretar_canal", ["por aqui"]),
-        ("resposta_eh_sim", ["por aqui", "true"]),
-        ("interpretar_renda", ["por aqui", "true", "2500"]),
+        ("resposta_eh_sim", ["true"]),
+        ("interpretar_renda", ["true", "2500"]),
     ],
 )
 async def test_falha_inesperada_no_meio_da_conversa_encerra_sem_perguntar_mais_nada(
@@ -536,7 +486,7 @@ async def test_falha_ao_preparar_a_pergunta_encerra_com_atendimento_humano(monke
     f = _fluxo()
     await f.iniciar(COM_CEP)
     _quebrar(monkeypatch, "preparar_pergunta")
-    r = await f.responder("por aqui")
+    r = await f.responder("true")
     assert pergunta(r) is None
     assert r["motivoHandoff"] == "erro_interno"
 
@@ -561,7 +511,7 @@ async def test_falha_do_verde_na_busca_da_unidade_encerra_com_falha_infra_verde(
 async def test_tentativas_de_imagem_zeram_a_cada_imagem_recebida() -> None:
     f = _fluxo()
     await f.iniciar(DADOS)
-    await f.responder("por aqui", "true", "oi", "oi")
+    await f.responder("true", "oi", "oi")
     r = await f.responder(LINK_FRENTE)
     assert pergunta(r)["tipoImagem"] == "carteirinha_verso"  # type: ignore[index]
     assert (await f.estado())["tentativasImagens"] == 0
@@ -585,7 +535,7 @@ async def test_concluir_envia_o_e_mail_com_os_dados_e_os_links_antes_de_devolver
     chamadas = _email_devolve(monkeypatch, True)
     f = _fluxo()
     await f.iniciar(DADOS)
-    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO, "Preciso de um remédio", "2500", "sim")
+    r = await f.responder("true", LINK_FRENTE, LINK_VERSO, "Preciso de um remédio", "2500", "sim")
     assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
     [(protocolo, dados, imagens)] = chamadas
     assert protocolo.startswith("NUD-")
@@ -598,18 +548,17 @@ async def test_falha_no_envio_do_e_mail_encerra_com_atendimento_humano_sem_desti
     _email_devolve(monkeypatch, False)
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
-    r = await f.responder("por aqui", "true", "2500", "sim")
+    r = await f.responder("true", "2500", "sim")
     assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "falha_envio_email")
     assert r["mensagemFinal"] == MENSAGEM_FALHA_ENVIO_EMAIL
     assert r.get("destino") is None
 
 
-async def test_presencial_e_fora_do_rio_nao_chamam_a_funcao_de_e_mail(monkeypatch: pytest.MonkeyPatch) -> None:
+async def test_fora_do_rio_nao_chama_a_funcao_de_e_mail(monkeypatch: pytest.MonkeyPatch) -> None:
     chamadas = _email_devolve(monkeypatch, True)
-    f = _fluxo()
-    await f.iniciar(DADOS)
-    r = await f.responder("presencial")
-    assert r["statusFinal"] == "concluido"
+    _verde_fora_do_rio(monkeypatch, {"encontrado": True, "idPessoa": 12}, {"encontrado": True, "orgaos": [UNIDADE]})
+    r = await _fluxo().iniciar({**COM_CEP, "cpf": "11111111111"})
+    assert (r["statusFinal"], r["destino"]) == ("concluido", "unidade_informada")
     assert chamadas == []
 
 
@@ -617,7 +566,7 @@ async def test_email_enviado_com_imagem_nao_anexada_vai_ao_atendimento_humano(mo
     chamadas = _email_devolve(monkeypatch, True, anexos_falhos=2)
     f = _fluxo()
     await f.iniciar(DADOS)
-    r = await f.responder("por aqui", "true", LINK_FRENTE, LINK_VERSO, "Preciso de um remédio", "2500", "sim")
+    r = await f.responder("true", LINK_FRENTE, LINK_VERSO, "Preciso de um remédio", "2500", "sim")
     assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "imagens_nao_anexadas")
     assert r["mensagemFinal"] == MENSAGEM_IMAGENS_NAO_ANEXADAS
     assert r.get("destino") is None
@@ -628,5 +577,5 @@ async def test_email_enviado_sem_falha_de_imagem_segue_concluido(monkeypatch: py
     _email_devolve(monkeypatch, True, anexos_falhos=0)
     f = _fluxo()
     await f.iniciar({**DADOS, "imagensRecebidas": True})
-    r = await f.responder("por aqui", "true", "2500", "sim")
+    r = await f.responder("true", "2500", "sim")
     assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")

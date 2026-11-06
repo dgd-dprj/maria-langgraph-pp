@@ -12,11 +12,8 @@ from typing import Literal, TypedDict
 
 from maria.shared.tokens_acumulados import CanalTokensGastos
 
-CanalAtendimento = Literal["aqui", "email", "presencial"]
-
 MotivoHandoffPlanoSaude = Literal[
     "outra_pessoa",
-    "canal_nao_entendido",
     "imagens_pendentes",
     "situacao_nao_informada",
     "renda_nao_entendida",
@@ -51,12 +48,10 @@ class PlanoSaudeState(TypedDict, total=False):
     # Premissa da #329 (a confirmar na #336): a Tykhe avisa que guardou as imagens dos documentos.
     imagensRecebidas: bool | None
     # Respostas da conversa.
-    canal: CanalAtendimento | None
-    tentativasCanal: int | None
     paraSi: bool | None
     # Mora fora do município do Rio: a conversa conclui com a unidade que ele deve procurar.
     foraDoRio: bool | None
-    # Para onde o atendimento concluído vai (`email_enviado`: o Rio, por e-mail; `unidade_informada`: presencial ou fora do Rio).
+    # Para onde o atendimento concluído vai (`email_enviado`: o Rio, por e-mail; `unidade_informada`: fora do Rio, com a unidade).
     destino: str | None
     tentativasImagens: int | None
     # Links de baixar as imagens que a Tykhe respondeu (#398): `carteirinhaFrente` e `carteirinhaVerso`.
