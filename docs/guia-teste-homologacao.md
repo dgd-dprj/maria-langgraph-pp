@@ -172,6 +172,38 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
 
 > **Os textos são provisórios,** até o NUDECON validar (#335) e a Tykhe confirmar os destinos e a forma das opções (#336). Diferença de texto não é defeito; anote só o que travar a conversa ou levar ao destino errado. **Este caso não grava nada no Verde:** o envio ao NUDECON ainda não existe (#345).
 
+### Caso F. Dois assuntos no mesmo relato (multi-fluxo): só no release (#435)
+
+Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada muda:** o relato com dois assuntos segue como antes, com um assunto só, e a resposta não traz `assuntosPendentes`.
+
+**No release, pelo relato livre:**
+- **Escreva os dois assuntos numa frase só, do jeito que a pessoa escreve,** com erro de digitação. Exemplos inventados:
+  - "meu irmao ta preso e o plano da minha mae n quer libera a cirurgia dela";
+  - "meu marido me bate qnd bebe e meu filho rodou ontem a noite";
+  - "preciso de ajuda pq meu ex me ameaçou e tb ele n paga a pensao das crianças".
+- **A Maria propõe a ordem e pergunta "Pode ser assim?"** (Sim/Não). A ordem padrão é saúde, violência doméstica, pessoa presa e depois o resto, com o urgente antes.
+- **Responda de jeitos diferentes:** "Sim", "pode", "Não", o nome do assunto ("o do meu irmão") ou algo que a Maria não entende ("hmm").
+
+**Esperado:**
+
+| Resposta | O que acontece |
+|---|---|
+| Sim, "pode", "blz" | começa pelo 1º assunto da ordem proposta |
+| Não, com dois assuntos | troca a ordem |
+| Não, com três assuntos | "Qual você quer resolver primeiro?", com a lista |
+| O nome do assunto ou uma palavra do relato | começa por esse assunto |
+| Algo que a Maria não entende | segue a ordem proposta, sem perguntar de novo |
+
+- **Quando o 1º assunto é da Maria,** o fluxo abre com "Combinado. Vamos começar pela …" antes da 1ª pergunta. Quando é da Tykhe (saúde pública, pensão), o relato é redirecionado como hoje.
+- **A Maria trata só o 1º assunto.** Os outros aparecem em `assuntosPendentes` na resposta da API: na que abre o fluxo e na resposta final. **Pela Tykhe, os outros assuntos ainda não seguem sozinhos**, até a Tykhe usar esse campo. Isso não é defeito.
+- **O plano de saúde recebe só o trecho do relato sobre o plano,** e não a parte da pessoa presa: confira a "Situação" no resumo da confirmação.
+
+**Anote como defeito:**
+- um assunto que a Maria não achou;
+- um assunto que ela inventou;
+- uma ordem diferente da padrão sem a pessoa pedir;
+- a "Situação" do plano com o assunto de outra pessoa.
+
 ### Casos de controle (rápidos)
 
 | Caso | Esperado |

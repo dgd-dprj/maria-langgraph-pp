@@ -987,6 +987,31 @@ Duas coisas diferentes:
 - **Onde está escrita:** `docs/padroes-pull-request.md` ("Quando abrir PR"), `docs/padroes-issues.md`, as skills `padroes-pull-request` e `padroes-issues` e o `CLAUDE.md`. Entrou junto com a #353 (corte de 15 candidatos no orquestrador), o primeiro PR com código depois da decisão.
 - **Sem issue, com `chore:` (decisão da Nicole, 2026-11-05):** mudança só de tipagem, lint ou formatação, sem mudar comportamento, pode ir sem issue, com o título do PR começando por `chore:`. Os testes continuam obrigatórios. O primeiro caso foi o aviso do Pylance no 409 de `chatId` de outro fluxo (branch `fix/pylance-registro-409`). Alinhar o editor e o CI na checagem de tipos é a #412. Registro no `CLAUDE.md`.
 
+## Multi-fluxo, fase 1a: vários assuntos, um fluxo por vez (decidido em 2026-11-06, #435)
+
+- **Decisão da Nicole (06/11):** homologar primeiro a versão menor da fase 1 da #279, depois de testar o protótipo no terminal com relatos informais e com erros de digitação. Duas escolhas, feitas por ela entre as opções:
+  - **escopo:** vários assuntos no relato, **um fluxo por vez**, sem mudar o banco. A fila completa na mesma conversa (que muda a chave da tabela `atendimentos` e do checkpoint) fica para depois;
+  - **ordem:** a Maria pergunta **"Pode ser assim?"**, como no protótipo.
+- **O que entrou (só no release; a produção não muda, conferido por teste):**
+  - a classificação por necessidades (`ia/classificar_necessidades.py`), com o prompt da fase 0;
+  - a fila (`orquestrador/fila.py`): a ordem de 28 e 29/10, os nomes simples e a leitura da resposta;
+  - três nós no grafo do orquestrador (`perguntarOrdem`, `perguntarPrimeiro`, `comecarFila`);
+  - o campo `assuntosPendentes`, que é só acréscimo no contrato (`docs/contrato-tykhe.md`).
+- **Diferenças em relação ao protótipo:**
+  - os textos não prometem "tudo aqui mesmo", porque o próximo assunto depende da Tykhe;
+  - o fluxo aberto recebe só o trecho do relato sobre o assunto dele (achado do teste de 06/11: a "Situação" do e-mail ao NUDECON levava junto a pessoa presa).
+- **Dois ajustes no prompt da fase 0, depois do teste com a IA de verdade (06/11):**
+  - os jeitos populares de dizer que alguém foi preso ("rodou", "tá na cana", "foi pra Bangu"): sem eles, "meu filho rodou ontem" ia para "outros";
+  - a cirurgia sem dizer se é pelo plano ou pelo SUS volta a ser dúvida entre as duas opções. Assim a escolha direta da #419 continua levando ao plano; sem isso, "minha mãe precisa operar o joelho" ia para a Tykhe.
+- **Teste com a IA de verdade (06/11, custo aprovado de até US$ 0,17, gasto de cerca de US$ 0,167):**
+  - **rodada completa** com o prompt de antes dos ajustes: 32 casos, 28 passaram;
+  - **4 falhas:** 2 foram corrigidas pelos ajustes acima, 1 era expectativa errada (prótese sem cirurgia é da Tykhe, pelo escopo da #386) e 1 é o risco já aceito na #419 (internação negada pelo convênio indo para o plano);
+  - **com o prompt final, foram conferidos 8 casos.** A rodada completa com o prompt final fica para antes do merge, com o custo aprovado.
+- **Custo por relato no release:** cerca de 3.330 a 3.440 tokens de entrada na classificação, contra cerca de 2.040 da classificação de antes (medido com `count_tokens`).
+- **A combinar com o Ícaro e a Tykhe:**
+  - os botões na pergunta da ordem;
+  - o uso de `assuntosPendentes` para seguir com o próximo assunto.
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.
