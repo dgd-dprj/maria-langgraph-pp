@@ -324,14 +324,20 @@ async def consultar_processo_com_status(numero: str) -> tuple[DadosProcesso, int
 # --- Pessoa (GET /pessoa?cpf=) ---------------------------------------------------
 
 
-async def consultar_pessoa_por_cpf(cpf: str) -> DadosPessoa:
+CHAVES_PESSOA = ("idPessoa", "nome", "nomeSocial", "genero", "endereco", "enderecoDetalhado")
+# #433: data de nascimento, e-mail e telefones, só quando pedido (`completo=True`). Os outros fluxos continuam lendo
+# o que liam, para não levar mais dado do Verde ao estado e à resposta.
+CHAVES_PESSOA_COMPLETA = (*CHAVES_PESSOA, "dataNascimento", "email", "telefonesAssistido")
+
+
+async def consultar_pessoa_por_cpf(cpf: str, *, completo: bool = False) -> DadosPessoa:
     if not VERDE_JWT_TOKEN:
         logger.warn(MENSAGEM_MOCK, **contexto_atual())
         if cpf == "00000000000":
             return {"encontrado": False}
         if cpf == "66666666666":
             return {"encontrado": False, "falhaInfra": True}
-        return {
+        mock: DadosPessoa = {
             "encontrado": True,
             "idPessoa": 999999,
             "nome": "Pessoa de Teste (mock)",
@@ -339,6 +345,11 @@ async def consultar_pessoa_por_cpf(cpf: str) -> DadosPessoa:
             "endereco": "Rua de Teste, 123 (mock)",
             "enderecoDetalhado": {"cep": "20000-000"},
         }
+        if completo:
+            mock["dataNascimento"] = "01/01/1990"
+            mock["email"] = "teste@exemplo.org"
+            mock["telefonesAssistido"] = [{"numeroTelefone": "21999990000", "inWhatsapp": True, "tipo": "Celular"}]
+        return mock
     inicio = _agora_ms()
     # 404 (não encontrado) e 422 (mais de uma pessoa) caem no mesmo encontrado: False.
     url = f"{VERDE_API_URL}/pessoa?cpf={_escapar(cpf)}"
@@ -352,7 +363,7 @@ async def consultar_pessoa_por_cpf(cpf: str) -> DadosPessoa:
     if not _js.verdadeiro(dados) or _js.prop(dados, "idPessoa") is AUSENTE:
         return {"encontrado": False}
     saida: dict[str, Any] = {"encontrado": True}
-    for chave in ("idPessoa", "nome", "nomeSocial", "genero", "endereco", "enderecoDetalhado"):
+    for chave in CHAVES_PESSOA_COMPLETA if completo else CHAVES_PESSOA:
         _js.definir(saida, chave, _js.prop(dados, chave))
     return cast(DadosPessoa, saida)
 

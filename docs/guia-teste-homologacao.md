@@ -167,7 +167,7 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
 | Caminho | Mensagem final |
 |---|---|
 | Para você, com as fotos, tudo confirmado | "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você." |
-| Para outra pessoa | "Entendi que o atendimento é para outra pessoa. Por enquanto não consigo seguir com esse caso por aqui…" |
+| Para outra pessoa (desde 2026-11-06, #433) | A Maria pede o CPF da pessoa atendida, busca os dados dela no Verde e segue com as imagens, a situação, a renda, o resumo (com os dados dela) e a confirmação. CPF com formato errado 3 vezes, CPF que o Verde não acha 3 vezes ou Verde fora do ar levam à equipe |
 | CEP fora do município do Rio | O nome, o endereço e o horário da unidade a procurar; sem a unidade, o encaminhamento para a equipe |
 
 > **Os textos são provisórios,** até o NUDECON validar (#335) e a Tykhe confirmar os destinos e a forma das opções (#336). Diferença de texto não é defeito; anote só o que travar a conversa ou levar ao destino errado. **Este caso não grava nada no Verde:** o envio ao NUDECON ainda não existe (#345).

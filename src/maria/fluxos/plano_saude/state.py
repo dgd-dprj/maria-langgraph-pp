@@ -8,12 +8,13 @@ pergunta das imagens.
 
 from __future__ import annotations
 
-from typing import Literal, TypedDict
+from typing import Any, Literal, TypedDict
 
 from maria.shared.tokens_acumulados import CanalTokensGastos
 
 MotivoHandoffPlanoSaude = Literal[
-    "outra_pessoa",
+    "cpf_outra_pessoa_invalido",
+    "cpf_outra_pessoa_nao_encontrado",
     "imagens_pendentes",
     "situacao_nao_informada",
     "renda_nao_entendida",
@@ -49,6 +50,11 @@ class PlanoSaudeState(TypedDict, total=False):
     imagensRecebidas: bool | None
     # Respostas da conversa.
     paraSi: bool | None
+    # Outra pessoa (#433): o CPF dela e o que o Verde trouxe são dado de terceiro, sensível: nunca em log nem em `metadados`.
+    cpfOutraPessoa: str | None
+    tentativasCpfOutra: int | None
+    erroCpfOutra: Literal["invalido", "nao_encontrado"] | None
+    dadosOutraPessoa: dict[str, Any] | None
     # Mora fora do município do Rio: a conversa conclui com a unidade que ele deve procurar.
     foraDoRio: bool | None
     # Para onde o atendimento concluído vai (`email_enviado`: o Rio, por e-mail; `unidade_informada`: fora do Rio, com a unidade).
