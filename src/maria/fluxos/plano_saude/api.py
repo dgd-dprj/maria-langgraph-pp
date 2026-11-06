@@ -22,6 +22,9 @@ ID_ASSUNTO_UNIDADE_FORA_DO_RIO = 3050
 HORARIO_UNIDADE_PADRAO = "de segunda a sexta, das 10h às 17h"
 
 
+# Opções da pergunta do canal (#428), na ordem aqui, e-mail, presencial. A resposta continua aceitando texto livre.
+OPCOES_CANAL = ["Por aqui", "Por e-mail", "Presencialmente"]
+
 # Imagens que a Maria pede à Tykhe, na ordem (#398): (chave do estado, `tipoImagem` do contrato).
 # Lista provisória até a #335 definir os documentos.
 TIPOS_IMAGEM: tuple[tuple[str, str], ...] = (("carteirinhaFrente", "carteirinha_frente"), ("carteirinhaVerso", "carteirinha_verso"))

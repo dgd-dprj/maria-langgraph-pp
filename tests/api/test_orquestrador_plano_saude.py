@@ -134,6 +134,10 @@ async def test_h1_release_o_relato_de_plano_vai_para_o_fluxo(
     assert r.status_code == 200
     assert r.json()["status"] == "em_andamento"
     assert r.json()["flowId"] == ID_PROBLEMAS_PLANO_SAUDE
+    # #428: a 1ª pergunta do fluxo é a do canal, do tipo opcoes, com as três opções no array.
+    assert r.json()["tipoResposta"] == "opcoes"
+    assert r.json()["opcoes"] == ["Por aqui", "Por e-mail", "Presencialmente"]
+    assert "Como você prefere seguir o atendimento" in r.json()["resposta"]
 
 
 @pytest.mark.parametrize("valor", NAO_LIGAM, ids=repr)
@@ -170,4 +174,4 @@ async def test_h4_release_relato_ambiguo_entre_plano_e_saude_segue_direto_no_flu
     assert r.status_code == 200
     assert r.json()["status"] == "em_andamento"
     assert r.json()["flowId"] == ID_PROBLEMAS_PLANO_SAUDE
-    assert r.json()["tipoResposta"] == "texto"  # a 1ª pergunta do fluxo, o canal
+    assert r.json()["tipoResposta"] == "opcoes"  # a 1ª pergunta do fluxo, o canal (#428)

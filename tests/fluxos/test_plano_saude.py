@@ -13,6 +13,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_IMAGENS_NAO_ANEXADAS,
     MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
     MENSAGEM_OUTRA_PESSOA,
+    OPCOES_CANAL,
 )
 from maria.fluxos.plano_saude.graph import interpretar_canal, interpretar_renda, montar_resumo, obter_grafo
 from maria.integracoes.email_nudecon import ResultadoEmail
@@ -50,7 +51,8 @@ def test_interpretar_canal(resposta: str, esperado: str | None) -> None:
 async def test_primeira_pergunta_e_o_canal_com_o_horario_do_nudecon() -> None:
     r = await _fluxo().iniciar(COM_CEP)
     p = pergunta(r)
-    assert p is not None and p["tipo"] == "texto"
+    assert p is not None and p["tipo"] == "opcoes"
+    assert p["opcoes"] == ["Por aqui", "Por e-mail", "Presencialmente"]
     assert "das 11h às 16h" in texto(r)
     assert "presencialmente" in texto(r)
 
@@ -630,3 +632,44 @@ async def test_email_enviado_sem_falha_de_imagem_segue_concluido(monkeypatch: py
     await f.iniciar({**DADOS, "imagensRecebidas": True})
     r = await f.responder("por aqui", "true", "2500", "sim")
     assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
+
+
+# ── #428: a pergunta do canal é do tipo opcoes ────────────────────────────────────────────────────────────────────────
+
+
+async def test_repeticao_da_pergunta_do_canal_traz_o_mesmo_tipo_e_as_mesmas_opcoes() -> None:
+    f = _fluxo()
+    await f.iniciar(COM_CEP)
+    r = await f.responder("sei lá")
+    p = pergunta(r)
+    assert p is not None and p["tipo"] == "opcoes" and p["opcoes"] == OPCOES_CANAL
+    assert "Não entendi" in texto(r)
+
+
+@pytest.mark.parametrize(
+    ("resposta", "canal"),
+    [
+        ("Por aqui", "aqui"),
+        ("Por e-mail", "email"),
+        ("Presencialmente", "presencial"),
+        ("POR AQUI", "aqui"),
+        ("por e-mail", "email"),
+        ("PRESENCIALMENTE", "presencial"),
+        ("presencialmente", "presencial"),
+    ],
+)
+def test_cada_rotulo_exato_da_opcao_e_entendido_sem_diferenciar_maiuscula(resposta: str, canal: str) -> None:
+    assert interpretar_canal(resposta) == canal
+
+
+def test_as_opcoes_do_canal_sao_entendidas_uma_a_uma() -> None:
+    assert [interpretar_canal(o) for o in OPCOES_CANAL] == ["aqui", "email", "presencial"]
+
+
+async def test_escolher_a_opcao_por_email_segue_para_a_pergunta_para_quem() -> None:
+    f = _fluxo()
+    await f.iniciar(COM_CEP)
+    r = await f.responder("Por e-mail")
+    assert (await f.estado())["canal"] == "email"
+    p = pergunta(r)
+    assert p is not None and p["tipo"] == "sim_nao"

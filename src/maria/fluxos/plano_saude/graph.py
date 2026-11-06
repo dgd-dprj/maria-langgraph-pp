@@ -15,8 +15,8 @@ Premissas desta etapa, a confirmar: a Tykhe coleta as imagens e avisa com
 a pessoa já enviou. O relato chega do orquestrador no canal
 `relato` (#334, entregue pela rota quando `FluxoConfig.usa_relato`); sem ele, a Maria pergunta a situação.
 
-A pergunta do canal é de texto, com as opções escritas na própria pergunta: o
-tipo `opcoes` ainda está por confirmar com a Tykhe (#336).
+A pergunta do canal é do tipo `opcoes` (#428), com `OPCOES_CANAL` no array e as opções
+também escritas na própria pergunta. A resposta continua aceitando texto livre.
 """
 
 from __future__ import annotations
@@ -52,6 +52,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_PRESENCIAL,
     MENSAGEM_RENDA_NAO_ENTENDIDA,
     MENSAGEM_SITUACAO_NAO_INFORMADA,
+    OPCOES_CANAL,
     TIPOS_IMAGEM,
     url_imagem_valida,
 )
@@ -195,7 +196,9 @@ async def preparar_pergunta_canal(state: PlanoSaudeState) -> Atualizacao:
 
 
 async def pedir_canal(state: PlanoSaudeState) -> Atualizacao:
-    resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_canal(state), "tipo": "texto"})
+    resposta: str = interrupt(
+        {"pergunta": state.get("perguntaAtualTexto") or texto_canal(state), "tipo": "opcoes", "opcoes": list(OPCOES_CANAL)}
+    )
     canal = interpretar_canal(resposta)
     if canal is not None:
         return {"canal": canal}

@@ -170,6 +170,22 @@ def no_release(cliente: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch) -> N
 
 
 @pytest.mark.usefixtures("no_release")
+async def test_plano_saude_escolher_a_opcao_do_canal_segue_para_a_pergunta_para_quem(
+    cliente: httpx.AsyncClient, auth: dict[str, str]
+) -> None:
+    chat_id = f"teste-ps-http-{next(_ids)}"
+    await cliente.post(
+        "/atendimentos",
+        json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": PLANO_SAUDE_COM_CEP},
+        headers=auth,
+    )
+    r = await cliente.post("/atendimentos/respostas", json={"chatId": chat_id, "resposta": "Por e-mail"}, headers=auth)
+    corpo = r.json()
+    assert r.status_code == 200
+    assert corpo["tipoResposta"] == "sim_nao" and corpo["metadados"]["canal"] == "email"
+
+
+@pytest.mark.usefixtures("no_release")
 async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
     r = await cliente.post(
         "/atendimentos",
@@ -179,7 +195,8 @@ async def test_plano_saude_primeira_pergunta_e_o_canal(cliente: httpx.AsyncClien
     corpo = r.json()
     assert r.status_code == 200
     assert corpo["status"] == "em_andamento"
-    assert corpo["tipoResposta"] == "texto"
+    assert corpo["tipoResposta"] == "opcoes"  # #428
+    assert corpo["opcoes"] == ["Por aqui", "Por e-mail", "Presencialmente"]
     assert "das 11h às 16h" in corpo["resposta"]
 
 
