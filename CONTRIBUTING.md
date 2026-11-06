@@ -19,16 +19,17 @@ Três branches permanentes, no estilo do GitLab Flow (#427, decisão da Nicole d
 - **Cada merge em `staging` reinicia o release.** Quem estiver testando pelo WhatsApp perde a conversa em andamento, porque a ponte guarda as conversas abertas em memória ([`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md)). Durante uma rodada de teste, combine o horário da promoção.
 - **Até 2026-11-06,** `develop` fazia o papel de staging e cada merge nela subia no release. A decisão de 2026-10-22 de deixar os nomes como estavam até o corte (#268) foi revista na #427.
 
-**Proteção (rulesets do GitHub, desde 2026-10-22, #214):**
+**Proteção (rulesets do GitHub):** proteção leve, porque a equipe é pequena. A decisão é da Nicole, de 2026-11-06, e substitui as regras de 2026-10-22 (#214).
 
 | Regra | `develop` | `staging` (#427) | `main` |
 |---|---|---|---|
-| Push direto | bloqueado: tudo entra por PR | bloqueado: tudo entra por PR | bloqueado: tudo entra por PR |
+| CI verde obrigatório (`test` e `imagem`) | sim | sim | sim |
+| Entrada só por PR | não exigida pelo ruleset | sim | sim |
 | De onde vem o PR | branch de trabalho | só `develop` (conferido pelo CI) | só `staging` (conferido pelo CI) |
-| Checks obrigatórios | `test` e `imagem` | `test` e `imagem` | `test` e `imagem`, com a branch atualizada |
-| Aprovações | nenhuma | nenhuma | 1 |
-| Método de merge | squash (padrão) ou merge commit | só merge commit | só merge commit |
-| Force push e exclusão da branch | bloqueados | bloqueados | bloqueados |
+| Revisão aprovada | não exigida | não exigida | não exigida |
+| Force push e exclusão da branch | não bloqueados pelo ruleset | bloqueados | bloqueados |
+
+Nada além disso. Na `develop`, o caminho continua sendo o PR: o CI só roda nos PRs, então um push direto chega sem o CI verde e é recusado.
 
 A promoção (`develop` → `staging` e `staging` → `main`) usa sempre merge commit: squash reescreveria commits que já estão na branch de origem, e a promoção seguinte entraria em conflito.
 
@@ -54,7 +55,7 @@ Ninguém contorna as regras, nem quem é admin. Numa emergência, um admin desat
 ## Abrindo o PR
 
 - Template e regras de merge em [`docs/padroes-pull-request.md`](docs/padroes-pull-request.md).
-- Destino padrão é `develop` (o GitHub recusa push direto em `develop`, `staging` e `main`). PR para `staging` só vem da `develop`, e para `main` só da `staging`.
+- Destino padrão é `develop` (o GitHub recusa push direto em `staging` e em `main`, e na `develop` o push direto não passa sem o CI verde). PR para `staging` só vem da `develop`, e para `main` só da `staging`.
 - O CI precisa passar antes do merge, e o GitHub bloqueia o merge sem ele: o job `test` (lint, tipos, a suíte padrão e a suíte com Postgres) e o job `imagem` (constrói a imagem Docker e confere o `/health`).
 
 ## Resumo rápido
