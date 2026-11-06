@@ -13,7 +13,7 @@ import asyncio
 import hashlib
 import os
 from collections.abc import Mapping
-from typing import Any
+from typing import Any, NamedTuple
 
 import httpx
 
@@ -28,13 +28,29 @@ TIMEOUT_EMAIL_NUDECON_S = 20.0
 TENTATIVAS_EMAIL_NUDECON = 3
 
 
+class ResultadoEmail(NamedTuple):
+    """`enviado`: a função confirmou o envio. `anexos_falhos`: imagens que ela não conseguiu baixar (o e-mail saiu sem elas)."""
+
+    enviado: bool
+    anexos_falhos: int = 0
+
+
+def _anexos_falhos(res: httpx.Response) -> int:
+    """`anexosFalhos` do corpo da resposta 200 da função. Ausente, inválido ou de função antiga conta como 0."""
+    try:
+        valor = res.json().get("anexosFalhos")
+    except (ValueError, AttributeError):
+        return 0
+    return valor if isinstance(valor, int) and not isinstance(valor, bool) and valor > 0 else 0
+
+
 def protocolo_do_atendimento(chat_id: str) -> str:
     """Chave de idempotência da Lambda: a mesma para o mesmo atendimento, e que não revela o `chatId`."""
     return "NUD-" + hashlib.sha256(chat_id.encode("utf-8")).hexdigest()[:12].upper()
 
 
-async def enviar_email_nudecon(protocolo: str, dados: Mapping[str, str], imagens: Mapping[str, str]) -> bool:
-    """`True` se a função confirmou o envio (200, inclusive protocolo repetido). Nunca lança exceção."""
+async def enviar_email_nudecon(protocolo: str, dados: Mapping[str, str], imagens: Mapping[str, str]) -> ResultadoEmail:
+    """`enviado` se a função confirmou o envio (200, inclusive protocolo repetido). Nunca lança exceção."""
     if not EMAIL_NUDECON_URL or not EMAIL_NUDECON_API_KEY:
         mock = os.environ.get("APP_ENV") == "test"
         logger.warn(
@@ -44,7 +60,7 @@ async def enviar_email_nudecon(protocolo: str, dados: Mapping[str, str], imagens
             evento="email_nudecon_mock" if mock else "email_nudecon_falha",
             motivo=None if mock else "sem_configuracao",
         )
-        return mock
+        return ResultadoEmail(mock)
 
     corpo: dict[str, Any] = {"protocolo": protocolo, "dados": dict(dados)}
     if imagens:
@@ -78,14 +94,16 @@ async def enviar_email_nudecon(protocolo: str, dados: Mapping[str, str], imagens
                     )
                     continue
                 if res.is_success:
+                    falhos = _anexos_falhos(res)
                     logger.info(
                         "[email-nudecon] e-mail enviado",
                         protocolo=protocolo,
                         evento="email_nudecon_enviado",
                         status=res.status_code,
                         tentativa=tentativa,
+                        anexosFalhos=falhos,
                     )
-                    return True
+                    return ResultadoEmail(True, falhos)
                 logger.error(
                     "[email-nudecon] função recusou",
                     protocolo=protocolo,
@@ -94,7 +112,7 @@ async def enviar_email_nudecon(protocolo: str, dados: Mapping[str, str], imagens
                     tentativa=tentativa,
                 )
                 if res.status_code < 500 and res.status_code != 409:
-                    return False
+                    return ResultadoEmail(False)
     except TimeoutError:
         logger.error("[email-nudecon] prazo total esgotado", protocolo=protocolo, evento="email_nudecon_falha", motivo="timeout")
-    return False
+    return ResultadoEmail(False)

@@ -45,6 +45,7 @@ from maria.fluxos.plano_saude.api import (
     MENSAGEM_FALHA_INFRA_VERDE,
     MENSAGEM_FORA_DO_RIO,
     MENSAGEM_FORA_DO_RIO_COM_UNIDADE,
+    MENSAGEM_IMAGENS_NAO_ANEXADAS,
     MENSAGEM_IMAGENS_PENDENTES,
     MENSAGEM_MUNICIPIO_NAO_IDENTIFICADO,
     MENSAGEM_OUTRA_PESSOA,
@@ -439,9 +440,12 @@ async def concluir(state: PlanoSaudeState) -> Atualizacao:
     # #405: o e-mail ao NUDECON sai aqui, e `email_enviado` só vale depois da confirmação da função.
     contexto = contexto_atual()
     dados = {rotulo: valor or NAO_INFORMADO for rotulo, valor in _linhas_resumo(state)}
-    enviado = await enviar_email_nudecon(protocolo_do_atendimento(contexto.get("chatId", "")), dados, state.get("imagensLinks") or {})
-    if not enviado:
+    resultado = await enviar_email_nudecon(protocolo_do_atendimento(contexto.get("chatId", "")), dados, state.get("imagensLinks") or {})
+    if not resultado.enviado:
         return {"statusFinal": "handoff_humano", "motivoHandoff": "falha_envio_email", "mensagemFinal": MENSAGEM_FALHA_ENVIO_EMAIL}
+    if resultado.anexos_falhos > 0:
+        # #423: o e-mail com os dados já saiu, mas faltou imagem; a equipe segue o caso e pede as imagens.
+        return {"statusFinal": "handoff_humano", "motivoHandoff": "imagens_nao_anexadas", "mensagemFinal": MENSAGEM_IMAGENS_NAO_ANEXADAS}
     return {"statusFinal": "concluido", "destino": "email_enviado", "mensagemFinal": MENSAGEM_CONCLUIDO}
 
 
