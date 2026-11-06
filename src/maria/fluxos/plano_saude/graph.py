@@ -92,10 +92,15 @@ def _sem_acento(texto: str) -> str:
 
 
 async def preparar_pergunta_para_quem(state: PlanoSaudeState) -> Atualizacao:
+    if state.get("paraSiPeloRelato") is True:
+        # #438: o relato já disse ("o plano da minha mãe", "meu plano negou minha cirurgia").
+        return {}
     return dict(await preparar_pergunta("paraSi", TEXTO_PARA_QUEM))
 
 
 async def pedir_para_quem(state: PlanoSaudeState) -> Atualizacao:
+    if state.get("paraSiPeloRelato") is True:
+        return {}
     resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or TEXTO_PARA_QUEM, "tipo": "sim_nao", "opcoes": ["Sim", "Não"]})
     return {"paraSi": resposta_eh_sim(resposta)}
 

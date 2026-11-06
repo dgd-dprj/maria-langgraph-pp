@@ -199,6 +199,8 @@ ARESTAS_PP = {
     ("pedirNumeroProcesso", "consultarProcesso"),
     ("pedirParentesco", "concluir"),
     ("pedirParentesco", "identificarAssistido"),
+    # #438: escolheu o filho na pergunta "qual deles": volta para perguntar se é a mãe ou o pai.
+    ("pedirParentesco", "prepararPerguntaParentesco"),
     ("pedirRg", "consultarApenado"),
     ("pedirRg", "prepararPerguntaRgInvalido"),
     ("pedirTemProcesso", "prepararPerguntaNumeroProcesso"),

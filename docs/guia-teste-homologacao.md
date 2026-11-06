@@ -84,7 +84,7 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 ### Caso A. Violência doméstica, pelo Sim, até o encaminhamento (o mais importante)
 
 1. Relato livre de violência doméstica (inventado).
-2. "Você é a vítima de violência doméstica?" → **Sim**.
+2. "Você é a vítima de violência doméstica?" → **Sim**. **Depois da #438:** se o relato já disser que a violência é contra quem escreve ("meu marido **me** bate", "fui agredida"), a Maria pula esta pergunta. Se a vítima parecer ser outra pessoa ("o ex da minha filha ameaça ela"), ela pergunta, porque o Não encerra o atendimento.
 3. Processo → responda **Não** (ou informe um número de teste).
 4. Boletim de ocorrência → **Sim** em uma rodada e **Não** em outra.
 5. CPF → um **CPF inventado** (não existe na homologação). A Maria pede de novo; depois de 3 tentativas, ela começa o **cadastro**: nome, data de nascimento, CEP, número e complemento.
@@ -105,7 +105,13 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 2. Número do processo → **Sim** e um número de teste (SEEU, se houver), ou **Não**.
 3. RG da pessoa presa → o **RG de teste**.
 4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
-5. Parentesco → por exemplo, "sou a mãe".
+5. Parentesco → por exemplo, "sou a mãe". **Depois da #438, o relato do passo 1 conta:**
+   - **com o parentesco no relato** ("meu primo foi preso", "minha irmã tá presa", "meu avô foi preso", "sou a mãe dele"), a Maria **não pergunta**;
+   - **"meu filho foi preso":** ela pergunta só "Você é a mãe ou o pai dele?";
+   - **dois parentes no relato:** ela reconhece qual está preso ("minha mãe disse que meu primo foi preso" é o primo). Se forem dois presos ("meu primo e meu irmão foram presos"), pergunta "Sobre qual deles é este atendimento?";
+   - **a pergunta de sempre continua** quando não dá para saber: erro de digitação ("mu imao"), "meu sogro", "meu namorado".
+
+   Teste os jeitos diferentes.
 6. CPF de quem está conversando → um CPF inventado (e o cadastro, como no caso A) ou um já cadastrado.
 
 **Esperado:**
@@ -154,7 +160,7 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
   - **pelo id do fluxo,** `84433c84-4776-4b05-a5a0-af8012d8eced`, que precisa estar configurado no fluxo de teste da Tykhe. Confirme com a Nicole antes.
 - **Sem verificação de município** (desde 2026-11-06, #439): o fluxo começa direto na primeira pergunta, com ou sem CEP em `dadosConhecidos`, e de qualquer município. O endereço que a Tykhe manda aparece no resumo ("não informado" se faltar).
 - **As perguntas,** nesta ordem:
-  1. se o atendimento é para você;
+  1. se o atendimento é para você (**depois da #438,** pulada quando o relato já diz: "o plano da **minha mãe**" segue para o CPF dela; "**meu** plano negou **minha** cirurgia" ou "preciso de uma cirurgia" seguem para as fotos);
   2. as fotos da carteirinha do plano, frente e verso;
   3. o que o plano negou ou deixou de fazer, se o relato não veio;
   4. a renda mensal;

@@ -49,6 +49,8 @@ class PlanoSaudeState(TypedDict, total=False):
     imagensRecebidas: bool | None
     # Respostas da conversa.
     paraSi: bool | None
+    # #438: o orquestrador leu no relato para quem é o atendimento; só então "para você?" é pulada.
+    paraSiPeloRelato: bool | None
     # Outra pessoa (#433): o CPF dela e o que o Verde trouxe são dado de terceiro, sensível: nunca em log nem em `metadados`.
     cpfOutraPessoa: str | None
     tentativasCpfOutra: int | None

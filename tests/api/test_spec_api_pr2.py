@@ -67,7 +67,7 @@ async def test_bridge_sim_nao_lista_as_opcoes_e_conclusao_libera_o_numero(
     cliente: httpx.AsyncClient, enviados: list[tuple[str, str, str]], monkeypatch: pytest.MonkeyPatch
 ) -> None:
     monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", ID_VIOLENCIA_DOMESTICA)
-    await cliente.post("/webhook/whatsapp", json=_mensagem("551", "apanho do meu marido"))
+    await cliente.post("/webhook/whatsapp", json=_mensagem("551", "quero uma medida protetiva"))
     assert enviados[-1][1] == "Você é a vítima de violência doméstica?\n\n- Sim\n- Não"
     assert enviados[-1][2].startswith("whatsapp:551:")
     await cliente.post("/webhook/whatsapp", json=_mensagem("551", "não"))

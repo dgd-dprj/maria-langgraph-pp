@@ -94,10 +94,16 @@ def texto_tentar_novamente_processo(state: ViolenciaDomesticaState) -> str:
 
 
 async def preparar_pergunta_eh_vitima(state: ViolenciaDomesticaState) -> Atualizacao:
+    if state.get("vitimaPeloRelato") is True:
+        # #438: o relato já disse ("ele me bate"). Só o Sim vem do relato: o Não encerra o atendimento.
+        # Um `ehVitima` mandado pela Tykhe em dadosConhecidos não pula a pergunta, como em develop.
+        return {}
     return dict(await preparar_pergunta("ehVitima", TEXTO_EH_VITIMA))
 
 
 async def pedir_eh_vitima(state: ViolenciaDomesticaState) -> Atualizacao:
+    if state.get("vitimaPeloRelato") is True:
+        return {}
     resposta: str = interrupt(
         {"pergunta": _js.coalesce(state.get("perguntaAtualTexto"), TEXTO_EH_VITIMA), "tipo": "sim_nao", "opcoes": ["Sim", "Não"]}
     )

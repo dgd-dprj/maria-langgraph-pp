@@ -170,6 +170,7 @@ async def test_h4_release_relato_ambiguo_entre_plano_e_saude_segue_direto_no_flu
     assert r.status_code == 200
     assert r.json()["status"] == "em_andamento"
     assert r.json()["flowId"] == ID_PROBLEMAS_PLANO_SAUDE
-    assert r.json()["tipoResposta"] == "sim_nao"  # a 1ª pergunta do fluxo: para quem é o atendimento (#430)
-    assert r.json()["opcoes"] == ["Sim", "Não"]
-    assert "para você" in r.json()["resposta"]
+    # #438: "preciso de uma cirurgia" já diz que o atendimento é para a própria pessoa, então o fluxo
+    # pula "O atendimento é para você?" (#430) e vai direto para a foto da carteirinha.
+    assert r.json()["tipoResposta"] == "link_imagem"
+    assert "para você" not in r.json()["resposta"]
