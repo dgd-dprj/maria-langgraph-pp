@@ -52,7 +52,15 @@ ROTEIROS: dict[str, tuple[Roteiro, ...]] = {
     ),
     ID_VIOLENCIA_DOMESTICA: (Roteiro({}, COMUNS), Roteiro({}, (*CPF_NOVO, *COMUNS))),
     ID_PROBLEMAS_PLANO_SAUDE: (
-        Roteiro({}, ((r"o que aconteceu", "O plano negou a minha cirurgia"), (r"renda", "2500"))),
+        Roteiro(
+            {},
+            (
+                (r"frente", "https://downloads.tykhe.dev/arquivos/id-frente?token=t1"),
+                (r"verso", "https://downloads.tykhe.dev/arquivos/id-verso?token=t2"),
+                (r"o que aconteceu", "O plano negou a minha cirurgia"),
+                (r"renda", "2500"),
+            ),
+        ),
         Roteiro(
             {"imagensRecebidas": True, "cpf": "00000000000", "relato": "O plano negou a minha cirurgia"},
             ((r"renda", "2500"),),

@@ -25,6 +25,9 @@ MotivoHandoffViolenciaDomestica = Literal[
 
 class ViolenciaDomesticaState(TypedDict, total=False):
     ehVitima: bool | None
+    # #438: o orquestrador leu no relato que quem fala é a vítima ("ele me bate"); só então a pergunta
+    # é pulada. Um `ehVitima` vindo da Tykhe não pula, como em develop.
+    vitimaPeloRelato: bool | None
     temProcesso: bool | None
     numeroProcesso: str | None
     dadosProcesso: DadosProcesso | None

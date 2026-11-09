@@ -20,6 +20,7 @@ from langgraph.types import Command
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
 from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
+from maria.orquestrador.fila import com_dados_do_fim
 from maria.orquestrador.graph import assuntos_pendentes_do_chat
 from maria.shared import _js
 from maria.shared._js import AUSENTE, numero_js
@@ -320,7 +321,8 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
             # #435 (multi-fluxo, só no release): no fim do fluxo, os outros assuntos do relato.
             pendentes = await assuntos_pendentes_do_chat(chat_id)
             if pendentes:
-                corpo_resposta["assuntosPendentes"] = pendentes
+                # #442: o CPF informado neste assunto segue para os próximos, para não ser pedido de novo.
+                corpo_resposta["assuntosPendentes"] = com_dados_do_fim(pendentes, corpo_resposta.get("dadosColetados"))
         return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)

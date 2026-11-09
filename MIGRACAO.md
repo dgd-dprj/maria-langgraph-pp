@@ -1032,6 +1032,46 @@ Duas coisas diferentes:
   - os botões na pergunta da ordem;
   - o uso de `assuntosPendentes` para seguir com o próximo assunto.
 
+## O relato diz quem é quem: parentesco, para quem é e quem é a vítima (decidido em 2026-11-06, #438)
+
+- **Achado do teste pela Tykhe (06/11):** quem escrevia "Meu primo foi preso e quero saber quando sai" recebia depois "Qual seu parentesco com a pessoa presa?". O relato servia só para o orquestrador escolher o fluxo. Os fluxos não o recebem, salvo o do plano de saúde, e a leitura do relato dentro do fluxo (`EXTRACAO_LIVRE_IA`) está desligada.
+- **Decisões da Nicole:**
+  - pelas palavras, sem IA (entre três opções: palavras, IA, ou palavras e depois IA);
+  - "meu filho foi preso" é sobre o filho: a Maria pergunta só se a pessoa é a mãe ou o pai;
+  - "meu avô" entra: o parentesco "Neto(a)" foi acrescentado à lista do fluxo;
+  - com dois parentes no relato, a Maria reconhece qual está preso;
+  - vale para todos os fluxos, principalmente pessoa presa.
+- **Como ficou:**
+  - `shared/parentesco.py` lê o relato (ou, com vários assuntos, o trecho do assunto, #435), e o orquestrador entrega aos fluxos o que ele diz;
+  - nunca troca o que a Tykhe já mandou em `dadosConhecidos`;
+  - na dúvida, o fluxo pergunta como antes.
+- **Pessoa presa:**
+  - o parentesco pronto: "meu tio" é Sobrinho(a); "meu avô", Neto(a); "sou a mãe dele", Mãe;
+  - ou uma pergunta curta (`perguntaParentesco` e `opcoesParentesco`): "Você é a mãe ou o pai dele?" ou, com dois presos, "Sobre qual deles é este atendimento?";
+  - quando a resposta escolhe o filho, o fluxo volta e pergunta se é a mãe ou o pai, que é a aresta nova `pedirParentesco` → `prepararPerguntaParentesco`;
+  - com dois parentes, conta o último citado antes da palavra de prisão ("minha mãe disse que meu primo foi preso" é o primo), os da enumeração com o plural ("meu primo e meu irmão foram presos") e o parente depois de "prenderam" ou "levaram".
+- **Plano de saúde:**
+  - "o plano da minha mãe" pula "O atendimento é para você?" com Não, e a Maria segue para o CPF da outra pessoa;
+  - "meu plano negou minha cirurgia" ou "preciso de uma cirurgia" pulam com Sim.
+- **Violência doméstica:**
+  - só o Sim vem do relato ("ele me bate", "fui agredida");
+  - o Não encerra o atendimento, então, quando a vítima parece ser outra pessoa, a Maria pergunta.
+- **Um campo próprio marca o que veio do relato:** `vitimaPeloRelato` e `paraSiPeloRelato`. Achado da conferência com develop: um `ehVitima` mandado pela Tykhe em `dadosConhecidos` continua sem pular a pergunta, como em develop. Os campos não vão para os metadados.
+- **Sem log novo:** os logs gravados de develop (fixtures de contrato) continuam iguais. O efeito aparece nas perguntas que o fluxo deixa de fazer.
+- **Testes:**
+  - 67 casos da leitura;
+  - 12 pela API, nos três fluxos;
+  - ajustados: a topologia da pessoa presa (aresta nova), o H4 do plano ("preciso de uma cirurgia" vai direto para as fotos), o teste da ponte do WhatsApp e o do multi-fluxo, que usavam relatos que agora preenchem a resposta.
+
+## Guardar o que a pessoa já disse e reaproveitar (decidido em 2026-11-06, #442)
+
+- **Pedido da Nicole (06/11):** o que a pessoa diz num assunto, por exemplo que é tio do preso, fica guardado, e a Maria não pergunta de novo nos próximos.
+- **Como ficou (só acréscimo no contrato):**
+  - cada item de um fluxo da Maria em `assuntosPendentes` traz `dadosConhecidos` com o que o trecho daquele assunto já diz, pela leitura da #438 (`fila.dados_do_relato`, a mesma função da rota);
+  - na resposta final do 1º assunto, entra também o CPF informado nele;
+  - a Tykhe repassa o objeto ao abrir o próximo assunto (`POST /atendimentos` com o `flowId` do item), e o fluxo pula o que já sabe;
+  - nunca vai o texto do relato.
+- **Achado durante a implementação:** a resposta à pergunta da ordem (e à desambiguação, também na produção) volta só com `{ chatId, resposta }`, e o fluxo aberto depois começava sem os `dadosConhecidos` da 1ª chamada (CPF, endereço). Agora o orquestrador guarda esses dados no estado dele (`dadosConhecidos`, só no checkpoint, nunca em log) e os usa ao abrir o fluxo; o que a Tykhe mandar de novo vale por cima. A conferência com as respostas e os logs gravados de develop continua igual.
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.
