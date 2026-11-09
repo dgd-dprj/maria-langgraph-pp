@@ -48,7 +48,8 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 - Quando a pessoa volta, a Maria pergunta se ela quer o assunto novo ou o pendente.
 - Nunca se guarda o texto do relato.
 - **CPF desde o começo, em qualquer fluxo** ([decisão na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6749752479)): vem da Tykhe na 1ª chamada ou é perguntado logo depois da 1ª mensagem. O risco vem antes, e os fluxos não perguntam de novo.
-- Em aberto: quantas prorrogações e a rota de atendimento online do Verde.
+- **Uma prorrogação por assunto** ([decisão na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6749808513)): 30 dias, mais 30, no máximo 60; com mais de um assunto, cada um tem a sua.
+- Em aberto: a rota de atendimento online do Verde.
 
 **#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
 - As frases vêm de blocos aprovados pela equipe.
