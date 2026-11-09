@@ -211,6 +211,28 @@ Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada
 - uma ordem diferente da padrão sem a pessoa pedir;
 - a "Situação" do plano com o assunto de outra pessoa.
 
+### Caso G. CPF no começo, próximo assunto e assuntos guardados: só no release (#450)
+
+Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09). **Na produção, nada muda.** Pela Tykhe, o caso inteiro depende da configuração da #451. Use só relatos inventados e os CPFs de teste da lista da equipe.
+
+1. **CPF no começo.** Depois da 1ª mensagem, a Maria pergunta: "Para eu te identificar e guardar os seus assuntos, qual é o seu CPF?". Achou no Verde, ela confirma o nome mascarado uma vez ("Confirma que seus dados são: …?"). Depois, nenhum fluxo pergunta o CPF de novo.
+   - CPF com formato errado, não achado ou "Não" na confirmação: a Maria pede de novo. Depois de 3 tentativas, a conversa segue **sem identificar a pessoa** e sem ir para o atendimento humano por isso.
+2. **Próximo assunto.** Com dois assuntos, leve o 1º até o fim e chame `POST /atendimentos/proximo-assunto` com `{ "chatId": "<chatId da conversa>" }`.
+   - **Esperado:** o 2º assunto abre com o `chatId` `<chatId>-assunto-2` e a frase "Agora vamos falar …", sem perguntar de novo o parentesco nem o CPF.
+   - Chamar duas vezes devolve o mesmo assunto, sem abrir outro.
+   - Um 2º assunto da Tykhe volta como `redirecionado`, uma vez só.
+   - Sem pendentes, a rota responde 404.
+3. **Assunto guardado.** Pare depois do 1º assunto e abra uma **conversa nova** com o mesmo CPF de teste.
+   - **Esperado:** "Você tem um assunto guardado: … Quer falar dele agora ou do que você acabou de contar?", com as opções.
+   - Escolher o guardado abre o assunto dele, e o relato novo fica guardado no lugar.
+   - Escolher "O que acabei de contar" segue como no caso F.
+
+**Anote como defeito:**
+- o CPF perguntado de novo dentro de um fluxo;
+- a pergunta dos assuntos guardados com um assunto que a pessoa não deixou pendente;
+- dois atendimentos abertos para o mesmo assunto;
+- o CPF ou o nome aparecendo em qualquer lugar fora da conversa.
+
 ### Casos de controle (rápidos)
 
 | Caso | Esperado |
