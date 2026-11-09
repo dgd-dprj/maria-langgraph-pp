@@ -14,7 +14,7 @@ from maria.shared.tokens_acumulados import CanalTokensGastos
 
 MotivoHandoffPlanoSaude = Literal[
     "cpf_outra_pessoa_invalido",
-    "cpf_outra_pessoa_nao_encontrado",
+    "dados_outra_pessoa_invalidos",
     "imagens_pendentes",
     "situacao_nao_informada",
     "renda_nao_entendida",
@@ -54,8 +54,12 @@ class PlanoSaudeState(TypedDict, total=False):
     # Outra pessoa (#433): o CPF dela e o que o Verde trouxe são dado de terceiro, sensível: nunca em log nem em `metadados`.
     cpfOutraPessoa: str | None
     tentativasCpfOutra: int | None
-    erroCpfOutra: Literal["invalido", "nao_encontrado"] | None
+    erroCpfOutra: Literal["invalido"] | None
+    # Do Verde (200) ou, sem cadastro (404), informados na conversa (#446): `origem` "informado" e a etapa em `etapaDadosOutra`.
     dadosOutraPessoa: dict[str, Any] | None
+    tentativasDadosOutra: int | None
+    # #446: a pergunta do endereço do subgrafo `coletar_endereco` fala da outra pessoa.
+    enderecoDeOutraPessoa: bool | None
     # Para onde o atendimento concluído vai (`email_enviado`: por e-mail ao NUDECON).
     destino: str | None
     tentativasImagens: int | None

@@ -616,3 +616,23 @@ def test_pessoa_mock_completo_traz_os_campos_extras_so_quando_pedido() -> None:
     completo = asyncio.run(verde.consultar_pessoa_por_cpf("11111111111", completo=True))
     assert "email" not in simples and "dataNascimento" not in simples
     assert completo["dataNascimento"] and completo["telefonesAssistido"][0]["inWhatsapp"] is True
+
+
+@pytest.mark.parametrize("status", [400, 404, 422])
+async def test_446_consulta_completa_devolve_o_status_da_recusa_de_negocio_e_a_simples_nao(
+    verde_real: TransporteFalso, status: int
+) -> None:
+    async def tratar(req: httpx.Request) -> httpx.Response:
+        return json_ok({"codigo": "X", "mensagem": "recusa"}, status)
+
+    verde_real.tratador = tratar
+    assert await verde.consultar_pessoa_por_cpf("1", completo=True) == {"encontrado": False, "statusHttp": status}
+    assert await verde.consultar_pessoa_por_cpf("1") == {"encontrado": False}, "os outros fluxos não mudam"
+
+
+async def test_446_falha_de_infra_na_consulta_completa_nao_leva_status(verde_real: TransporteFalso) -> None:
+    async def tratar(req: httpx.Request) -> httpx.Response:
+        return json_ok({}, 503)
+
+    verde_real.tratador = tratar
+    assert await verde.consultar_pessoa_por_cpf("1", completo=True) == {"encontrado": False, "falhaInfra": True}

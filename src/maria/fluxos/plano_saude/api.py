@@ -51,12 +51,13 @@ MENSAGEM_IMAGENS_PENDENTES = "Não recebi as imagens dos documentos. Vou encamin
 MENSAGEM_SITUACAO_NAO_INFORMADA = "Não consegui entender a sua situação. Vou encaminhar seu atendimento para a equipe dar continuidade."
 MENSAGEM_RENDA_NAO_ENTENDIDA = "Não consegui entender a sua renda. Vou encaminhar seu atendimento para a equipe dar continuidade."
 MENSAGEM_DADOS_NAO_CONFIRMADOS = "Não consegui confirmar seus dados. Vou encaminhar seu atendimento para a equipe dar continuidade."
-# Outra pessoa (#433): CPF dela inválido ou não achado no Verde, três vezes.
+# Outra pessoa (#433): CPF dela inválido, três vezes.
 MENSAGEM_CPF_OUTRA_INVALIDO = (
     "Não consegui entender o CPF da pessoa que será atendida. Vou encaminhar seu atendimento para a equipe dar continuidade."
 )
-MENSAGEM_CPF_OUTRA_NAO_ENCONTRADO = (
-    "Não consegui encontrar o CPF da pessoa que será atendida. Vou encaminhar seu atendimento para a equipe dar continuidade."
+# Sem cadastro no Verde, a Maria pede os dados dela (#446); três respostas inválidas no mesmo campo encerram.
+MENSAGEM_DADOS_OUTRA_INVALIDOS = (
+    "Não consegui entender os dados da pessoa que será atendida. Vou encaminhar seu atendimento para a equipe dar continuidade."
 )
 # O e-mail saiu com os dados, mas a função não conseguiu anexar as imagens da carteirinha (#423).
 MENSAGEM_IMAGENS_NAO_ANEXADAS = (
