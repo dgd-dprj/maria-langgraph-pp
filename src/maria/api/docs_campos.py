@@ -47,6 +47,10 @@ DESCRICOES_RESPOSTA: dict[str, Schema] = {
         "description": (
             "Dados já coletados pelo fluxo. Hoje `cpf`, quando existe, e, no plano de saúde concluído, `imagens` "
             "(`carteirinhaFrente` e `carteirinhaVerso`: links das imagens, para a Tykhe repassar à função de e-mail; nunca em log). "
+            ""
+            "No plano de saúde para outra pessoa (#448), também `solicitante` (`nome`, `cpf`: quem está falando) e `outraPessoa` "
+            "(`cpf`, `nome`, `dataNascimento`, `endereco`, `telefone`, `whatsapp`, `email`, `estadoCivil`, `profissao`, `rg`, "
+            "`parentesco` e `origem`: `verde` ou `informado`); `cpf` continua o de quem fala. Dado pessoal: nunca em log. "
             "Só aparece na resposta do fluxo da Maria identificado; nunca no `redirecionado` nem na desambiguação."
         ),
         "properties": {
