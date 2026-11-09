@@ -90,10 +90,12 @@ def extrair_interrupt(resultado: Mapping[str, Any]) -> Any:
     return pendentes[0].value if pendentes else None
 
 
-def _dados_coletados(valores: Mapping[str, Any], concluido: bool = False) -> dict[str, Any]:
-    # Decisão 2026-09-09: só cpf, e só quando é texto.
+def _dados_coletados(valores: Mapping[str, Any], concluido: bool = False, fluxo: FluxoConfig | None = None) -> dict[str, Any]:
+    # Decisão 2026-09-09: o cpf, e só quando é texto. O fluxo pode acrescentar os dele (#448).
     cpf = valores.get("cpf")
     dados: dict[str, Any] = {"cpf": cpf} if isinstance(cpf, str) else {}
+    if fluxo is not None and fluxo.extrair_dados_coletados is not None:
+        dados.update(fluxo.extrair_dados_coletados(valores))
     # #398: os links das imagens (segredo) só na conclusão, para a Tykhe repassá-los à Lambda de e-mail.
     links = valores.get("imagensLinks")
     if concluido and isinstance(links, dict) and links:
@@ -107,7 +109,7 @@ def montar_resposta_atendimento(
     """Mesmo corpo para criar, consultar e responder (`atendimentos.ts:194-242`)."""
     metadados = fluxo.extrair_metadados(valores)
     if interrupt is not None:
-        dados_coletados = _dados_coletados(valores)
+        dados_coletados = _dados_coletados(valores, fluxo=fluxo)
         return {
             "resposta": _js.opt(interrupt, "pergunta"),
             "tipoResposta": _js.opt(interrupt, "tipo"),
@@ -120,7 +122,7 @@ def montar_resposta_atendimento(
             "_links": montar_links(chat_id, "em_andamento"),
         }
     status = _js.coalesce(valores.get("statusFinal"), "concluido")
-    dados_coletados = _dados_coletados(valores, concluido=status == "concluido")
+    dados_coletados = _dados_coletados(valores, concluido=status == "concluido", fluxo=fluxo)
     padrao = fluxo.mensagem_concluido if status == "concluido" else fluxo.mensagem_handoff
     corpo: dict[str, Any] = {
         "resposta": _js.coalesce(valores.get("mensagemFinal"), padrao),

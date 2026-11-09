@@ -344,6 +344,29 @@ async def test_o_endereco_de_quem_fala_nao_vai_para_log_nem_para_metadados(capsy
         assert dado not in saida
 
 
+async def test_dados_coletados_da_outra_pessoa_sem_cadastro_trazem_os_dados_informados(monkeypatch: pytest.MonkeyPatch) -> None:
+    from maria.fluxos.plano_saude.api import extrair_dados_coletados_plano_saude
+
+    _verde_pessoa(monkeypatch, SEM_CADASTRO)
+    f = _fluxo()
+    await f.iniciar({**DADOS, "imagensRecebidas": True})
+    await f.responder("false", CPF_OUTRA, *DADOS_INFORMADOS)
+    coletados = extrair_dados_coletados_plano_saude(await f.estado())
+    assert coletados["solicitante"] == {"nome": "Pessoa de Teste", "cpf": "00000000000"}
+    pessoa = coletados["outraPessoa"]
+    assert pessoa["origem"] == "informado" and pessoa["cpf"] == CPF_OUTRA and pessoa["parentesco"] == "Mãe"
+    assert pessoa["estadoCivil"] == "Casado(a)" and pessoa["rg"] == "12.345.678-9" and pessoa["telefone"] == "21988880000"
+
+
+async def test_dados_coletados_so_existem_para_outra_pessoa() -> None:
+    from maria.fluxos.plano_saude.api import extrair_dados_coletados_plano_saude
+
+    f = _fluxo()
+    await f.iniciar({**DADOS, "imagensRecebidas": True})
+    await f.responder("true")
+    assert extrair_dados_coletados_plano_saude(await f.estado()) == {}
+
+
 async def test_para_outra_pessoa_o_email_leva_nome_e_cpf_do_solicitante_e_o_resumo_nao(monkeypatch: pytest.MonkeyPatch) -> None:
     # #444: o NUDECON precisa saber quem pediu; o resumo mostrado a quem pede não muda.
     _verde_pessoa(monkeypatch, PESSOA_DO_VERDE)

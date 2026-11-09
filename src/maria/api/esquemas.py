@@ -66,6 +66,30 @@ RESPOSTA_ATENDIMENTO: Schema = {
             "type": "object",
             "properties": {
                 "cpf": {"type": "string"},
+                # #448: plano de saúde para outra pessoa. Dado pessoal: só na resposta, nunca em log nem em `metadados`.
+                "solicitante": {"type": "object", "properties": {"nome": {"type": "string"}, "cpf": {"type": "string"}}},
+                "outraPessoa": {
+                    "type": "object",
+                    "properties": {
+                        **{
+                            campo: {"type": "string"}
+                            for campo in (
+                                "cpf",
+                                "nome",
+                                "dataNascimento",
+                                "endereco",
+                                "telefone",
+                                "whatsapp",
+                                "email",
+                                "estadoCivil",
+                                "profissao",
+                                "rg",
+                                "parentesco",
+                            )
+                        },
+                        "origem": {"type": "string", "enum": ["verde", "informado"]},
+                    },
+                },
                 # #398: links de baixar as imagens, só em `concluido` (plano de saúde). Segredo: nunca em log.
                 "imagens": {
                     "type": "object",

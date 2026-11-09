@@ -45,6 +45,39 @@ def extrair_metadados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:
     return metadados
 
 
+_CAMPOS_OUTRA_PESSOA = (
+    "nome",
+    "dataNascimento",
+    "endereco",
+    "telefone",
+    "whatsapp",
+    "email",
+    "estadoCivil",
+    "profissao",
+    "rg",
+    "parentesco",
+)
+
+
+def extrair_dados_coletados_plano_saude(values: Mapping[str, Any]) -> dict[str, Any]:
+    """#448: quando o atendimento é para outra pessoa, o solicitante e a pessoa atendida voltam em `dadosColetados`, cada um
+    no seu bloco, para a Tykhe não misturar os CPFs. Dado pessoal: só na resposta, nunca em log nem em `metadados`."""
+    outra = values.get("dadosOutraPessoa")
+    if not isinstance(outra, Mapping) or not outra:
+        return {}
+
+    def texto(valor: Any) -> str:
+        return valor.strip() if isinstance(valor, str) else ""
+
+    solicitante = {chave: texto(values.get(origem)) for chave, origem in (("nome", "nome"), ("cpf", "cpf"))}
+    pessoa = {"cpf": texto(values.get("cpfOutraPessoa")), **{chave: texto(outra.get(chave)) for chave in _CAMPOS_OUTRA_PESSOA}}
+    pessoa["origem"] = "informado" if outra.get("origem") == "informado" else "verde"
+    return {
+        "solicitante": {k: v for k, v in solicitante.items() if v},
+        "outraPessoa": {k: v for k, v in pessoa.items() if v},
+    }
+
+
 # Provisório: o texto final, com documentos e prazo, é da #335; o envio ao NUDECON, da #345.
 MENSAGEM_CONCLUIDO = "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você."
 MENSAGEM_IMAGENS_PENDENTES = "Não recebi as imagens dos documentos. Vou encaminhar seu atendimento para a equipe dar continuidade."

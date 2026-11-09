@@ -53,6 +53,9 @@ class FluxoConfig:
     # de GET /fluxos e do catálogo, e o flowId responde como desconhecido. Ligar em
     # produção é um PR que tira o campo, com registro na #208.
     em_teste: bool = False
+    # Dados que o fluxo devolve em `dadosColetados`, além do `cpf` (#448). Dado pessoal: vai só na resposta da API,
+    # nunca em log nem em `metadados`.
+    extrair_dados_coletados: Callable[[Mapping[str, Any]], dict[str, Any]] | None = None
 
 
 # Única variável que liga um fluxo em teste, declarada no Terraform de cada
@@ -123,6 +126,7 @@ fluxos_por_id: dict[str, FluxoConfig] = {
         ),
         obter_grafo=obter_grafo_plano_saude,
         extrair_metadados=api_plano_saude.extrair_metadados_plano_saude,
+        extrair_dados_coletados=api_plano_saude.extrair_dados_coletados_plano_saude,
         mensagem_concluido=api_plano_saude.MENSAGEM_CONCLUIDO,
         mensagem_handoff=api_plano_saude.MENSAGEM_HANDOFF,
         em_teste=True,
