@@ -42,6 +42,19 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 
 **#248 (decisão da Nicole, 2026-11-09, [registro na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6748053659)):** quando a classificação falha por erro da IA, continua o padrão: 3 tentativas e o encaminhamento para a equipe (`redirecionado`, `tipoCaso: outros`). O encaminhamento passa a levar `motivo: "ia_indisponivel"` e, em `resposta`, a mensagem "Estou com uma instabilidade agora e não consegui entender sua mensagem. Vou te passar para a nossa equipe. Se preferir, tente de novo daqui a alguns minutos." Relato vago continua sem o campo. É do grupo 5 (muda o que a Tykhe recebe): entra depois do teste da equipe. A confirmar com a Tykhe se ela mostra a `resposta` no `redirecionado`.
 
+**#450 (decisão da Nicole, 2026-11-09, [registro na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6749628235)):** multi-fluxo fase 1b, só no release.
+- A Maria gera um `chatId` para cada assunto (`POST /atendimentos/proximo-assunto`).
+- Os pendentes ficam guardados por assistido, pelo `idPessoa` do Verde, por 30 dias, com aviso ao assistido. Se surgir algo que possa demorar, o prazo é prorrogado por mais 30 dias. Sem contato até o fim do prazo, o pendente é excluído.
+- Quando a pessoa volta, a Maria pergunta se ela quer o assunto novo ou o pendente.
+- Nunca se guarda o texto do relato.
+- Em aberto: a rota de atendimento online do Verde.
+
+**#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
+- As frases vêm de blocos aprovados pela equipe.
+- A emoção, o humor e o risco são lidos na mesma chamada da classificação.
+- No fim, uma avaliação de 1 a 5.
+- Falta decidir o limite de perguntas, a prioridade no risco e o aprendizado.
+
 ## Padronização de fluxos (decidida em 2026-10-23)
 
 **Decisão da Nicole, registrada na #208.** O objetivo é que um fluxo novo entre sem quebrar a aplicação nem o contrato com a Tykhe, e que a IA entre aos poucos, um ponto por vez. **Nenhuma peça reorganiza pastas nem move código existente: todas acrescentam.**
