@@ -12,6 +12,7 @@ do fluxo escolhido depois (que usa o `chatId` puro).
 
 from __future__ import annotations
 
+import asyncio
 import os
 import uuid
 from typing import Any, cast
@@ -368,6 +369,17 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
     if not fluxo_em_teste_liga():
         return Resposta(404, {"erro": "rota disponível só no ambiente de teste (release)"})
     origem, _ = origem_do_chat(chat_id)
+    # Duas chamadas ao mesmo tempo para a mesma conversa (um retry da Tykhe) esperam a vez: sem a trava, a
+    # 2ª via o atendimento já registrado, mas ainda sem conversa, e devolvia a mensagem de sucesso do fluxo
+    # (achado do teste de consistência, 2026-11-09). A API roda num processo só, como a ponte do WhatsApp.
+    async with _TRAVAS_PROXIMO.setdefault(origem, asyncio.Lock()):
+        return await _abrir_proximo_assunto(ctx, origem)
+
+
+_TRAVAS_PROXIMO: dict[str, asyncio.Lock] = {}
+
+
+async def _abrir_proximo_assunto(ctx: Contexto, origem: str) -> Resposta:
     config: Any = {"configurable": {"thread_id": f"orquestrador:{origem}"}}
     grafo = obter_grafo()
     valores = dict((await grafo.aget_state(config)).values or {})
