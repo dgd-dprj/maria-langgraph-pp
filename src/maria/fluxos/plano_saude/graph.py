@@ -398,10 +398,20 @@ async def nao_confirmado(state: PlanoSaudeState) -> Atualizacao:
     return {"statusFinal": "handoff_humano", "motivoHandoff": "dados_nao_confirmados", "mensagemFinal": MENSAGEM_DADOS_NAO_CONFIRMADOS}
 
 
+def _linhas_email(state: PlanoSaudeState) -> list[tuple[str, str]]:
+    """O resumo, mais (#444) quem pediu quando o atendimento é para outra pessoa: o NUDECON precisa saber o solicitante.
+    Só o e-mail leva; o resumo mostrado a quem pede não muda."""
+    linhas = _linhas_resumo(state)
+    if not state.get("dadosOutraPessoa"):
+        return linhas
+    solicitante = [("Solicitante - Nome", _texto(state.get("nome"))), ("Solicitante - CPF", _texto(state.get("cpf")))]
+    return [linhas[0], *solicitante, *linhas[1:]]
+
+
 async def concluir(state: PlanoSaudeState) -> Atualizacao:
     # #405: o e-mail ao NUDECON sai aqui, e `email_enviado` só vale depois da confirmação da função.
     contexto = contexto_atual()
-    dados = {rotulo: valor or NAO_INFORMADO for rotulo, valor in _linhas_resumo(state)}
+    dados = {rotulo: valor or NAO_INFORMADO for rotulo, valor in _linhas_email(state)}
     resultado = await enviar_email_nudecon(protocolo_do_atendimento(contexto.get("chatId", "")), dados, state.get("imagensLinks") or {})
     if not resultado.enviado:
         return {"statusFinal": "handoff_humano", "motivoHandoff": "falha_envio_email", "mensagemFinal": MENSAGEM_FALHA_ENVIO_EMAIL}
