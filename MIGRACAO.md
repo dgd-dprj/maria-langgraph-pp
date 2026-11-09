@@ -40,6 +40,8 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 
 Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a confirmação no cadastro) continuam aguardando decisão.
 
+**#248 (decisão da Nicole, 2026-11-09, [registro na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6748053659)):** quando a classificação falha por erro da IA, continua o padrão: 3 tentativas e o encaminhamento para a equipe (`redirecionado`, `tipoCaso: outros`). O encaminhamento passa a levar `motivo: "ia_indisponivel"` e, em `resposta`, a mensagem "Estou com uma instabilidade agora e não consegui entender sua mensagem. Vou te passar para a nossa equipe. Se preferir, tente de novo daqui a alguns minutos." Relato vago continua sem o campo. É do grupo 5 (muda o que a Tykhe recebe): entra depois do teste da equipe. A confirmar com a Tykhe se ela mostra a `resposta` no `redirecionado`.
+
 ## Padronização de fluxos (decidida em 2026-10-23)
 
 **Decisão da Nicole, registrada na #208.** O objetivo é que um fluxo novo entre sem quebrar a aplicação nem o contrato com a Tykhe, e que a IA entre aos poucos, um ponto por vez. **Nenhuma peça reorganiza pastas nem move código existente: todas acrescentam.**
