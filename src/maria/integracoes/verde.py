@@ -355,8 +355,14 @@ async def consultar_pessoa_por_cpf(cpf: str, *, completo: bool = False) -> Dados
     url = f"{VERDE_API_URL}/pessoa?cpf={_escapar(cpf)}"
     resultado = await chamar_verde_com_retry("pessoa", _requisicao("GET", url, com_accept=True, ler_corpo=True))
     if not resultado.ok or resultado.res is None:
+        status = resultado.res.status_code if resultado.res is not None else None
         await _fechar(resultado)
-        return cast(DadosPessoa, _com_falha_infra({"encontrado": False}, resultado.falha_infra))
+        nao_achou = _com_falha_infra({"encontrado": False}, resultado.falha_infra)
+        # #446: na consulta completa, o status da falha de negócio separa "sem cadastro" (404) de "CPF inválido" (400)
+        # e "mais de uma pessoa" (422). Os outros fluxos continuam recebendo só `encontrado`.
+        if completo and status is not None and not resultado.falha_infra:
+            nao_achou["statusHttp"] = status
+        return cast(DadosPessoa, nao_achou)
     corpo = _js.json_parse(resultado.res.content)
     _sucesso("pessoa", inicio)
     dados = _js.prop(corpo, "dados")

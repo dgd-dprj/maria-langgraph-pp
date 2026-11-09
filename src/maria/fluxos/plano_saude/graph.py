@@ -5,7 +5,8 @@ renda e confirmação do resumo, e então o e-mail ao NUDECON (#345, #405). A pe
 (aqui, e-mail ou presencial) saiu do fluxo por enquanto (#430).
 
 Se o atendimento é para outra pessoa, a Maria pede o CPF dela, busca os dados no Verde e segue o fluxo
-com os dados dela no lugar dos de quem pede (#433, fase 1 da #347).
+com os dados dela no lugar dos de quem pede (#433, fase 1 da #347). Sem cadastro no Verde (404), a Maria pede os dados
+dela na conversa (#446, `dados_outra.py`); CPF inválido (400) repete a pergunta; o resto (422, infra) vai à equipe.
 
 O fluxo começa direto em "para quem": não verifica o município (#439). O endereço de quem fala vem da Tykhe
 (`dadosConhecidos.endereco`) só para o resumo e o e-mail; ausente, aparece como "não informado".
@@ -33,8 +34,8 @@ from maria.fluxos._fabrica import FabricaGrafo, GrafoCompilado
 from maria.fluxos.plano_saude.api import (
     MENSAGEM_CONCLUIDO,
     MENSAGEM_CPF_OUTRA_INVALIDO,
-    MENSAGEM_CPF_OUTRA_NAO_ENCONTRADO,
     MENSAGEM_DADOS_NAO_CONFIRMADOS,
+    MENSAGEM_DADOS_OUTRA_INVALIDOS,
     MENSAGEM_ERRO_INTERNO,
     MENSAGEM_FALHA_ENVIO_EMAIL,
     MENSAGEM_FALHA_INFRA_VERDE,
@@ -45,6 +46,7 @@ from maria.fluxos.plano_saude.api import (
     TIPOS_IMAGEM,
     url_imagem_valida,
 )
+from maria.fluxos.plano_saude.dados_outra import CAMPOS, ETAPA_ENDERECO, ETAPAS, MAXIMO_TENTATIVAS_DADOS_OUTRA, Campo, etapa_depois_de
 from maria.fluxos.plano_saude.state import PlanoSaudeState
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.email_nudecon import enviar_email_nudecon, protocolo_do_atendimento
@@ -52,6 +54,7 @@ from maria.integracoes.verde import consultar_pessoa_por_cpf
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
 from maria.shared.respostas import resposta_eh_sim
+from maria.subgrafos.coletar_endereco.graph import grafo as subgrafo_coletar_endereco
 
 MAXIMO_TENTATIVAS_CPF_OUTRA = 3
 MAXIMO_TENTATIVAS_IMAGENS = 3
@@ -64,7 +67,6 @@ RENDA_MAXIMA = 10_000_000
 TEXTO_PARA_QUEM = "O atendimento é para você? Responda não se for para outra pessoa."
 TEXTO_CPF_OUTRA = "Qual o CPF da pessoa que será atendida?"
 TEXTO_CPF_OUTRA_INVALIDO = "Não entendi esse CPF. Envie os 11 números do CPF da pessoa que será atendida."
-TEXTO_CPF_OUTRA_NAO_ENCONTRADO = "Não encontrei esse CPF no cadastro. Confira os números e envie de novo o CPF da pessoa que será atendida."
 # Lista provisória de documentos: a definitiva é da #335.
 TEXTO_IMAGEM = {
     "carteirinha_frente": "Envie a foto da frente da carteirinha do plano de saúde.",
@@ -121,10 +123,7 @@ def _so_digitos(texto: str) -> str:
 
 
 def texto_cpf_outra(state: PlanoSaudeState) -> str:
-    erro = state.get("erroCpfOutra")
-    if erro == "invalido":
-        return TEXTO_CPF_OUTRA_INVALIDO
-    return TEXTO_CPF_OUTRA_NAO_ENCONTRADO if erro == "nao_encontrado" else TEXTO_CPF_OUTRA
+    return TEXTO_CPF_OUTRA_INVALIDO if state.get("erroCpfOutra") == "invalido" else TEXTO_CPF_OUTRA
 
 
 async def preparar_pergunta_cpf_outra(state: PlanoSaudeState) -> Atualizacao:
@@ -163,28 +162,90 @@ def _dados_da_outra_pessoa(dados: Mapping[str, Any]) -> dict[str, Any]:
     }
 
 
+STATUS_CPF_INVALIDO = 400
+STATUS_SEM_CADASTRO = 404
+
+
 async def consultar_outra_pessoa(state: PlanoSaudeState) -> Atualizacao:
+    """200: usa os dados do Verde. 404 (ou "não encontrado" sem status): coleta os dados na conversa (#446). 400: CPF
+    inválido, repete a pergunta. 422 (mais de uma pessoa) e falha de infra: equipe, nunca coleta."""
     dados = await consultar_pessoa_por_cpf(state.get("cpfOutraPessoa") or "", completo=True)
     if dados.get("falhaInfra"):
         return {"statusFinal": "handoff_humano", "motivoHandoff": "falha_infra_verde", "mensagemFinal": MENSAGEM_FALHA_INFRA_VERDE}
-    if not dados.get("encontrado"):
-        return {"cpfOutraPessoa": None, "erroCpfOutra": "nao_encontrado", "tentativasCpfOutra": (state.get("tentativasCpfOutra") or 0) + 1}
-    return {"dadosOutraPessoa": _dados_da_outra_pessoa(dados), "erroCpfOutra": None}
+    if dados.get("encontrado"):
+        return {"dadosOutraPessoa": _dados_da_outra_pessoa(dados), "erroCpfOutra": None}
+    status = dados.get("statusHttp")
+    if status == STATUS_CPF_INVALIDO:
+        return {"cpfOutraPessoa": None, "erroCpfOutra": "invalido", "tentativasCpfOutra": (state.get("tentativasCpfOutra") or 0) + 1}
+    if status is None or status == STATUS_SEM_CADASTRO:
+        return {"dadosOutraPessoa": {"origem": "informado"}, "erroCpfOutra": None, "tentativasDadosOutra": 0, "enderecoDeOutraPessoa": True}
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "falha_infra_verde", "mensagemFinal": MENSAGEM_FALHA_INFRA_VERDE}
+
+
+def _coleta_em_andamento(state: PlanoSaudeState) -> bool:
+    outra = state.get("dadosOutraPessoa") or {}
+    return outra.get("origem") == "informado" and "parentesco" not in outra
 
 
 def depois_de_consultar_outra_pessoa(state: PlanoSaudeState) -> str:
     if state.get("statusFinal"):
         return "encerrar"
     if state.get("dadosOutraPessoa"):
-        return _primeira_etapa_do_pedido(state)
-    return "naoEncontrado" if (state.get("tentativasCpfOutra") or 0) >= MAXIMO_TENTATIVAS_CPF_OUTRA else "cpf"
+        return "coletar" if _coleta_em_andamento(state) else _primeira_etapa_do_pedido(state)
+    return "cpfInvalido" if (state.get("tentativasCpfOutra") or 0) >= MAXIMO_TENTATIVAS_CPF_OUTRA else "cpf"
 
 
-async def cpf_outra_nao_encontrado(state: PlanoSaudeState) -> Atualizacao:
+def _no_da_etapa(etapa: str) -> str:
+    return "coletarEnderecoOutra" if etapa == ETAPA_ENDERECO else f"prepararPergunta{etapa[0].upper()}{etapa[1:]}Outra"
+
+
+def texto_dado_outra(campo: Campo, state: PlanoSaudeState) -> str:
+    return campo.novamente if state.get("tentativasDadosOutra") else campo.pergunta
+
+
+def _no_preparar_dado_outra(campo: Campo) -> Callable[[PlanoSaudeState], Awaitable[Atualizacao]]:
+    async def preparar(state: PlanoSaudeState) -> Atualizacao:
+        return dict(await preparar_pergunta(f"{campo.chave}Outra", texto_dado_outra(campo, state)))
+
+    preparar.__name__ = f"preparar_pergunta_{campo.chave}_outra"
+    return preparar
+
+
+def _no_pedir_dado_outra(campo: Campo) -> Callable[[PlanoSaudeState], Awaitable[Atualizacao]]:
+    async def pedir(state: PlanoSaudeState) -> Atualizacao:
+        pergunta: dict[str, Any] = {"pergunta": state.get("perguntaAtualTexto") or texto_dado_outra(campo, state)}
+        pergunta.update({"tipo": "opcoes", "opcoes": campo.opcoes} if campo.opcoes else {"tipo": "texto"})
+        resposta: str = interrupt(pergunta)
+        outra = dict(state.get("dadosOutraPessoa") or {})
+        valor = campo.interpretar(resposta, {k: v for k, v in outra.items() if isinstance(v, str)})
+        if valor is None:
+            return {"tentativasDadosOutra": (state.get("tentativasDadosOutra") or 0) + 1}
+        return {"dadosOutraPessoa": {**outra, campo.chave: valor}, "tentativasDadosOutra": 0}
+
+    pedir.__name__ = f"pedir_{campo.chave}_outra"
+    return pedir
+
+
+def _roteador_dado_outra(campo: Campo) -> Callable[[PlanoSaudeState], str]:
+    def depois(state: PlanoSaudeState) -> str:
+        if campo.chave in (state.get("dadosOutraPessoa") or {}):
+            return "proxima" if etapa_depois_de(campo.chave) else _primeira_etapa_do_pedido(state)
+        return "invalidos" if (state.get("tentativasDadosOutra") or 0) >= MAXIMO_TENTATIVAS_DADOS_OUTRA else "repetir"
+
+    return depois
+
+
+async def guardar_endereco_outra(state: PlanoSaudeState) -> Atualizacao:
+    """O endereço que o subgrafo coletou é o da outra pessoa: vai para os dados dela, como texto."""
+    outra = {**(state.get("dadosOutraPessoa") or {}), "endereco": _endereco(state.get("endereco"))}
+    return {"dadosOutraPessoa": outra, "enderecoDeOutraPessoa": None}
+
+
+async def dados_outra_invalidos(state: PlanoSaudeState) -> Atualizacao:
     return {
         "statusFinal": "handoff_humano",
-        "motivoHandoff": "cpf_outra_pessoa_nao_encontrado",
-        "mensagemFinal": MENSAGEM_CPF_OUTRA_NAO_ENCONTRADO,
+        "motivoHandoff": "dados_outra_pessoa_invalidos",
+        "mensagemFinal": MENSAGEM_DADOS_OUTRA_INVALIDOS,
     }
 
 
@@ -346,7 +407,22 @@ def _linhas_resumo(state: PlanoSaudeState) -> list[tuple[str, str]]:
     dos de quem pede; campo que o Verde não trouxe fica vazio ("não informado"), sem cair nos dados de quem pede."""
     renda = state.get("renda")
     outra = state.get("dadosOutraPessoa")
-    if outra:
+    if outra and outra.get("origem") == "informado":
+        pessoa = [
+            ("Atendimento para", "outra pessoa (dados informados, sem cadastro no Verde)"),
+            ("Parentesco com quem pediu", _texto(outra.get("parentesco"))),
+            ("Nome", _texto(outra.get("nome"))),
+            ("CPF", _texto(state.get("cpfOutraPessoa"))),
+            ("Data de nascimento", _texto(outra.get("dataNascimento"))),
+            ("Estado civil", _texto(outra.get("estadoCivil"))),
+            ("Profissão", _texto(outra.get("profissao"))),
+            ("RG", _texto(outra.get("rg"))),
+            ("E-mail", _texto(outra.get("email"))),
+            ("Telefone", _texto(outra.get("telefone"))),
+            ("WhatsApp", _texto(outra.get("whatsapp"))),
+            ("Endereço", _texto(outra.get("endereco"))),
+        ]
+    elif outra:
         pessoa = [
             ("Atendimento para", "outra pessoa (dados do cadastro do Verde)"),
             ("Nome", _texto(outra.get("nome"))),
@@ -469,7 +545,15 @@ _construtor.add_node("prepararPerguntaCpfOutra", _protegido(preparar_pergunta_cp
 _construtor.add_node("pedirCpfOutra", _protegido(pedir_cpf_outra))
 _construtor.add_node("cpfOutraInvalido", _protegido(cpf_outra_invalido))
 _construtor.add_node("consultarOutraPessoa", _protegido(consultar_outra_pessoa))
-_construtor.add_node("cpfOutraNaoEncontrado", _protegido(cpf_outra_nao_encontrado))
+for _etapa in ETAPAS:
+    if _etapa == ETAPA_ENDERECO:
+        continue
+    _construtor.add_node(_no_da_etapa(_etapa), _protegido(_no_preparar_dado_outra(CAMPOS[_etapa])))
+    _construtor.add_node(f"pedir{_etapa[0].upper()}{_etapa[1:]}Outra", _protegido(_no_pedir_dado_outra(CAMPOS[_etapa])))
+# Subgrafo aninhado, como no cadastro_pessoa: coleta o endereço da outra pessoa sem verificar o município (#446).
+_construtor.add_node("coletarEnderecoOutra", subgrafo_coletar_endereco)
+_construtor.add_node("guardarEnderecoOutra", _protegido(guardar_endereco_outra))
+_construtor.add_node("dadosOutraInvalidos", _protegido(dados_outra_invalidos))
 _construtor.add_node("prepararPerguntaImagens", _protegido(preparar_pergunta_imagens))
 _construtor.add_node("pedirImagens", _protegido(pedir_imagens))
 _construtor.add_node("imagensPendentes", _protegido(imagens_pendentes))
@@ -509,10 +593,30 @@ _condicional(
         "situacao": "prepararPerguntaSituacao",
         "renda": "prepararPerguntaRenda",
         "cpf": "prepararPerguntaCpfOutra",
-        "naoEncontrado": "cpfOutraNaoEncontrado",
+        "cpfInvalido": "cpfOutraInvalido",
+        "coletar": _no_da_etapa(ETAPAS[0]),
         "encerrar": END,
     },
 )
+for _etapa in ETAPAS:
+    if _etapa == ETAPA_ENDERECO:
+        _construtor.add_edge("coletarEnderecoOutra", "guardarEnderecoOutra")
+        _seguir("guardarEnderecoOutra", _no_da_etapa(etapa_depois_de(_etapa) or ""))
+        continue
+    _seguir(_no_da_etapa(_etapa), f"pedir{_etapa[0].upper()}{_etapa[1:]}Outra")
+    _proxima = etapa_depois_de(_etapa)
+    _condicional(
+        f"pedir{_etapa[0].upper()}{_etapa[1:]}Outra",
+        _roteador_dado_outra(CAMPOS[_etapa]),
+        {
+            "proxima": _no_da_etapa(_proxima) if _proxima else "prepararPerguntaImagens",
+            "repetir": _no_da_etapa(_etapa),
+            "invalidos": "dadosOutraInvalidos",
+            "imagens": "prepararPerguntaImagens",
+            "situacao": "prepararPerguntaSituacao",
+            "renda": "prepararPerguntaRenda",
+        },
+    )
 _seguir("prepararPerguntaImagens", "pedirImagens")
 _condicional(
     "pedirImagens",
@@ -544,7 +648,7 @@ _condicional(
 )
 for _fim in (
     "cpfOutraInvalido",
-    "cpfOutraNaoEncontrado",
+    "dadosOutraInvalidos",
     "imagensPendentes",
     "situacaoNaoInformada",
     "rendaNaoEntendida",
