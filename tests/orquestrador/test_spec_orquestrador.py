@@ -30,6 +30,8 @@ from tests.orquestrador.conftest import Modelo
 
 DOIS = [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA]
 TOKENS = {"tokensEntrada": 11, "tokensSaida": 7, "tokensTotal": 18}
+# #450: no release, o CPF vindo da Tykhe (CPF de teste do Verde simulado) dispensa a pergunta do CPF.
+CONHECIDOS = {"cpf": "11111111111"}
 
 
 class Conversa:
@@ -37,8 +39,11 @@ class Conversa:
         self.grafo = obter_grafo()
         self.config = novo_config("teste-orq-spec")
 
-    async def iniciar(self, mensagem: str = "relato") -> dict[str, Any]:
-        r: dict[str, Any] = await self.grafo.ainvoke({"mensagem": mensagem}, self.config)
+    async def iniciar(self, mensagem: str = "relato", conhecidos: dict[str, Any] | None = None) -> dict[str, Any]:
+        entrada: dict[str, Any] = {"mensagem": mensagem}
+        if conhecidos is not None:
+            entrada["dadosConhecidos"] = conhecidos
+        r: dict[str, Any] = await self.grafo.ainvoke(entrada, self.config)
         return r
 
     async def responder(self, *respostas: str) -> dict[str, Any]:
@@ -89,8 +94,9 @@ def store(monkeypatch: pytest.MonkeyPatch) -> StoreFalsa:
 
 
 def test_1_topologia_igual_a_de_develop() -> None:
-    """A topologia de develop, mais os 3 nós do multi-fluxo (#435), que só são alcançados no release
-    (a aresta "fila" do `classificar` só sai quando `fluxo_em_teste_liga`)."""
+    """A topologia de develop, mais os 3 nós do multi-fluxo (#435) e os 5 da identificação pelo CPF e dos assuntos
+    guardados (#450), que só são alcançados no release (as arestas novas do `classificar` só saem quando
+    `fluxo_em_teste_liga`)."""
     desenho = obter_grafo().get_graph()
     assert set(desenho.nodes) == {
         "__start__",
@@ -102,6 +108,12 @@ def test_1_topologia_igual_a_de_develop() -> None:
         "perguntarOrdem",
         "perguntarPrimeiro",
         "comecarFila",
+        # #450
+        "pedirCpf",
+        "consultarCpf",
+        "confirmarCpf",
+        "buscarPendentes",
+        "perguntarPendentes",
         "__end__",
     }
     assert {(a.source, a.target, a.conditional) for a in desenho.edges} == {
@@ -120,6 +132,27 @@ def test_1_topologia_igual_a_de_develop() -> None:
         ("perguntarPrimeiro", "comecarFila", False),
         ("comecarFila", "identificado", True),
         ("comecarFila", "naoIdentificado", True),
+        # #450
+        ("classificar", "pedirCpf", True),
+        ("classificar", "consultarCpf", True),
+        ("pedirCpf", "pedirCpf", True),
+        ("pedirCpf", "consultarCpf", True),
+        ("pedirCpf", "buscarPendentes", True),
+        ("consultarCpf", "confirmarCpf", True),
+        ("consultarCpf", "pedirCpf", True),
+        ("consultarCpf", "buscarPendentes", True),
+        ("confirmarCpf", "pedirCpf", True),
+        ("confirmarCpf", "buscarPendentes", True),
+        ("buscarPendentes", "naoIdentificado", True),
+        ("buscarPendentes", "identificado", True),
+        ("buscarPendentes", "prepararPerguntaDesambiguacao", True),
+        ("buscarPendentes", "perguntarOrdem", True),
+        ("buscarPendentes", "perguntarPendentes", True),
+        ("perguntarPendentes", "naoIdentificado", True),
+        ("perguntarPendentes", "identificado", True),
+        ("perguntarPendentes", "prepararPerguntaDesambiguacao", True),
+        ("perguntarPendentes", "perguntarOrdem", True),
+        ("perguntarPendentes", "__end__", True),
     }
 
 
@@ -503,7 +536,7 @@ async def test_419_plano_de_saude_e_saude_identificam_o_fluxo_sem_perguntar_em_q
 ) -> None:
     monkeypatch.setenv("MARIA_AMBIENTE", "release")
     modelo.classificacoes = [{"ids": ordem, "viaIA": True, **TOKENS}]
-    r = await Conversa().iniciar("preciso de uma cirurgia")
+    r = await Conversa().iniciar("preciso de uma cirurgia", CONHECIDOS)
     assert pergunta(r) is None
     assert r["statusFinal"] == "identificado"
     assert r["flowIdEscolhido"] == ID_PROBLEMAS_PLANO_SAUDE
@@ -521,7 +554,7 @@ async def test_419_trio_que_inclui_o_par_segue_com_a_desambiguacao(modelo: Model
     monkeypatch.setenv("MARIA_AMBIENTE", "release")
     modelo.classificacoes = [{"ids": [ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude", ID_PESSOA_PRESA], "viaIA": True, **TOKENS}]
     modelo.perguntas = [{"pergunta": "P?", "viaIA": True, **TOKENS}]
-    r = await Conversa().iniciar()
+    r = await Conversa().iniciar(conhecidos=CONHECIDOS)
     assert pergunta(r) == {"pergunta": "P?", "tipo": "texto"}
 
 

@@ -103,6 +103,19 @@ RESPOSTA_ATENDIMENTO: Schema = {
     },
 }
 
+# #450 (multi-fluxo, fase 1b, só no release): POST /atendimentos/proximo-assunto. O corpo é o de um
+# atendimento (assunto da Maria) ou o do redirecionado (assunto da Tykhe), mais o `chatId` gerado pela Maria.
+CORPO_PROXIMO_ASSUNTO: Schema = {"type": "object", "properties": {"chatId": {"type": "string", "description": "O chatId da conversa"}}}
+RESPOSTA_PROXIMO_ASSUNTO: Schema = {
+    "type": "object",
+    "properties": {
+        **RESPOSTA_ATENDIMENTO["properties"],
+        "status": {"type": "string", "enum": ["em_andamento", "concluido", "handoff_humano", "expirado", "redirecionado"]},
+        "tipoCaso": {"type": "string"},
+        "chatId": {"type": "string", "description": "O chatId deste assunto, gerado pela Maria: use-o nas próximas chamadas"},
+    },
+}
+
 # rotas/atendimentos.ts:384-396
 CORPO_CRIAR_ATENDIMENTO: Schema = {
     "type": "object",

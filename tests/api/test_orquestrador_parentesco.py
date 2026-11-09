@@ -17,6 +17,9 @@ from maria.fluxos.plano_saude.graph import TEXTO_CPF_OUTRA, TEXTO_PARA_QUEM
 from maria.fluxos.violencia_domestica.graph import TEXTO_EH_VITIMA
 
 BASE = "/atendimentos/orquestrador"
+# #450: no release, sem CPF na 1ª chamada a Maria pergunta o CPF antes de abrir o fluxo. Com o CPF da Tykhe (CPF de
+# teste do Verde simulado), o fluxo abre direto, como estes testes esperam.
+CPF = "11111111111"
 _ids = count(1)
 
 
@@ -80,7 +83,7 @@ async def test_meu_primo_foi_preso_nao_pergunta_o_parentesco(
     _simular(monkeypatch)
     if ambiente:
         monkeypatch.setenv("MARIA_AMBIENTE", ambiente)
-    chat, primeira = await _abrir(cliente, auth, "Meu primo foi preso e quero saber quando sai")
+    chat, primeira = await _abrir(cliente, auth, "Meu primo foi preso e quero saber quando sai", {"cpf": CPF} if ambiente else None)
     assert primeira["flowId"] == ID_PESSOA_PRESA
     assert (await _estado(ID_PESSOA_PRESA, chat))["parentesco"] == "Primo(a)"
     perguntas = await _conversar(cliente, auth, chat, primeira)
@@ -142,7 +145,9 @@ async def test_plano_da_minha_mae_pula_o_para_voce(
 ) -> None:
     _simular(monkeypatch, ID_PROBLEMAS_PLANO_SAUDE)
     monkeypatch.setenv("MARIA_AMBIENTE", "release")
-    chat, primeira = await _abrir(cliente, auth, "o plano da minha mãe negou a cirurgia dela", {"endereco": {"cep": "20000000"}})
+    chat, primeira = await _abrir(
+        cliente, auth, "o plano da minha mãe negou a cirurgia dela", {"endereco": {"cep": "20000000"}, "cpf": CPF}
+    )
     assert primeira["resposta"] == TEXTO_CPF_OUTRA
     assert (await _estado(ID_PROBLEMAS_PLANO_SAUDE, chat))["paraSi"] is False
 
@@ -150,7 +155,7 @@ async def test_plano_da_minha_mae_pula_o_para_voce(
 async def test_meu_plano_pula_o_para_voce(cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     _simular(monkeypatch, ID_PROBLEMAS_PLANO_SAUDE)
     monkeypatch.setenv("MARIA_AMBIENTE", "release")
-    _, primeira = await _abrir(cliente, auth, "meu plano negou minha cirurgia", {"endereco": {"cep": "20000000"}})
+    _, primeira = await _abrir(cliente, auth, "meu plano negou minha cirurgia", {"endereco": {"cep": "20000000"}, "cpf": CPF})
     assert primeira["resposta"] != TEXTO_PARA_QUEM
     assert primeira["tipoResposta"] == "link_imagem"
 
@@ -158,7 +163,7 @@ async def test_meu_plano_pula_o_para_voce(cliente: httpx.AsyncClient, auth: dict
 async def test_plano_sem_dizer_de_quem_pergunta(cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch) -> None:
     _simular(monkeypatch, ID_PROBLEMAS_PLANO_SAUDE)
     monkeypatch.setenv("MARIA_AMBIENTE", "release")
-    _, primeira = await _abrir(cliente, auth, "o plano negou a cirurgia", {"endereco": {"cep": "20000000"}})
+    _, primeira = await _abrir(cliente, auth, "o plano negou a cirurgia", {"endereco": {"cep": "20000000"}, "cpf": CPF})
     assert primeira["resposta"] == TEXTO_PARA_QUEM
 
 

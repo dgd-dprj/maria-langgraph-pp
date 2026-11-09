@@ -17,6 +17,9 @@ from tests.fluxos.conftest import novo_config, pergunta
 from tests.orquestrador.conftest import Modelo
 
 TOKENS = {"tokensEntrada": 11, "tokensSaida": 7, "tokensTotal": 18}
+# #450: no release, sem CPF na 1ª chamada a Maria pergunta o CPF antes de tudo. Aqui o CPF vem da Tykhe (CPF de
+# teste do Verde simulado), e a conversa segue direto para o que estes testes conferem.
+CONHECIDOS = {"cpf": "11111111111"}
 
 
 def nec(i: str, evidencia: str = "", urgente: bool = False) -> dict[str, Any]:
@@ -35,7 +38,7 @@ class Conversa:
         self.config = novo_config("teste-orq-multi")
 
     async def iniciar(self, mensagem: str = "relato") -> dict[str, Any]:
-        r: dict[str, Any] = await self.grafo.ainvoke({"mensagem": mensagem}, self.config)
+        r: dict[str, Any] = await self.grafo.ainvoke({"mensagem": mensagem, "dadosConhecidos": CONHECIDOS}, self.config)
         return r
 
     async def responder(self, resposta: str) -> dict[str, Any]:

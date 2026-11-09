@@ -21,10 +21,11 @@ from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
 from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
 from maria.orquestrador.fila import com_dados_do_fim
-from maria.orquestrador.graph import assuntos_pendentes_do_chat
+from maria.orquestrador.graph import assunto_guardado_do_chat, assuntos_pendentes_do_chat
 from maria.shared import _js
 from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
+from maria.shared.pendentes_db import obter_pendentes_store
 from maria.shared.respostas import normalizar_resposta, resposta_eh_nao, resposta_eh_sim
 
 # Formas naturais de responder à confirmação de TTL além de sim/não (#227), já
@@ -325,6 +326,10 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
             if pendentes:
                 # #442: o CPF informado neste assunto segue para os próximos, para não ser pedido de novo.
                 corpo_resposta["assuntosPendentes"] = com_dados_do_fim(pendentes, corpo_resposta.get("dadosColetados"))
+            # #450 (só no release): o assunto guardado que este atendimento atendia fica resolvido.
+            guardado = await assunto_guardado_do_chat(chat_id)
+            if guardado is not None:
+                await (await obter_pendentes_store()).marcar(*guardado, "resolvido")
         return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)

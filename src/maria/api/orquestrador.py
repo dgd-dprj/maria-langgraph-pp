@@ -12,26 +12,47 @@ do fluxo escolhido depois (que usa o `chatId` puro).
 
 from __future__ import annotations
 
+import asyncio
 import os
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.atendimentos import criar_atendimento, extrair_interrupt
 from maria.api.pipeline import Contexto, Resposta, Rota
-from maria.fluxos import buscar_fluxo
-from maria.fluxos.tipos_tykhe import TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
-from maria.orquestrador.fila import dados_do_relato, texto_comecando
+from maria.fluxos import buscar_fluxo, fluxo_em_teste_liga
+from maria.fluxos.tipos_tykhe import TipoCasoTykhe, TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
+from maria.orquestrador.fila import (
+    AssuntoGuardado,
+    AssuntoPendente,
+    chat_id_do_assunto,
+    dados_do_relato,
+    origem_do_chat,
+    texto_comecando,
+    texto_proximo_assunto,
+)
 from maria.orquestrador.graph import obter_grafo
 from maria.shared import _js
 from maria.shared._js import AUSENTE
+from maria.shared.atendimentos_db import AtendimentosStore, obter_atendimentos_store
+from maria.shared.pendentes_db import Situacao, obter_pendentes_store
 
 MENSAGEM_NAO_IDENTIFICADO = (
     "Não consegui identificar como te ajudar a partir do que você escreveu. "
     "Vou encaminhar seu atendimento pra um atendente humano confirmar."
 )
+
+# As perguntas do multi-fluxo (só no release) saem com a etapa no log. A desambiguação de sempre não tem etapa, e o
+# log dela não muda. Nunca o conteúdo: a pergunta da confirmação tem o nome mascarado da pessoa.
+MENSAGENS_DE_LOG_POR_ETAPA: dict[str, str] = {
+    "ordem": "orquestrador: pergunta da ordem dos assuntos enviada",
+    "primeiro": "orquestrador: pergunta da ordem dos assuntos enviada",
+    "cpf": "orquestrador: pergunta de identificação enviada",
+    "confirmaCpf": "orquestrador: pergunta de identificação enviada",
+    "pendentes": "orquestrador: pergunta dos assuntos guardados enviada",
+}
 
 
 def _resposta_redirecionada(chat_id: str, tipo: TipoTykhe, tokens_gastos: Any) -> dict[str, Any]:
@@ -108,9 +129,9 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
         # desambiguação de sempre não tem etapa, e o log dela não muda.
         etapa = _js.opt(interrupt, "etapa")
         ctx.log.info(
-            "orquestrador: pergunta de desambiguação enviada"
-            if etapa is AUSENTE
-            else "orquestrador: pergunta da ordem dos assuntos enviada",
+            MENSAGENS_DE_LOG_POR_ETAPA.get(etapa, "orquestrador: pergunta da ordem dos assuntos enviada")
+            if isinstance(etapa, str)
+            else "orquestrador: pergunta de desambiguação enviada",
             chatId=chat_id,
             evento="orquestrador_pergunta_enviada",
             status="em_andamento",
@@ -138,6 +159,12 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     # #435 (multi-fluxo, só no release): os outros assuntos do relato, para a Tykhe seguir com eles.
     pendentes = resultado.get("assuntosPendentes") or []
     no_log_pendentes = {"assuntosPendentes": len(pendentes)} if pendentes else {}
+    if fluxo_em_teste_liga():
+        # #450: os outros assuntos ficam guardados pelo idPessoa, para quando a pessoa voltar.
+        await _guardar_pendentes(resultado, chat_id, pendentes)
+        escolhido = resultado.get("pendenteEscolhido")
+        if isinstance(escolhido, dict):
+            return await _atender_assunto_guardado(ctx, chat_id, cast(AssuntoGuardado, escolhido), resultado, pendentes)
 
     # #225: relato que não bate com nenhuma opção vai para "outros" da Tykhe.
     if status_final != "identificado" or not _js.verdadeiro(flow_id):
@@ -221,11 +248,200 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     return resposta_fluxo
 
 
+async def _guardar_pendentes(resultado: dict[str, Any], chat_id: str, pendentes: list[AssuntoPendente]) -> None:
+    """#450: com a pessoa identificada (idPessoa), os outros assuntos da conversa ficam guardados por 30 dias. Sem
+    idPessoa, nada é guardado (decisão registrada na #450). Idempotente: chamar de novo não duplica."""
+    id_pessoa = resultado.get("idPessoa")
+    if not pendentes or id_pessoa is None:
+        return
+    store = await obter_pendentes_store()
+    await store.guardar(str(id_pessoa), chat_id, pendentes)
+
+
+async def _atender_assunto_guardado(
+    ctx: Contexto, chat_id: str, escolhido: AssuntoGuardado, resultado: dict[str, Any], pendentes: list[AssuntoPendente]
+) -> Resposta:
+    """#450: na conversa nova, a pessoa escolheu um assunto guardado de outra conversa. Ele é atendido agora, com o
+    `chatId` desta conversa; o que ela acabou de contar fica pendente (`assuntosPendentes`).
+
+    Assunto da Maria: abre o fluxo, com o CPF já confirmado em `dadosConhecidos`, e a linha fica `em_andamento`.
+    Assunto da Tykhe: volta como `redirecionado`, e a linha fica `resolvida`."""
+    pendentes_store = await obter_pendentes_store()
+    tokens_conversa = resultado.get("tokensGastosConversa")
+    no_log_pendentes = {"assuntosPendentes": len(pendentes)} if pendentes else {}
+    origem, posicao = escolhido["chatIdOrigem"], escolhido["posicao"]
+    tipo_caso = escolhido.get("tipoCaso")
+    if tipo_caso is not None:
+        await pendentes_store.marcar(origem, posicao, "resolvido")
+        ctx.log.info(
+            "orquestrador: assunto guardado é da Tykhe, redirecionado",
+            chatId=chat_id,
+            evento="assunto_guardado_redirecionado",
+            status="concluido",
+            destino="tykhe",
+            tipoCaso=tipo_caso,
+            **no_log_pendentes,
+        )
+        tipo = tipo_tykhe_por_caso(cast(TipoCasoTykhe, tipo_caso))
+        return Resposta(200, _com_pendentes(_resposta_redirecionada(chat_id, tipo, tokens_conversa), pendentes))
+
+    flow_id = escolhido.get("flowId")
+    fluxo = await buscar_fluxo(flow_id) if flow_id else None
+    if fluxo is None or flow_id is None:
+        ctx.log.error(
+            "orquestrador: assunto guardado com flowId que não existe em nenhum catálogo (inconsistência)",
+            chatId=chat_id,
+            flowId=flow_id,
+            evento="orquestrador_inconsistencia",
+            status="concluido",
+            destino="atendimento_humano",
+        )
+        return Resposta(200, _resposta_handoff_sem_fluxo(chat_id))
+
+    atendimentos = await obter_atendimentos_store()
+    novo_agora = await atendimentos.buscar_atividade(chat_id) is None
+    guardados = resultado.get("dadosConhecidos")
+    dados = {**(guardados if isinstance(guardados, dict) else {}), **(ctx.corpo.get("dadosConhecidos") or {})}
+    # O relato desta conversa é de outro assunto; o do assunto guardado nunca é guardado. O fluxo pergunta o que precisar.
+    dados.pop("relato", None)
+    dados["tokensGastos"] = _js.coalesce(tokens_conversa, {"input": 0, "output": 0, "total": 0})
+    if novo_agora:
+        ctx.log.info(
+            "orquestrador: assunto guardado aberto",
+            chatId=chat_id,
+            evento="assunto_guardado_aberto",
+            flowId=flow_id,
+            **no_log_pendentes,
+        )
+    resposta_fluxo = await criar_atendimento(fluxo, flow_id, chat_id, dados, ctx.log, via_orquestrador=True)
+    if isinstance(resposta_fluxo.corpo, dict) and resposta_fluxo.status == 200:
+        texto = resposta_fluxo.corpo.get("resposta")
+        if novo_agora:
+            situacao: Situacao = "em_andamento" if resposta_fluxo.corpo.get("status") == "em_andamento" else "resolvido"
+            await pendentes_store.marcar(origem, posicao, situacao)
+            if isinstance(texto, str):
+                resposta_fluxo.corpo["resposta"] = f"{texto_proximo_assunto(escolhido)}\n\n{texto}"
+        _com_pendentes(resposta_fluxo.corpo, pendentes)
+    return resposta_fluxo
+
+
 def _com_pendentes(corpo: dict[str, Any], pendentes: list[Any]) -> dict[str, Any]:
     """#435: `assuntosPendentes` só aparece quando há outro assunto. Sem ele, o corpo é o de sempre."""
     if pendentes:
         corpo["assuntosPendentes"] = pendentes
     return corpo
+
+
+async def _cpf_da_conversa(origem: str, valores_orquestrador: dict[str, Any], total: int, store: AtendimentosStore) -> str | None:
+    """#442/#450: o CPF já informado na conversa, para o próximo assunto não pedir de novo. Vem dos
+    `dadosConhecidos` da 1ª chamada ou de um atendimento anterior da mesma conversa."""
+    conhecidos = valores_orquestrador.get("dadosConhecidos")
+    if isinstance(conhecidos, dict) and isinstance(conhecidos.get("cpf"), str) and conhecidos["cpf"]:
+        return str(conhecidos["cpf"])
+    for posicao in range(1, total + 1):
+        chat = origem if posicao == 1 else chat_id_do_assunto(origem, posicao)
+        flow_id = await store.buscar_flow_id(chat)
+        fluxo = await buscar_fluxo(flow_id) if flow_id else None
+        if fluxo is None:
+            continue
+        estado = await fluxo.obter_grafo().aget_state({"configurable": {"thread_id": chat, "fluxoId": flow_id}})
+        cpf = (estado.values or {}).get("cpf")
+        if isinstance(cpf, str) and cpf:
+            return cpf
+    return None
+
+
+def _com_cpf(pendentes: list[AssuntoPendente], cpf: str | None) -> list[AssuntoPendente]:
+    if not cpf:
+        return pendentes
+    return [{**p, "dadosConhecidos": {"cpf": cpf, **p.get("dadosConhecidos", {})}} if "flowId" in p else p for p in pendentes]
+
+
+async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
+    """#450 (multi-fluxo, fase 1b, só no release): abre o próximo assunto pendente da conversa, com o
+    `chatId` gerado pela Maria (`<chatId>-assunto-N`). A Tykhe só manda o `chatId` da conversa.
+
+    Idempotente: um assunto da Maria já aberto e não encerrado volta como está; um encerrado é pulado.
+    Um assunto da Tykhe (`tipoCaso`) é devolvido uma vez, como `redirecionado`, e fica marcado."""
+    chat_id = ctx.corpo.get("chatId", AUSENTE)
+    if not isinstance(chat_id, str) or not chat_id:
+        return Resposta(400, {"erro": "chatId obrigatório"})
+    if not fluxo_em_teste_liga():
+        return Resposta(404, {"erro": "rota disponível só no ambiente de teste (release)"})
+    origem, _ = origem_do_chat(chat_id)
+    # Duas chamadas ao mesmo tempo para a mesma conversa (um retry da Tykhe) esperam a vez: sem a trava, a
+    # 2ª via o atendimento já registrado, mas ainda sem conversa, e devolvia a mensagem de sucesso do fluxo
+    # (achado do teste de consistência, 2026-11-09). A API roda num processo só, como a ponte do WhatsApp.
+    async with _TRAVAS_PROXIMO.setdefault(origem, asyncio.Lock()):
+        return await _abrir_proximo_assunto(ctx, origem)
+
+
+_TRAVAS_PROXIMO: dict[str, asyncio.Lock] = {}
+
+
+async def _abrir_proximo_assunto(ctx: Contexto, origem: str) -> Resposta:
+    config: Any = {"configurable": {"thread_id": f"orquestrador:{origem}"}}
+    grafo = obter_grafo()
+    valores = dict((await grafo.aget_state(config)).values or {})
+    pendentes: list[AssuntoPendente] = valores.get("assuntosPendentes") or []
+    encaminhados = set(valores.get("assuntosEncaminhados") or [])
+    store = await obter_atendimentos_store()
+    cpf = await _cpf_da_conversa(origem, valores, len(pendentes) + 1, store) if pendentes else None
+
+    for indice, item in enumerate(pendentes):
+        posicao = indice + 2
+        novo = chat_id_do_assunto(origem, posicao)
+        restantes = _com_cpf(pendentes[indice + 1 :], cpf)
+        tipo_caso = item.get("tipoCaso")
+        if tipo_caso is not None:
+            if posicao in encaminhados:
+                continue
+            await grafo.aupdate_state(config, {"assuntosEncaminhados": sorted(encaminhados | {posicao})})
+            await (await obter_pendentes_store()).marcar(origem, posicao, "resolvido")
+            ctx.log.info(
+                "orquestrador: próximo assunto é da Tykhe, redirecionado",
+                chatId=novo,
+                evento="proximo_assunto_redirecionado",
+                tipoCaso=tipo_caso,
+                posicao=posicao,
+            )
+            corpo = _resposta_redirecionada(novo, tipo_tykhe_por_caso(cast(TipoCasoTykhe, tipo_caso)), None)
+            corpo["chatId"] = novo
+            return Resposta(200, _com_pendentes(corpo, restantes))
+
+        flow_id = item.get("flowId")
+        atividade = await store.buscar_atividade(novo)
+        if atividade is not None and atividade.get("statusFinal"):
+            continue  # já encerrado (concluído, atendimento humano ou expirado)
+        fluxo = await buscar_fluxo(flow_id) if flow_id else None
+        if fluxo is None or flow_id is None:
+            continue
+        novo_agora = atividade is None
+        dados: dict[str, Any] = dict(item.get("dadosConhecidos") or {})
+        if cpf and "cpf" not in dados:
+            dados["cpf"] = cpf
+        if novo_agora:
+            ctx.log.info(
+                "orquestrador: próximo assunto aberto",
+                chatId=novo,
+                evento="proximo_assunto_aberto",
+                flowId=flow_id,
+                posicao=posicao,
+            )
+        resposta_fluxo = await criar_atendimento(fluxo, flow_id, novo, dados, ctx.log, via_orquestrador=True)
+        if isinstance(resposta_fluxo.corpo, dict) and resposta_fluxo.status == 200:
+            texto = resposta_fluxo.corpo.get("resposta")
+            if novo_agora:
+                # #450: a linha guardada (se a pessoa foi identificada) acompanha o assunto.
+                situacao: Situacao = "em_andamento" if resposta_fluxo.corpo.get("status") == "em_andamento" else "resolvido"
+                await (await obter_pendentes_store()).marcar(origem, posicao, situacao)
+            if novo_agora and isinstance(texto, str):
+                resposta_fluxo.corpo["resposta"] = f"{texto_proximo_assunto(item)}\n\n{texto}"
+            resposta_fluxo.corpo["chatId"] = novo
+            _com_pendentes(resposta_fluxo.corpo, restantes)
+        return resposta_fluxo
+
+    return Resposta(404, {"erro": "nenhum assunto pendente nesta conversa"})
 
 
 ROTAS: tuple[Rota, ...] = (
@@ -243,6 +459,20 @@ ROTAS: tuple[Rota, ...] = (
             "Cria um atendimento identificando o fluxo automaticamente a partir de um relato livre "
             "(com possíveis perguntas de desambiguação antes)"
         ),
+        tags=("atendimentos",),
+    ),
+    Rota(
+        "POST",
+        "/atendimentos/proximo-assunto",
+        _post_proximo_assunto,
+        corpo=esquemas.CORPO_PROXIMO_ASSUNTO,
+        respostas={
+            200: esquemas.RESPOSTA_PROXIMO_ASSUNTO,
+            400: esquemas.ERRO_ORQUESTRADOR,
+            404: esquemas.ERRO_ORQUESTRADOR,
+            409: esquemas.ERRO_ORQUESTRADOR,
+        },
+        resumo="Abre o próximo assunto pendente da conversa, com o chatId gerado pela Maria (multi-fluxo, só no release)",
         tags=("atendimentos",),
     ),
 )
