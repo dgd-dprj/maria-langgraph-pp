@@ -21,12 +21,16 @@ from maria.shared.atendimentos_db import obter_atendimentos_store
 ORQ = "/atendimentos/orquestrador"
 PROXIMO = "/atendimentos/proximo-assunto"
 RESPOSTAS = "/atendimentos/respostas"
-DADOS_NO_RIO = {"endereco": {"cep": "20000000"}}
+# #450: no release, o CPF da Tykhe (CPF de teste do Verde simulado) dispensa a pergunta do CPF antes da ordem.
+CPF = "11111111111"
+DADOS_NO_RIO = {"endereco": {"cep": "20000000"}, "cpf": CPF}
 PLANO = {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": "o plano negou a cirurgia", "urgente": True}
 PP = {"id": ID_PESSOA_PRESA, "evidencia": "meu irmão está preso"}
 NOVO_PROCESSO = {"id": "tykhe:novo-processo", "evidencia": "quero entrar com um processo de pensão"}
 PENDENTE_PP = {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA, "dadosConhecidos": {"parentesco": "Irmão(a)"}}
 PENDENTE_NOVO = {"nome": "o caso novo", "urgente": False, "tipoCaso": "novo-processo"}
+# No fim do 1º assunto, o CPF que o fluxo recebeu segue para o próximo assunto da Maria (#442).
+PENDENTE_PP_FIM = {**PENDENTE_PP, "dadosConhecidos": {"cpf": CPF, "parentesco": "Irmão(a)"}}
 
 _ids = count(1)
 
@@ -64,7 +68,7 @@ async def test_abre_o_segundo_assunto_com_chat_id_gerado_e_o_que_a_pessoa_ja_dis
     release.setenv("MOCK_NECESSIDADES", json.dumps([PLANO, PP]))
     chat = _chat()
     fim = await _primeiro_assunto_ate_o_fim(cliente, auth, chat)
-    assert fim["assuntosPendentes"] == [PENDENTE_PP]
+    assert fim["assuntosPendentes"] == [PENDENTE_PP_FIM]
 
     r = await cliente.post(PROXIMO, json={"chatId": chat}, headers=auth)
     assert r.status_code == 200
@@ -124,7 +128,7 @@ async def test_tres_assuntos_seguem_em_ordem_e_cada_um_ve_os_que_faltam(
     release.setenv("MOCK_NECESSIDADES", json.dumps([PLANO, PP, NOVO_PROCESSO]))
     chat = _chat()
     fim = await _primeiro_assunto_ate_o_fim(cliente, auth, chat)
-    assert fim["assuntosPendentes"] == [PENDENTE_PP, PENDENTE_NOVO]
+    assert fim["assuntosPendentes"] == [PENDENTE_PP_FIM, PENDENTE_NOVO]
 
     corpo = (await cliente.post(PROXIMO, json={"chatId": chat}, headers=auth)).json()
     assert (corpo["chatId"], corpo["flowId"]) == (f"{chat}-assunto-2", ID_PESSOA_PRESA)

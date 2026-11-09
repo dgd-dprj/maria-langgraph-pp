@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
-from maria.orquestrador.fila import AssuntoPendente, ItemFila
+from maria.orquestrador.fila import AssuntoGuardado, AssuntoPendente, ItemFila
 from maria.shared.tokens_acumulados import CanalTokensGastos
 
 
@@ -64,3 +64,20 @@ class OrquestradorState(TypedDict, total=False):
     # #450: posições (2, 3…) dos assuntos pendentes da Tykhe (`tipoCaso`) já devolvidos pela rota do
     # próximo assunto. Os da Maria não precisam: o atendimento registrado com o `chatId` do assunto já diz.
     assuntosEncaminhados: list[int] | None
+    # #450: a identificação pelo CPF logo depois da 1ª mensagem (só no release). CPF, nome e idPessoa são dado
+    # pessoal: ficam no checkpoint, como `dadosConhecidos`, e nunca vão para log.
+    # A identificação terminou: a pessoa confirmou o CPF, as tentativas acabaram ou o Verde falhou.
+    identificacaoFeita: bool | None
+    # O CPF que a pessoa digitou, só com os números, esperando a consulta ao Verde e a confirmação.
+    cpfDigitado: str | None
+    tentativasCpf: int | None
+    # Por que a Maria pergunta o CPF de novo: o texto da pergunta muda com o motivo.
+    erroCpf: Literal["invalido", "nao_encontrado", "recusado"] | None
+    # O idPessoa do Verde antes da confirmação, e a pergunta com o nome mascarado (#393).
+    idPessoaEncontrado: int | None
+    textoConfirmaCpf: str | None
+    # O idPessoa confirmado: a chave dos assuntos guardados (`shared/pendentes_db.py`).
+    idPessoa: int | None
+    # Os assuntos guardados de outras conversas desta pessoa, e o que ela escolheu atender agora.
+    pendentesGuardados: list[AssuntoGuardado] | None
+    pendenteEscolhido: AssuntoGuardado | None

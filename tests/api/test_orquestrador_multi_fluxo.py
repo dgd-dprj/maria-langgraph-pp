@@ -16,8 +16,10 @@ import pytest
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, fluxos_por_id
 
 BASE = "/atendimentos/orquestrador"
-# O CEP faz o fluxo do plano seguir para a 1ª pergunta (o Verde simulado devolve o Rio).
-DADOS_NO_RIO = {"endereco": {"cep": "20000000"}}
+# O CEP faz o fluxo do plano seguir para a 1ª pergunta (o Verde simulado devolve o Rio). #450: no release, o CPF
+# da Tykhe (CPF de teste do Verde simulado) dispensa a pergunta do CPF antes da ordem dos assuntos.
+CPF = "11111111111"
+DADOS_NO_RIO = {"endereco": {"cep": "20000000"}, "cpf": CPF}
 # Sem dizer de quem é a cirurgia: o fluxo do plano pergunta "para você?" (#438 leria "da minha mãe").
 TRECHO_PLANO = "o plano negou a cirurgia"
 NECESSIDADES = [
@@ -83,12 +85,13 @@ async def test_release_dois_assuntos_ordem_fluxo_e_pendentes_ate_o_fim(
     assert (corpo["status"], corpo["tipoResposta"]) == ("em_andamento", "link_imagem")
     assert "assuntosPendentes" not in corpo
 
-    # 5. Fim do fluxo (3 respostas sem a foto): a resposta final ainda lista a pessoa presa.
+    # 5. Fim do fluxo (3 respostas sem a foto): a resposta final ainda lista a pessoa presa, agora com o CPF que
+    # o fluxo do plano recebeu (#442).
     for _ in range(3):
         r = await cliente.post("/atendimentos/respostas", json={"chatId": chat, "resposta": "mandei"}, headers=auth)
     corpo = r.json()
     assert (corpo["status"], corpo["metadados"]["motivoHandoff"]) == ("handoff_humano", "imagens_pendentes")
-    assert corpo["assuntosPendentes"] == [PENDENTE_PP]
+    assert corpo["assuntosPendentes"] == [{**PENDENTE_PP, "dadosConhecidos": {"cpf": CPF, "parentesco": "Irmão(a)"}}]
 
 
 @pytest.mark.usefixtures("multi")
@@ -100,7 +103,7 @@ async def test_release_primeiro_assunto_da_tykhe_redireciona_com_pendentes(
         "MOCK_NECESSIDADES", json.dumps([{"id": ID_PESSOA_PRESA, "evidencia": "x"}, {"id": "tykhe:saude", "evidencia": "y"}])
     )
     chat = _chat()
-    await cliente.post(BASE, json={"chatId": chat, "mensagem": RELATO}, headers=auth)
+    await cliente.post(BASE, json={"chatId": chat, "mensagem": RELATO, "dadosConhecidos": {"cpf": CPF}}, headers=auth)
     r = await cliente.post(BASE, json={"chatId": chat, "resposta": "Sim"}, headers=auth)
     corpo = r.json()
     assert (corpo["status"], corpo["tipoCaso"]) == ("redirecionado", "saude")

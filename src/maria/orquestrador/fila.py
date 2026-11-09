@@ -100,6 +100,18 @@ class AssuntoPendente(TypedDict):
     dadosConhecidos: NotRequired[dict[str, Any]]
 
 
+class AssuntoGuardado(TypedDict):
+    """#450: um assunto pendente de outra conversa da mesma pessoa, como fica no estado do orquestrador.
+    Só o que a pergunta e a abertura precisam: sem datas, sem relato e sem dado pessoal."""
+
+    chatIdOrigem: str
+    posicao: int
+    nome: str
+    urgente: bool
+    flowId: NotRequired[str]
+    tipoCaso: NotRequired[str]
+
+
 def montar_fila(necessidades: list[Necessidade]) -> list[ItemFila]:
     """Mesmo destino vira um item só; "fora da lista" vai para "outros" da Tykhe; "sair" sai da
     fila quando há outro assunto."""
@@ -162,9 +174,9 @@ def texto_comecando(item: ItemFila) -> str:
     return f"Combinado. Vamos começar {_com_artigo('por', item['nome'])}."
 
 
-def texto_proximo_assunto(item: AssuntoPendente) -> str:
-    """#450: a frase que abre o próximo assunto, antes da 1ª pergunta do fluxo dele."""
-    return f"Agora vamos falar {_com_artigo('de', item['nome'])}."
+def texto_proximo_assunto(item: Mapping[str, object]) -> str:
+    """#450: a frase que abre o próximo assunto (ou um assunto guardado), antes da 1ª pergunta do fluxo dele."""
+    return f"Agora vamos falar {_com_artigo('de', str(item['nome']))}."
 
 
 # #450: o `chatId` de cada assunto depois do primeiro é gerado pela Maria a partir do da conversa.
@@ -182,6 +194,67 @@ def origem_do_chat(chat_id: str) -> tuple[str, int]:
     if m and int(m.group(2)) >= 2:
         return m.group(1), int(m.group(2))
     return chat_id, 1
+
+
+# #450: a pergunta dos assuntos guardados, quando a pessoa volta numa conversa nova.
+TEXTO_OPCAO_NOVO = "O que acabei de contar"
+# Palavras de quem escolhe o que acabou de contar ("o que eu contei agora", "o de hoje").
+PALAVRAS_DO_NOVO = frozenset({"acabei", "contei", "contar", "contando", "hoje"})
+# Palavras de quem escolhe o assunto guardado, quando há um só ("dele", "o guardado").
+PALAVRAS_DO_GUARDADO = frozenset({"dele", "dela", "guardado", "guardada", "pendente", "antigo", "outro", "anterior"})
+
+
+def _maiuscula(nome: str) -> str:
+    return nome[:1].upper() + nome[1:]
+
+
+def _nomes_juntos(nomes: list[str]) -> str:
+    """ "a", "a e b", "a, b e c"."""
+    return nomes[0] if len(nomes) == 1 else f"{', '.join(nomes[:-1])} e {nomes[-1]}"
+
+
+def texto_pendentes(guardados: list[AssuntoGuardado]) -> str:
+    nomes = [g["nome"] for g in guardados]
+    if len(nomes) == 1:
+        return f"Você tem um assunto guardado: {nomes[0]}. Quer falar dele agora ou do que você acabou de contar?"
+    return f"Você tem assuntos guardados: {_nomes_juntos(nomes)}. Quer falar de um deles agora ou do que você acabou de contar?"
+
+
+def opcoes_pendentes(guardados: list[AssuntoGuardado]) -> list[str]:
+    return [TEXTO_OPCAO_NOVO, *(_maiuscula(g["nome"]) for g in guardados)]
+
+
+def _id_do_guardado(guardado: AssuntoGuardado) -> str:
+    return guardado["flowId"] if "flowId" in guardado else f"tykhe:{guardado.get('tipoCaso', 'outros')}"
+
+
+def pendente_escolhido(resposta: str, guardados: list[AssuntoGuardado]) -> int | None:
+    """A posição do assunto guardado que a pessoa escolheu, ou None para o que ela acabou de contar.
+
+    Vale o texto da opção, o número dela (1 é o que acabou de contar; 2, 3… são os guardados) e uma resposta livre
+    com o nome do assunto. Resposta que a Maria não entende segue com o que a pessoa acabou de contar."""
+    numero = re.fullmatch(r"\s*(\d+)\s*", resposta)
+    if numero:
+        posicao = int(numero.group(1)) - 2
+        return posicao if 0 <= posicao < len(guardados) else None
+    limpa = _limpa(resposta)
+    if limpa == _limpa(TEXTO_OPCAO_NOVO):
+        return None
+    for indice, guardado in enumerate(guardados):
+        nome = _limpa(guardado["nome"])
+        sem_artigo = nome.split(" ", 1)[1] if nome[:2] in ("a ", "o ") else nome
+        if limpa in (nome, sem_artigo):
+            return indice
+    palavras = set(limpa.split())
+    if palavras & PALAVRAS_DO_NOVO:
+        return None
+    itens: list[ItemFila] = [{"id": _id_do_guardado(g), "nome": g["nome"], "urgente": g["urgente"], "evidencia": ""} for g in guardados]
+    escolhido = assunto_escolhido(resposta, itens)
+    if escolhido is not None:
+        return escolhido
+    if len(guardados) == 1 and palavras & PALAVRAS_DO_GUARDADO:
+        return 0
+    return None
 
 
 def _palavras(texto: str) -> set[str]:
