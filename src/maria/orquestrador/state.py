@@ -61,3 +61,6 @@ class OrquestradorState(TypedDict, total=False):
     # `{ chatId, resposta }`, e sem isto o fluxo aberto depois começava sem os dados da pessoa. Dado
     # pessoal: fica no checkpoint, como nos fluxos, e nunca vai para log.
     dadosConhecidos: dict[str, Any] | None
+    # #450: posições (2, 3…) dos assuntos pendentes da Tykhe (`tipoCaso`) já devolvidos pela rota do
+    # próximo assunto. Os da Maria não precisam: o atendimento registrado com o `chatId` do assunto já diz.
+    assuntosEncaminhados: list[int] | None

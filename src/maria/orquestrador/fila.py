@@ -162,6 +162,28 @@ def texto_comecando(item: ItemFila) -> str:
     return f"Combinado. Vamos começar {_com_artigo('por', item['nome'])}."
 
 
+def texto_proximo_assunto(item: AssuntoPendente) -> str:
+    """#450: a frase que abre o próximo assunto, antes da 1ª pergunta do fluxo dele."""
+    return f"Agora vamos falar {_com_artigo('de', item['nome'])}."
+
+
+# #450: o `chatId` de cada assunto depois do primeiro é gerado pela Maria a partir do da conversa.
+SUFIXO_ASSUNTO = "-assunto-"
+
+
+def chat_id_do_assunto(chat_id_conversa: str, posicao: int) -> str:
+    """O 2º assunto é `<chatId>-assunto-2`, o 3º é `-assunto-3`: previsível, para a rota ser idempotente."""
+    return f"{chat_id_conversa}{SUFIXO_ASSUNTO}{posicao}"
+
+
+def origem_do_chat(chat_id: str) -> tuple[str, int]:
+    """O `chatId` da conversa e a posição do assunto: (`x`, 1) para `x`; (`x`, 2) para `x-assunto-2`."""
+    m = re.fullmatch(rf"(.+){re.escape(SUFIXO_ASSUNTO)}(\d+)", chat_id)
+    if m and int(m.group(2)) >= 2:
+        return m.group(1), int(m.group(2))
+    return chat_id, 1
+
+
 def _palavras(texto: str) -> set[str]:
     return {p for p in re.findall(r"[a-z0-9]+", normalizar_resposta(texto)) if len(p) > 3 and p not in PALAVRAS_VAZIAS}
 

@@ -14,19 +14,27 @@ from __future__ import annotations
 
 import os
 import uuid
-from typing import Any
+from typing import Any, cast
 
 from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.atendimentos import criar_atendimento, extrair_interrupt
 from maria.api.pipeline import Contexto, Resposta, Rota
-from maria.fluxos import buscar_fluxo
-from maria.fluxos.tipos_tykhe import TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
-from maria.orquestrador.fila import dados_do_relato, texto_comecando
+from maria.fluxos import buscar_fluxo, fluxo_em_teste_liga
+from maria.fluxos.tipos_tykhe import TipoCasoTykhe, TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
+from maria.orquestrador.fila import (
+    AssuntoPendente,
+    chat_id_do_assunto,
+    dados_do_relato,
+    origem_do_chat,
+    texto_comecando,
+    texto_proximo_assunto,
+)
 from maria.orquestrador.graph import obter_grafo
 from maria.shared import _js
 from maria.shared._js import AUSENTE
+from maria.shared.atendimentos_db import AtendimentosStore, obter_atendimentos_store
 
 MENSAGEM_NAO_IDENTIFICADO = (
     "Não consegui identificar como te ajudar a partir do que você escreveu. "
@@ -228,6 +236,102 @@ def _com_pendentes(corpo: dict[str, Any], pendentes: list[Any]) -> dict[str, Any
     return corpo
 
 
+async def _cpf_da_conversa(origem: str, valores_orquestrador: dict[str, Any], total: int, store: AtendimentosStore) -> str | None:
+    """#442/#450: o CPF já informado na conversa, para o próximo assunto não pedir de novo. Vem dos
+    `dadosConhecidos` da 1ª chamada ou de um atendimento anterior da mesma conversa."""
+    conhecidos = valores_orquestrador.get("dadosConhecidos")
+    if isinstance(conhecidos, dict) and isinstance(conhecidos.get("cpf"), str) and conhecidos["cpf"]:
+        return str(conhecidos["cpf"])
+    for posicao in range(1, total + 1):
+        chat = origem if posicao == 1 else chat_id_do_assunto(origem, posicao)
+        flow_id = await store.buscar_flow_id(chat)
+        fluxo = await buscar_fluxo(flow_id) if flow_id else None
+        if fluxo is None:
+            continue
+        estado = await fluxo.obter_grafo().aget_state({"configurable": {"thread_id": chat, "fluxoId": flow_id}})
+        cpf = (estado.values or {}).get("cpf")
+        if isinstance(cpf, str) and cpf:
+            return cpf
+    return None
+
+
+def _com_cpf(pendentes: list[AssuntoPendente], cpf: str | None) -> list[AssuntoPendente]:
+    if not cpf:
+        return pendentes
+    return [{**p, "dadosConhecidos": {"cpf": cpf, **p.get("dadosConhecidos", {})}} if "flowId" in p else p for p in pendentes]
+
+
+async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
+    """#450 (multi-fluxo, fase 1b, só no release): abre o próximo assunto pendente da conversa, com o
+    `chatId` gerado pela Maria (`<chatId>-assunto-N`). A Tykhe só manda o `chatId` da conversa.
+
+    Idempotente: um assunto da Maria já aberto e não encerrado volta como está; um encerrado é pulado.
+    Um assunto da Tykhe (`tipoCaso`) é devolvido uma vez, como `redirecionado`, e fica marcado."""
+    chat_id = ctx.corpo.get("chatId", AUSENTE)
+    if not isinstance(chat_id, str) or not chat_id:
+        return Resposta(400, {"erro": "chatId obrigatório"})
+    if not fluxo_em_teste_liga():
+        return Resposta(404, {"erro": "rota disponível só no ambiente de teste (release)"})
+    origem, _ = origem_do_chat(chat_id)
+    config: Any = {"configurable": {"thread_id": f"orquestrador:{origem}"}}
+    grafo = obter_grafo()
+    valores = dict((await grafo.aget_state(config)).values or {})
+    pendentes: list[AssuntoPendente] = valores.get("assuntosPendentes") or []
+    encaminhados = set(valores.get("assuntosEncaminhados") or [])
+    store = await obter_atendimentos_store()
+    cpf = await _cpf_da_conversa(origem, valores, len(pendentes) + 1, store) if pendentes else None
+
+    for indice, item in enumerate(pendentes):
+        posicao = indice + 2
+        novo = chat_id_do_assunto(origem, posicao)
+        restantes = _com_cpf(pendentes[indice + 1 :], cpf)
+        tipo_caso = item.get("tipoCaso")
+        if tipo_caso is not None:
+            if posicao in encaminhados:
+                continue
+            await grafo.aupdate_state(config, {"assuntosEncaminhados": sorted(encaminhados | {posicao})})
+            ctx.log.info(
+                "orquestrador: próximo assunto é da Tykhe, redirecionado",
+                chatId=novo,
+                evento="proximo_assunto_redirecionado",
+                tipoCaso=tipo_caso,
+                posicao=posicao,
+            )
+            corpo = _resposta_redirecionada(novo, tipo_tykhe_por_caso(cast(TipoCasoTykhe, tipo_caso)), None)
+            corpo["chatId"] = novo
+            return Resposta(200, _com_pendentes(corpo, restantes))
+
+        flow_id = item.get("flowId")
+        atividade = await store.buscar_atividade(novo)
+        if atividade is not None and atividade.get("statusFinal"):
+            continue  # já encerrado (concluído, atendimento humano ou expirado)
+        fluxo = await buscar_fluxo(flow_id) if flow_id else None
+        if fluxo is None or flow_id is None:
+            continue
+        novo_agora = atividade is None
+        dados: dict[str, Any] = dict(item.get("dadosConhecidos") or {})
+        if cpf and "cpf" not in dados:
+            dados["cpf"] = cpf
+        if novo_agora:
+            ctx.log.info(
+                "orquestrador: próximo assunto aberto",
+                chatId=novo,
+                evento="proximo_assunto_aberto",
+                flowId=flow_id,
+                posicao=posicao,
+            )
+        resposta_fluxo = await criar_atendimento(fluxo, flow_id, novo, dados, ctx.log, via_orquestrador=True)
+        if isinstance(resposta_fluxo.corpo, dict) and resposta_fluxo.status == 200:
+            texto = resposta_fluxo.corpo.get("resposta")
+            if novo_agora and isinstance(texto, str):
+                resposta_fluxo.corpo["resposta"] = f"{texto_proximo_assunto(item)}\n\n{texto}"
+            resposta_fluxo.corpo["chatId"] = novo
+            _com_pendentes(resposta_fluxo.corpo, restantes)
+        return resposta_fluxo
+
+    return Resposta(404, {"erro": "nenhum assunto pendente nesta conversa"})
+
+
 ROTAS: tuple[Rota, ...] = (
     Rota(
         "POST",
@@ -243,6 +347,20 @@ ROTAS: tuple[Rota, ...] = (
             "Cria um atendimento identificando o fluxo automaticamente a partir de um relato livre "
             "(com possíveis perguntas de desambiguação antes)"
         ),
+        tags=("atendimentos",),
+    ),
+    Rota(
+        "POST",
+        "/atendimentos/proximo-assunto",
+        _post_proximo_assunto,
+        corpo=esquemas.CORPO_PROXIMO_ASSUNTO,
+        respostas={
+            200: esquemas.RESPOSTA_PROXIMO_ASSUNTO,
+            400: esquemas.ERRO_ORQUESTRADOR,
+            404: esquemas.ERRO_ORQUESTRADOR,
+            409: esquemas.ERRO_ORQUESTRADOR,
+        },
+        resumo="Abre o próximo assunto pendente da conversa, com o chatId gerado pela Maria (multi-fluxo, só no release)",
         tags=("atendimentos",),
     ),
 )

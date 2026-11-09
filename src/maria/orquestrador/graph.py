@@ -348,6 +348,9 @@ async def assuntos_pendentes_do_chat(chat_id: str) -> list[_fila.AssuntoPendente
     do fluxo. Só no release: na produção, nem lê o checkpoint."""
     if not fluxo_em_teste_liga():
         return None
-    estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{chat_id}"}})
-    pendentes = (estado.values or {}).get("assuntosPendentes")
-    return pendentes or None
+    # #450: num assunto aberto pela rota do próximo assunto (`<chatId>-assunto-N`), os pendentes são os da
+    # conversa de origem que vêm depois dele.
+    origem, posicao = _fila.origem_do_chat(chat_id)
+    estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{origem}"}})
+    pendentes = (estado.values or {}).get("assuntosPendentes") or []
+    return pendentes[posicao - 1 :] or None
