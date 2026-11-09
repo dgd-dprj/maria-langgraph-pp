@@ -226,6 +226,50 @@ async def test_o_endereco_de_quem_fala_nao_vai_para_log_nem_para_metadados(capsy
         assert dado not in saida
 
 
+async def test_para_outra_pessoa_o_email_leva_nome_e_cpf_do_solicitante_e_o_resumo_nao(monkeypatch: pytest.MonkeyPatch) -> None:
+    # #444: o NUDECON precisa saber quem pediu; o resumo mostrado a quem pede não muda.
+    _verde_pessoa(monkeypatch, PESSOA_DO_VERDE)
+    chamadas = _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar({**DADOS, "imagensRecebidas": True})
+    r = await f.responder("false", CPF_OUTRA, "2500")
+    assert "Solicitante" not in texto(r)
+    await f.responder("sim")
+    [(_, dados, _)] = chamadas
+    assert dados["Solicitante - Nome"] == "Pessoa de Teste" and dados["Solicitante - CPF"] == "00000000000"
+    assert dados["Nome"] == "MARIA DE TESTE FICTICIA" and dados["CPF"] == CPF_OUTRA
+    assert list(dados)[:3] == ["Atendimento para", "Solicitante - Nome", "Solicitante - CPF"]
+
+
+async def test_solicitante_sem_nome_e_cpf_vai_como_nao_informado_sem_handoff(monkeypatch: pytest.MonkeyPatch) -> None:
+    _verde_pessoa(monkeypatch, PESSOA_DO_VERDE)
+    chamadas = _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar({k: v for k, v in {**DADOS, "imagensRecebidas": True}.items() if k not in ("nome", "cpf")})
+    await f.responder("false", CPF_OUTRA, "2500")
+    r = await f.responder("sim")
+    assert (r["statusFinal"], r["destino"]) == ("concluido", "email_enviado")
+    [(_, dados, _)] = chamadas
+    assert dados["Solicitante - Nome"] == dados["Solicitante - CPF"] == "não informado"
+
+
+async def test_nome_e_cpf_do_solicitante_nao_vao_para_metadados_nem_para_log(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    from maria.fluxos.plano_saude.api import extrair_metadados_plano_saude
+
+    _verde_pessoa(monkeypatch, PESSOA_DO_VERDE)
+    _email_devolve(monkeypatch, True)
+    f = _fluxo()
+    await f.iniciar({**DADOS, "imagensRecebidas": True})
+    await f.responder("false", CPF_OUTRA, "2500", "sim")
+    estado = await f.estado()
+    metadados = json.dumps(extrair_metadados_plano_saude(estado), ensure_ascii=False)
+    saida = capsys.readouterr().out
+    for dado in ("Pessoa de Teste", "00000000000"):
+        assert dado not in metadados and dado not in saida
+
+
 async def test_quem_fala_por_si_nao_muda(monkeypatch: pytest.MonkeyPatch) -> None:
     consultas = _verde_pessoa(monkeypatch, PESSOA_DO_VERDE)
     f = _fluxo()
@@ -233,6 +277,9 @@ async def test_quem_fala_por_si_nao_muda(monkeypatch: pytest.MonkeyPatch) -> Non
     r = await f.responder("true", "2500")
     assert consultas == []
     assert "Nome: Pessoa de Teste" in texto(r) and "Atendimento para" not in texto(r)
+    chamadas = _email_devolve(monkeypatch, True)
+    await f.responder("sim")
+    assert not any(rotulo.startswith("Solicitante") for rotulo in chamadas[0][1]), "para si, sem linhas de solicitante"
 
 
 DADOS = {
