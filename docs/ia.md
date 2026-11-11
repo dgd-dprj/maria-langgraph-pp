@@ -89,9 +89,22 @@ Resume o relato acumulado do orquestrador quando a desambiguação passa de um l
 
 | Flag | Default | Efeito |
 |---|---|---|
-| `BEDROCK_MODEL_ID` | `anthropic.claude-3-haiku-20240307-v1:0` | Modelo usado por todos os módulos. |
+| `BEDROCK_MODEL_ID` | `anthropic.claude-3-haiku-20240307-v1:0` | Modelo usado por todos os módulos. Se começar por `qwen`, os prompts de `classificar_necessidades` e `classificar_fluxos` ganham um sufixo (ver [Modelo por ambiente](#modelo-por-ambiente-e-residência-dos-dados)). |
 | `AWS_REGION` | `us-east-1` | Região do Bedrock. |
 | `REESCREVER_IA` | desligada | Reescrita de texto de pergunta — desligada por decisão de produto. |
 | `EXTRACAO_LIVRE_IA` | desligada | Extração de campos por IA no fluxo pessoa presa. |
 
 A lista completa de variáveis está no [`README.md`](../README.md). Ver [`src/maria/ia/CLAUDE.md`](../src/maria/ia/CLAUDE.md) pras regras que não podem falhar (nunca logar dado sensível indo pro Bedrock, nunca remover o caminho mock).
+
+## Modelo por ambiente e residência dos dados
+
+| Ambiente | Região | `BEDROCK_MODEL_ID` | Onde a inferência roda |
+|---|---|---|---|
+| Produção e release (Virgínia) | `us-east-1` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | Perfil `us.` (Estados Unidos). |
+| Release em São Paulo (homolog, #458) | `sa-east-1` | `qwen.qwen3-vl-235b-a22b` | No Brasil: modelo aberto in-region. |
+
+O Haiku 4.5 em `sa-east-1` só existe por perfil `global.`, que pode processar em qualquer região; por isso o homolog de São Paulo usa o Qwen. A task role só autoriza Qwen in-region (`bedrock_model_arns`, #460).
+
+**Sufixo só para Qwen** (`src/maria/ia/ajuste_qwen.py`, #465): quando `BEDROCK_MODEL_ID` começa por `qwen` (função `modelo_e_qwen`, lida a cada chamada), os prompts de triagem de `classificar_necessidades.py` e `classificar_fluxos.py` recebem regras a mais (pedido explícito, lista não vazia, ambiguidade, não acrescentar fluxo "por garantia"). Com qualquer outro modelo o prompt é idêntico ao de antes (teste em `tests/ia/test_ajuste_qwen.py`). Nada muda em `_estruturado.py` nem nos esquemas.
+
+**Medição** (66 casos de `tests/integracao/ia`, 3 passadas, Bedrock de `sa-east-1`, acertos de 66): Qwen3 VL 235B sem o sufixo **58,0**, com o sufixo **61,7**; Haiku 4.5 `us.` sem o sufixo **61,3**. **Ressalva:** o ganho foi medido nos mesmos 66 casos em que as regras foram escritas (risco de overfitting). Antes de usar o Qwen em produção, validar com 20 a 30 relatos novos × 5 passadas (critério da #465, fora do PR de código).
