@@ -31,7 +31,7 @@ resource "aws_subnet" "private" {
   tags = { Name = "${var.project}-${var.environment}-sp-private-${count.index}", Tier = "private" }
 }
 
-# NAT opcional (nat_count 0 ou 1): as tasks precisam sair para o Verde, a Tykhe, a Meta; o Bedrock vai pelo endpoint da VPC.
+# NAT opcional (nat_count 0 ou 1; padrão 0): as tasks precisam sair para o Verde, a Tykhe, a Meta; o Bedrock vai pelo endpoint da VPC.
 resource "aws_eip" "nat" {
   count  = var.nat_count
   domain = "vpc"
