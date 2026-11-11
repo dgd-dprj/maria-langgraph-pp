@@ -59,6 +59,11 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - Ela vem de uma tabela por assunto (saúde, plano de saúde, violência doméstica e pessoa presa são urgentes; o resto é menos urgente). O sinal de risco do relato sobe qualquer assunto para urgente.
   - A mensagem ao assistido separa os dois grupos, na pergunta dos guardados e no fim de cada assunto concluído, e o urgente é oferecido logo.
   - As frases novas vão para a revisão da equipe.
+- **Assuntos em aberto (decisão da Nicole, 2026-11-11).** A pessoa vem resolver alguma coisa, então a conversa não começa com pergunta.
+  - Se o que ela contou é um assunto já guardado, a Maria retoma esse assunto ("Você já tinha esse assunto com a gente…"), sem abrir outro igual.
+  - Se ela pede para ver os assuntos ("quero ver meus assuntos"), a Maria mostra a lista.
+  - No fim de cada assunto concluído, inclusive no multi-fluxo, sem um urgente na vez: "Quer ver os assuntos em aberto ou falar de um assunto novo?". A lista vem da rota nova `POST /atendimentos/assuntos-em-aberto`, e a escolha abre pela rota do próximo assunto.
+  - Fica para depois de 13/11: retomar um assunto que ficou no meio, em andamento, em outra conversa.
 - Em aberto: a rota de atendimento online do Verde.
 
 **#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.

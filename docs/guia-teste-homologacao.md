@@ -226,17 +226,19 @@ Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09 e 2026-11-10). **Na pr
 3. **Fim do assunto.** Num 1º assunto que termina em `concluido` (por exemplo, a pessoa presa), a mensagem final ganha, no fim:
    - com um pendente urgente: "Ainda falta um assunto urgente: … Vamos falar dele agora.";
    - com um menos urgente: "Ficou para depois: …. Vou guardar esse assunto por até 30 dias para a gente continuar depois." (sem o `idUsuario`, só "Ficou para depois: …").
-4. **Assunto guardado.** Pare depois do 1º assunto e abra uma **conversa nova** com o mesmo `idUsuario`.
-   - **Esperado:** "Você tem um assunto guardado: … Quer falar dele agora ou do que você acabou de contar?" (ou "um assunto urgente guardado"), com as opções. Com os dois tipos guardados, a mensagem separa "Urgente:" e "Menos urgente:", e os urgentes vêm primeiro nas opções.
-   - Escolher o guardado abre o assunto dele, e o relato novo fica guardado no lugar.
-   - Escolher "O que acabei de contar" segue como no caso F.
-   - Com outro `idUsuario`, ou sem ele, a pergunta não aparece.
+4. **Conversa nova, sem pergunta no começo (mudou em 2026-11-11).** Pare depois do 1º assunto e abra uma **conversa nova** com o mesmo `idUsuario`.
+   - **Do mesmo assunto guardado** (por exemplo, a pessoa presa de novo): a Maria retoma, com "Você já tinha esse assunto com a gente: a pessoa presa. Vamos continuar.", sem abrir outro igual.
+   - **De outro assunto:** segue direto, sem pergunta.
+   - **"Quero ver meus assuntos"** (ou "o que ficou pendente"): "Qual você quer resolver agora?", com a lista (urgentes primeiro) e "Nenhum, quero um assunto novo".
+5. **A oferta no fim do assunto.** Num assunto que termina em `concluido`, sem um urgente na vez e com outro assunto em aberto: "Você tem um assunto em aberto. Quer ver o assunto em aberto ou falar de um assunto novo?", com os botões.
+   - **"Ver"** (`POST /atendimentos/assuntos-em-aberto`): a lista; a escolha (`POST /atendimentos/proximo-assunto` com a `resposta`) abre o assunto com o `chatId` dele.
+   - **"Falar de um assunto novo"** ou "Nenhum": "Pode me contar o que você precisa?", e a conversa recomeça no orquestrador com `chatId` novo.
 
 **Anote como defeito:**
-- a Maria perguntando o CPF antes da ordem dos assuntos;
+- a Maria perguntando o CPF, ou qualquer coisa, antes de seguir com o que a pessoa contou (fora o "Pode ser assim?" e a desambiguação);
 - um assunto marcado com a urgência errada;
-- a pergunta dos assuntos guardados com um assunto que a pessoa não deixou pendente, ou de outro `idUsuario`;
-- dois atendimentos abertos para o mesmo assunto;
+- a lista dos assuntos em aberto com um assunto que a pessoa não deixou pendente, ou de outro `idUsuario`;
+- dois atendimentos abertos para o mesmo assunto, ou um assunto guardado que não foi retomado quando a pessoa falou dele de novo;
 - "Vou guardar … por até 30 dias" numa conversa sem `idUsuario`;
 - o CPF, o nome ou o `idUsuario` aparecendo em qualquer lugar fora da conversa.
 
