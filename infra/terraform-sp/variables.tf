@@ -30,8 +30,8 @@ variable "azs" {
 
 variable "nat_count" {
   type        = number
-  default     = 1
-  description = "NAT gateways (0 ou 1). 1 dá saída à internet às subnets privadas (Verde, Tykhe, Meta); 0 não cria NAT (sem custo de ~US$ 0,045/h, mas as tasks ficam sem internet)."
+  default     = 0
+  description = "NAT gateways (0 ou 1). Padrão 0: a rede foi aplicada sem NAT (decisão de 2026-11-11), as tasks ficam sem internet até a etapa da aplicação decidir entre NAT e tasks em subnet pública. 1 cria o NAT e dá saída às subnets privadas (Verde, Tykhe, Meta), a ~US$ 0,093/h em sa-east-1 (Price List de 2026-11-10)."
 
   validation {
     condition     = contains([0, 1], var.nat_count)

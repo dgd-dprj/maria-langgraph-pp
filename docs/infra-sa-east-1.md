@@ -16,7 +16,7 @@ O Terraform atual (`infra/terraform/`) divide cluster, ALB, roles, security grou
 
 ## O que o root novo cria (etapa 1: rede e base)
 
-VPC (`10.30.0.0/16`, variável `vpc_cidr`; outro CIDR que o da Virgínia, `10.20.0.0/16`, para permitir peering entre as regiões durante a migração), 2 subnets públicas e 2 privadas em 2 AZs, IGW, NAT (variável `nat_count`, 0 ou 1), route tables, grupo de subnets do banco, security groups (tasks, Proxy e RDS: 5432 só da tasks para o Proxy e só do Proxy para o RDS; nenhuma entrada aberta à internet) e o endpoint de VPC do `bedrock-runtime` (443 só das tasks). Não cria IAM (é global), RDS, Proxy, ECS nem ALB: vêm nas próximas etapas.
+VPC (`10.30.0.0/16`, variável `vpc_cidr`; outro CIDR que o da Virgínia, `10.20.0.0/16`, para permitir peering entre as regiões durante a migração), 2 subnets públicas e 2 privadas em 2 AZs, IGW, NAT (variável `nat_count`, 0 ou 1; **padrão 0**: a rede foi aplicada sem NAT em 2026-11-11), route tables, grupo de subnets do banco, security groups (tasks, Proxy e RDS: 5432 só da tasks para o Proxy e só do Proxy para o RDS; nenhuma entrada aberta à internet) e o endpoint de VPC do `bedrock-runtime` (443 só das tasks). Não cria IAM (é global), RDS, Proxy, ECS nem ALB: vêm nas próximas etapas.
 
 ## Como usar
 
@@ -29,6 +29,10 @@ terraform plan -lock=false     # só leitura; o resumo vai no PR
 ```
 
 **`apply` é sempre manual, com `-target` explícito e só com OK escrito do Ícaro, na conversa, para aquele alvo.** O CI só faz `plan`. Depois do apply, fica a lista exata do que foi criado, para o PR e para a issue.
+
+## NAT: ligado ou desligado
+
+A rede foi aplicada **sem NAT** (18 recursos). As tasks ainda não existem; quando entrarem, precisam de saída para o Verde, a Tykhe, a Meta e a Lambda de e-mail. Duas formas, a decidir na etapa da aplicação: (a) NAT (`nat_count = 1`, ~US$ 0,093/h em `sa-east-1`, IP de saída fixo) ou (b) tasks em subnet pública com IP público (sem NAT, ~US$ 0,005/h por IP; o IP de saída muda a cada deploy). Para ligar o NAT: `terraform plan -var nat_count=1` deve propor só 3 recursos (EIP, NAT e a rota); o `apply` do plan salvo exige o OK escrito do Ícaro.
 
 ## Blue/green do release
 
