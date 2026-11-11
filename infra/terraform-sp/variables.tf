@@ -44,3 +44,11 @@ variable "bedrock_endpoint" {
   default     = true
   description = "Cria o VPC endpoint interface do bedrock-runtime nesta região (a chamada ao Bedrock sai da VPC sem passar pela internet)."
 }
+
+variable "bedrock_model_arns" {
+  type = list(string)
+  default = [
+    "arn:aws:bedrock:sa-east-1::foundation-model/qwen.*",
+  ]
+  description = "ARNs que a task role pode invocar no Bedrock. O padrão cobre os modelos Qwen in-region (dados no Brasil). Para um perfil global (ex.: Claude Haiku), acrescente o inference-profile e o foundation-model das outras regiões."
+}
