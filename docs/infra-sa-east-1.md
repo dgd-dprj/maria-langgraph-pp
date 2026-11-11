@@ -34,6 +34,41 @@ terraform plan -lock=false     # só leitura; o resumo vai no PR
 
 A rede foi aplicada **sem NAT** (18 recursos). As tasks ainda não existem; quando entrarem, precisam de saída para o Verde, a Tykhe, a Meta e a Lambda de e-mail. Duas formas, a decidir na etapa da aplicação: (a) NAT (`nat_count = 1`, ~US$ 0,093/h em `sa-east-1`, IP de saída fixo) ou (b) tasks em subnet pública com IP público (sem NAT, ~US$ 0,005/h por IP; o IP de saída muda a cada deploy). Para ligar o NAT: `terraform plan -var nat_count=1` deve propor só 3 recursos (EIP, NAT e a rota); o `apply` do plan salvo exige o OK escrito do Ícaro.
 
+## Etapa 2: o RDS e o Proxy (`rds.tf` e `proxy.tf`)
+
+Código e `plan` só (nada aplicado). O RDS é **restaurado** da cópia do snapshot `maria-chat-prod-pg-copia-sp-20261111` (em `sa-east-1`, criptografada com `alias/aws/rds`); o Terraform **não** gerencia a senha (a do snapshot é mantida; nada de senha em `.tf`, state ou log).
+
+| Recurso | Nome | Observação |
+|---|---|---|
+| RDS | `maria-chat-sp-pg` | `db.t3.small`, Postgres 16.13, gp3 20 GB (até 100), single-AZ (`db_multi_az`), privado, `deletion_protection`, backup 7 dias, janelas como na origem, `default.postgres16`, sem Performance Insights, snapshot final `maria-chat-sp-pg-final` |
+| Segredo | `maria-chat-sp/db` | criado **vazio**; formato `{"username":"...","password":"..."}` |
+| Role e policy do Proxy | `maria-chat-sp-rds-proxy` | lê **só** esse segredo (IAM é global; sufixo `-sp`) |
+| Proxy, grupo de destino e destino | `maria-chat-sp-proxy` | atrás de `create_proxy` (padrão `false`): PostgreSQL, TLS obrigatório, `idle_client_timeout` 1800, subnets privadas |
+
+`plan` (somente leitura, em cima do state aplicado da etapa 1): **4 a criar** (RDS, segredo, role e policy) com `create_proxy = false`; **7 a criar** com `create_proxy = true` (acrescenta o Proxy, o grupo de destino e o destino). 0 a alterar e 0 a destruir.
+
+### Ordem de aplicação (cada passo só com OK escrito do Ícaro, na conversa)
+1. **RDS, segredo e role** (`-target` nos 4 recursos). O RDS leva alguns minutos para restaurar.
+2. **O Ícaro preenche o segredo** `maria-chat-sp/db` com `put-secret-value` (usuário e senha do RDS, o mesmo par do segredo da Virgínia; nunca em texto, log ou commit).
+3. **`create_proxy = true`** só depois de o segredo ter valor (o Proxy autentica com ele): plan novo e apply do plan salvo.
+4. **Limpar os bancos de produção** do RDS novo e **trocar a senha mestre** (ver abaixo), também com OK escrito.
+
+### Cuidados com o snapshot
+- Ele contém **todos os bancos da instância de origem, inclusive os de produção**: tratar como dado de produção (criptografado, sem compartilhar, sem restaurar em ambiente público).
+- É uma foto de **2026-11-11 09:57 UTC**. Antes do corte (blue/green), é preciso um **novo snapshot ou dump** para trazer o que entrou depois.
+- O release só usa o banco `maria_langgraph_pp_release`. Os outros bancos (produção) devem ser **apagados do RDS novo** por ação manual, nunca por Terraform.
+- O RDS restaurado herda a **senha mestre da Virgínia**: depois de validar, trocar a senha (e o segredo) para que o ambiente de São Paulo não compartilhe credencial com a produção.
+
+### Como validar o banco depois de restaurar
+Conectar por uma task ECS temporária ou por um ponto dentro da VPC (o RDS é privado) e conferir, sem ler dados pessoais:
+- `\l`: existe `maria_langgraph_pp_release` (e quais outros precisam ser apagados);
+- `\dx` no banco do release: a extensão **`vector`** (pgvector) está instalada;
+- `\dn`: o schema `checkpoint_py` do LangGraph;
+- contagens de linhas das tabelas `atendimentos`, `assuntos_pendentes`, `perguntas`, `assuntos_verde`, `flow_assuntos`, `fluxos_planejados` e `fluxo_embeddings` (só números, nunca o conteúdo).
+
+### Custo (Price List de `sa-east-1`, publicado em 2026-10-29; estimativa)
+RDS `db.t3.small` Postgres single-AZ: US$ 0,076/h (~US$ 55/mês); gp3: US$ 0,219/GB-mês (20 GB: ~US$ 4,4/mês); RDS Proxy: US$ 0,030 por vCPU-h do RDS associado (2 vCPUs: ~US$ 0,06/h, ~US$ 44/mês); snapshot manual: US$ 0,095/GB-mês (20 GB: ~US$ 1,9/mês); segredo no Secrets Manager: ~US$ 0,40/mês (**não verificado** em `sa-east-1`). Total: ~US$ 0,082/h só com o RDS (~US$ 60/mês) e ~US$ 0,14/h com o Proxy (~US$ 104/mês).
+
 ## Blue/green do release
 
 1. **Rede e base** em `sa-east-1` (este root).
