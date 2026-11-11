@@ -12,6 +12,7 @@ from __future__ import annotations
 import os
 from typing import TypedDict
 
+from maria.ia.ajuste_qwen import SUFIXO_FLUXOS, com_ajuste_qwen
 from maria.ia.classificar import ResultadoClassificacaoMultipla, classificar_multiplo_entre_opcoes
 
 
@@ -38,4 +39,4 @@ async def classificar_fluxos_plausiveis(mensagem: str, fluxos: list[FluxoParaCla
 Fluxos disponíveis:
 {descricoes}
 Regras: devolva os ids de TODOS os fluxos que plausivelmente atendem ao relato — nenhum (lista vazia) se não bater com confiança em nenhum, 1 só se for claro, ou vários se o relato for genuinamente ambíguo entre mais de um. Nunca invente id fora da lista."""  # noqa: E501
-    return await classificar_multiplo_entre_opcoes(mensagem, sistema, ids)
+    return await classificar_multiplo_entre_opcoes(mensagem, com_ajuste_qwen(sistema, SUFIXO_FLUXOS), ids)
