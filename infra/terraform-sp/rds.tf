@@ -23,8 +23,8 @@ variable "db_multi_az" {
 
 variable "create_proxy" {
   type        = bool
-  default     = false
-  description = "Cria o RDS Proxy. Só depois de o segredo de autenticação (usuário e senha do RDS) ter valor: ver docs/infra-sa-east-1.md."
+  default     = true
+  description = "Cria o RDS Proxy. Padrão true: o Proxy foi aplicado em 2026-11-11 (com false, o plan proporia destruí-lo). Em um ambiente novo, só depois de o segredo de autenticação (usuário e senha do RDS) ter valor: ver docs/infra-sa-east-1.md."
 }
 
 resource "aws_db_instance" "main" {
