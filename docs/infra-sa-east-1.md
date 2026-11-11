@@ -88,9 +88,9 @@ Ordem de aplicação (cada passo só com OK escrito do Ícaro): 1) ECR, segredos
 
 1. **Rede e base** em `sa-east-1` (este root).
 2. **Banco:** restaurar o RDS a partir da cópia do snapshot (`maria-chat-prod-pg-copia-sp-20261111`, criptografada com `alias/aws/rds`), criar o Proxy e os segredos (valores à mão, por `put-secret-value`) e **apagar do RDS novo** os bancos de produção (o release só usa `maria_langgraph_pp_release`). O snapshot contém todos os bancos da instância: é dado de produção.
-3. **Aplicação:** ECR na região nova, ECS, ALB e target group; teste de ponta a ponta pelo endereço direto do ALB novo.
+3. **Aplicação:** ECR na região nova, ECS, ALB e target group. O ALB só aceita entrada do CloudFront, então o teste de ponta a ponta usa a distribuição própria de São Paulo (`cloudfront.tf`, saída `api_https_url_release_sp`), sem abrir o ALB e sem tocar na distribuição da Virgínia.
 4. **Bedrock:** `AWS_REGION` e `BEDROCK_MODEL_ID` na região nova. O Haiku 4.5 só roda em São Paulo por perfil `global.` (processa em qualquer região); para manter a inferência no Brasil, só os modelos de outros fornecedores (por exemplo, Qwen3 VL 235B), com qualidade menor na suíte da Maria. A escolha é decisão à parte.
-5. **Corte:** trocar a origem do CloudFront do release para o ALB novo. O domínio não muda, então a Tykhe não muda; voltar a origem desfaz o corte.
+5. **Corte:** trocar a origem do CloudFront do release (a distribuição antiga, da Virgínia) para o ALB novo. O domínio não muda, então a Tykhe não muda; voltar a origem desfaz o corte. A distribuição de teste de São Paulo (`cloudfront.tf`) deixa de ser necessária depois do corte e pode ser removida. Ela não usa o header `X-Maria-Env`: o listener do ALB de São Paulo encaminha tudo ao target group por padrão, sem regra por header.
 6. **Observar** alguns dias e só então desligar o release da Virgínia, com um snapshot final.
 
 Fora do escopo desta etapa: produção, Lambda `maria-email-nudecon`, DynamoDB de idempotência e SES (a função é única e funciona a partir de `sa-east-1`).
