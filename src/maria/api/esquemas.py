@@ -64,10 +64,19 @@ ASSUNTOS_EM_ABERTO: Schema = {
             "urgente": {"type": "boolean"},
             "urgencia": {"type": "string", "enum": ["urgente", "menos_urgente"]},
             "chatIdAssunto": {"type": "string"},
+            "codigo": {"type": "string"},
+            "fase": {"type": "string", "enum": ["nao_iniciado", "em_andamento"]},
+            "venceEm": {"type": "string"},
             "flowId": {"type": "string"},
             "tipoCaso": {"type": "string"},
         },
     },
+}
+
+# #450 (2026-11-11, só no release): no fim da conversa, o resumo do que foi atendido, sem nada do relato.
+RESUMO_DA_CONVERSA: Schema = {
+    "type": "array",
+    "items": {"type": "object", "properties": {"nome": {"type": "string"}, "desfecho": {"type": "string"}, "codigo": {"type": "string"}}},
 }
 
 # rotas/atendimentos.ts:146-181
@@ -119,8 +128,9 @@ RESPOSTA_ATENDIMENTO: Schema = {
         },
         "tokensGastos": TOKENS_GASTOS,
         "assuntosPendentes": ASSUNTOS_PENDENTES,
-        # #450 (2026-11-11, só no release): no fim de um assunto concluído, os assuntos em aberto e os dois botões
-        # ("Ver os assuntos em aberto", "Falar de um assunto novo").
+        # #450 (2026-11-11, só no release): no fim da conversa, o resumo, os assuntos em aberto e os botões (um por
+        # assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa").
+        "resumoDaConversa": RESUMO_DA_CONVERSA,
         "assuntosEmAberto": ASSUNTOS_EM_ABERTO,
         "opcoesDoFim": {"type": "array", "items": {"type": "string"}},
         "_links": LINKS,

@@ -21,14 +21,20 @@ from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
 from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo, fluxo_em_teste_liga
 from maria.orquestrador.fila import (
-    OPCOES_DO_FIM,
     AssuntoPendente,
     com_dados_do_fim,
+    opcoes_do_fim,
+    texto_fim_da_conversa,
     texto_fim_do_assunto,
-    texto_oferta_abertos,
     urgencia_de,
 )
-from maria.orquestrador.graph import assunto_guardado_do_chat, assuntos_em_aberto, assuntos_pendentes_do_chat, usuario_do_chat
+from maria.orquestrador.graph import (
+    assunto_guardado_do_chat,
+    assuntos_em_aberto,
+    assuntos_pendentes_do_chat,
+    resumo_da_conversa,
+    usuario_do_chat,
+)
 from maria.shared import _js
 from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
@@ -297,22 +303,22 @@ def _expirado(
 async def _com_o_que_falta(chat_id: str, corpo: dict[str, Any], final: str, pendentes: list[AssuntoPendente]) -> None:
     """#450, no fim de um assunto concluído (só no release).
 
-    - O que ainda falta nesta conversa, separado por urgência (2026-11-10): o urgente é aberto logo pela Tykhe; o menos
-      urgente fica para depois, guardado por 30 dias quando há `idUsuario`.
-    - Sem um urgente na vez (2026-11-11): com assuntos em aberto (desta conversa ou guardados de outras), a pergunta
-      "Quer ver os assuntos em aberto ou falar de um assunto novo?", com os botões em `opcoesDoFim` e a lista em
-      `assuntosEmAberto`. Com um urgente na vez, a pergunta fica para o fim dele."""
-    partes: list[str] = []
-    if pendentes:
-        partes.append(texto_fim_do_assunto(pendentes, await usuario_do_chat(chat_id) is not None))
-    if not (pendentes and urgencia_de(pendentes[0]) == "urgente"):
-        abertos = await assuntos_em_aberto(chat_id)
-        if abertos:
-            partes.append(texto_oferta_abertos(len(abertos)))
-            corpo["assuntosEmAberto"] = abertos
-            corpo["opcoesDoFim"] = list(OPCOES_DO_FIM)
-    if partes:
-        corpo["resposta"] = "\n\n".join([final, *partes])
+    - Com um urgente na vez nesta conversa (2026-11-10): "Ainda falta um assunto urgente…", e a Tykhe abre o próximo.
+      O fim da conversa fica para o fim dele.
+    - Senão, o fim da conversa (decisão da Nicole, 2026-11-11): o resumo do que foi atendido, a pergunta, o que ainda
+      está em aberto (desta conversa e guardado de outras) e os botões em `opcoesDoFim` (um por assunto em aberto, o
+      assunto novo e o encerrar). Vão também em `resumoDaConversa` e `assuntosEmAberto`."""
+    if pendentes and urgencia_de(pendentes[0]) == "urgente":
+        corpo["resposta"] = f"{final}\n\n{texto_fim_do_assunto(pendentes, await usuario_do_chat(chat_id) is not None)}"
+        return
+    resumo = await resumo_da_conversa(chat_id, str(corpo.get("status")))
+    abertos = await assuntos_em_aberto(chat_id)
+    guardados = any("venceEm" in a for a in abertos)
+    corpo["resposta"] = f"{final}\n\n{texto_fim_da_conversa(resumo, abertos, guardados)}"
+    corpo["resumoDaConversa"] = resumo
+    if abertos:
+        corpo["assuntosEmAberto"] = abertos
+    corpo["opcoesDoFim"] = opcoes_do_fim(abertos)
 
 
 async def _post_respostas(ctx: Contexto) -> Resposta:

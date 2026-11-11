@@ -14,17 +14,22 @@ from langgraph.types import Command
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA
 from maria.orquestrador.fila import (
     TEXTO_ASSUNTO_NOVO,
+    TEXTO_ENCERRAR,
+    TEXTO_FALAR_DE_NOVO,
     TEXTO_SEM_ABERTOS,
     URGENCIA_DO_ASSUNTO,
     AssuntoGuardado,
     AssuntoPendente,
+    codigo_do_assunto,
+    desfecho_do_assunto,
     em_ordem_de_urgencia,
     escolha_nos_abertos,
     opcoes_abertos,
+    opcoes_do_fim,
     pediu_para_ver_assuntos,
     texto_abertos,
+    texto_fim_da_conversa,
     texto_fim_do_assunto,
-    texto_oferta_abertos,
     texto_retomada,
     urgencia_de,
     urgencia_do_assunto,
@@ -150,7 +155,10 @@ def test_lista_separa_os_urgentes_dos_menos_urgentes() -> None:
         ("1", 0),
         (" 2 ", 1),
         ("3", "nenhum"),
-        ("4", None),
+        ("4", "encerrar"),
+        ("5", None),
+        ("Encerrar a conversa", "encerrar"),
+        ("quero encerrar", "encerrar"),
         ("Nenhum, quero um assunto novo", "nenhum"),
         ("nenhum", "nenhum"),
         ("quero falar de um assunto novo", "nenhum"),
@@ -179,10 +187,76 @@ def test_pedido_de_ver_os_assuntos(mensagem: str, pediu: bool) -> None:
     assert pediu_para_ver_assuntos(mensagem) is pediu
 
 
-def test_textos_da_oferta_e_da_retomada() -> None:
-    assert texto_oferta_abertos(1) == "Você tem um assunto em aberto. Quer ver o assunto em aberto ou falar de um assunto novo?"
-    assert texto_oferta_abertos(2) == "Você tem dois assuntos em aberto. Quer ver os assuntos em aberto ou falar de um assunto novo?"
+def test_texto_da_retomada() -> None:
     assert texto_retomada(PRESA) == "Você já tinha esse assunto com a gente: a pessoa presa. Vamos continuar."
+
+
+# ---- o fim da conversa: resumo, o que está em aberto e os botões ---------------------------------
+
+
+def test_codigo_do_assunto_e_curto_e_fixo() -> None:
+    codigo = codigo_do_assunto("chat-1-assunto-2")
+    assert len(codigo) == 6
+    assert codigo.isalnum()
+    assert codigo.isupper() or any(c.isdigit() for c in codigo)
+    assert codigo == codigo_do_assunto("chat-1-assunto-2")
+    assert codigo != codigo_do_assunto("chat-1-assunto-3")
+    # O código não mostra o id do assunto.
+    assert "chat" not in codigo.lower()
+
+
+@pytest.mark.parametrize(
+    ("assunto", "status", "esperado"),
+    [
+        (ID_PESSOA_PRESA, "concluido", "dados confirmados e encaminhados"),
+        (ID_PROBLEMAS_PLANO_SAUDE, "concluido", "pedido enviado à Defensoria"),
+        ("outro-fluxo", "concluido", "resolvido aqui"),
+        (ID_PESSOA_PRESA, "handoff_humano", "encaminhado para a equipe da Defensoria"),
+        (ID_PESSOA_PRESA, "expirado", "encerrado por falta de resposta"),
+        (ID_PESSOA_PRESA, None, "em andamento"),
+        ("tykhe:agendamentos", None, "encaminhado para o atendimento certo"),
+        (ID_PESSOA_PRESA, "redirecionado", "encaminhado para o atendimento certo"),
+        # Violência doméstica: desfecho neutro, que não conta o que foi feito a quem pegar o celular.
+        (ID_VIOLENCIA_DOMESTICA, "concluido", "encaminhada"),
+        (ID_VIOLENCIA_DOMESTICA, "handoff_humano", "encaminhada"),
+        (ID_VIOLENCIA_DOMESTICA, "expirado", "encerrada"),
+        (ID_VIOLENCIA_DOMESTICA, None, "em andamento"),
+    ],
+)
+def test_desfecho_do_assunto(assunto: str, status: str | None, esperado: str) -> None:
+    assert desfecho_do_assunto(assunto, status) == esperado
+
+
+def test_fim_da_conversa_com_assuntos_em_aberto() -> None:
+    resumo = [
+        {"nome": "a pessoa presa", "desfecho": "dados confirmados e encaminhados", "codigo": "K7M2QX"},
+        {"nome": "a situação que você contou", "desfecho": "encaminhada", "codigo": "P3R8TZ"},
+    ]
+    abertos = [
+        {**PLANO, "fase": "nao_iniciado", "venceEm": "2026-12-11"},
+        {**NOVO, "fase": "nao_iniciado"},
+    ]
+    assert texto_fim_da_conversa(resumo, abertos, guardados=True) == (  # type: ignore[arg-type]
+        "Resumo da nossa conversa:\n"
+        "• A pessoa presa: dados confirmados e encaminhados (código K7M2QX)\n"
+        "• A situação que você contou: encaminhada (código P3R8TZ)\n\n"
+        "Quer continuar com algum desses assuntos ou encerrar a conversa?\n\n"
+        "Ainda em aberto:\n"
+        "• O plano de saúde · urgente · em aberto até 11/12 · ainda não começou\n"
+        "• O caso novo · menos urgente · ainda não começou\n\n"
+        "Os assuntos em aberto ficam guardados por até 30 dias."
+    )
+    assert opcoes_do_fim(abertos) == ["O plano de saúde", "O caso novo", TEXTO_FALAR_DE_NOVO, TEXTO_ENCERRAR]
+
+
+def test_fim_da_conversa_sem_nada_em_aberto() -> None:
+    resumo = [{"nome": "o plano de saúde", "desfecho": "pedido enviado à Defensoria", "codigo": "A1B2C3"}]
+    assert texto_fim_da_conversa(resumo, [], guardados=False) == (  # type: ignore[arg-type]
+        "Resumo da nossa conversa:\n"
+        "• O plano de saúde: pedido enviado à Defensoria (código A1B2C3)\n\n"
+        "Quer falar de um assunto novo ou encerrar a conversa?"
+    )
+    assert opcoes_do_fim([]) == [TEXTO_FALAR_DE_NOVO, TEXTO_ENCERRAR]
 
 
 # ---- o fim de cada assunto -----------------------------------------------------------------------

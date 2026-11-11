@@ -418,7 +418,8 @@ async def perguntar_abertos(state: OrquestradorState) -> dict[str, Any]:
     escolha = _fila.escolha_nos_abertos(texto, guardados)
     if escolha == "nenhum":
         return {"querAssuntoNovo": True, "reclassificar": False, "tokensGastosRodada": None}
-    if escolha is not None:
+    # "Encerrar" não está nesta lista: vira o relato novo, e a classificação leva ao "sair" da Tykhe.
+    if isinstance(escolha, int):
         return {"pendenteEscolhido": guardados[escolha], "tokensGastosRodada": None}
     return {**RECOMECO, "mensagem": texto, "reclassificar": True}
 
@@ -546,7 +547,12 @@ async def assuntos_em_aberto(chat_id: str) -> list[_fila.AssuntoAberto]:
             "urgente": item.get("urgente") is True,
             "urgencia": _fila.urgencia_de(item),
             "chatIdAssunto": id_assunto,
+            "codigo": _fila.codigo_do_assunto(id_assunto),
+            "fase": "em_andamento" if item.get("situacao") == "em_andamento" else "nao_iniciado",
         }
+        vence = item.get("venceEm")
+        if vence is not None:
+            aberto["venceEm"] = vence.date().isoformat() if hasattr(vence, "date") else str(vence)[:10]
         if isinstance(item.get("flowId"), str):
             aberto["flowId"] = item["flowId"]
         if isinstance(item.get("tipoCaso"), str):
@@ -555,13 +561,16 @@ async def assuntos_em_aberto(chat_id: str) -> list[_fila.AssuntoAberto]:
 
     atendimentos = await obter_atendimentos_store()
     encaminhados = set(valores.get("assuntosEncaminhados") or [])
+    id_usuario = valores.get("idUsuario")
+    pendentes_store = await obter_pendentes_store() if isinstance(id_usuario, str) and id_usuario else None
     for indice, pendente in enumerate(valores.get("assuntosPendentes") or []):
         posicao = indice + 2
         id_assunto = _fila.chat_id_do_assunto(origem, posicao)
         if posicao == atual or posicao in encaminhados or await atendimentos.buscar_atividade(id_assunto) is not None:
             continue
-        incluir(pendente, id_assunto)
-    id_usuario = valores.get("idUsuario")
+        # Guardado também (com o idUsuario): a data de até quando fica em aberto vem de lá.
+        guardado = await pendentes_store.buscar_da_pessoa(str(id_usuario), id_assunto) if pendentes_store is not None else None
+        incluir({**pendente, **({"venceEm": guardado["venceEm"]} if guardado else {})}, id_assunto)
     if isinstance(id_usuario, str) and id_usuario:
         for guardado in await (await obter_pendentes_store()).listar_ativos(id_usuario):
             if guardado["chatIdOrigem"] != origem:
@@ -574,3 +583,53 @@ async def assuntos_em_aberto(chat_id: str) -> list[_fila.AssuntoAberto]:
             vistos.add(chave)
             unicos.append(aberto)
     return sorted(unicos, key=lambda a: _fila.URGENCIAS.index(a["urgencia"]))
+
+
+async def resumo_da_conversa(chat_id: str, status_atual: str) -> list[_fila.ResumoDoAssunto]:
+    """#450 (decisão da Nicole, 2026-11-11): o resumo da conversa para o fim, um item por assunto já atendido, com o
+    desfecho e o código. Sem nada do relato. `status_atual` é o fim do assunto deste `chat_id`, que pode ainda não
+    estar gravado. Só no release."""
+    if not fluxo_em_teste_liga():
+        return []
+    origem, atual = _fila.origem_do_chat(chat_id)
+    valores = (await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{origem}"}})).values or {}
+    atendimentos = await obter_atendimentos_store()
+
+    async def status_de(id_assunto: str, posicao: int, tipo_da_tykhe: bool) -> str | None:
+        if posicao == atual:
+            return status_atual
+        atividade = await atendimentos.buscar_atividade(id_assunto)
+        if atividade is not None:
+            return atividade.get("statusFinal") or None
+        return "redirecionado" if tipo_da_tykhe else None
+
+    resumo: list[_fila.ResumoDoAssunto] = []
+    escolhido = valores.get("pendenteEscolhido") or valores.get("assuntoResgatado")
+    fila = valores.get("fila") or []
+    if isinstance(escolhido, dict):
+        primeiro_id, primeiro_nome = _fila.id_do_assunto(escolhido), str(escolhido["nome"])
+    else:
+        primeiro_id = str(valores.get("flowIdEscolhido") or _fila.ID_OUTROS)
+        primeiro_nome = fila[0]["nome"] if fila else _fila.NOME_SIMPLES.get(primeiro_id, "o outro assunto")
+    status = await status_de(origem, 1, primeiro_id.startswith("tykhe:"))
+    resumo.append(
+        {"nome": primeiro_nome, "desfecho": _fila.desfecho_do_assunto(primeiro_id, status), "codigo": _fila.codigo_do_assunto(origem)}
+    )
+
+    encaminhados = set(valores.get("assuntosEncaminhados") or [])
+    for indice, pendente in enumerate(valores.get("assuntosPendentes") or []):
+        posicao = indice + 2
+        id_assunto = _fila.chat_id_do_assunto(origem, posicao)
+        tipo = _fila.id_do_assunto(pendente)
+        aberto = posicao != atual and posicao not in encaminhados and await atendimentos.buscar_atividade(id_assunto) is None
+        if aberto:
+            continue  # ainda não foi atendido: vai para "Ainda em aberto"
+        status = "redirecionado" if posicao in encaminhados else await status_de(id_assunto, posicao, tipo.startswith("tykhe:"))
+        resumo.append(
+            {
+                "nome": str(pendente["nome"]),
+                "desfecho": _fila.desfecho_do_assunto(tipo, status),
+                "codigo": _fila.codigo_do_assunto(id_assunto),
+            }
+        )
+    return resumo

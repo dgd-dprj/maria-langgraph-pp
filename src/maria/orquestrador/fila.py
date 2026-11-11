@@ -9,6 +9,8 @@ Por isso os textos não prometem "tudo aqui mesmo", como o protótipo fazia.
 
 from __future__ import annotations
 
+import base64
+import hashlib
 import re
 from collections.abc import Mapping, Sequence
 from typing import Any, Literal, NotRequired, TypedDict
@@ -154,8 +156,22 @@ class AssuntoAberto(TypedDict):
     urgente: bool
     urgencia: Urgencia
     chatIdAssunto: str
+    # O código curto do assunto, para a pessoa citar à equipe (o chatId inteiro é longo e pode levar o telefone).
+    codigo: str
+    # Onde o assunto está na Maria: ainda não começou ou já começou e não terminou (#456).
+    fase: Literal["nao_iniciado", "em_andamento"]
+    # Até quando o assunto fica guardado (AAAA-MM-DD). Só nos guardados, com o idUsuario.
+    venceEm: NotRequired[str]
     flowId: NotRequired[str]
     tipoCaso: NotRequired[str]
+
+
+class ResumoDoAssunto(TypedDict):
+    """#450 (2026-11-11): uma linha do resumo da conversa, sem nada do relato da pessoa."""
+
+    nome: str
+    desfecho: str
+    codigo: str
 
 
 def _id_do_item(item: Mapping[str, Any]) -> str:
@@ -279,7 +295,13 @@ def origem_do_chat(chat_id: str) -> tuple[str, int]:
 # No começo, só quando a pessoa pede ("quero ver meus assuntos"), a Maria mostra a lista; e, se o que ela contou é
 # um assunto que já estava guardado, a Maria retoma esse assunto em vez de abrir outro igual.
 TEXTO_OPCAO_NENHUM = "Nenhum, quero um assunto novo"
-OPCOES_DO_FIM = ["Ver os assuntos em aberto", "Falar de um assunto novo"]
+TEXTO_FALAR_DE_NOVO = "Falar de um assunto novo"
+TEXTO_ENCERRAR = "Encerrar a conversa"
+TEXTO_ENCERRADA = "Combinado. Quando quiser, é só voltar a falar com a gente."
+TEXTO_ENCERRADA_GUARDADOS = (
+    "Combinado. Seus assuntos em aberto ficam guardados por até 30 dias. Quando quiser, é só voltar a falar com a gente."
+)
+FASES = {"nao_iniciado": "ainda não começou", "em_andamento": "em andamento"}
 TEXTO_ASSUNTO_NOVO = "Pode me contar o que você precisa?"
 TEXTO_SEM_ABERTOS = "Você não tem assuntos em aberto. Pode me contar o que você precisa?"
 NUMERO_MASCULINO = {2: "dois", 3: "três", 4: "quatro", 5: "cinco"}
@@ -330,12 +352,60 @@ def pediu_para_ver_assuntos(mensagem: str) -> bool:
     return any(pedido in limpa for pedido in PEDIDOS_DE_VER)
 
 
-def texto_oferta_abertos(quantos: int) -> str:
-    """No fim de um assunto concluído, com outros em aberto."""
-    if quantos == 1:
-        return "Você tem um assunto em aberto. Quer ver o assunto em aberto ou falar de um assunto novo?"
-    numero = NUMERO_MASCULINO.get(quantos, str(quantos))
-    return f"Você tem {numero} assuntos em aberto. Quer ver os assuntos em aberto ou falar de um assunto novo?"
+def codigo_do_assunto(chat_id_assunto: str) -> str:
+    """6 letras e números tirados do id do assunto, sempre os mesmos para o mesmo assunto. A equipe chega ao assunto
+    pelo código; o id inteiro não aparece para a pessoa."""
+    resumo = hashlib.sha256(chat_id_assunto.encode("utf-8")).digest()
+    return base64.b32encode(resumo).decode("ascii")[:6]
+
+
+def desfecho_do_assunto(id_assunto: str | None, status: str | None) -> str:
+    """O que aconteceu com o assunto, em palavras simples. A violência doméstica tem desfecho neutro, porque a mensagem
+    pode ser lida por outra pessoa no celular."""
+    if status == "redirecionado" or (id_assunto or "").startswith("tykhe:"):
+        return "encaminhado para o atendimento certo"
+    if id_assunto == ID_VIOLENCIA_DOMESTICA:
+        return "encerrada" if status == "expirado" else "encaminhada" if status else "em andamento"
+    if status == "concluido":
+        return {ID_PESSOA_PRESA: "dados confirmados e encaminhados", ID_PROBLEMAS_PLANO_SAUDE: "pedido enviado à Defensoria"}.get(
+            id_assunto or "", "resolvido aqui"
+        )
+    if status == "handoff_humano":
+        return "encaminhado para a equipe da Defensoria"
+    if status == "expirado":
+        return "encerrado por falta de resposta"
+    return "em andamento"
+
+
+def _data_curta(data: str) -> str:
+    return f"{data[8:10]}/{data[5:7]}" if len(data) >= 10 else data
+
+
+def texto_fim_da_conversa(resumo: Sequence[ResumoDoAssunto], abertos: Sequence[Mapping[str, Any]], guardados: bool) -> str:
+    """#450 (decisão da Nicole, 2026-11-11): no fim, o resumo da conversa, a pergunta e o que ainda está em aberto."""
+    partes = [
+        "Resumo da nossa conversa:\n" + "\n".join(f"• {_maiuscula(r['nome'])}: {r['desfecho']} (código {r['codigo']})" for r in resumo)
+    ]
+    if not abertos:
+        partes.append("Quer falar de um assunto novo ou encerrar a conversa?")
+        return "\n\n".join(partes)
+    partes.append("Quer continuar com algum desses assuntos ou encerrar a conversa?")
+    linhas = []
+    for aberto in abertos:
+        detalhes = [_maiuscula(str(aberto["nome"])), "urgente" if urgencia_de(aberto) == "urgente" else "menos urgente"]
+        if aberto.get("venceEm"):
+            detalhes.append(f"em aberto até {_data_curta(str(aberto['venceEm']))}")
+        detalhes.append(FASES.get(str(aberto.get("fase")), "ainda não começou"))
+        linhas.append("• " + " · ".join(detalhes))
+    partes.append("Ainda em aberto:\n" + "\n".join(linhas))
+    if guardados:
+        partes.append("Os assuntos em aberto ficam guardados por até 30 dias.")
+    return "\n\n".join(partes)
+
+
+def opcoes_do_fim(abertos: Sequence[Mapping[str, Any]]) -> list[str]:
+    """Um botão para cada assunto em aberto (abre direto), mais o assunto novo e o encerrar."""
+    return [*(_maiuscula(str(a["nome"])) for a in abertos), TEXTO_FALAR_DE_NOVO, TEXTO_ENCERRAR]
 
 
 def texto_abertos(abertos: Sequence[Mapping[str, Any]]) -> str:
@@ -358,20 +428,25 @@ def texto_retomada(item: Mapping[str, object]) -> str:
     return f"Você já tinha esse assunto com a gente: {item['nome']}. Vamos continuar."
 
 
-def escolha_nos_abertos(resposta: str, abertos: Sequence[Mapping[str, Any]]) -> int | Literal["nenhum"] | None:
-    """A posição do assunto escolhido na lista, "nenhum" para um assunto novo, ou None quando não dá para saber.
+def escolha_nos_abertos(resposta: str, abertos: Sequence[Mapping[str, Any]]) -> int | Literal["nenhum", "encerrar"] | None:
+    """A posição do assunto escolhido, "nenhum" para um assunto novo, "encerrar" para encerrar a conversa, ou None
+    quando não dá para saber.
 
-    Vale o texto da opção, o número dela (1, 2… na ordem da lista; o último é "Nenhum") e o nome do assunto numa
-    resposta livre ("o da cadeia")."""
+    Vale o texto da opção, o número dela (1, 2… na ordem dos assuntos; depois deles, o assunto novo e o encerrar) e o
+    nome do assunto numa resposta livre ("o da cadeia")."""
     numero = re.fullmatch(r"\s*(\d+)\s*", resposta)
     if numero:
         posicao = int(numero.group(1)) - 1
         if posicao == len(abertos):
             return "nenhum"
+        if posicao == len(abertos) + 1:
+            return "encerrar"
         return posicao if 0 <= posicao < len(abertos) else None
     limpa = _limpa(resposta)
     if not limpa:
         return None
+    if re.search(r"\bencerr(ar|a|o)\b", limpa) or "terminar a conversa" in limpa:
+        return "encerrar"
     if limpa == _limpa(TEXTO_OPCAO_NENHUM) or limpa.startswith("nenhum") or "assunto novo" in limpa:
         return "nenhum"
     for indice, aberto in enumerate(abertos):

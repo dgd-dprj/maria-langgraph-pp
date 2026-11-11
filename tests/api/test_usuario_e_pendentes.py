@@ -20,6 +20,7 @@ import httpx
 import pytest
 
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, fluxos_por_id
+from maria.orquestrador.fila import codigo_do_assunto
 from maria.orquestrador.graph import obter_grafo
 from maria.shared import pendentes_db
 from maria.shared.pendentes_db import obter_pendentes_store
@@ -277,17 +278,25 @@ async def test_fim_do_assunto_sem_id_usuario_nao_promete_guardar_e_oferece_os_ab
     corpo = await _orq(cliente, auth, {"chatId": chat, "resposta": "true"})
     fim = await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
     assert fim["status"] == "concluido"
+    # Sem idUsuario: sem a data e sem o aviso dos 30 dias.
     assert fim["resposta"].endswith(
-        "\n\nFicou para depois: o seu horário marcado."
-        "\n\nVocê tem um assunto em aberto. Quer ver o assunto em aberto ou falar de um assunto novo?"
+        "\n\nResumo da nossa conversa:"
+        f"\n• A pessoa presa: dados confirmados e encaminhados (código {codigo_do_assunto(chat)})"
+        "\n\nQuer continuar com algum desses assuntos ou encerrar a conversa?"
+        "\n\nAinda em aberto:\n• O seu horário marcado · menos urgente · ainda não começou"
     )
-    assert fim["opcoesDoFim"] == ["Ver os assuntos em aberto", "Falar de um assunto novo"]
+    assert fim["resumoDaConversa"] == [
+        {"nome": "a pessoa presa", "desfecho": "dados confirmados e encaminhados", "codigo": codigo_do_assunto(chat)}
+    ]
+    assert fim["opcoesDoFim"] == ["O seu horário marcado", "Falar de um assunto novo", "Encerrar a conversa"]
     assert fim["assuntosEmAberto"] == [
         {
             "nome": "o seu horário marcado",
             "urgente": False,
             "urgencia": "menos_urgente",
             "chatIdAssunto": f"{chat}-assunto-2",
+            "codigo": codigo_do_assunto(f"{chat}-assunto-2"),
+            "fase": "nao_iniciado",
             "tipoCaso": "agendamentos",
         }
     ]
@@ -357,11 +366,17 @@ async def test_fim_do_assunto_oferece_os_abertos_e_a_lista_abre_o_escolhido(
     corpo = await _comecar(cliente, auth, chat, "meu irmão está preso")
     fim = await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
     assert fim["status"] == "concluido"
-    assert fim["resposta"].endswith("\n\nVocê tem um assunto em aberto. Quer ver o assunto em aberto ou falar de um assunto novo?")
-    assert fim["opcoesDoFim"] == ["Ver os assuntos em aberto", "Falar de um assunto novo"]
-    assert [(a["nome"], a["chatIdAssunto"]) for a in fim["assuntosEmAberto"]] == [("o caso novo", f"{antiga}-assunto-2")]
+    [aberto] = fim["assuntosEmAberto"]
+    assert (aberto["nome"], aberto["chatIdAssunto"], aberto["fase"]) == ("o caso novo", f"{antiga}-assunto-2", "nao_iniciado")
+    vence = aberto["venceEm"]
+    assert fim["resposta"].endswith(
+        "\n\nQuer continuar com algum desses assuntos ou encerrar a conversa?"
+        f"\n\nAinda em aberto:\n• O caso novo · menos urgente · em aberto até {vence[8:10]}/{vence[5:7]} · ainda não começou"
+        "\n\nOs assuntos em aberto ficam guardados por até 30 dias."
+    )
+    assert fim["opcoesDoFim"] == ["O caso novo", "Falar de um assunto novo", "Encerrar a conversa"]
 
-    # "Ver os assuntos em aberto": a lista, e a resposta volta para a rota do próximo assunto.
+    # A lista também vem pela rota dos assuntos em aberto, e a resposta volta para a rota do próximo assunto.
     r = await cliente.post(ABERTOS, json={"chatId": chat}, headers=auth)
     assert r.status_code == 200
     assert r.json() == {
@@ -376,6 +391,37 @@ async def test_fim_do_assunto_oferece_os_abertos_e_a_lista_abre_o_escolhido(
     assert (corpo["status"], corpo["tipoCaso"], corpo["chatId"]) == ("redirecionado", "novo-processo", f"{antiga}-assunto-2")
     item = await (await obter_pendentes_store()).buscar(f"{antiga}-assunto-2")
     assert item is not None and item["situacao"] == "resolvido"
+
+
+async def test_botao_encerrar_fecha_a_conversa_e_guarda_os_abertos(
+    cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
+) -> None:
+    antiga = await _conversa_com_pendente(cliente, auth, release, PLANO, NOVO_PROCESSO)
+    release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
+    chat = _chat()
+    corpo = await _comecar(cliente, auth, chat, "meu irmão está preso")
+    fim = await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
+    assert fim["opcoesDoFim"][-1] == "Encerrar a conversa"
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "resposta": "Encerrar a conversa"}, headers=auth)).json()
+    assert corpo == {
+        "resposta": "Combinado. Seus assuntos em aberto ficam guardados por até 30 dias. Quando quiser, é só voltar a falar com a gente.",
+        "tipoResposta": "texto",
+        "status": "concluido",
+        "_links": {"self": {"href": f"/atendimentos/{chat}"}},
+    }
+    # Encerrar não resolve nada: o caso novo continua guardado.
+    item = await (await obter_pendentes_store()).buscar(f"{antiga}-assunto-2")
+    assert item is not None and item["situacao"] == "pendente"
+
+
+async def test_botao_do_assunto_no_fim_abre_direto(cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch) -> None:
+    antiga = await _conversa_com_pendente(cliente, auth, release, PLANO, NOVO_PROCESSO)
+    release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
+    chat = _chat()
+    corpo = await _comecar(cliente, auth, chat, "meu irmão está preso")
+    await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "resposta": "O caso novo"}, headers=auth)).json()
+    assert (corpo["status"], corpo["tipoCaso"], corpo["chatId"]) == ("redirecionado", "novo-processo", f"{antiga}-assunto-2")
 
 
 async def test_lista_nenhum_pede_o_assunto_novo(cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch) -> None:

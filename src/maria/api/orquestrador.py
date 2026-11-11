@@ -27,6 +27,8 @@ from maria.fluxos.tipos_tykhe import TipoCasoTykhe, TipoTykhe, tipo_tykhe_por_ca
 from maria.orquestrador.fila import (
     NAO_RETOMA,
     TEXTO_ASSUNTO_NOVO,
+    TEXTO_ENCERRADA,
+    TEXTO_ENCERRADA_GUARDADOS,
     TEXTO_SEM_ABERTOS,
     AssuntoAberto,
     AssuntoGuardado,
@@ -444,6 +446,11 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
         if not (isinstance(assunto, str) and assunto) and isinstance(resposta, str) and resposta.strip():
             abertos = await assuntos_em_aberto(chat_id)
             escolha = escolha_nos_abertos(resposta, abertos)
+            if escolha == "encerrar":
+                ctx.log.info(
+                    "orquestrador: conversa encerrada pela pessoa", chatId=chat_id, evento="conversa_encerrada", emAberto=len(abertos)
+                )
+                return Resposta(200, _resposta_encerrada(chat_id, guardados=any("venceEm" in a for a in abertos)))
             if escolha == "nenhum" or not abertos:
                 return Resposta(200, _resposta_assunto_novo(chat_id, sem_abertos=not abertos))
             if escolha is None:
@@ -469,6 +476,16 @@ def _resposta_lista(chat_id: str, abertos: list[AssuntoAberto]) -> dict[str, Any
         "status": "em_andamento",
         "assuntosEmAberto": abertos,
         "_links": {"self": {"href": f"/atendimentos/{chat_id}"}, "responder": {"href": "/atendimentos/proximo-assunto", "method": "POST"}},
+    }
+
+
+def _resposta_encerrada(chat_id: str, *, guardados: bool) -> dict[str, Any]:
+    """ "Encerrar a conversa", no fim: a despedida. Os assuntos em aberto continuam guardados."""
+    return {
+        "resposta": TEXTO_ENCERRADA_GUARDADOS if guardados else TEXTO_ENCERRADA,
+        "tipoResposta": "texto",
+        "status": "concluido",
+        "_links": {"self": {"href": f"/atendimentos/{chat_id}"}},
     }
 
 
