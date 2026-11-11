@@ -43,14 +43,16 @@ Código e `plan` só (nada aplicado). O RDS é **restaurado** da cópia do snaps
 | RDS | `maria-chat-sp-pg` | `db.t3.small`, Postgres 16.13, gp3 20 GB (até 100), single-AZ (`db_multi_az`), privado, `deletion_protection`, backup 7 dias, janelas como na origem, `default.postgres16`, sem Performance Insights, snapshot final `maria-chat-sp-pg-final` |
 | Segredo | `maria-chat-sp/db` | criado **vazio**; formato `{"username":"...","password":"..."}` |
 | Role e policy do Proxy | `maria-chat-sp-rds-proxy` | lê **só** esse segredo (IAM é global; sufixo `-sp`) |
-| Proxy, grupo de destino e destino | `maria-chat-sp-proxy` | atrás de `create_proxy` (padrão `false`): PostgreSQL, TLS obrigatório, `idle_client_timeout` 1800, subnets privadas |
+| Proxy, grupo de destino e destino | `maria-chat-sp-proxy` | atrás de `create_proxy` (padrão `true` desde que o Proxy foi aplicado): PostgreSQL, TLS obrigatório, `idle_client_timeout` 1800, subnets privadas |
 
 `plan` (somente leitura, em cima do state aplicado da etapa 1): **4 a criar** (RDS, segredo, role e policy) com `create_proxy = false`; **7 a criar** com `create_proxy = true` (acrescenta o Proxy, o grupo de destino e o destino). 0 a alterar e 0 a destruir.
+
+**Aplicado em 2026-11-11:** o RDS `maria-chat-sp-pg` (4 recursos, `available` em 9 min 21 s) e o Proxy (3 recursos; o alvo ficou `AVAILABLE` depois de o segredo ter a chave `username` em minúsculas: com `Username`, o Proxy dá `AUTH_FAILURE: Proxy does not have any registered credentials`). A senha mestre foi trocada (RDS → Modify) e gravada no segredo. Os bancos de produção do snapshot **continuam no RDS novo**, à espera da limpeza (com OK escrito).
 
 ### Ordem de aplicação (cada passo só com OK escrito do Ícaro, na conversa)
 1. **RDS, segredo e role** (`-target` nos 4 recursos). O RDS leva alguns minutos para restaurar.
 2. **O Ícaro preenche o segredo** `maria-chat-sp/db` com `put-secret-value` (usuário e senha do RDS, o mesmo par do segredo da Virgínia; nunca em texto, log ou commit).
-3. **`create_proxy = true`** só depois de o segredo ter valor (o Proxy autentica com ele): plan novo e apply do plan salvo.
+3. **`create_proxy = true`** (agora o padrão) só depois de o segredo ter valor (o Proxy autentica com ele): plan novo e apply do plan salvo.
 4. **Limpar os bancos de produção** do RDS novo e **trocar a senha mestre** (ver abaixo), também com OK escrito.
 
 ### Cuidados com o snapshot
