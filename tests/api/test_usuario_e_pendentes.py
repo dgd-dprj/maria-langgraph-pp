@@ -424,6 +424,30 @@ async def test_botao_do_assunto_no_fim_abre_direto(cliente: httpx.AsyncClient, a
     assert (corpo["status"], corpo["tipoCaso"], corpo["chatId"]) == ("redirecionado", "novo-processo", f"{antiga}-assunto-2")
 
 
+async def test_assunto_unico_pelo_orquestrador_tem_resumo_e_atendimento_direto_nao(
+    cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
+) -> None:
+    release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
+    chat = _chat()
+    corpo = await _comecar(cliente, auth, chat, "meu irmão está preso")
+    fim = await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
+    assert fim["resposta"].endswith(
+        f"\n\nResumo da nossa conversa:\n• A pessoa presa: dados confirmados e encaminhados (código {codigo_do_assunto(chat)})"
+        "\n\nQuer falar de um assunto novo ou encerrar a conversa?"
+    )
+    assert fim["opcoesDoFim"] == ["Falar de um assunto novo", "Encerrar a conversa"]
+    assert "assuntosEmAberto" not in fim
+
+    # Atendimento aberto direto, sem o orquestrador: o fim fica como era.
+    direto = _chat()
+    r = await cliente.post("/atendimentos", json={"chatId": direto, "flowId": ID_PESSOA_PRESA}, headers=auth)
+    assert r.status_code in (200, 201)
+    fim = await _pessoa_presa_ate_o_fim(cliente, auth, direto, r.json())
+    assert fim["status"] == "concluido"
+    assert "resumoDaConversa" not in fim and "opcoesDoFim" not in fim
+    assert "Resumo da nossa conversa" not in fim["resposta"]
+
+
 async def test_lista_nenhum_pede_o_assunto_novo(cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch) -> None:
     await _conversa_com_pendente(cliente, auth, release, PLANO, NOVO_PROCESSO)
     # Outro assunto: o caso novo guardado continua em aberto.

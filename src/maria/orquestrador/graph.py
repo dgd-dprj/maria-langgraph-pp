@@ -593,6 +593,8 @@ async def resumo_da_conversa(chat_id: str, status_atual: str) -> list[_fila.Resu
         return []
     origem, atual = _fila.origem_do_chat(chat_id)
     valores = (await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{origem}"}})).values or {}
+    if not valores:
+        return []  # conversa que não passou pelo orquestrador (POST /atendimentos direto): sem resumo
     atendimentos = await obter_atendimentos_store()
 
     async def status_de(id_assunto: str, posicao: int, tipo_da_tykhe: bool) -> str | None:

@@ -312,6 +312,8 @@ async def _com_o_que_falta(chat_id: str, corpo: dict[str, Any], final: str, pend
         corpo["resposta"] = f"{final}\n\n{texto_fim_do_assunto(pendentes, await usuario_do_chat(chat_id) is not None)}"
         return
     resumo = await resumo_da_conversa(chat_id, str(corpo.get("status")))
+    if not resumo:
+        return  # conversa que não passou pelo orquestrador: o fim fica como era
     abertos = await assuntos_em_aberto(chat_id)
     guardados = any("venceEm" in a for a in abertos)
     corpo["resposta"] = f"{final}\n\n{texto_fim_da_conversa(resumo, abertos, guardados)}"
