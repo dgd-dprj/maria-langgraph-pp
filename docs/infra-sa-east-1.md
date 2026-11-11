@@ -71,6 +71,19 @@ Conectar por uma task ECS temporária ou por um ponto dentro da VPC (o RDS é pr
 ### Custo (Price List de `sa-east-1`, publicado em 2026-10-29; estimativa)
 RDS `db.t3.small` Postgres single-AZ: US$ 0,076/h (~US$ 55/mês); gp3: US$ 0,219/GB-mês (20 GB: ~US$ 4,4/mês); RDS Proxy: US$ 0,030 por vCPU-h do RDS associado (2 vCPUs: ~US$ 0,06/h, ~US$ 44/mês); snapshot manual: US$ 0,095/GB-mês (20 GB: ~US$ 1,9/mês); segredo no Secrets Manager: ~US$ 0,40/mês (**não verificado** em `sa-east-1`). Total: ~US$ 0,082/h só com o RDS (~US$ 60/mês) e ~US$ 0,14/h com o Proxy (~US$ 104/mês).
 
+## Etapa 3: a aplicação (`ecr.tf`, `ecs.tf`, `alb.tf`, `app-secrets.tf`, `app-variables.tf`)
+
+Código e `plan` só (nada aplicado). Cria o ECR vazio, o cluster ECS `maria-langgraph-pp-sp`, as roles de execução e a task (a task role de Bedrock vem do `iam.tf`), a task definition do release, o service `api-release-sp`, o ALB `maria-langgraph-pp-sp-alb` com o target group e o listener, os security groups do ALB e da regra das tasks, e os dois segredos do release (`maria-langgraph-pp-release/app` e `maria-langgraph-pp-release/email-nudecon`, com valores `PREENCHER`: os reais entram por `put-secret-value` ou pelo console). **Não** mexe no CloudFront: o corte é uma etapa à parte.
+
+- `plan` em cima do state aplicado (rede, RDS e Proxy): **22 a criar, 0 a alterar, 0 a destruir**, sem NAT.
+- **O service começa com `app_desired_count = 0`**: o ECR novo está vazio, e as tasks só sobem depois do push da imagem (tag `release`) e do preenchimento dos segredos.
+- **Sem NAT:** `tasks_in_public_subnets = true` põe as tasks nas subnets públicas com IP público (o SG das tasks só aceita a porta da aplicação vinda do ALB). O IP de saída muda a cada deploy: se o Verde ou a Meta liberam só IPs conhecidos, usar `nat_count = 1` e `tasks_in_public_subnets = false`.
+- **ALB só do CloudFront:** `alb_only_from_cloudfront = true` limita a entrada do ALB à lista de prefixos gerenciada do CloudFront (na Virgínia o ALB aceita HTTP de qualquer lugar e roteia por header). Para testar direto pelo endereço do ALB antes do corte, aplicar com `-var alb_only_from_cloudfront=false` e voltar depois.
+- **Modelo de IA:** o padrão de `bedrock_model_id` (`qwen.qwen3-vl-235b-a22b`) acompanha o escopo da task role (modelos Qwen in-region). Trocar de modelo exige ajustar `bedrock_model_arns` e rodar a suíte de integração de IA.
+- **Dependências entre PRs:** esta etapa usa a task role (#460), o RDS e o Proxy (#461) e a rede (#459). Mergear nessa ordem.
+
+Ordem de aplicação (cada passo só com OK escrito do Ícaro): 1) ECR, segredos e roles; 2) o Ícaro preenche os segredos (a `DATABASE_URL` com o endpoint do Proxy, banco `maria_langgraph_pp_release`, `sslmode=require`); 3) ALB, target group, cluster, task e service (com `app_desired_count = 0`); 4) push da imagem `release` para o ECR de São Paulo; 5) `app_desired_count = 1` e teste de ponta a ponta pelo endereço do ALB.
+
 ## Blue/green do release
 
 1. **Rede e base** em `sa-east-1` (este root).
