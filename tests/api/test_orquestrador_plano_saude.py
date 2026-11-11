@@ -33,7 +33,7 @@ NAO_LIGAM = [None, "", "producao", "Release", "RELEASE", "release ", " release",
 TRECHO_PLANO = "plano de saúde que negou cobertura, "
 TROCA_RELEASE = "plano de saúde que negou cobertura de exame, remédio, tratamento, internação ou reembolso (menos cirurgia), "
 # O CEP faz o fluxo do plano seguir para a 1ª pergunta, em vez de encerrar por não saber o município.
-# #450: no release, o CPF da Tykhe (CPF de teste do Verde simulado) dispensa a pergunta do CPF antes do fluxo.
+# O CPF da Tykhe (CPF de teste do Verde simulado) vai para o fluxo em `dadosConhecidos`, e o fluxo não o pergunta.
 DADOS_NO_RIO = {"endereco": {"cep": "20000000"}, "cpf": "11111111111"}
 
 _ids = count(1)

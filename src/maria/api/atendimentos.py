@@ -20,8 +20,8 @@ from langgraph.types import Command
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
 from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
-from maria.orquestrador.fila import com_dados_do_fim
-from maria.orquestrador.graph import assunto_guardado_do_chat, assuntos_pendentes_do_chat
+from maria.orquestrador.fila import com_dados_do_fim, texto_fim_do_assunto
+from maria.orquestrador.graph import assunto_guardado_do_chat, assuntos_pendentes_do_chat, usuario_do_chat
 from maria.shared import _js
 from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
@@ -326,10 +326,16 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
             if pendentes:
                 # #442: o CPF informado neste assunto segue para os próximos, para não ser pedido de novo.
                 corpo_resposta["assuntosPendentes"] = com_dados_do_fim(pendentes, corpo_resposta.get("dadosColetados"))
+                final = corpo_resposta.get("resposta")
+                if corpo_resposta.get("status") == "concluido" and isinstance(final, str):
+                    # #450 (2026-11-10): o que ainda falta, separado por urgência. Só no fim concluído: no
+                    # atendimento humano, quem atende vê os pendentes.
+                    guardados = await usuario_do_chat(chat_id) is not None
+                    corpo_resposta["resposta"] = f"{final}\n\n{texto_fim_do_assunto(pendentes, guardados)}"
             # #450 (só no release): o assunto guardado que este atendimento atendia fica resolvido.
             guardado = await assunto_guardado_do_chat(chat_id)
             if guardado is not None:
-                await (await obter_pendentes_store()).marcar(*guardado, "resolvido")
+                await (await obter_pendentes_store()).marcar(guardado, "resolvido")
         return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)

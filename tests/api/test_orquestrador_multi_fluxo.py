@@ -16,8 +16,8 @@ import pytest
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, fluxos_por_id
 
 BASE = "/atendimentos/orquestrador"
-# O CEP faz o fluxo do plano seguir para a 1ª pergunta (o Verde simulado devolve o Rio). #450: no release, o CPF
-# da Tykhe (CPF de teste do Verde simulado) dispensa a pergunta do CPF antes da ordem dos assuntos.
+# O CEP faz o fluxo do plano seguir para a 1ª pergunta (o Verde simulado devolve o Rio).
+# O CPF da Tykhe (CPF de teste do Verde simulado) vai para o fluxo em `dadosConhecidos`, e o fluxo não o pergunta.
 CPF = "11111111111"
 DADOS_NO_RIO = {"endereco": {"cep": "20000000"}, "cpf": CPF}
 # Sem dizer de quem é a cirurgia: o fluxo do plano pergunta "para você?" (#438 leria "da minha mãe").
@@ -27,7 +27,13 @@ NECESSIDADES = [
     {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": TRECHO_PLANO, "urgente": True},
 ]
 RELATO = "meu irmão está preso e o plano negou a cirurgia"
-PENDENTE_PP = {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA, "dadosConhecidos": {"parentesco": "Irmão(a)"}}
+PENDENTE_PP = {
+    "nome": "a pessoa presa",
+    "urgente": False,
+    "urgencia": "urgente",
+    "flowId": ID_PESSOA_PRESA,
+    "dadosConhecidos": {"parentesco": "Irmão(a)"},
+}
 
 _ids = count(1)
 
@@ -107,7 +113,7 @@ async def test_release_primeiro_assunto_da_tykhe_redireciona_com_pendentes(
     r = await cliente.post(BASE, json={"chatId": chat, "resposta": "Sim"}, headers=auth)
     corpo = r.json()
     assert (corpo["status"], corpo["tipoCaso"]) == ("redirecionado", "saude")
-    assert corpo["assuntosPendentes"] == [{"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA}]
+    assert corpo["assuntosPendentes"] == [{"nome": "a pessoa presa", "urgente": False, "urgencia": "urgente", "flowId": ID_PESSOA_PRESA}]
 
 
 @pytest.mark.usefixtures("multi")

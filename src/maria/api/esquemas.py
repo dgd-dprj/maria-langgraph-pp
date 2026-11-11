@@ -41,7 +41,10 @@ ASSUNTOS_PENDENTES: Schema = {
         "type": "object",
         "properties": {
             "nome": {"type": "string"},
+            # O sinal de risco do relato, marcado pela classificação.
             "urgente": {"type": "boolean"},
+            # #450 (2026-11-10): o parâmetro de urgência (tabela por assunto, com o sinal de risco por cima).
+            "urgencia": {"type": "string", "enum": ["urgente", "menos_urgente"]},
             "flowId": {"type": "string"},
             "tipoCaso": {"type": "string"},
             # #442: o que a Maria já sabe para este assunto; a Tykhe repassa em `dadosConhecidos` ao abrir o fluxo.
@@ -172,5 +175,7 @@ CORPO_ORQUESTRADOR: Schema = {
         "mensagem": {"type": "string"},
         "resposta": {"type": "string"},
         "dadosConhecidos": {"type": "object", "additionalProperties": True},
+        # #450 (só no release): o id da pessoa na Tykhe, a chave dos assuntos guardados. Opcional.
+        "idUsuario": {"type": "string"},
     },
 }

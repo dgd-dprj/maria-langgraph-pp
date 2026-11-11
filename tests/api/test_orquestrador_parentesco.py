@@ -17,8 +17,7 @@ from maria.fluxos.plano_saude.graph import TEXTO_CPF_OUTRA, TEXTO_PARA_QUEM
 from maria.fluxos.violencia_domestica.graph import TEXTO_EH_VITIMA
 
 BASE = "/atendimentos/orquestrador"
-# #450: no release, sem CPF na 1ª chamada a Maria pergunta o CPF antes de abrir o fluxo. Com o CPF da Tykhe (CPF de
-# teste do Verde simulado), o fluxo abre direto, como estes testes esperam.
+# O CPF da Tykhe (CPF de teste do Verde simulado) vai para o fluxo em `dadosConhecidos`, e o fluxo não o pergunta.
 CPF = "11111111111"
 _ids = count(1)
 

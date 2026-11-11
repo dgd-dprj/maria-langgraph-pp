@@ -156,10 +156,11 @@ def test_pendente_leva_flow_id_do_fluxo_da_maria_e_tipo_caso_da_tykhe() -> None:
     assert f.pendente(fila[2]) == {
         "nome": "a pessoa presa",
         "urgente": False,
+        "urgencia": "urgente",
         "flowId": ID_PESSOA_PRESA,
         "dadosConhecidos": {"perguntaParentesco": "Você é a mãe ou o pai dele?", "opcoesParentesco": {"mae": "Mãe", "pai": "Pai"}},
     }
-    assert f.pendente(fila[0]) == {"nome": "a saúde", "urgente": False, "tipoCaso": "saude"}
+    assert f.pendente(fila[0]) == {"nome": "a saúde", "urgente": False, "urgencia": "urgente", "tipoCaso": "saude"}
 
 
 def test_pendente_nao_leva_o_trecho_do_relato() -> None:

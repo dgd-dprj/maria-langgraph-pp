@@ -30,7 +30,7 @@ from tests.orquestrador.conftest import Modelo
 
 DOIS = [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA]
 TOKENS = {"tokensEntrada": 11, "tokensSaida": 7, "tokensTotal": 18}
-# #450: no release, o CPF vindo da Tykhe (CPF de teste do Verde simulado) dispensa a pergunta do CPF.
+# O CPF vindo da Tykhe (CPF de teste do Verde simulado) segue para o fluxo em `dadosConhecidos`.
 CONHECIDOS = {"cpf": "11111111111"}
 
 
@@ -94,8 +94,8 @@ def store(monkeypatch: pytest.MonkeyPatch) -> StoreFalsa:
 
 
 def test_1_topologia_igual_a_de_develop() -> None:
-    """A topologia de develop, mais os 3 nós do multi-fluxo (#435) e os 5 da identificação pelo CPF e dos assuntos
-    guardados (#450), que só são alcançados no release (as arestas novas do `classificar` só saem quando
+    """A topologia de develop, mais os 3 nós do multi-fluxo (#435) e os 2 dos assuntos guardados (#450, pelo
+    idUsuario da Tykhe), que só são alcançados no release (as arestas novas do `classificar` só saem quando
     `fluxo_em_teste_liga`)."""
     desenho = obter_grafo().get_graph()
     assert set(desenho.nodes) == {
@@ -109,9 +109,6 @@ def test_1_topologia_igual_a_de_develop() -> None:
         "perguntarPrimeiro",
         "comecarFila",
         # #450
-        "pedirCpf",
-        "consultarCpf",
-        "confirmarCpf",
         "buscarPendentes",
         "perguntarPendentes",
         "__end__",
@@ -133,16 +130,7 @@ def test_1_topologia_igual_a_de_develop() -> None:
         ("comecarFila", "identificado", True),
         ("comecarFila", "naoIdentificado", True),
         # #450
-        ("classificar", "pedirCpf", True),
-        ("classificar", "consultarCpf", True),
-        ("pedirCpf", "pedirCpf", True),
-        ("pedirCpf", "consultarCpf", True),
-        ("pedirCpf", "buscarPendentes", True),
-        ("consultarCpf", "confirmarCpf", True),
-        ("consultarCpf", "pedirCpf", True),
-        ("consultarCpf", "buscarPendentes", True),
-        ("confirmarCpf", "pedirCpf", True),
-        ("confirmarCpf", "buscarPendentes", True),
+        ("classificar", "buscarPendentes", True),
         ("buscarPendentes", "naoIdentificado", True),
         ("buscarPendentes", "identificado", True),
         ("buscarPendentes", "prepararPerguntaDesambiguacao", True),
