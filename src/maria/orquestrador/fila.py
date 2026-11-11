@@ -10,7 +10,7 @@ Por isso os textos não prometem "tudo aqui mesmo", como o protótipo fazia.
 from __future__ import annotations
 
 import re
-from collections.abc import Mapping
+from collections.abc import Mapping, Sequence
 from typing import Any, Literal, NotRequired, TypedDict
 
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA
@@ -146,10 +146,27 @@ class AssuntoGuardado(TypedDict):
     tipoCaso: NotRequired[str]
 
 
+class AssuntoAberto(TypedDict):
+    """#450: um assunto em aberto da pessoa (desta conversa ou guardado de outra), como vai para a Tykhe em
+    `assuntosEmAberto`. O id do assunto é o `chatId` dele."""
+
+    nome: str
+    urgente: bool
+    urgencia: Urgencia
+    chatIdAssunto: str
+    flowId: NotRequired[str]
+    tipoCaso: NotRequired[str]
+
+
 def _id_do_item(item: Mapping[str, Any]) -> str:
     if isinstance(item.get("flowId"), str):
         return str(item["flowId"])
     return f"tykhe:{item.get('tipoCaso') or 'outros'}"
+
+
+def id_do_assunto(item: Mapping[str, Any]) -> str:
+    """O id do tipo do assunto: o `flowId` (fluxo da Maria) ou `tykhe:<tipoCaso>` (assunto da Tykhe)."""
+    return _id_do_item(item)
 
 
 def urgencia_de(item: Mapping[str, Any]) -> Urgencia:
@@ -257,12 +274,40 @@ def origem_do_chat(chat_id: str) -> tuple[str, int]:
     return chat_id, 1
 
 
-# #450: a pergunta dos assuntos guardados, quando a pessoa volta numa conversa nova.
-TEXTO_OPCAO_NOVO = "O que acabei de contar"
-# Palavras de quem escolhe o que acabou de contar ("o que eu contei agora", "o de hoje").
-PALAVRAS_DO_NOVO = frozenset({"acabei", "contei", "contar", "contando", "hoje"})
-# Palavras de quem escolhe o assunto guardado, quando há um só ("dele", "o guardado").
-PALAVRAS_DO_GUARDADO = frozenset({"dele", "dela", "guardado", "guardada", "pendente", "antigo", "outro", "anterior"})
+# #450 (decisão da Nicole, 2026-11-11): os assuntos em aberto. A pessoa vem resolver alguma coisa, então a conversa não
+# começa com pergunta. No fim de cada assunto, a Maria oferece ver os assuntos em aberto ou falar de um assunto novo.
+# No começo, só quando a pessoa pede ("quero ver meus assuntos"), a Maria mostra a lista; e, se o que ela contou é
+# um assunto que já estava guardado, a Maria retoma esse assunto em vez de abrir outro igual.
+TEXTO_OPCAO_NENHUM = "Nenhum, quero um assunto novo"
+OPCOES_DO_FIM = ["Ver os assuntos em aberto", "Falar de um assunto novo"]
+TEXTO_ASSUNTO_NOVO = "Pode me contar o que você precisa?"
+TEXTO_SEM_ABERTOS = "Você não tem assuntos em aberto. Pode me contar o que você precisa?"
+NUMERO_MASCULINO = {2: "dois", 3: "três", 4: "quatro", 5: "cinco"}
+# Pedidos de ver os assuntos, em frases inteiras: "andamento" sozinho não entra, porque é o assunto "andamento do
+# processo" da Tykhe.
+PEDIDOS_DE_VER = (
+    "meus assuntos",
+    "assuntos em aberto",
+    "assunto em aberto",
+    "assuntos pendentes",
+    "assunto pendente",
+    "minhas pendencias",
+    "minha pendencia",
+    "o que ficou pendente",
+    "ficou para depois",
+    "ficaram para depois",
+    "ficou pra depois",
+    "ficaram pra depois",
+    "assuntos guardados",
+    "assunto guardado",
+    "de onde parei",
+    "onde eu parei",
+    "onde parei",
+    "o que estava em aberto",
+    "o que tinha ficado",
+)
+# Assuntos que não se retomam: "outros" e "sair" não dizem qual era o assunto.
+NAO_RETOMA = frozenset({ID_OUTROS, ID_SAIR})
 
 
 def _maiuscula(nome: str) -> str:
@@ -279,55 +324,63 @@ def em_ordem_de_urgencia(guardados: list[AssuntoGuardado]) -> list[AssuntoGuarda
     return sorted(guardados, key=lambda g: URGENCIAS.index(urgencia_de(g)))
 
 
-def texto_pendentes(guardados: list[AssuntoGuardado]) -> str:
-    """#450: com os dois tipos guardados, a mensagem separa o urgente do menos urgente."""
-    urgentes = [g["nome"] for g in guardados if urgencia_de(g) == "urgente"]
-    outros = [g["nome"] for g in guardados if urgencia_de(g) == "menos_urgente"]
-    if len(guardados) == 1:
-        qual = "um assunto urgente guardado" if urgentes else "um assunto guardado"
-        return f"Você tem {qual}: {guardados[0]['nome']}. Quer falar dele agora ou do que você acabou de contar?"
-    pergunta = "Quer falar de um deles agora ou do que você acabou de contar?"
+def pediu_para_ver_assuntos(mensagem: str) -> bool:
+    """ "Quero ver meus assuntos", "o que ficou pendente", "continuar de onde parei"."""
+    limpa = _limpa(mensagem)
+    return any(pedido in limpa for pedido in PEDIDOS_DE_VER)
+
+
+def texto_oferta_abertos(quantos: int) -> str:
+    """No fim de um assunto concluído, com outros em aberto."""
+    if quantos == 1:
+        return "Você tem um assunto em aberto. Quer ver o assunto em aberto ou falar de um assunto novo?"
+    numero = NUMERO_MASCULINO.get(quantos, str(quantos))
+    return f"Você tem {numero} assuntos em aberto. Quer ver os assuntos em aberto ou falar de um assunto novo?"
+
+
+def texto_abertos(abertos: Sequence[Mapping[str, Any]]) -> str:
+    """A lista dos assuntos em aberto, com os urgentes separados quando há dos dois tipos."""
+    urgentes = [a["nome"] for a in abertos if urgencia_de(a) == "urgente"]
+    outros = [a["nome"] for a in abertos if urgencia_de(a) == "menos_urgente"]
     if urgentes and outros:
-        return f"Você tem assuntos guardados.\n\nUrgente:\n{_lista(urgentes)}\n\nMenos urgente:\n{_lista(outros)}\n\n{pergunta}"
-    qual = "assuntos urgentes guardados" if urgentes else "assuntos guardados"
-    return f"Você tem {qual}: {_nomes_juntos(urgentes or outros)}. {pergunta}"
+        return f"Qual você quer resolver agora?\n\nUrgente:\n{_lista(urgentes)}\n\nMenos urgente:\n{_lista(outros)}"
+    if urgentes:
+        return f"Qual você quer resolver agora?\n\nUrgente:\n{_lista(urgentes)}"
+    return f"Qual você quer resolver agora?\n\n{_lista(outros)}"
 
 
-def opcoes_pendentes(guardados: list[AssuntoGuardado]) -> list[str]:
-    return [TEXTO_OPCAO_NOVO, *(_maiuscula(g["nome"]) for g in guardados)]
+def opcoes_abertos(abertos: Sequence[Mapping[str, Any]]) -> list[str]:
+    return [*(_maiuscula(a["nome"]) for a in abertos), TEXTO_OPCAO_NENHUM]
 
 
-def _id_do_guardado(guardado: AssuntoGuardado) -> str:
-    return _id_do_item(guardado)
+def texto_retomada(item: Mapping[str, object]) -> str:
+    """O que a pessoa contou é um assunto que já estava guardado: a Maria retoma esse, sem abrir outro igual."""
+    return f"Você já tinha esse assunto com a gente: {item['nome']}. Vamos continuar."
 
 
-def pendente_escolhido(resposta: str, guardados: list[AssuntoGuardado]) -> int | None:
-    """A posição do assunto guardado que a pessoa escolheu, ou None para o que ela acabou de contar.
+def escolha_nos_abertos(resposta: str, abertos: Sequence[Mapping[str, Any]]) -> int | Literal["nenhum"] | None:
+    """A posição do assunto escolhido na lista, "nenhum" para um assunto novo, ou None quando não dá para saber.
 
-    Vale o texto da opção, o número dela (1 é o que acabou de contar; 2, 3… são os guardados) e uma resposta livre
-    com o nome do assunto. Resposta que a Maria não entende segue com o que a pessoa acabou de contar."""
+    Vale o texto da opção, o número dela (1, 2… na ordem da lista; o último é "Nenhum") e o nome do assunto numa
+    resposta livre ("o da cadeia")."""
     numero = re.fullmatch(r"\s*(\d+)\s*", resposta)
     if numero:
-        posicao = int(numero.group(1)) - 2
-        return posicao if 0 <= posicao < len(guardados) else None
+        posicao = int(numero.group(1)) - 1
+        if posicao == len(abertos):
+            return "nenhum"
+        return posicao if 0 <= posicao < len(abertos) else None
     limpa = _limpa(resposta)
-    if limpa == _limpa(TEXTO_OPCAO_NOVO):
+    if not limpa:
         return None
-    for indice, guardado in enumerate(guardados):
-        nome = _limpa(guardado["nome"])
+    if limpa == _limpa(TEXTO_OPCAO_NENHUM) or limpa.startswith("nenhum") or "assunto novo" in limpa:
+        return "nenhum"
+    for indice, aberto in enumerate(abertos):
+        nome = _limpa(aberto["nome"])
         sem_artigo = nome.split(" ", 1)[1] if nome[:2] in ("a ", "o ") else nome
         if limpa in (nome, sem_artigo):
             return indice
-    palavras = set(limpa.split())
-    if palavras & PALAVRAS_DO_NOVO:
-        return None
-    itens: list[ItemFila] = [{"id": _id_do_guardado(g), "nome": g["nome"], "urgente": g["urgente"], "evidencia": ""} for g in guardados]
-    escolhido = assunto_escolhido(resposta, itens)
-    if escolhido is not None:
-        return escolhido
-    if len(guardados) == 1 and palavras & PALAVRAS_DO_GUARDADO:
-        return 0
-    return None
+    itens: list[ItemFila] = [{"id": _id_do_item(a), "nome": a["nome"], "urgente": bool(a.get("urgente")), "evidencia": ""} for a in abertos]
+    return assunto_escolhido(resposta, itens)
 
 
 def _palavras(texto: str) -> set[str]:

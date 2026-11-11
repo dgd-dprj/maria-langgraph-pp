@@ -25,15 +25,24 @@ from maria.api.pipeline import Contexto, Resposta, Rota
 from maria.fluxos import buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.tipos_tykhe import TipoCasoTykhe, TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
 from maria.orquestrador.fila import (
+    NAO_RETOMA,
+    TEXTO_ASSUNTO_NOVO,
+    TEXTO_SEM_ABERTOS,
+    AssuntoAberto,
     AssuntoGuardado,
     AssuntoPendente,
     chat_id_do_assunto,
     dados_do_relato,
+    escolha_nos_abertos,
+    id_do_assunto,
+    opcoes_abertos,
     origem_do_chat,
+    texto_abertos,
     texto_comecando,
     texto_proximo_assunto,
+    texto_retomada,
 )
-from maria.orquestrador.graph import obter_grafo
+from maria.orquestrador.graph import assuntos_em_aberto, obter_grafo, usuario_do_chat
 from maria.shared import _js
 from maria.shared._js import AUSENTE
 from maria.shared.atendimentos_db import AtendimentosStore, obter_atendimentos_store
@@ -50,6 +59,7 @@ MENSAGENS_DE_LOG_POR_ETAPA: dict[str, str] = {
     "ordem": "orquestrador: pergunta da ordem dos assuntos enviada",
     "primeiro": "orquestrador: pergunta da ordem dos assuntos enviada",
     "pendentes": "orquestrador: pergunta dos assuntos guardados enviada",
+    "assuntoNovo": "orquestrador: pedido de assunto novo enviado",
 }
 
 # #450: um id da Tykhe maior que isto não é um id; é ignorado, como se não tivesse vindo.
@@ -182,6 +192,8 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
         escolhido = resultado.get("pendenteEscolhido")
         if isinstance(escolhido, dict):
             return await _atender_assunto_guardado(ctx, chat_id, cast(AssuntoGuardado, escolhido), resultado, pendentes)
+    # #450 (2026-11-11): o que a pessoa contou é um assunto que já estava guardado? A Maria retoma esse, sem abrir outro.
+    retomado = _guardado_do_mesmo_assunto(resultado, flow_id) if fluxo_em_teste_liga() and status_final == "identificado" else None
 
     # #225: relato que não bate com nenhuma opção vai para "outros" da Tykhe.
     if status_final != "identificado" or not _js.verdadeiro(flow_id):
@@ -200,6 +212,8 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
 
     tipo = tipo_tykhe_por_id(flow_id)
     if tipo is not None:
+        if retomado is not None:
+            await _registrar_retomada(ctx, chat_id, retomado, "resolvido")
         ctx.log.info(
             "orquestrador: caso de um tipo atendido pela Tykhe, redirecionado",
             chatId=chat_id,
@@ -255,14 +269,43 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     # #438: o que o relato já diz entra nos dados do fluxo. Sem log próprio: os logs gravados de develop
     # (fixtures de contrato) seguem iguais, e o efeito aparece nas perguntas que o fluxo deixa de fazer.
     dados.update(dados_do_relato(flow_id, relato, dados))
+    novo_agora = retomado is not None and await (await obter_atendimentos_store()).buscar_atividade(chat_id) is None
     # viaOrquestrador como parâmetro, nunca dentro de dadosConhecidos (#191).
     resposta_fluxo = await criar_atendimento(fluxo, flow_id, chat_id, dados, ctx.log, via_orquestrador=True)
     if isinstance(resposta_fluxo.corpo, dict) and resposta_fluxo.status == 200:
         _com_pendentes(resposta_fluxo.corpo, pendentes)
         texto = resposta_fluxo.corpo.get("resposta")
-        if resultado.get("ordemPerguntada") and fila and isinstance(texto, str):
+        if retomado is not None and novo_agora:
+            situacao: Situacao = "em_andamento" if resposta_fluxo.corpo.get("status") == "em_andamento" else "resolvido"
+            await _registrar_retomada(ctx, chat_id, retomado, situacao)
+            # O fim do fluxo marca o guardado como resolvido (assunto_guardado_do_chat).
+            await grafo.aupdate_state(config, {"assuntoResgatado": retomado})
+            if isinstance(texto, str):
+                resposta_fluxo.corpo["resposta"] = f"{texto_retomada(retomado)}\n\n{texto}"
+        elif resultado.get("ordemPerguntada") and fila and isinstance(texto, str):
             resposta_fluxo.corpo["resposta"] = f"{texto_comecando(fila[0])}\n\n{texto}"
     return resposta_fluxo
+
+
+def _guardado_do_mesmo_assunto(resultado: dict[str, Any], flow_id: Any) -> AssuntoGuardado | None:
+    """O assunto guardado do mesmo tipo que o identificado agora (o mais urgente, se houver mais de um). "Outros" e
+    "sair" não se retomam: não dizem qual era o assunto."""
+    if not isinstance(flow_id, str) or flow_id in NAO_RETOMA:
+        return None
+    for guardado in resultado.get("pendentesGuardados") or []:
+        if isinstance(guardado, dict) and id_do_assunto(guardado) == flow_id:
+            return cast(AssuntoGuardado, guardado)
+    return None
+
+
+async def _registrar_retomada(ctx: Contexto, chat_id: str, retomado: AssuntoGuardado, situacao: Situacao) -> None:
+    await (await obter_pendentes_store()).marcar(chat_id_do_assunto(retomado["chatIdOrigem"], retomado["posicao"]), situacao)
+    ctx.log.info(
+        "orquestrador: assunto guardado retomado",
+        chatId=chat_id,
+        evento="assunto_guardado_retomado",
+        **({"flowId": retomado["flowId"]} if "flowId" in retomado else {"tipoCaso": retomado.get("tipoCaso")}),
+    )
 
 
 async def _guardar_pendentes(resultado: dict[str, Any], chat_id: str, pendentes: list[AssuntoPendente]) -> None:
@@ -375,8 +418,14 @@ def _com_cpf(pendentes: list[AssuntoPendente], cpf: str | None) -> list[AssuntoP
 
 
 async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
-    """#450 (multi-fluxo, fase 1b, só no release): abre o próximo assunto pendente da conversa, com o
-    `chatId` gerado pela Maria (`<chatId>-assunto-N`). A Tykhe só manda o `chatId` da conversa.
+    """#450 (multi-fluxo, fase 1b, só no release): abre um assunto pendente, com o `chatId` gerado pela Maria
+    (`<chatId>-assunto-N`).
+
+    - Só `chatId`: o próximo assunto pendente da conversa, na ordem.
+    - Com `assunto` (o `chatIdAssunto` de um item de `assuntosEmAberto`): esse assunto, desta conversa ou guardado de
+      outra conversa da mesma pessoa (2026-11-11).
+    - Com `resposta` (a resposta da pessoa à lista dos assuntos em aberto): o assunto escolhido; "Nenhum, quero um
+      assunto novo" pede o relato novo; uma resposta que a Maria não entende repete a lista.
 
     Idempotente: um assunto da Maria já aberto e não encerrado volta como está; um encerrado é pulado.
     Um assunto da Tykhe (`tipoCaso`) é devolvido uma vez, como `redirecionado`, e fica marcado."""
@@ -386,17 +435,112 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
     if not fluxo_em_teste_liga():
         return Resposta(404, {"erro": "rota disponível só no ambiente de teste (release)"})
     origem, _ = origem_do_chat(chat_id)
+    assunto = ctx.corpo.get("assunto")
+    resposta = ctx.corpo.get("resposta")
     # Duas chamadas ao mesmo tempo para a mesma conversa (um retry da Tykhe) esperam a vez: sem a trava, a
     # 2ª via o atendimento já registrado, mas ainda sem conversa, e devolvia a mensagem de sucesso do fluxo
     # (achado do teste de consistência, 2026-11-09). A API roda num processo só, como a ponte do WhatsApp.
     async with _TRAVAS_PROXIMO.setdefault(origem, asyncio.Lock()):
+        if not (isinstance(assunto, str) and assunto) and isinstance(resposta, str) and resposta.strip():
+            abertos = await assuntos_em_aberto(chat_id)
+            escolha = escolha_nos_abertos(resposta, abertos)
+            if escolha == "nenhum" or not abertos:
+                return Resposta(200, _resposta_assunto_novo(chat_id, sem_abertos=not abertos))
+            if escolha is None:
+                return Resposta(200, _resposta_lista(chat_id, abertos))
+            assunto = abertos[escolha]["chatIdAssunto"]
+        if isinstance(assunto, str) and assunto:
+            origem_do_alvo, posicao = origem_do_chat(assunto)
+            if origem_do_alvo == origem and posicao >= 2:
+                return await _abrir_proximo_assunto(ctx, origem, posicao)
+            return await _abrir_guardado(ctx, chat_id, assunto)
         return await _abrir_proximo_assunto(ctx, origem)
 
 
 _TRAVAS_PROXIMO: dict[str, asyncio.Lock] = {}
 
 
-async def _abrir_proximo_assunto(ctx: Contexto, origem: str) -> Resposta:
+def _resposta_lista(chat_id: str, abertos: list[AssuntoAberto]) -> dict[str, Any]:
+    """ "Qual você quer resolver agora?": a resposta da pessoa volta para a rota do próximo assunto."""
+    return {
+        "resposta": texto_abertos(abertos),
+        "tipoResposta": "opcoes",
+        "opcoes": opcoes_abertos(abertos),
+        "status": "em_andamento",
+        "assuntosEmAberto": abertos,
+        "_links": {"self": {"href": f"/atendimentos/{chat_id}"}, "responder": {"href": "/atendimentos/proximo-assunto", "method": "POST"}},
+    }
+
+
+def _resposta_assunto_novo(chat_id: str, *, sem_abertos: bool) -> dict[str, Any]:
+    """ "Pode me contar o que você precisa?": a resposta da pessoa abre uma conversa nova no orquestrador."""
+    return {
+        "resposta": TEXTO_SEM_ABERTOS if sem_abertos else TEXTO_ASSUNTO_NOVO,
+        "tipoResposta": "texto",
+        "status": "em_andamento",
+        "_links": {"self": {"href": f"/atendimentos/{chat_id}"}, "responder": {"href": "/atendimentos/orquestrador", "method": "POST"}},
+    }
+
+
+async def _post_assuntos_em_aberto(ctx: Contexto) -> Resposta:
+    """#450 (2026-11-11, só no release): a lista dos assuntos em aberto da pessoa, quando ela toca em "Ver os
+    assuntos em aberto" no fim de um assunto. Sem nenhum, pede o que ela precisa."""
+    chat_id = ctx.corpo.get("chatId", AUSENTE)
+    if not isinstance(chat_id, str) or not chat_id:
+        return Resposta(400, {"erro": "chatId obrigatório"})
+    if not fluxo_em_teste_liga():
+        return Resposta(404, {"erro": "rota disponível só no ambiente de teste (release)"})
+    abertos = await assuntos_em_aberto(chat_id)
+    ctx.log.info("orquestrador: assuntos em aberto listados", chatId=chat_id, evento="assuntos_em_aberto_listados", quantos=len(abertos))
+    if not abertos:
+        return Resposta(200, _resposta_assunto_novo(chat_id, sem_abertos=True))
+    return Resposta(200, _resposta_lista(chat_id, abertos))
+
+
+async def _abrir_guardado(ctx: Contexto, chat_id: str, assunto: str) -> Resposta:
+    """Um assunto guardado de outra conversa da mesma pessoa, aberto com o `chatId` dele. Só da mesma pessoa (pelo
+    `idUsuario` da conversa) e ainda no prazo."""
+    id_usuario = await usuario_do_chat(chat_id)
+    guardado = await (await obter_pendentes_store()).buscar_da_pessoa(id_usuario, assunto) if id_usuario else None
+    if guardado is None:
+        return Resposta(404, {"erro": "assunto não encontrado para esta pessoa"})
+    if guardado["situacao"] == "resolvido":
+        return Resposta(409, {"erro": "assunto já atendido"})
+    tipo_caso = guardado.get("tipoCaso")
+    if tipo_caso is not None:
+        await (await obter_pendentes_store()).marcar(assunto, "resolvido")
+        ctx.log.info(
+            "orquestrador: assunto guardado é da Tykhe, redirecionado",
+            chatId=assunto,
+            evento="assunto_guardado_redirecionado",
+            tipoCaso=tipo_caso,
+        )
+        corpo = _resposta_redirecionada(assunto, tipo_tykhe_por_caso(cast(TipoCasoTykhe, tipo_caso)), None)
+        corpo["chatId"] = assunto
+        return Resposta(200, corpo)
+    flow_id = guardado.get("flowId")
+    fluxo = await buscar_fluxo(flow_id) if flow_id else None
+    if fluxo is None or flow_id is None:
+        return Resposta(404, {"erro": "assunto não encontrado para esta pessoa"})
+    atividade = await (await obter_atendimentos_store()).buscar_atividade(assunto)
+    if atividade is not None and atividade.get("statusFinal"):
+        return Resposta(409, {"erro": "assunto já atendido"})
+    novo_agora = atividade is None
+    if novo_agora:
+        ctx.log.info("orquestrador: assunto guardado aberto", chatId=assunto, evento="assunto_guardado_aberto", flowId=flow_id)
+    resposta_fluxo = await criar_atendimento(fluxo, flow_id, assunto, {}, ctx.log, via_orquestrador=True)
+    if isinstance(resposta_fluxo.corpo, dict) and resposta_fluxo.status == 200:
+        texto = resposta_fluxo.corpo.get("resposta")
+        if novo_agora:
+            situacao: Situacao = "em_andamento" if resposta_fluxo.corpo.get("status") == "em_andamento" else "resolvido"
+            await (await obter_pendentes_store()).marcar(assunto, situacao)
+            if isinstance(texto, str):
+                resposta_fluxo.corpo["resposta"] = f"{texto_proximo_assunto(guardado)}\n\n{texto}"
+        resposta_fluxo.corpo["chatId"] = assunto
+    return resposta_fluxo
+
+
+async def _abrir_proximo_assunto(ctx: Contexto, origem: str, so_posicao: int | None = None) -> Resposta:
     config: Any = {"configurable": {"thread_id": f"orquestrador:{origem}"}}
     grafo = obter_grafo()
     valores = dict((await grafo.aget_state(config)).values or {})
@@ -407,6 +551,8 @@ async def _abrir_proximo_assunto(ctx: Contexto, origem: str) -> Resposta:
 
     for indice, item in enumerate(pendentes):
         posicao = indice + 2
+        if so_posicao is not None and posicao != so_posicao:
+            continue
         novo = chat_id_do_assunto(origem, posicao)
         restantes = _com_cpf(pendentes[indice + 1 :], cpf)
         tipo_caso = item.get("tipoCaso")
@@ -490,6 +636,15 @@ ROTAS: tuple[Rota, ...] = (
             409: esquemas.ERRO_ORQUESTRADOR,
         },
         resumo="Abre o próximo assunto pendente da conversa, com o chatId gerado pela Maria (multi-fluxo, só no release)",
+        tags=("atendimentos",),
+    ),
+    Rota(
+        "POST",
+        "/atendimentos/assuntos-em-aberto",
+        _post_assuntos_em_aberto,
+        corpo=esquemas.CORPO_ASSUNTOS_EM_ABERTO,
+        respostas={200: esquemas.RESPOSTA_ASSUNTOS_EM_ABERTO, 400: esquemas.ERRO_ORQUESTRADOR, 404: esquemas.ERRO_ORQUESTRADOR},
+        resumo="Lista os assuntos em aberto da pessoa, para ela escolher qual resolver (multi-fluxo, só no release)",
         tags=("atendimentos",),
     ),
 )

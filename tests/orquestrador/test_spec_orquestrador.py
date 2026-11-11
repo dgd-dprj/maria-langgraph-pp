@@ -94,8 +94,8 @@ def store(monkeypatch: pytest.MonkeyPatch) -> StoreFalsa:
 
 
 def test_1_topologia_igual_a_de_develop() -> None:
-    """A topologia de develop, mais os 3 nós do multi-fluxo (#435) e os 2 dos assuntos guardados (#450, pelo
-    idUsuario da Tykhe), que só são alcançados no release (as arestas novas do `classificar` só saem quando
+    """A topologia de develop, mais os 3 nós do multi-fluxo (#435) e os 3 dos assuntos guardados e em aberto (#450,
+    pelo idUsuario da Tykhe), que só são alcançados no release (as arestas novas do `classificar` só saem quando
     `fluxo_em_teste_liga`)."""
     desenho = obter_grafo().get_graph()
     assert set(desenho.nodes) == {
@@ -110,7 +110,8 @@ def test_1_topologia_igual_a_de_develop() -> None:
         "comecarFila",
         # #450
         "buscarPendentes",
-        "perguntarPendentes",
+        "perguntarAbertos",
+        "pedirAssuntoNovo",
         "__end__",
     }
     assert {(a.source, a.target, a.conditional) for a in desenho.edges} == {
@@ -135,12 +136,12 @@ def test_1_topologia_igual_a_de_develop() -> None:
         ("buscarPendentes", "identificado", True),
         ("buscarPendentes", "prepararPerguntaDesambiguacao", True),
         ("buscarPendentes", "perguntarOrdem", True),
-        ("buscarPendentes", "perguntarPendentes", True),
-        ("perguntarPendentes", "naoIdentificado", True),
-        ("perguntarPendentes", "identificado", True),
-        ("perguntarPendentes", "prepararPerguntaDesambiguacao", True),
-        ("perguntarPendentes", "perguntarOrdem", True),
-        ("perguntarPendentes", "__end__", True),
+        ("buscarPendentes", "perguntarAbertos", True),
+        ("buscarPendentes", "pedirAssuntoNovo", True),
+        ("perguntarAbertos", "__end__", True),
+        ("perguntarAbertos", "pedirAssuntoNovo", True),
+        ("perguntarAbertos", "classificar", True),
+        ("pedirAssuntoNovo", "classificar", False),
     }
 
 

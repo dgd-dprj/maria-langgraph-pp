@@ -19,9 +19,16 @@ from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
-from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
-from maria.orquestrador.fila import com_dados_do_fim, texto_fim_do_assunto
-from maria.orquestrador.graph import assunto_guardado_do_chat, assuntos_pendentes_do_chat, usuario_do_chat
+from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo, fluxo_em_teste_liga
+from maria.orquestrador.fila import (
+    OPCOES_DO_FIM,
+    AssuntoPendente,
+    com_dados_do_fim,
+    texto_fim_do_assunto,
+    texto_oferta_abertos,
+    urgencia_de,
+)
+from maria.orquestrador.graph import assunto_guardado_do_chat, assuntos_em_aberto, assuntos_pendentes_do_chat, usuario_do_chat
 from maria.shared import _js
 from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
@@ -287,6 +294,27 @@ def _expirado(
     return montar_resposta_atendimento(fluxo, fluxo_id, chat_id, None, {**valores, "statusFinal": "expirado", "mensagemFinal": mensagem})
 
 
+async def _com_o_que_falta(chat_id: str, corpo: dict[str, Any], final: str, pendentes: list[AssuntoPendente]) -> None:
+    """#450, no fim de um assunto concluído (só no release).
+
+    - O que ainda falta nesta conversa, separado por urgência (2026-11-10): o urgente é aberto logo pela Tykhe; o menos
+      urgente fica para depois, guardado por 30 dias quando há `idUsuario`.
+    - Sem um urgente na vez (2026-11-11): com assuntos em aberto (desta conversa ou guardados de outras), a pergunta
+      "Quer ver os assuntos em aberto ou falar de um assunto novo?", com os botões em `opcoesDoFim` e a lista em
+      `assuntosEmAberto`. Com um urgente na vez, a pergunta fica para o fim dele."""
+    partes: list[str] = []
+    if pendentes:
+        partes.append(texto_fim_do_assunto(pendentes, await usuario_do_chat(chat_id) is not None))
+    if not (pendentes and urgencia_de(pendentes[0]) == "urgente"):
+        abertos = await assuntos_em_aberto(chat_id)
+        if abertos:
+            partes.append(texto_oferta_abertos(len(abertos)))
+            corpo["assuntosEmAberto"] = abertos
+            corpo["opcoesDoFim"] = list(OPCOES_DO_FIM)
+    if partes:
+        corpo["resposta"] = "\n\n".join([final, *partes])
+
+
 async def _post_respostas(ctx: Contexto) -> Resposta:
     """`POST /atendimentos/respostas`: avança o fluxo, com o TTL de inatividade
     checado antes de tocar no grafo (#166). O checkpoint nunca sabe de
@@ -326,16 +354,14 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
             if pendentes:
                 # #442: o CPF informado neste assunto segue para os próximos, para não ser pedido de novo.
                 corpo_resposta["assuntosPendentes"] = com_dados_do_fim(pendentes, corpo_resposta.get("dadosColetados"))
-                final = corpo_resposta.get("resposta")
-                if corpo_resposta.get("status") == "concluido" and isinstance(final, str):
-                    # #450 (2026-11-10): o que ainda falta, separado por urgência. Só no fim concluído: no
-                    # atendimento humano, quem atende vê os pendentes.
-                    guardados = await usuario_do_chat(chat_id) is not None
-                    corpo_resposta["resposta"] = f"{final}\n\n{texto_fim_do_assunto(pendentes, guardados)}"
             # #450 (só no release): o assunto guardado que este atendimento atendia fica resolvido.
             guardado = await assunto_guardado_do_chat(chat_id)
             if guardado is not None:
                 await (await obter_pendentes_store()).marcar(guardado, "resolvido")
+            final = corpo_resposta.get("resposta")
+            if fluxo_em_teste_liga() and corpo_resposta.get("status") == "concluido" and isinstance(final, str):
+                # #450: só no fim concluído. No atendimento humano, quem atende vê os pendentes.
+                await _com_o_que_falta(chat_id, corpo_resposta, final, pendentes or [])
         return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)

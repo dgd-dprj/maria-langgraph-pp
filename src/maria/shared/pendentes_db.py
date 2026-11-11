@@ -73,6 +73,7 @@ class PendentesStore(Protocol):
     async def guardar(self, id_usuario: str, chat_id_origem: str, pendentes: Sequence[Mapping[str, Any]]) -> None: ...
     async def listar_ativos(self, id_usuario: str) -> list[PendenteGuardado]: ...
     async def buscar(self, chat_id_assunto: str) -> PendenteGuardado | None: ...
+    async def buscar_da_pessoa(self, id_usuario: str, chat_id_assunto: str) -> PendenteGuardado | None: ...
     async def marcar(self, chat_id_assunto: str, situacao: Situacao) -> bool: ...
     async def prorrogar(self, chat_id_assunto: str) -> bool: ...
 
@@ -168,6 +169,10 @@ class _StoreEmMemoria:
         linha = self._linhas.get(chat_id_assunto)
         return _pendente(linha) if linha is not None else None
 
+    async def buscar_da_pessoa(self, id_usuario: str, chat_id_assunto: str) -> PendenteGuardado | None:
+        linha = self._linhas.get(chat_id_assunto)
+        return _pendente(linha) if linha is not None and linha.id_usuario == id_usuario and linha.vence_em > agora() else None
+
     async def marcar(self, chat_id_assunto: str, situacao: Situacao) -> bool:
         _situacao_valida(situacao)
         linha = self._linhas.get(chat_id_assunto)
@@ -237,6 +242,17 @@ class _StorePostgres:
         async with self._pool.connection() as conexao:
             linha = await (
                 await conexao.execute(f"SELECT {_COLUNAS} FROM assuntos_pendentes WHERE chat_id_assunto = %s", (chat_id_assunto,))
+            ).fetchone()
+        return _pendente(dict(linha)) if linha else None
+
+    async def buscar_da_pessoa(self, id_usuario: str, chat_id_assunto: str) -> PendenteGuardado | None:
+        """O assunto, em qualquer situação, só se for desta pessoa e ainda estiver no prazo."""
+        async with self._pool.connection() as conexao:
+            linha = await (
+                await conexao.execute(
+                    f"SELECT {_COLUNAS} FROM assuntos_pendentes WHERE chat_id_assunto = %s AND id_usuario = %s AND vence_em > %s",
+                    (chat_id_assunto, id_usuario, agora()),
+                )
             ).fetchone()
         return _pendente(dict(linha)) if linha else None
 
