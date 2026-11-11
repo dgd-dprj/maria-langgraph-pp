@@ -62,7 +62,7 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 - **Assuntos em aberto (decisão da Nicole, 2026-11-11).** A pessoa vem resolver alguma coisa, então a conversa não começa com pergunta.
   - Se o que ela contou é um assunto já guardado, a Maria retoma esse assunto ("Você já tinha esse assunto com a gente…"), sem abrir outro igual.
   - Se ela pede para ver os assuntos ("quero ver meus assuntos"), a Maria mostra a lista.
-  - No fim de cada assunto concluído, inclusive no multi-fluxo, sem um urgente na vez: "Quer ver os assuntos em aberto ou falar de um assunto novo?". A lista vem da rota nova `POST /atendimentos/assuntos-em-aberto`, e a escolha abre pela rota do próximo assunto.
+  - No fim de cada assunto concluído, inclusive no multi-fluxo, sem um urgente na vez, o fim da conversa: "Resumo da nossa conversa:" (cada assunto atendido, com o desfecho e um código de 6 letras e números), "Quer continuar com algum desses assuntos ou encerrar a conversa?" e "Ainda em aberto:" (urgência, "em aberto até dd/mm" e a fase). Os botões: um por assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa". A violência doméstica aparece como "a situação que você contou", com desfecho neutro. Campos novos `resumoDaConversa` e `opcoesDoFim`; `assuntosEmAberto` ganha `codigo`, `fase` e `venceEm`. A lista também vem pela rota nova `POST /atendimentos/assuntos-em-aberto`, e a escolha abre pela rota do próximo assunto.
   - Fica para depois de 13/11: retomar um assunto que ficou no meio, em andamento, em outra conversa.
 - Em aberto: a rota de atendimento online do Verde.
 
