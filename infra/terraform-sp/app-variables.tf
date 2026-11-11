@@ -38,8 +38,8 @@ variable "bedrock_model_id" {
 
 variable "tasks_in_public_subnets" {
   type        = bool
-  default     = true
-  description = "true: tasks nas subnets públicas com IP público (sem NAT; o security group continua sem entrada que não seja do ALB). false: subnets privadas, exige nat_count = 1 para puxar a imagem e falar com o Verde, a Tykhe e a Meta."
+  default     = false
+  description = "false: tasks nas subnets privadas, saindo pelo NAT (IP fixo de saída; exige nat_count = 1 para puxar a imagem e falar com o Verde, a Tykhe e a Meta). true: subnets públicas com IP público (sem NAT; o IP de saída muda a cada deploy; o security group continua sem entrada que não seja do ALB)."
 }
 
 variable "alb_only_from_cloudfront" {

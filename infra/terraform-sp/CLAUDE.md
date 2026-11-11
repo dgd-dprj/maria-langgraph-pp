@@ -13,4 +13,4 @@ Contexto: [`../../docs/infra-sa-east-1.md`](../../docs/infra-sa-east-1.md). Issu
 
 - `terraform fmt -check`, `terraform validate` e `terraform plan -lock=false` antes de abrir PR; o resumo do plan vai no PR (contagem, sem valores sensíveis).
 - Nomes com o sufixo `-sp` para não colidir com os recursos da Virgínia.
-- `nat_count` tem padrão 0 (rede aplicada sem NAT em 2026-11-11). Ligar o NAT é um plan novo com `-var nat_count=1` e apply só com OK escrito.
+- `nat_count` tem padrão 1 e `tasks_in_public_subnets` padrão false: o NAT (EIP 18.228.145.80) foi criado em 2026-11-11 e as tasks ficam em subnet privada. O `plan` sem `-var` deve dar `No changes`; desligar o NAT ou voltar as tasks para a subnet pública é mudança com OK escrito.

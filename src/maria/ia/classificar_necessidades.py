@@ -21,6 +21,7 @@ import os
 from typing import Any, NotRequired, TypedDict
 
 from maria.ia._estruturado import criar_modelo, definir_tokens, erro_para_log, esquema_objeto, invocar_estruturado
+from maria.ia.ajuste_qwen import SUFIXO_NECESSIDADES, com_ajuste_qwen
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
 
@@ -175,7 +176,8 @@ async def classificar_necessidades(mensagem: str, opcoes: list[OpcaoParaNecessid
         return {"necessidades": [], "idsEmAmbiguidade": [], "viaIA": False}
     descricoes = "\n".join(f'- id "{o["id"]}" ({o["nome"]}): {o["descricao"]}' for o in opcoes)
     try:
-        resultado = await invocar_estruturado(modelo, esquema(ids), SISTEMA.format(descricoes=descricoes), mensagem)
+        sistema = com_ajuste_qwen(SISTEMA.format(descricoes=descricoes), SUFIXO_NECESSIDADES)
+        resultado = await invocar_estruturado(modelo, esquema(ids), sistema, mensagem)
         necessidades, em_duvida = _validar(resultado["parsed"], ids)
         saida: dict[str, Any] = {"necessidades": necessidades, "idsEmAmbiguidade": em_duvida, "viaIA": True}
         definir_tokens(saida, resultado["raw"])
