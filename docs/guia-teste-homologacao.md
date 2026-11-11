@@ -211,27 +211,34 @@ Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada
 - uma ordem diferente da padrão sem a pessoa pedir;
 - a "Situação" do plano com o assunto de outra pessoa.
 
-### Caso G. CPF no começo, próximo assunto e assuntos guardados: só no release (#450)
+### Caso G. Próximo assunto, assuntos guardados e urgência: só no release (#450)
 
-Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09). **Na produção, nada muda.** Pela Tykhe, o caso inteiro depende da configuração da #451. Use só relatos inventados e os CPFs de teste da lista da equipe.
+Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09 e 2026-11-10). **Na produção, nada muda.** Pela Tykhe, o caso inteiro depende da configuração da #451. Use só relatos inventados e os CPFs de teste da lista da equipe.
 
-1. **CPF no começo.** Depois da 1ª mensagem, a Maria pergunta: "Para eu te identificar e guardar os seus assuntos, qual é o seu CPF?". Achou no Verde, ela confirma o nome mascarado uma vez ("Confirma que seus dados são: …?"). Depois, nenhum fluxo pergunta o CPF de novo.
-   - CPF com formato errado, não achado ou "Não" na confirmação: a Maria pede de novo. Depois de 3 tentativas, a conversa segue **sem identificar a pessoa** e sem ir para o atendimento humano por isso.
-2. **Próximo assunto.** Com dois assuntos, leve o 1º até o fim e chame `POST /atendimentos/proximo-assunto` com `{ "chatId": "<chatId da conversa>" }`.
-   - **Esperado:** o 2º assunto abre com o `chatId` `<chatId>-assunto-2` e a frase "Agora vamos falar …", sem perguntar de novo o parentesco nem o CPF.
+**Mudou em 2026-11-10:** a Maria **não pergunta mais o CPF no começo**. A pessoa é reconhecida pelo `idUsuario`, o id dela na Tykhe, que a Tykhe manda na 1ª chamada. Os fluxos pedem o CPF quando precisam, como antes. Fora da Tykhe (pelo `/docs`), mande `"idUsuario": "teste-equipe-1"` no corpo da 1ª chamada.
+
+1. **Sem CPF no começo.** Com dois assuntos e o `idUsuario`, a 1ª resposta já é a ordem dos assuntos ("Entendi. Você falou de duas coisas…"). Os pendentes vêm com `urgencia`: `urgente` (saúde, plano de saúde, violência doméstica, pessoa presa, ou qualquer assunto com sinal de risco no relato) ou `menos_urgente` (caso novo, processo, horário marcado, aplicativo, outros).
+2. **Próximo assunto.** Leve o 1º assunto até o fim e chame `POST /atendimentos/proximo-assunto` com `{ "chatId": "<chatId da conversa>" }`.
+   - **Esperado:** o 2º assunto abre com o `chatId` `<chatId>-assunto-2` e a frase "Agora vamos falar …", sem perguntar de novo o parentesco nem o CPF que o 1º fluxo já pediu.
    - Chamar duas vezes devolve o mesmo assunto, sem abrir outro.
    - Um 2º assunto da Tykhe volta como `redirecionado`, uma vez só.
    - Sem pendentes, a rota responde 404.
-3. **Assunto guardado.** Pare depois do 1º assunto e abra uma **conversa nova** com o mesmo CPF de teste.
-   - **Esperado:** "Você tem um assunto guardado: … Quer falar dele agora ou do que você acabou de contar?", com as opções.
+3. **Fim do assunto.** Num 1º assunto que termina em `concluido` (por exemplo, a pessoa presa), a mensagem final ganha, no fim:
+   - com um pendente urgente: "Ainda falta um assunto urgente: … Vamos falar dele agora.";
+   - com um menos urgente: "Ficou para depois: …. Vou guardar esse assunto por até 30 dias para a gente continuar depois." (sem o `idUsuario`, só "Ficou para depois: …").
+4. **Assunto guardado.** Pare depois do 1º assunto e abra uma **conversa nova** com o mesmo `idUsuario`.
+   - **Esperado:** "Você tem um assunto guardado: … Quer falar dele agora ou do que você acabou de contar?" (ou "um assunto urgente guardado"), com as opções. Com os dois tipos guardados, a mensagem separa "Urgente:" e "Menos urgente:", e os urgentes vêm primeiro nas opções.
    - Escolher o guardado abre o assunto dele, e o relato novo fica guardado no lugar.
    - Escolher "O que acabei de contar" segue como no caso F.
+   - Com outro `idUsuario`, ou sem ele, a pergunta não aparece.
 
 **Anote como defeito:**
-- o CPF perguntado de novo dentro de um fluxo;
-- a pergunta dos assuntos guardados com um assunto que a pessoa não deixou pendente;
+- a Maria perguntando o CPF antes da ordem dos assuntos;
+- um assunto marcado com a urgência errada;
+- a pergunta dos assuntos guardados com um assunto que a pessoa não deixou pendente, ou de outro `idUsuario`;
 - dois atendimentos abertos para o mesmo assunto;
-- o CPF ou o nome aparecendo em qualquer lugar fora da conversa.
+- "Vou guardar … por até 30 dias" numa conversa sem `idUsuario`;
+- o CPF, o nome ou o `idUsuario` aparecendo em qualquer lugar fora da conversa.
 
 ### Casos de controle (rápidos)
 

@@ -34,7 +34,7 @@ Um fluxo em teste (`em_teste=True`, #324) só aparece no release (`MARIA_AMBIENT
   "metadados": { /* específico por fluxo — ver docs/fluxo-*.md */ },
   "dadosColetados": { "cpf": "..." },  // cross-fluxo, opcional (plano de saúde p/ outra pessoa: + solicitante e outraPessoa, #448)
   "tokensGastos": { "input": 0, "output": 0, "total": 0 },  // só quando concluido/handoff_humano
-  "assuntosPendentes": [{ "nome": "a pessoa presa", "urgente": false, "flowId": "uuid" }],  // só no release, só com outro assunto no relato (#435)
+  "assuntosPendentes": [{ "nome": "a pessoa presa", "urgente": false, "urgencia": "urgente", "flowId": "uuid" }],  // só no release, só com outro assunto no relato (#435, #450)
   "_links": {
     "self": { "href": "/atendimentos/<chatId>" },
     "responder": { "href": "/atendimentos/respostas", "method": "POST" }  // só quando em_andamento
@@ -54,7 +54,7 @@ Um fluxo em teste (`em_teste=True`, #324) só aparece no release (`MARIA_AMBIENT
   1. **Propõe a ordem e pergunta "Pode ser assim?"**, no mesmo formato da desambiguação: `status: "em_andamento"`, **sem `flowId`**, `_links.responder.href` = `/atendimentos/orquestrador`. A diferença é `tipoResposta: "sim_nao"` com `opcoes: ["Sim", "Não"]`, para montar os botões. A resposta da pessoa volta como `{ chatId, resposta }` na mesma rota; vale `"true"`/`"false"` ou o texto dela ("pode", "não", "o do meu filho"). A ordem padrão é saúde, violência doméstica, pessoa presa e depois o resto, com o urgente antes.
   2. **Com "Não" e três assuntos ou mais,** pergunta "Qual você quer resolver primeiro?" (`tipoResposta: "texto"`, também sem `flowId`). A resposta que a Maria não entende segue a ordem proposta, sem perguntar de novo.
   3. **Atende só o primeiro assunto**, como hoje: abre o fluxo da Maria (a 1ª pergunta vem com "Combinado. Vamos começar pela …" antes) ou redireciona com `tipoCaso`. O fluxo aberto recebe como relato só o trecho do relato sobre o assunto dele.
-  4. **Lista os outros em `assuntosPendentes`**, na resposta que abre o fluxo ou redireciona, e de novo na resposta final do fluxo (`concluido` ou `handoff_humano`). Cada item tem `nome` (o nome simples usado nas mensagens), `urgente` e `flowId` (assunto de um fluxo da Maria) **ou** `tipoCaso` (assunto da Tykhe). O trecho do relato não vai no campo.
+  4. **Lista os outros em `assuntosPendentes`**, na resposta que abre o fluxo ou redireciona, e de novo na resposta final do fluxo (`concluido` ou `handoff_humano`). Cada item tem `nome` (o nome simples usado nas mensagens), `urgente` (o sinal de risco do relato), `urgencia` (`urgente` ou `menos_urgente`, #450, veja abaixo) e `flowId` (assunto de um fluxo da Maria) **ou** `tipoCaso` (assunto da Tykhe). O trecho do relato não vai no campo.
 
   5. **Guarda o que a pessoa já disse (issue #442).**
      - Cada item de um fluxo da Maria pode trazer `dadosConhecidos`: o que o trecho daquele assunto já diz (por exemplo, `parentesco: "Tio(a)"` para "meu sobrinho foi preso") e, na resposta final do 1º assunto, o `cpf` informado nele.
@@ -65,23 +65,27 @@ Um fluxo em teste (`em_teste=True`, #324) só aparece no release (`MARIA_AMBIENT
   **É só acréscimo:** a Tykhe que ignora `assuntosPendentes` atende o primeiro assunto, como hoje, e o campo não aparece quando o relato tem um assunto só, nem na produção. **A combinar com a Tykhe:** mostrar os botões na pergunta da ordem e, no fim do primeiro assunto, seguir com o próximo da lista. Desde a #450, o próximo assunto é aberto pela rota abaixo.
 - **Multi-fluxo, fase 1b (issue #450, só no release).** Configuração e roteiro de teste da Tykhe: #451.
   1. **Próximo assunto: `POST /atendimentos/proximo-assunto` com `{ "chatId": "<chatId da conversa>" }`.**
-     - A Maria pega o próximo item de `assuntosPendentes`, **gera o `chatId` dele** (`<chatId>-assunto-2`, `-3`) e abre o fluxo com o que a pessoa já disse e o CPF já informado.
+     - A Maria pega o próximo item de `assuntosPendentes`, **gera o `chatId` dele** (`<chatId>-assunto-2`, `-3`) e abre o fluxo com o que a pessoa já disse e o CPF, se algum fluxo anterior da conversa já o pediu. Esse `chatId` é também o **id do assunto**.
      - A resposta é a de um atendimento, com a 1ª pergunta precedida de "Agora vamos falar …", mais o campo `chatId` do assunto, que a Tykhe usa daí em diante.
      - Um item da Tykhe volta como `redirecionado` com `tipoCaso` e o `chatId` do assunto, uma vez só.
      - **Idempotente:** chamar de novo devolve o assunto em andamento; um assunto encerrado é pulado; chamadas ao mesmo tempo para a mesma conversa esperam a vez.
      - Sem pendentes, `404 {"erro": "nenhum assunto pendente nesta conversa"}`. Na produção, `404 {"erro": "rota disponível só no ambiente de teste (release)"}`.
      - No fim de um assunto aberto assim, `assuntosPendentes` lista só os que vêm depois dele.
-  2. **CPF no começo, como identificador (confirmado com a Tykhe em 2026-11-09: ela não manda o CPF no começo).**
-     - Sem `dadosConhecidos.cpf`, a Maria pergunta o CPF logo depois da 1ª mensagem, antes da ordem dos assuntos e de abrir qualquer fluxo: "Para eu te identificar e guardar os seus assuntos, qual é o seu CPF?" (`tipoResposta: "texto"`).
-     - Achou no Verde, confirma o nome mascarado uma vez (`sim_nao`).
-     - CPF inválido, não achado ou recusado: pergunta de novo, até 3 tentativas no total; depois segue **sem identificar**, sem handoff.
-     - Com o CPF confirmado, os fluxos recebem o CPF e não perguntam de novo.
-     - As perguntas vêm no formato da desambiguação (sem `flowId`, `_links.responder` = `/atendimentos/orquestrador`).
+  2. **Identificação pelo `idUsuario` da Tykhe (decisão da Nicole em 2026-11-10; substitui o CPF no começo, que valeu de 09 a 10/11).**
+     - **A Tykhe manda `idUsuario`, o id da pessoa no sistema dela, na 1ª chamada do orquestrador:** `{ "chatId": "…", "mensagem": "…", "idUsuario": "…" }`. Pode ser texto ou número; até 200 caracteres. **Nunca o CPF nem o telefone.** Nas respostas seguintes não precisa mandar de novo (e mandar outro não troca o da conversa).
+     - **A Maria não pergunta mais o CPF no começo.** Os fluxos pedem o CPF quando precisam, como antes da #450; `dadosConhecidos.cpf` continua valendo e dispensa a pergunta.
+     - **Sem `idUsuario`,** a conversa segue normalmente, mas nada fica guardado para a pessoa voltar depois.
+     - Cada assunto guardado é identificado pelo `idUsuario` (a pessoa), pelo `chatId` da conversa em que foi contado e pelo `chatId` do assunto (`<chatId>-assunto-N`, o id do assunto).
   3. **Assuntos guardados.**
-     - Com a pessoa identificada (`idPessoa` do Verde), os outros assuntos do relato ficam guardados por **30 dias**, com uma prorrogação de mais 30 por assunto. Sem contato até o fim do prazo, o assunto é apagado. Nunca se guarda o texto do relato.
-     - Numa conversa nova da mesma pessoa, a Maria pergunta antes de seguir: "Você tem um assunto guardado: … Quer falar dele agora ou do que você acabou de contar?" (`tipoResposta: "opcoes"`, primeira opção "O que acabei de contar").
+     - Com o `idUsuario`, os outros assuntos do relato ficam guardados por **30 dias**, com uma prorrogação de mais 30 por assunto. Sem contato até o fim do prazo, o assunto é apagado. Nunca se guarda o texto do relato.
+     - Numa conversa nova com o mesmo `idUsuario`, a Maria pergunta antes de seguir: "Você tem um assunto guardado: … Quer falar dele agora ou do que você acabou de contar?" (`tipoResposta: "opcoes"`, primeira opção "O que acabei de contar"). As perguntas vêm no formato da desambiguação (sem `flowId`, `_links.responder` = `/atendimentos/orquestrador`).
      - Escolher um guardado abre esse assunto (ou o redireciona, se for da Tykhe).
-  4. **Falha da IA (#248), depois do teste da equipe:** confirmado em 2026-11-09 que a Tykhe mostra a `resposta` no `redirecionado`, então a mensagem própria da falha chega à pessoa sem ajuste.
+  4. **Urgência de cada assunto (decisão da Nicole em 2026-11-10).**
+     - Cada item de `assuntosPendentes` traz `urgencia`: `urgente` ou `menos_urgente`. O padrão vem de uma tabela por assunto: **urgentes** são saúde, plano de saúde, violência doméstica e pessoa presa; **menos urgentes** são caso novo, andamento de processo, horário marcado, ajuda com o aplicativo e outros. Sinal de risco no relato (o `urgente: true` de sempre) sobe qualquer assunto para urgente.
+     - **Na pergunta dos guardados,** a Maria diz se o assunto é urgente ("Você tem um assunto urgente guardado: …") e, com os dois tipos, separa os grupos ("Urgente:" e "Menos urgente:"). Os urgentes vêm primeiro nas opções.
+     - **No fim de um assunto concluído com outros pendentes,** a resposta final ganha, depois da mensagem do fluxo: "Ainda falta um assunto urgente: … Vamos falar dele agora." e/ou "Ficou para depois: …", com "Vou guardar esse assunto por até 30 dias para a gente continuar depois." quando a Tykhe mandou o `idUsuario`. No `handoff_humano`, nada muda: quem atende vê os pendentes.
+     - **Para a Tykhe:** com o 1º pendente `urgente`, chamar logo a rota do próximo assunto; com `menos_urgente`, não abrir sozinho (a pessoa pode voltar depois). A combinar com o Ícaro.
+  5. **Falha da IA (#248), depois do teste da equipe:** confirmado em 2026-11-09 que a Tykhe mostra a `resposta` no `redirecionado`, então a mensagem própria da falha chega à pessoa sem ajuste.
 - **`tipoResposta: "link_imagem"` (issue #398, só no fluxo Problemas com plano de saúde)**: a pergunta pede **uma imagem**; o campo `tipoImagem` diz qual (`carteirinha_frente`, depois `carteirinha_verso`; lista provisória até a #335). A Tykhe pede a foto à pessoa e responde em `resposta` com a **URL de baixar** a imagem: `https://downloads.tykhe.dev/arquivos/<idDoArquivo>?token=<tokenDoArquivo>` (só `https` e só esse host, sem usuário nem senha na URL). Resposta que não é uma URL assim repete a pergunta; na 3ª tentativa o atendimento encerra em `handoff_humano` com `motivoHandoff: imagens_pendentes`. `imagensRecebidas: true` em `dadosConhecidos` pula as perguntas. Na resposta `concluido`, `dadosColetados.imagens` traz `carteirinhaFrente` e `carteirinhaVerso` (as URLs), (a Maria já as usa para chamar a função de e-mail do NUDECON, #405; a Tykhe **não** precisa repassá-las). **Os links são segredo** (o token vai na URL): a Maria nunca os grava em log nem em `metadados`.
 - **Como montar o fim do fluxo e as imagens na Tykhe (issue #402, fluxo 71; desde a #430 a 1ª pergunta do plano de saúde é "o atendimento é para você?", `sim_nao`, sem a pergunta do canal)**:
   1. **Fim da conversa:** decidir por `status` (`concluido`, `handoff_humano`, `expirado`) e usar `destino` só para escolher o ramo (`email_enviado`: só mostrar a `mensagemFinal` e encerrar, sem chamar a Lambda). Fluxo concluído sem `destino` (por exemplo, a pessoa presa) também é fim: testar só "`destino` existe" o deixa esperando uma entrada que daria 409.
@@ -116,6 +120,7 @@ Mesma informação do `GET /docs`. "Obrigatório" vale para a Tykhe; a API respo
 | | `mensagem` | um dos dois | Relato livre, na 1ª chamada |
 | | `resposta` | um dos dois | Resposta à desambiguação; não pode ser vazia |
 | | `dadosConhecidos` | não | Objeto com o que a Tykhe já sabe (hoje só `cpf`); repassado ao fluxo identificado |
+| | `idUsuario` | não (só no release) | O id da pessoa na Tykhe, na 1ª chamada; a chave dos assuntos guardados (#450). Nunca o CPF nem o telefone |
 | `POST /atendimentos` | `flowId` | sim | Id do fluxo (`GET /fluxos`) |
 | | `chatId` | sim (dispensado só com `APP_ENV=test`) | |
 | | `dadosConhecidos` | não | Igual ao do orquestrador |

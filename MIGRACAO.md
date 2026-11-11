@@ -40,6 +40,33 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 
 Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a confirmação no cadastro) continuam aguardando decisão.
 
+**#248 (decisão da Nicole, 2026-11-09, [registro na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6748053659)):** quando a classificação falha por erro da IA, continua o padrão: 3 tentativas e o encaminhamento para a equipe (`redirecionado`, `tipoCaso: outros`). O encaminhamento passa a levar `motivo: "ia_indisponivel"` e, em `resposta`, a mensagem "Estou com uma instabilidade agora e não consegui entender sua mensagem. Vou te passar para a nossa equipe. Se preferir, tente de novo daqui a alguns minutos." Relato vago continua sem o campo. É do grupo 5 (muda o que a Tykhe recebe): entra depois do teste da equipe. A confirmar com a Tykhe se ela mostra a `resposta` no `redirecionado`.
+
+**#450 (decisão da Nicole, 2026-11-09, [registro na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6749628235)):** multi-fluxo fase 1b, só no release.
+- A Maria gera um `chatId` para cada assunto (`POST /atendimentos/proximo-assunto`).
+- Os pendentes ficam guardados por assistido, pelo `idPessoa` do Verde, por 30 dias, com aviso ao assistido. Se surgir algo que possa demorar, o prazo é prorrogado por mais 30 dias. Sem contato até o fim do prazo, o pendente é excluído.
+- Quando a pessoa volta, a Maria pergunta se ela quer o assunto novo ou o pendente.
+- Nunca se guarda o texto do relato.
+- **CPF desde o começo, em qualquer fluxo** ([decisão na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6749752479)): vem da Tykhe na 1ª chamada ou é perguntado logo depois da 1ª mensagem. O risco vem antes, e os fluxos não perguntam de novo.
+- **Uma prorrogação por assunto** ([decisão na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6749808513)): 30 dias, mais 30, no máximo 60; com mais de um assunto, cada um tem a sua.
+- **Revisto em 2026-11-10 (decisão da Nicole): identificação pelo `idUsuario`, ID do assunto e `chatId`, no lugar do CPF no começo.**
+  - A Tykhe manda o `idUsuario` (o id da pessoa na Tykhe) na 1ª chamada do orquestrador. Ele é a chave da pessoa nos assuntos guardados, no lugar do `idPessoa` do Verde. Sem ele, nada é guardado.
+  - Cada assunto guardado também tem o `chatId` da conversa e o próprio id, que é o `chatId` do assunto (`<chatId>-assunto-N`).
+  - A Maria deixa de perguntar o CPF logo depois da 1ª mensagem; os fluxos voltam a pedir o CPF quando precisam. A decisão de 09/11 sobre o CPF desde o começo deixa de valer.
+  - A tabela `assuntos_pendentes` do release migra sozinha: `id_pessoa` vira `id_usuario`, e as linhas de 09/11 ganham o prefixo `idPessoa:` (nada é apagado; elas vencem em 30 dias).
+- **Urgência por assunto (decisão da Nicole, 2026-11-10).**
+  - Cada pendente traz `urgencia` (`urgente` ou `menos_urgente`).
+  - Ela vem de uma tabela por assunto (saúde, plano de saúde, violência doméstica e pessoa presa são urgentes; o resto é menos urgente). O sinal de risco do relato sobe qualquer assunto para urgente.
+  - A mensagem ao assistido separa os dois grupos, na pergunta dos guardados e no fim de cada assunto concluído, e o urgente é oferecido logo.
+  - As frases novas vão para a revisão da equipe.
+- Em aberto: a rota de atendimento online do Verde.
+
+**#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
+- As frases vêm de blocos aprovados pela equipe.
+- A emoção, o humor e o risco são lidos na mesma chamada da classificação.
+- No fim, uma avaliação de 1 a 5.
+- Falta decidir o limite de perguntas, a prioridade no risco e o aprendizado.
+
 ## Padronização de fluxos (decidida em 2026-10-23)
 
 **Decisão da Nicole, registrada na #208.** O objetivo é que um fluxo novo entre sem quebrar a aplicação nem o contrato com a Tykhe, e que a IA entre aos poucos, um ponto por vez. **Nenhuma peça reorganiza pastas nem move código existente: todas acrescentam.**
