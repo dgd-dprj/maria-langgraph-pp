@@ -16,7 +16,7 @@ O Terraform atual (`infra/terraform/`) divide cluster, ALB, roles, security grou
 
 ## O que o root novo cria (etapa 1: rede e base)
 
-VPC (`10.30.0.0/16`, variável `vpc_cidr`; outro CIDR que o da Virgínia, `10.20.0.0/16`, para permitir peering entre as regiões durante a migração), 2 subnets públicas e 2 privadas em 2 AZs, IGW, NAT (variável `nat_count`, 0 ou 1; **padrão 0**: a rede foi aplicada sem NAT em 2026-11-11), route tables, grupo de subnets do banco, security groups (tasks, Proxy e RDS: 5432 só da tasks para o Proxy e só do Proxy para o RDS; nenhuma entrada aberta à internet) e o endpoint de VPC do `bedrock-runtime` (443 só das tasks). Não cria IAM (é global), RDS, Proxy, ECS nem ALB: vêm nas próximas etapas.
+VPC (`10.30.0.0/16`, variável `vpc_cidr`; outro CIDR que o da Virgínia, `10.20.0.0/16`, para permitir peering entre as regiões durante a migração), 2 subnets públicas e 2 privadas em 2 AZs, IGW, NAT (variável `nat_count`, 0 ou 1; **padrão 1**: a rede foi aplicada sem NAT em 2026-11-11 e o NAT foi criado depois, no mesmo dia), route tables, grupo de subnets do banco, security groups (tasks, Proxy e RDS: 5432 só da tasks para o Proxy e só do Proxy para o RDS; nenhuma entrada aberta à internet) e o endpoint de VPC do `bedrock-runtime` (443 só das tasks). Não cria IAM (é global), RDS, Proxy, ECS nem ALB: vêm nas próximas etapas.
 
 ## Como usar
 
@@ -32,7 +32,9 @@ terraform plan -lock=false     # só leitura; o resumo vai no PR
 
 ## NAT: ligado ou desligado
 
-A rede foi aplicada **sem NAT** (18 recursos). As tasks ainda não existem; quando entrarem, precisam de saída para o Verde, a Tykhe, a Meta e a Lambda de e-mail. Duas formas, a decidir na etapa da aplicação: (a) NAT (`nat_count = 1`, ~US$ 0,093/h em `sa-east-1`, IP de saída fixo) ou (b) tasks em subnet pública com IP público (sem NAT, ~US$ 0,005/h por IP; o IP de saída muda a cada deploy). Para ligar o NAT: `terraform plan -var nat_count=1` deve propor só 3 recursos (EIP, NAT e a rota); o `apply` do plan salvo exige o OK escrito do Ícaro.
+A rede foi aplicada **sem NAT** (18 recursos). As tasks precisam de saída para o Verde, a Tykhe, a Meta e a Lambda de e-mail. Decisão de 2026-11-11: **NAT ligado** (`nat_count = 1`, ~US$ 0,093/h mais US$ 0,093/GB em `sa-east-1`) e **tasks em subnet privada** (`tasks_in_public_subnets = false`, sem IP público). O NAT (`nat-02426cb2130abd20b`) foi criado com 3 recursos (EIP, NAT e a rota) e a task foi movida em seguida (1 mudança no service).
+
+**IP fixo de saída para o Verde: `18.228.145.80`.** É o IP que o time do Verde precisa liberar, se filtrar por IP. Sem NAT (tasks em subnet pública), o IP de saída muda a cada deploy. Como os padrões das variáveis agora acompanham o state, o `plan` sem `-var` deve dar `No changes`.
 
 ## Etapa 2: o RDS e o Proxy (`rds.tf` e `proxy.tf`)
 
@@ -75,9 +77,9 @@ RDS `db.t3.small` Postgres single-AZ: US$ 0,076/h (~US$ 55/mês); gp3: US$ 0,219
 
 Código e `plan` só (nada aplicado). Cria o ECR vazio, o cluster ECS `maria-langgraph-pp-sp`, as roles de execução e a task (a task role de Bedrock vem do `iam.tf`), a task definition do release, o service `api-release-sp`, o ALB `maria-langgraph-pp-sp-alb` com o target group e o listener, os security groups do ALB e da regra das tasks, e os dois segredos do release (`maria-langgraph-pp-release/app` e `maria-langgraph-pp-release/email-nudecon`, com valores `PREENCHER`: os reais entram por `put-secret-value` ou pelo console). **Não** mexe no CloudFront: o corte é uma etapa à parte.
 
-- `plan` em cima do state aplicado (rede, RDS e Proxy): **22 a criar, 0 a alterar, 0 a destruir**, sem NAT.
+- `plan` em cima do state aplicado (rede, RDS e Proxy): **22 a criar, 0 a alterar, 0 a destruir**, sem NAT (estado de então).
 - **O service começa com `app_desired_count = 0`**: o ECR novo está vazio, e as tasks só sobem depois do push da imagem (tag `release`) e do preenchimento dos segredos.
-- **Sem NAT:** `tasks_in_public_subnets = true` põe as tasks nas subnets públicas com IP público (o SG das tasks só aceita a porta da aplicação vinda do ALB). O IP de saída muda a cada deploy: se o Verde ou a Meta liberam só IPs conhecidos, usar `nat_count = 1` e `tasks_in_public_subnets = false`.
+- **NAT e subnet privada (aplicado em 2026-11-11):** `nat_count = 1` e `tasks_in_public_subnets = false` (padrões). As tasks saem pelo EIP `18.228.145.80`. Com `tasks_in_public_subnets = true` elas ficariam nas subnets públicas com IP público (sem NAT), e o IP de saída mudaria a cada deploy.
 - **ALB só do CloudFront:** `alb_only_from_cloudfront = true` limita a entrada do ALB à lista de prefixos gerenciada do CloudFront (na Virgínia o ALB aceita HTTP de qualquer lugar e roteia por header). Para testar direto pelo endereço do ALB antes do corte, aplicar com `-var alb_only_from_cloudfront=false` e voltar depois.
 - **Modelo de IA:** o padrão de `bedrock_model_id` (`qwen.qwen3-vl-235b-a22b`) acompanha o escopo da task role (modelos Qwen in-region). A task de São Paulo já sobe com `BEDROCK_MODEL_ID` = esse modelo e `AWS_REGION` = `sa-east-1`. Para o Qwen, os prompts de triagem recebem um sufixo (`src/maria/ia/ajuste_qwen.py`, #465; ver `docs/ia.md`). Trocar de modelo exige ajustar `bedrock_model_arns` e rodar a suíte de integração de IA.
 - **Dependências entre PRs:** esta etapa usa a task role (#460), o RDS e o Proxy (#461) e a rede (#459). Mergear nessa ordem.
