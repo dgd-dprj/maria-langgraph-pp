@@ -21,14 +21,20 @@ from maria.shared.atendimentos_db import obter_atendimentos_store
 ORQ = "/atendimentos/orquestrador"
 PROXIMO = "/atendimentos/proximo-assunto"
 RESPOSTAS = "/atendimentos/respostas"
-# #450: no release, o CPF da Tykhe (CPF de teste do Verde simulado) dispensa a pergunta do CPF antes da ordem.
+# O CPF da Tykhe (CPF de teste do Verde simulado) vai para o fluxo em `dadosConhecidos`, e o fluxo não o pergunta.
 CPF = "11111111111"
 DADOS_NO_RIO = {"endereco": {"cep": "20000000"}, "cpf": CPF}
 PLANO = {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": "o plano negou a cirurgia", "urgente": True}
 PP = {"id": ID_PESSOA_PRESA, "evidencia": "meu irmão está preso"}
 NOVO_PROCESSO = {"id": "tykhe:novo-processo", "evidencia": "quero entrar com um processo de pensão"}
-PENDENTE_PP = {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA, "dadosConhecidos": {"parentesco": "Irmão(a)"}}
-PENDENTE_NOVO = {"nome": "o caso novo", "urgente": False, "tipoCaso": "novo-processo"}
+PENDENTE_PP = {
+    "nome": "a pessoa presa",
+    "urgente": False,
+    "urgencia": "urgente",
+    "flowId": ID_PESSOA_PRESA,
+    "dadosConhecidos": {"parentesco": "Irmão(a)"},
+}
+PENDENTE_NOVO = {"nome": "o caso novo", "urgente": False, "urgencia": "menos_urgente", "tipoCaso": "novo-processo"}
 # No fim do 1º assunto, o CPF que o fluxo recebeu segue para o próximo assunto da Maria (#442).
 PENDENTE_PP_FIM = {**PENDENTE_PP, "dadosConhecidos": {"cpf": CPF, "parentesco": "Irmão(a)"}}
 

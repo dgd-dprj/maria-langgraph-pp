@@ -18,7 +18,6 @@ Pontos onde a tradução ingênua muda o comportamento (spec 06, seção 3):
 from __future__ import annotations
 
 import asyncio
-import re
 from collections.abc import Hashable
 from typing import Any, Literal, cast
 
@@ -32,7 +31,6 @@ from maria.ia.classificar_fluxos import classificar_fluxos_plausiveis
 from maria.ia.classificar_necessidades import classificar_necessidades
 from maria.ia.desambiguar import CandidatoParaDesambiguar, gerar_pergunta_desambiguacao
 from maria.ia.sumarizar import sumarizar_relato
-from maria.integracoes.verde import consultar_pessoa_por_cpf
 from maria.orquestrador import fila as _fila
 from maria.orquestrador.state import CandidatoOrquestrador, OrquestradorState
 from maria.shared import _js
@@ -40,8 +38,6 @@ from maria.shared.embeddings_fluxos import buscar_candidatos
 from maria.shared.pendentes_db import obter_pendentes_store
 from maria.shared.perguntas_db import OpcaoPergunta, PerguntaArvore, obter_perguntas_store
 from maria.shared.tokens_acumulados import TokensGastos
-from maria.subgrafos.identificar_assistido.graph import cpf_formato_valido, texto_confirma_assistido
-from maria.subgrafos.identificar_assistido.state import IdentificarAssistidoState
 
 # Quantos candidatos entram no prompt de classificação/retrieval na 1ª rodada.
 # Era 10 desde antes da issue #28 (CANDIDATOS_MAXIMOS em rotas/orquestrador.ts).
@@ -163,10 +159,11 @@ ROTAS_DA_CLASSIFICACAO: dict[Hashable, str] = {
 }
 
 
-def depois_de_classificar(state: OrquestradorState) -> Literal[RotaDaClassificacao, "pedirCpf", "consultarCpf"]:
-    """#450 (só no release): antes de seguir, a identificação pelo CPF, uma vez por conversa."""
-    if precisa_identificar(state):
-        return "consultarCpf" if _cpf_dos_dados_conhecidos(state) else "pedirCpf"
+def depois_de_classificar(state: OrquestradorState) -> Literal[RotaDaClassificacao, "buscarPendentes"]:
+    """#450 (só no release): com o `idUsuario` da Tykhe, antes de seguir, os assuntos guardados da pessoa, uma vez
+    por conversa."""
+    if precisa_buscar_pendentes(state):
+        return "buscarPendentes"
     return rota_da_classificacao(state)
 
 
@@ -335,139 +332,33 @@ def depois_de_comecar(state: OrquestradorState) -> Literal["um", "nenhum"]:
     return "um" if state.get("candidatosRestantes") else "nenhum"
 
 
-# ── #450 (multi-fluxo, só no release): o CPF no começo e os assuntos guardados ──
-# A Maria pergunta o CPF logo depois da 1ª mensagem, antes de abrir qualquer fluxo e antes da pergunta da ordem.
-# O relato já mandado continua valendo: a classificação já rodou com ele e não roda de novo por causa do CPF.
-# Cada consulta ao Verde fica num nó sem interrupt (`consultarCpf`), para não se repetir na retomada.
-TEXTO_CPF = "Para eu te identificar e guardar os seus assuntos, qual é o seu CPF?"
-TEXTO_CPF_INVALIDO = "Não entendi esse CPF. Envie os 11 números do seu CPF."
-TEXTO_CPF_NAO_ENCONTRADO = "Não encontrei esse CPF. Confira e envie os 11 números do seu CPF."
-TEXTO_CPF_RECUSADO = "Tudo bem. Envie de novo o seu CPF, só os 11 números."
-TEXTOS_CPF: dict[str | None, str] = {
-    None: TEXTO_CPF,
-    "invalido": TEXTO_CPF_INVALIDO,
-    "nao_encontrado": TEXTO_CPF_NAO_ENCONTRADO,
-    "recusado": TEXTO_CPF_RECUSADO,
-}
-# Tentativas no total (CPF inválido, não achado no Verde ou "não" na confirmação). Depois delas, a conversa segue
-# sem identificar a pessoa, e nada de atendimento humano por causa disso.
-LIMITE_TENTATIVAS_CPF = 3
-
-_NAO_DIGITO = re.compile(r"[^0-9]")
+# ── #450 (multi-fluxo, só no release): os assuntos guardados da pessoa ──
+# Decisão da Nicole (2026-11-10): a pessoa é identificada pelo `idUsuario` que a Tykhe manda na 1ª chamada, e não
+# mais pelo CPF pedido logo depois da 1ª mensagem. Sem `idUsuario`, nada é buscado nem guardado, e a conversa segue
+# como antes. O CPF volta a ser pedido pelos fluxos que precisam dele.
 
 
-def _so_digitos(texto: str) -> str:
-    return _NAO_DIGITO.sub("", texto)
-
-
-def _cpf_dos_dados_conhecidos(state: OrquestradorState) -> str | None:
-    """O CPF que a Tykhe mandou na 1ª chamada, só com os números. Pode chegar como número (#296)."""
-    conhecidos = state.get("dadosConhecidos")
-    cpf = conhecidos.get("cpf") if isinstance(conhecidos, dict) else None
-    if isinstance(cpf, int) and not isinstance(cpf, bool):
-        cpf = str(cpf).zfill(11)
-    if not isinstance(cpf, str):
-        return None
-    return _so_digitos(cpf) or None
-
-
-def precisa_identificar(state: OrquestradorState) -> bool:
-    # #299 (futuro): com sinal de risco no relato, o aviso de segurança sai primeiro, e o CPF nunca trava esse
-    # caminho. A detecção de risco ainda não existe; quando existir, ela entra aqui, antes do CPF.
-    if not fluxo_em_teste_liga() or state.get("identificacaoFeita"):
+def precisa_buscar_pendentes(state: OrquestradorState) -> bool:
+    # #299 (futuro): com sinal de risco no relato, o aviso de segurança sai primeiro. A detecção de risco ainda não
+    # existe; quando existir, ela entra aqui, antes da pergunta dos guardados.
+    if not fluxo_em_teste_liga() or state.get("pendentesBuscados") or not state.get("idUsuario"):
         return False
-    # Quem só quer sair da conversa não recebe a pergunta do CPF.
+    # Quem só quer sair da conversa não recebe a pergunta dos guardados.
     so_sair = not state.get("fila") and [c["id"] for c in state.get("candidatosRestantes") or []] == [_fila.ID_SAIR]
     return not so_sair
 
 
-def _mais_uma_tentativa(state: OrquestradorState, erro: str) -> dict[str, Any]:
-    tentativas = (state.get("tentativasCpf") or 0) + 1
-    return {
-        "cpfDigitado": None,
-        "idPessoaEncontrado": None,
-        "textoConfirmaCpf": None,
-        "erroCpf": erro,
-        "tentativasCpf": tentativas,
-        "identificacaoFeita": tentativas >= LIMITE_TENTATIVAS_CPF,
-    }
-
-
-async def pedir_cpf(state: OrquestradorState) -> dict[str, Any]:
-    """Com ou sem pontuação: vale qualquer resposta com 11 números."""
-    texto = TEXTOS_CPF.get(state.get("erroCpf"), TEXTO_CPF)
-    resposta = cast(str, interrupt({"pergunta": texto, "tipo": "texto", "etapa": "cpf"}))
-    # A rodada desta pausa não gastou tokens: os do `classificar` já saíram com a pergunta do CPF.
-    digitos = _so_digitos(_js.texto_template(resposta))
-    if cpf_formato_valido(digitos):
-        return {"cpfDigitado": digitos, "erroCpf": None, "tokensGastosRodada": None}
-    return {**_mais_uma_tentativa(state, "invalido"), "tokensGastosRodada": None}
-
-
-def depois_de_pedir_cpf(state: OrquestradorState) -> Literal["consultarCpf", "pedirCpf", "buscarPendentes"]:
-    if state.get("identificacaoFeita"):
-        return "buscarPendentes"
-    return "consultarCpf" if state.get("cpfDigitado") else "pedirCpf"
-
-
-async def consultar_cpf(state: OrquestradorState) -> dict[str, Any]:
-    """A consulta ao Verde (`GET /pessoa?cpf=`), a mesma do subgrafo `identificar_assistido`.
-
-    Com o CPF da Tykhe, não há confirmação (#236): achou, a pessoa está identificada; não achou, segue sem
-    identificar. Com o CPF digitado, achou: pergunta "Confirma que seus dados são: <nome mascarado>?" (#393).
-    Verde fora do ar: segue sem identificar."""
-    digitado = state.get("cpfDigitado")
-    cpf = digitado or _cpf_dos_dados_conhecidos(state) or ""
-    dados: Any = await consultar_pessoa_por_cpf(cpf) if cpf_formato_valido(cpf) else {"encontrado": False}
-    id_pessoa = _js.opt(dados, "idPessoa")
-    if _js.verdadeiro(_js.opt(dados, "encontrado")) and isinstance(id_pessoa, int) and not isinstance(id_pessoa, bool):
-        if not digitado:
-            return {"idPessoa": id_pessoa, "identificacaoFeita": True}
-        texto = texto_confirma_assistido(cast(IdentificarAssistidoState, {"dadosPessoa": dados}))
-        return {"idPessoaEncontrado": id_pessoa, "textoConfirmaCpf": texto}
-    if not digitado or _js.verdadeiro(_js.opt(dados, "falhaInfra")) or _js.verdadeiro(_js.opt(dados, "encontrado")):
-        return {"identificacaoFeita": True}
-    return _mais_uma_tentativa(state, "nao_encontrado")
-
-
-def depois_de_consultar_cpf(state: OrquestradorState) -> Literal["confirmarCpf", "pedirCpf", "buscarPendentes"]:
-    if state.get("identificacaoFeita"):
-        return "buscarPendentes"
-    return "confirmarCpf" if state.get("idPessoaEncontrado") is not None else "pedirCpf"
-
-
-async def confirmar_cpf(state: OrquestradorState) -> dict[str, Any]:
-    """Uma vez só, no começo: os fluxos abertos depois recebem o CPF em `dadosConhecidos` e não confirmam de novo."""
-    texto = _js.coalesce(state.get("textoConfirmaCpf"), TEXTO_CPF)
-    resposta = cast(str, interrupt({"pergunta": texto, "tipo": "sim_nao", "opcoes": ["Sim", "Não"], "etapa": "confirmaCpf"}))
-    if _fila.aceitou(resposta):
-        conhecidos = dict(state.get("dadosConhecidos") or {})
-        conhecidos["cpf"] = state.get("cpfDigitado")
-        return {
-            "idPessoa": state.get("idPessoaEncontrado"),
-            "dadosConhecidos": conhecidos,
-            "identificacaoFeita": True,
-            "erroCpf": None,
-            "tokensGastosRodada": None,
-        }
-    return {**_mais_uma_tentativa(state, "recusado"), "tokensGastosRodada": None}
-
-
-def depois_de_confirmar_cpf(state: OrquestradorState) -> Literal["pedirCpf", "buscarPendentes"]:
-    return "buscarPendentes" if state.get("identificacaoFeita") else "pedirCpf"
-
-
 async def buscar_pendentes(state: OrquestradorState, config: RunnableConfig) -> dict[str, Any]:
-    """Os assuntos guardados de OUTRAS conversas desta pessoa. A consulta apaga os vencidos (sem contato por 30
-    dias, ou 60 com a prorrogação). Sem idPessoa (pessoa não identificada), nada."""
-    id_pessoa = state.get("idPessoa")
-    if id_pessoa is None:
-        return {"pendentesGuardados": None}
+    """Os assuntos guardados de OUTRAS conversas desta pessoa (pelo `idUsuario`), os urgentes primeiro. A consulta
+    apaga os vencidos (sem contato por 30 dias, ou 60 com a prorrogação)."""
+    id_usuario = state.get("idUsuario")
+    if not id_usuario:
+        return {"pendentesGuardados": None, "pendentesBuscados": True}
     chat_id = str(config.get("configurable", {}).get("thread_id", "")).removeprefix("orquestrador:")
     store = await obter_pendentes_store()
     guardados: list[_fila.AssuntoGuardado] = []
     nomes: set[str] = set()
-    for p in await store.listar_ativos(str(id_pessoa)):
+    for p in await store.listar_ativos(id_usuario):
         if p["chatIdOrigem"] == chat_id or p["nome"] in nomes:
             continue  # o mesmo assunto guardado duas vezes aparece uma vez só (o mais antigo)
         nomes.add(p["nome"])
@@ -476,13 +367,14 @@ async def buscar_pendentes(state: OrquestradorState, config: RunnableConfig) -> 
             "posicao": p["posicao"],
             "nome": p["nome"],
             "urgente": p["urgente"],
+            "urgencia": p["urgencia"],
         }
         if "flowId" in p:
             guardado["flowId"] = p["flowId"]
         if "tipoCaso" in p:
             guardado["tipoCaso"] = p["tipoCaso"]
         guardados.append(guardado)
-    return {"pendentesGuardados": guardados or None}
+    return {"pendentesGuardados": _fila.em_ordem_de_urgencia(guardados) or None, "pendentesBuscados": True}
 
 
 def depois_de_buscar_pendentes(state: OrquestradorState) -> Literal[RotaDaClassificacao, "perguntar"]:
@@ -538,27 +430,15 @@ _construtor.add_node("pedirDesambiguacao", pedir_desambiguacao)
 _construtor.add_node("perguntarOrdem", perguntar_ordem)
 _construtor.add_node("perguntarPrimeiro", perguntar_primeiro)
 _construtor.add_node("comecarFila", comecar_fila)
-_construtor.add_node("pedirCpf", pedir_cpf)
-_construtor.add_node("consultarCpf", consultar_cpf)
-_construtor.add_node("confirmarCpf", confirmar_cpf)
 _construtor.add_node("buscarPendentes", buscar_pendentes)
 _construtor.add_node("perguntarPendentes", perguntar_pendentes)
 _construtor.add_edge(START, "classificar")
 _construtor.add_conditional_edges(
     "classificar",
     depois_de_classificar,
-    {**ROTAS_DA_CLASSIFICACAO, "pedirCpf": "pedirCpf", "consultarCpf": "consultarCpf"},
+    {**ROTAS_DA_CLASSIFICACAO, "buscarPendentes": "buscarPendentes"},
 )
-# #450: a identificação pelo CPF e a pergunta dos assuntos guardados (só alcançadas no release).
-_construtor.add_conditional_edges(
-    "pedirCpf", depois_de_pedir_cpf, {"consultarCpf": "consultarCpf", "pedirCpf": "pedirCpf", "buscarPendentes": "buscarPendentes"}
-)
-_construtor.add_conditional_edges(
-    "consultarCpf",
-    depois_de_consultar_cpf,
-    {"confirmarCpf": "confirmarCpf", "pedirCpf": "pedirCpf", "buscarPendentes": "buscarPendentes"},
-)
-_construtor.add_conditional_edges("confirmarCpf", depois_de_confirmar_cpf, {"pedirCpf": "pedirCpf", "buscarPendentes": "buscarPendentes"})
+# #450: a pergunta dos assuntos guardados (só alcançada no release, com o idUsuario da Tykhe).
 _construtor.add_conditional_edges(
     "buscarPendentes", depois_de_buscar_pendentes, {**ROTAS_DA_CLASSIFICACAO, "perguntar": "perguntarPendentes"}
 )
@@ -592,19 +472,30 @@ async def assuntos_pendentes_do_chat(chat_id: str) -> list[_fila.AssuntoPendente
     return pendentes[posicao - 1 :] or None
 
 
-async def assunto_guardado_do_chat(chat_id: str) -> tuple[str, int] | None:
-    """#450: a linha de `assuntos_pendentes` que este atendimento atende, como (`chatId` de origem, posição).
+async def assunto_guardado_do_chat(chat_id: str) -> str | None:
+    """#450: o id (o `chatId` do assunto) da linha de `assuntos_pendentes` que este atendimento atende.
 
-    Um assunto aberto pela rota do próximo assunto (`<chatId>-assunto-N`) é a posição N da conversa de origem. Um
-    assunto guardado que a pessoa escolheu numa conversa nova está no estado do orquestrador dessa conversa. Só no
-    release: na produção, nem lê o checkpoint."""
+    Um assunto aberto pela rota do próximo assunto (`<chatId>-assunto-N`) é ele mesmo. Um assunto guardado que a
+    pessoa escolheu numa conversa nova está no estado do orquestrador dessa conversa. Só no release: na produção,
+    nem lê o checkpoint."""
     if not fluxo_em_teste_liga():
         return None
-    origem, posicao = _fila.origem_do_chat(chat_id)
+    _, posicao = _fila.origem_do_chat(chat_id)
     if posicao >= 2:
-        return origem, posicao
+        return chat_id
     estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{chat_id}"}})
     escolhido = (estado.values or {}).get("pendenteEscolhido")
     if isinstance(escolhido, dict) and "flowId" in escolhido:
-        return str(escolhido["chatIdOrigem"]), int(escolhido["posicao"])
+        return _fila.chat_id_do_assunto(str(escolhido["chatIdOrigem"]), int(escolhido["posicao"]))
     return None
+
+
+async def usuario_do_chat(chat_id: str) -> str | None:
+    """#450: o `idUsuario` que a Tykhe mandou na conversa deste atendimento. Com ele, os pendentes ficam guardados
+    e o fim do assunto avisa os 30 dias. Só no release."""
+    if not fluxo_em_teste_liga():
+        return None
+    origem, _ = _fila.origem_do_chat(chat_id)
+    estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{origem}"}})
+    id_usuario = (estado.values or {}).get("idUsuario")
+    return id_usuario if isinstance(id_usuario, str) and id_usuario else None

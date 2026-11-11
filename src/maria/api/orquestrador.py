@@ -45,14 +45,27 @@ MENSAGEM_NAO_IDENTIFICADO = (
 )
 
 # As perguntas do multi-fluxo (só no release) saem com a etapa no log. A desambiguação de sempre não tem etapa, e o
-# log dela não muda. Nunca o conteúdo: a pergunta da confirmação tem o nome mascarado da pessoa.
+# log dela não muda. Nunca o conteúdo da pergunta.
 MENSAGENS_DE_LOG_POR_ETAPA: dict[str, str] = {
     "ordem": "orquestrador: pergunta da ordem dos assuntos enviada",
     "primeiro": "orquestrador: pergunta da ordem dos assuntos enviada",
-    "cpf": "orquestrador: pergunta de identificação enviada",
-    "confirmaCpf": "orquestrador: pergunta de identificação enviada",
     "pendentes": "orquestrador: pergunta dos assuntos guardados enviada",
 }
+
+# #450: um id da Tykhe maior que isto não é um id; é ignorado, como se não tivesse vindo.
+TAMANHO_MAXIMO_ID_USUARIO = 200
+
+
+def id_usuario_do_corpo(corpo: dict[str, Any]) -> str | None:
+    """#450 (decisão da Nicole, 2026-11-10): o `idUsuario` da Tykhe, como texto. Aceita número (o id pode vir como
+    número no JSON). Vazio, de outro tipo ou grande demais: None, e a conversa segue sem guardar os pendentes."""
+    valor = corpo.get("idUsuario")
+    if isinstance(valor, int) and not isinstance(valor, bool):
+        valor = str(valor)
+    if not isinstance(valor, str):
+        return None
+    valor = valor.strip()
+    return valor if 0 < len(valor) <= TAMANHO_MAXIMO_ID_USUARIO else None
 
 
 def _resposta_redirecionada(chat_id: str, tipo: TipoTykhe, tokens_gastos: Any) -> dict[str, Any]:
@@ -117,6 +130,10 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
         if isinstance(conhecidos, dict) and conhecidos:
             # #442: guardados para o fluxo aberto depois da desambiguação ou da pergunta da ordem.
             entrada["dadosConhecidos"] = conhecidos
+        id_usuario = id_usuario_do_corpo(corpo)
+        if id_usuario is not None and fluxo_em_teste_liga():
+            # #450: a chave dos assuntos guardados. Só no release, e nunca no log.
+            entrada["idUsuario"] = id_usuario
         resultado = await grafo.ainvoke(entrada, config)
 
     tokens_rodada = resultado.get("tokensGastosRodada")
@@ -160,7 +177,7 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     pendentes = resultado.get("assuntosPendentes") or []
     no_log_pendentes = {"assuntosPendentes": len(pendentes)} if pendentes else {}
     if fluxo_em_teste_liga():
-        # #450: os outros assuntos ficam guardados pelo idPessoa, para quando a pessoa voltar.
+        # #450: os outros assuntos ficam guardados pelo idUsuario, para quando a pessoa voltar.
         await _guardar_pendentes(resultado, chat_id, pendentes)
         escolhido = resultado.get("pendenteEscolhido")
         if isinstance(escolhido, dict):
@@ -249,13 +266,13 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
 
 
 async def _guardar_pendentes(resultado: dict[str, Any], chat_id: str, pendentes: list[AssuntoPendente]) -> None:
-    """#450: com a pessoa identificada (idPessoa), os outros assuntos da conversa ficam guardados por 30 dias. Sem
-    idPessoa, nada é guardado (decisão registrada na #450). Idempotente: chamar de novo não duplica."""
-    id_pessoa = resultado.get("idPessoa")
-    if not pendentes or id_pessoa is None:
+    """#450: com o `idUsuario` da Tykhe, os outros assuntos da conversa ficam guardados por 30 dias. Sem ele, nada é
+    guardado. Idempotente: chamar de novo não duplica."""
+    id_usuario = resultado.get("idUsuario")
+    if not pendentes or not isinstance(id_usuario, str) or not id_usuario:
         return
     store = await obter_pendentes_store()
-    await store.guardar(str(id_pessoa), chat_id, pendentes)
+    await store.guardar(id_usuario, chat_id, pendentes)
 
 
 async def _atender_assunto_guardado(
@@ -264,15 +281,15 @@ async def _atender_assunto_guardado(
     """#450: na conversa nova, a pessoa escolheu um assunto guardado de outra conversa. Ele é atendido agora, com o
     `chatId` desta conversa; o que ela acabou de contar fica pendente (`assuntosPendentes`).
 
-    Assunto da Maria: abre o fluxo, com o CPF já confirmado em `dadosConhecidos`, e a linha fica `em_andamento`.
+    Assunto da Maria: abre o fluxo, com os `dadosConhecidos` da Tykhe, e a linha fica `em_andamento`.
     Assunto da Tykhe: volta como `redirecionado`, e a linha fica `resolvida`."""
     pendentes_store = await obter_pendentes_store()
     tokens_conversa = resultado.get("tokensGastosConversa")
     no_log_pendentes = {"assuntosPendentes": len(pendentes)} if pendentes else {}
-    origem, posicao = escolhido["chatIdOrigem"], escolhido["posicao"]
+    id_assunto = chat_id_do_assunto(escolhido["chatIdOrigem"], escolhido["posicao"])
     tipo_caso = escolhido.get("tipoCaso")
     if tipo_caso is not None:
-        await pendentes_store.marcar(origem, posicao, "resolvido")
+        await pendentes_store.marcar(id_assunto, "resolvido")
         ctx.log.info(
             "orquestrador: assunto guardado é da Tykhe, redirecionado",
             chatId=chat_id,
@@ -318,7 +335,7 @@ async def _atender_assunto_guardado(
         texto = resposta_fluxo.corpo.get("resposta")
         if novo_agora:
             situacao: Situacao = "em_andamento" if resposta_fluxo.corpo.get("status") == "em_andamento" else "resolvido"
-            await pendentes_store.marcar(origem, posicao, situacao)
+            await pendentes_store.marcar(id_assunto, situacao)
             if isinstance(texto, str):
                 resposta_fluxo.corpo["resposta"] = f"{texto_proximo_assunto(escolhido)}\n\n{texto}"
         _com_pendentes(resposta_fluxo.corpo, pendentes)
@@ -397,7 +414,7 @@ async def _abrir_proximo_assunto(ctx: Contexto, origem: str) -> Resposta:
             if posicao in encaminhados:
                 continue
             await grafo.aupdate_state(config, {"assuntosEncaminhados": sorted(encaminhados | {posicao})})
-            await (await obter_pendentes_store()).marcar(origem, posicao, "resolvido")
+            await (await obter_pendentes_store()).marcar(novo, "resolvido")
             ctx.log.info(
                 "orquestrador: próximo assunto é da Tykhe, redirecionado",
                 chatId=novo,
@@ -432,9 +449,9 @@ async def _abrir_proximo_assunto(ctx: Contexto, origem: str) -> Resposta:
         if isinstance(resposta_fluxo.corpo, dict) and resposta_fluxo.status == 200:
             texto = resposta_fluxo.corpo.get("resposta")
             if novo_agora:
-                # #450: a linha guardada (se a pessoa foi identificada) acompanha o assunto.
+                # #450: a linha guardada (se a Tykhe mandou o idUsuario) acompanha o assunto, pelo id dele.
                 situacao: Situacao = "em_andamento" if resposta_fluxo.corpo.get("status") == "em_andamento" else "resolvido"
-                await (await obter_pendentes_store()).marcar(origem, posicao, situacao)
+                await (await obter_pendentes_store()).marcar(novo, situacao)
             if novo_agora and isinstance(texto, str):
                 resposta_fluxo.corpo["resposta"] = f"{texto_proximo_assunto(item)}\n\n{texto}"
             resposta_fluxo.corpo["chatId"] = novo

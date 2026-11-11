@@ -329,7 +329,7 @@ async def _dados_entregues_ao_fluxo(
 async def test_fluxo_com_usa_relato_recebe_o_relato_no_canal_proprio_334(
     cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    # #450: no release, o CPF da Tykhe (CPF de teste do Verde simulado) dispensa a pergunta do CPF antes do fluxo.
+    # O CPF da Tykhe (CPF de teste do Verde simulado) vai para o fluxo em `dadosConhecidos`, e o fluxo não o pergunta.
     dados = await _dados_entregues_ao_fluxo(
         cliente, auth, monkeypatch, ID_PROBLEMAS_PLANO_SAUDE, {"dadosConhecidos": {"cpf": "11111111111"}}
     )

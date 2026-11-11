@@ -23,7 +23,7 @@ from maria.shared.atendimentos_db import obter_atendimentos_store
 ORQ = "/atendimentos/orquestrador"
 PROXIMO = "/atendimentos/proximo-assunto"
 RESPOSTAS = "/atendimentos/respostas"
-# CPF de teste do Verde simulado (a pessoa de teste); vindo da Tykhe, sem a pergunta do CPF.
+# O CPF da Tykhe (CPF de teste do Verde simulado) vai para o fluxo em `dadosConhecidos`, e o fluxo não o pergunta.
 DADOS = {"endereco": {"cep": "20000000"}, "cpf": "11111111111"}
 NECESSIDADES = [
     {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": "o plano negou a cirurgia", "urgente": True},

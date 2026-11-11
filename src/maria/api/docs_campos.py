@@ -98,6 +98,10 @@ CORPOS: dict[tuple[str, str], CamposCorpo] = {
             "mensagem": "Relato livre da pessoa. Use na 1ª chamada da conversa.",
             "resposta": ("Resposta à pergunta de desambiguação. Use nas chamadas seguintes, na mesma rota. Não pode ser vazia (400)."),
             "dadosConhecidos": _DADOS_CONHECIDOS,
+            "idUsuario": (
+                "Opcional, só no ambiente de teste (release). O id da pessoa na Tykhe, na 1ª chamada: a chave dos "
+                "assuntos guardados para quando ela voltar. Sem ele, nada fica guardado. Nunca o CPF nem o telefone."
+            ),
         },
         exemplo={
             "chatId": "conversa-0001",
