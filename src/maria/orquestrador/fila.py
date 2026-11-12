@@ -11,13 +11,16 @@ from __future__ import annotations
 
 import re
 from collections.abc import Mapping
-from typing import Any, NotRequired, TypedDict
+from typing import Any, Literal, NotRequired, TypedDict
 
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA
 from maria.fluxos.tipos_tykhe import tipo_tykhe_por_id
 from maria.ia.classificar_necessidades import FORA_DA_LISTA, Necessidade
 from maria.shared.parentesco import atendimento_para_si, fala_como_vitima, quem_esta_preso
+from maria.shared.pendentes_db import SUFIXO_ASSUNTO, chat_id_do_assunto
 from maria.shared.respostas import normalizar_resposta, resposta_eh_nao, resposta_eh_sim
+
+__all__ = ["SUFIXO_ASSUNTO", "chat_id_do_assunto"]
 
 ID_OUTROS = "tykhe:outros"
 ID_SAIR = "tykhe:sair"
@@ -42,6 +45,31 @@ NOME_SIMPLES: dict[str, str] = {
 # que a Maria conduz em seguida e o que é da Tykhe por último.
 PRIORIDADE: dict[str, int] = {ID_SAUDE: 0, ID_PROBLEMAS_PLANO_SAUDE: 0, ID_VIOLENCIA_DOMESTICA: 1, ID_PESSOA_PRESA: 2}
 CONDUZIDOS_PELA_MARIA = frozenset({ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, ID_PROBLEMAS_PLANO_SAUDE})
+
+# #450 (decisão da Nicole, 2026-11-10): o parâmetro de urgência de cada assunto, que vai para a Tykhe em
+# `assuntosPendentes[].urgencia` e muda as mensagens ao assistido. A tabela dá o padrão de cada assunto; o sinal de
+# risco do relato (o `urgente` da classificação) sobe qualquer assunto para urgente. Assunto fora da tabela é
+# menos urgente. Os urgentes são os mesmos que a ordem padrão põe na frente (`PRIORIDADE`).
+Urgencia = Literal["urgente", "menos_urgente"]
+URGENCIAS: tuple[Urgencia, ...] = ("urgente", "menos_urgente")
+URGENCIA_DO_ASSUNTO: dict[str, Urgencia] = {
+    ID_SAUDE: "urgente",
+    ID_PROBLEMAS_PLANO_SAUDE: "urgente",
+    ID_VIOLENCIA_DOMESTICA: "urgente",
+    ID_PESSOA_PRESA: "urgente",
+    "tykhe:novo-processo": "menos_urgente",
+    "tykhe:andamento-processo": "menos_urgente",
+    "tykhe:agendamentos": "menos_urgente",
+    "tykhe:ajuda-app": "menos_urgente",
+    ID_OUTROS: "menos_urgente",
+}
+
+
+def urgencia_do_assunto(id_assunto: str, sinal_de_risco: bool) -> Urgencia:
+    if sinal_de_risco:
+        return "urgente"
+    return URGENCIA_DO_ASSUNTO.get(id_assunto, "menos_urgente")
+
 
 # Palavras que ajudam a achar o assunto quando a pessoa responde com o nome dele ("a do meu filho",
 # "o plano", "a da cadeia"). Além delas, vale qualquer palavra do trecho do relato.
@@ -93,11 +121,45 @@ class AssuntoPendente(TypedDict):
     """O que a Tykhe recebe em `assuntosPendentes`: o bastante para seguir com o próximo assunto."""
 
     nome: str
+    # O sinal de risco do relato, marcado pela classificação.
     urgente: bool
+    # #450: o parâmetro de urgência (tabela por assunto, com o sinal de risco por cima).
+    urgencia: Urgencia
     flowId: NotRequired[str]
     tipoCaso: NotRequired[str]
     # #442: o que a Maria já sabe para este assunto; a Tykhe repassa ao abrir o fluxo dele.
     dadosConhecidos: NotRequired[dict[str, Any]]
+
+
+class AssuntoGuardado(TypedDict):
+    """#450: um assunto pendente de outra conversa da mesma pessoa, como fica no estado do orquestrador.
+    Só o que a pergunta e a abertura precisam: sem datas, sem relato e sem dado pessoal. O id do assunto é o
+    `chatId` dele, `chat_id_do_assunto(chatIdOrigem, posicao)`."""
+
+    chatIdOrigem: str
+    posicao: int
+    nome: str
+    urgente: bool
+    # Sem o campo nos guardados antes de 2026-11-10: vale a tabela (`urgencia_de`).
+    urgencia: NotRequired[Urgencia]
+    flowId: NotRequired[str]
+    tipoCaso: NotRequired[str]
+
+
+def _id_do_item(item: Mapping[str, Any]) -> str:
+    if isinstance(item.get("flowId"), str):
+        return str(item["flowId"])
+    return f"tykhe:{item.get('tipoCaso') or 'outros'}"
+
+
+def urgencia_de(item: Mapping[str, Any]) -> Urgencia:
+    """A urgência de um pendente ou guardado. Os que vieram antes do campo usam a tabela e o sinal de risco."""
+    urgencia = item.get("urgencia")
+    if urgencia == "urgente":
+        return "urgente"
+    if urgencia == "menos_urgente":
+        return "menos_urgente"
+    return urgencia_do_assunto(_id_do_item(item), item.get("urgente") is True)
 
 
 def montar_fila(necessidades: list[Necessidade]) -> list[ItemFila]:
@@ -162,6 +224,112 @@ def texto_comecando(item: ItemFila) -> str:
     return f"Combinado. Vamos começar {_com_artigo('por', item['nome'])}."
 
 
+def texto_proximo_assunto(item: Mapping[str, object]) -> str:
+    """#450: a frase que abre o próximo assunto (ou um assunto guardado), antes da 1ª pergunta do fluxo dele."""
+    return f"Agora vamos falar {_com_artigo('de', str(item['nome']))}."
+
+
+def texto_fim_do_assunto(pendentes: list[AssuntoPendente], guardados: bool) -> str:
+    """#450: no fim de um assunto, o que ainda falta, separado por urgência. O urgente é oferecido logo, e a Tykhe
+    abre o próximo pela rota do próximo assunto; o menos urgente fica para depois. "Guardar por 30 dias" só aparece
+    quando a Maria guardou mesmo (a Tykhe mandou o `idUsuario`)."""
+    urgentes = [p["nome"] for p in pendentes if urgencia_de(p) == "urgente"]
+    outros = [p["nome"] for p in pendentes if urgencia_de(p) == "menos_urgente"]
+    partes: list[str] = []
+    if len(urgentes) == 1:
+        partes.append(f"Ainda falta um assunto urgente: {urgentes[0]}. Vamos falar dele agora.")
+    elif urgentes:
+        partes.append(f"Ainda faltam assuntos urgentes: {_nomes_juntos(urgentes)}. Vamos falar deles agora.")
+    if outros:
+        texto = f"{'Também ficou' if urgentes else 'Ficou'} para depois: {_nomes_juntos(outros)}."
+        if guardados:
+            quais = "esse assunto" if len(outros) == 1 else "esses assuntos"
+            texto += f" Vou guardar {quais} por até 30 dias para a gente continuar depois."
+        partes.append(texto)
+    return "\n\n".join(partes)
+
+
+def origem_do_chat(chat_id: str) -> tuple[str, int]:
+    """O `chatId` da conversa e a posição do assunto: (`x`, 1) para `x`; (`x`, 2) para `x-assunto-2`."""
+    m = re.fullmatch(rf"(.+){re.escape(SUFIXO_ASSUNTO)}(\d+)", chat_id)
+    if m and int(m.group(2)) >= 2:
+        return m.group(1), int(m.group(2))
+    return chat_id, 1
+
+
+# #450: a pergunta dos assuntos guardados, quando a pessoa volta numa conversa nova.
+TEXTO_OPCAO_NOVO = "O que acabei de contar"
+# Palavras de quem escolhe o que acabou de contar ("o que eu contei agora", "o de hoje").
+PALAVRAS_DO_NOVO = frozenset({"acabei", "contei", "contar", "contando", "hoje"})
+# Palavras de quem escolhe o assunto guardado, quando há um só ("dele", "o guardado").
+PALAVRAS_DO_GUARDADO = frozenset({"dele", "dela", "guardado", "guardada", "pendente", "antigo", "outro", "anterior"})
+
+
+def _maiuscula(nome: str) -> str:
+    return nome[:1].upper() + nome[1:]
+
+
+def _nomes_juntos(nomes: list[str]) -> str:
+    """ "a", "a e b", "a, b e c"."""
+    return nomes[0] if len(nomes) == 1 else f"{', '.join(nomes[:-1])} e {nomes[-1]}"
+
+
+def em_ordem_de_urgencia(guardados: list[AssuntoGuardado]) -> list[AssuntoGuardado]:
+    """Os urgentes primeiro, cada grupo na ordem em que foi guardado. A pergunta e as opções usam esta ordem."""
+    return sorted(guardados, key=lambda g: URGENCIAS.index(urgencia_de(g)))
+
+
+def texto_pendentes(guardados: list[AssuntoGuardado]) -> str:
+    """#450: com os dois tipos guardados, a mensagem separa o urgente do menos urgente."""
+    urgentes = [g["nome"] for g in guardados if urgencia_de(g) == "urgente"]
+    outros = [g["nome"] for g in guardados if urgencia_de(g) == "menos_urgente"]
+    if len(guardados) == 1:
+        qual = "um assunto urgente guardado" if urgentes else "um assunto guardado"
+        return f"Você tem {qual}: {guardados[0]['nome']}. Quer falar dele agora ou do que você acabou de contar?"
+    pergunta = "Quer falar de um deles agora ou do que você acabou de contar?"
+    if urgentes and outros:
+        return f"Você tem assuntos guardados.\n\nUrgente:\n{_lista(urgentes)}\n\nMenos urgente:\n{_lista(outros)}\n\n{pergunta}"
+    qual = "assuntos urgentes guardados" if urgentes else "assuntos guardados"
+    return f"Você tem {qual}: {_nomes_juntos(urgentes or outros)}. {pergunta}"
+
+
+def opcoes_pendentes(guardados: list[AssuntoGuardado]) -> list[str]:
+    return [TEXTO_OPCAO_NOVO, *(_maiuscula(g["nome"]) for g in guardados)]
+
+
+def _id_do_guardado(guardado: AssuntoGuardado) -> str:
+    return _id_do_item(guardado)
+
+
+def pendente_escolhido(resposta: str, guardados: list[AssuntoGuardado]) -> int | None:
+    """A posição do assunto guardado que a pessoa escolheu, ou None para o que ela acabou de contar.
+
+    Vale o texto da opção, o número dela (1 é o que acabou de contar; 2, 3… são os guardados) e uma resposta livre
+    com o nome do assunto. Resposta que a Maria não entende segue com o que a pessoa acabou de contar."""
+    numero = re.fullmatch(r"\s*(\d+)\s*", resposta)
+    if numero:
+        posicao = int(numero.group(1)) - 2
+        return posicao if 0 <= posicao < len(guardados) else None
+    limpa = _limpa(resposta)
+    if limpa == _limpa(TEXTO_OPCAO_NOVO):
+        return None
+    for indice, guardado in enumerate(guardados):
+        nome = _limpa(guardado["nome"])
+        sem_artigo = nome.split(" ", 1)[1] if nome[:2] in ("a ", "o ") else nome
+        if limpa in (nome, sem_artigo):
+            return indice
+    palavras = set(limpa.split())
+    if palavras & PALAVRAS_DO_NOVO:
+        return None
+    itens: list[ItemFila] = [{"id": _id_do_guardado(g), "nome": g["nome"], "urgente": g["urgente"], "evidencia": ""} for g in guardados]
+    escolhido = assunto_escolhido(resposta, itens)
+    if escolhido is not None:
+        return escolhido
+    if len(guardados) == 1 and palavras & PALAVRAS_DO_GUARDADO:
+        return 0
+    return None
+
+
 def _palavras(texto: str) -> set[str]:
     return {p for p in re.findall(r"[a-z0-9]+", normalizar_resposta(texto)) if len(p) > 3 and p not in PALAVRAS_VAZIAS}
 
@@ -221,7 +389,11 @@ def dados_do_relato(flow_id: str, relato: str, ja_conhecidos: Mapping[str, Any])
 
 
 def pendente(item: ItemFila) -> AssuntoPendente:
-    saida: AssuntoPendente = {"nome": item["nome"], "urgente": item["urgente"]}
+    saida: AssuntoPendente = {
+        "nome": item["nome"],
+        "urgente": item["urgente"],
+        "urgencia": urgencia_do_assunto(item["id"], item["urgente"]),
+    }
     tipo = tipo_tykhe_por_id(item["id"])
     if tipo is not None:
         saida["tipoCaso"] = tipo.tipo_caso

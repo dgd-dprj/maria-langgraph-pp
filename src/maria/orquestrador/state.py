@@ -9,7 +9,7 @@ from __future__ import annotations
 
 from typing import Any, Literal, TypedDict
 
-from maria.orquestrador.fila import AssuntoPendente, ItemFila
+from maria.orquestrador.fila import AssuntoGuardado, AssuntoPendente, ItemFila
 from maria.shared.tokens_acumulados import CanalTokensGastos
 
 
@@ -61,3 +61,15 @@ class OrquestradorState(TypedDict, total=False):
     # `{ chatId, resposta }`, e sem isto o fluxo aberto depois começava sem os dados da pessoa. Dado
     # pessoal: fica no checkpoint, como nos fluxos, e nunca vai para log.
     dadosConhecidos: dict[str, Any] | None
+    # #450: posições (2, 3…) dos assuntos pendentes da Tykhe (`tipoCaso`) já devolvidos pela rota do
+    # próximo assunto. Os da Maria não precisam: o atendimento registrado com o `chatId` do assunto já diz.
+    assuntosEncaminhados: list[int] | None
+    # #450 (decisão da Nicole, 2026-11-10, só no release): o id da pessoa na Tykhe, mandado na 1ª chamada. É a chave
+    # dos assuntos guardados (`shared/pendentes_db.py`) e substitui a identificação pelo CPF no começo. Fica no
+    # checkpoint e nunca vai para log.
+    idUsuario: str | None
+    # A busca dos assuntos guardados já rodou nesta conversa (uma vez só, mesmo com a desambiguação depois).
+    pendentesBuscados: bool | None
+    # Os assuntos guardados de outras conversas desta pessoa, e o que ela escolheu atender agora.
+    pendentesGuardados: list[AssuntoGuardado] | None
+    pendenteEscolhido: AssuntoGuardado | None

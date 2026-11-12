@@ -19,12 +19,14 @@ from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
-from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
-from maria.orquestrador.fila import com_dados_do_fim
-from maria.orquestrador.graph import assuntos_pendentes_do_chat
+from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
+from maria.fluxos.pessoa_presa.graph import campos_de_log_do_fim
+from maria.orquestrador.fila import com_dados_do_fim, texto_fim_do_assunto
+from maria.orquestrador.graph import assunto_guardado_do_chat, assuntos_pendentes_do_chat, usuario_do_chat
 from maria.shared import _js
 from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
+from maria.shared.pendentes_db import obter_pendentes_store
 from maria.shared.respostas import normalizar_resposta, resposta_eh_nao, resposta_eh_sim
 
 # Formas naturais de responder à confirmação de TTL além de sim/não (#227), já
@@ -90,10 +92,12 @@ def extrair_interrupt(resultado: Mapping[str, Any]) -> Any:
     return pendentes[0].value if pendentes else None
 
 
-def _dados_coletados(valores: Mapping[str, Any], concluido: bool = False) -> dict[str, Any]:
-    # Decisão 2026-09-09: só cpf, e só quando é texto.
+def _dados_coletados(valores: Mapping[str, Any], concluido: bool = False, fluxo: FluxoConfig | None = None) -> dict[str, Any]:
+    # Decisão 2026-09-09: o cpf, e só quando é texto. O fluxo pode acrescentar os dele (#448).
     cpf = valores.get("cpf")
     dados: dict[str, Any] = {"cpf": cpf} if isinstance(cpf, str) else {}
+    if fluxo is not None and fluxo.extrair_dados_coletados is not None:
+        dados.update(fluxo.extrair_dados_coletados(valores))
     # #398: os links das imagens (segredo) só na conclusão, para a Tykhe repassá-los à Lambda de e-mail.
     links = valores.get("imagensLinks")
     if concluido and isinstance(links, dict) and links:
@@ -107,7 +111,7 @@ def montar_resposta_atendimento(
     """Mesmo corpo para criar, consultar e responder (`atendimentos.ts:194-242`)."""
     metadados = fluxo.extrair_metadados(valores)
     if interrupt is not None:
-        dados_coletados = _dados_coletados(valores)
+        dados_coletados = _dados_coletados(valores, fluxo=fluxo)
         return {
             "resposta": _js.opt(interrupt, "pergunta"),
             "tipoResposta": _js.opt(interrupt, "tipo"),
@@ -120,7 +124,7 @@ def montar_resposta_atendimento(
             "_links": montar_links(chat_id, "em_andamento"),
         }
     status = _js.coalesce(valores.get("statusFinal"), "concluido")
-    dados_coletados = _dados_coletados(valores, concluido=status == "concluido")
+    dados_coletados = _dados_coletados(valores, concluido=status == "concluido", fluxo=fluxo)
     padrao = fluxo.mensagem_concluido if status == "concluido" else fluxo.mensagem_handoff
     corpo: dict[str, Any] = {
         "resposta": _js.coalesce(valores.get("mensagemFinal"), padrao),
@@ -211,6 +215,9 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         return
     status_final = resultado.get("statusFinal")
     destino = destino_do_log(fluxo_id, status_final, resultado)
+    # `status="concluido"` é o de develop (o atendimento terminou) e fica, porque os painéis contam por ele. #457: o
+    # `statusFinal` diz como terminou (`concluido` ou `handoff_humano`), e a pessoa presa ganha o porquê do
+    # atendimento humano, sem dado pessoal.
     log.info(
         "atendimento finalizado",
         fluxoId=fluxo_id,
@@ -220,6 +227,8 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         destino=destino,
         motivoHandoff=resultado.get("motivoHandoff"),
         tokensGastos=resultado.get("tokensGastos"),
+        statusFinal=status_final,
+        **(campos_de_log_do_fim(resultado) if fluxo_id == ID_PESSOA_PRESA else {}),
     )
     if _js.verdadeiro(status_final):
         conclusao: dict[str, Any] = {"statusFinal": status_final}
@@ -323,6 +332,16 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
             if pendentes:
                 # #442: o CPF informado neste assunto segue para os próximos, para não ser pedido de novo.
                 corpo_resposta["assuntosPendentes"] = com_dados_do_fim(pendentes, corpo_resposta.get("dadosColetados"))
+                final = corpo_resposta.get("resposta")
+                if corpo_resposta.get("status") == "concluido" and isinstance(final, str):
+                    # #450 (2026-11-10): o que ainda falta, separado por urgência. Só no fim concluído: no
+                    # atendimento humano, quem atende vê os pendentes.
+                    guardados = await usuario_do_chat(chat_id) is not None
+                    corpo_resposta["resposta"] = f"{final}\n\n{texto_fim_do_assunto(pendentes, guardados)}"
+            # #450 (só no release): o assunto guardado que este atendimento atendia fica resolvido.
+            guardado = await assunto_guardado_do_chat(chat_id)
+            if guardado is not None:
+                await (await obter_pendentes_store()).marcar(guardado, "resolvido")
         return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)

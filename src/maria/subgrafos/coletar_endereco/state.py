@@ -35,6 +35,8 @@ class ColetarEnderecoState(TypedDict, total=False):
     municipio: str | None
     uf: str | None
     endereco: EnderecoCadastro
+    # #446: o pai (plano de saúde) marca que o endereço é de outra pessoa; só muda o texto das perguntas.
+    enderecoDeOutraPessoa: bool | None
     perguntaAtualTexto: str | None
     perguntaAtualViaIA: bool
     perguntaAtualTokensTotal: int | None

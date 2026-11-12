@@ -41,7 +41,10 @@ ASSUNTOS_PENDENTES: Schema = {
         "type": "object",
         "properties": {
             "nome": {"type": "string"},
+            # O sinal de risco do relato, marcado pela classificação.
             "urgente": {"type": "boolean"},
+            # #450 (2026-11-10): o parâmetro de urgência (tabela por assunto, com o sinal de risco por cima).
+            "urgencia": {"type": "string", "enum": ["urgente", "menos_urgente"]},
             "flowId": {"type": "string"},
             "tipoCaso": {"type": "string"},
             # #442: o que a Maria já sabe para este assunto; a Tykhe repassa em `dadosConhecidos` ao abrir o fluxo.
@@ -66,6 +69,30 @@ RESPOSTA_ATENDIMENTO: Schema = {
             "type": "object",
             "properties": {
                 "cpf": {"type": "string"},
+                # #448: plano de saúde para outra pessoa. Dado pessoal: só na resposta, nunca em log nem em `metadados`.
+                "solicitante": {"type": "object", "properties": {"nome": {"type": "string"}, "cpf": {"type": "string"}}},
+                "outraPessoa": {
+                    "type": "object",
+                    "properties": {
+                        **{
+                            campo: {"type": "string"}
+                            for campo in (
+                                "cpf",
+                                "nome",
+                                "dataNascimento",
+                                "endereco",
+                                "telefone",
+                                "whatsapp",
+                                "email",
+                                "estadoCivil",
+                                "profissao",
+                                "rg",
+                                "parentesco",
+                            )
+                        },
+                        "origem": {"type": "string", "enum": ["verde", "informado"]},
+                    },
+                },
                 # #398: links de baixar as imagens, só em `concluido` (plano de saúde). Segredo: nunca em log.
                 "imagens": {
                     "type": "object",
@@ -76,6 +103,19 @@ RESPOSTA_ATENDIMENTO: Schema = {
         "tokensGastos": TOKENS_GASTOS,
         "assuntosPendentes": ASSUNTOS_PENDENTES,
         "_links": LINKS,
+    },
+}
+
+# #450 (multi-fluxo, fase 1b, só no release): POST /atendimentos/proximo-assunto. O corpo é o de um
+# atendimento (assunto da Maria) ou o do redirecionado (assunto da Tykhe), mais o `chatId` gerado pela Maria.
+CORPO_PROXIMO_ASSUNTO: Schema = {"type": "object", "properties": {"chatId": {"type": "string", "description": "O chatId da conversa"}}}
+RESPOSTA_PROXIMO_ASSUNTO: Schema = {
+    "type": "object",
+    "properties": {
+        **RESPOSTA_ATENDIMENTO["properties"],
+        "status": {"type": "string", "enum": ["em_andamento", "concluido", "handoff_humano", "expirado", "redirecionado"]},
+        "tipoCaso": {"type": "string"},
+        "chatId": {"type": "string", "description": "O chatId deste assunto, gerado pela Maria: use-o nas próximas chamadas"},
     },
 }
 
@@ -135,5 +175,7 @@ CORPO_ORQUESTRADOR: Schema = {
         "mensagem": {"type": "string"},
         "resposta": {"type": "string"},
         "dadosConhecidos": {"type": "object", "additionalProperties": True},
+        # #450 (só no release): o id da pessoa na Tykhe, a chave dos assuntos guardados. Opcional.
+        "idUsuario": {"type": "string"},
     },
 }

@@ -11,6 +11,7 @@ import os
 from typing import Any, NotRequired, TypedDict, cast
 
 from maria.ia._estruturado import criar_modelo, definir_tokens, erro_para_log, esquema_objeto, invocar_estruturado
+from maria.ia.ajuste_qwen import SUFIXO_DESAMBIGUAR, com_ajuste_qwen
 from maria.shared import _js
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
@@ -60,7 +61,8 @@ Opções possíveis:
 Gere 1 pergunta curta, natural, em português, que ajude a pessoa a escolher entre essas opções — foque na diferença prática entre elas, sem citar nomes técnicos/internos."""  # noqa: E501
         # A Converse API exige que a conversa comece com "user" (achado ao
         # vivo em 2026-09-11): o relato vai como mensagem do usuário.
-        resultado = await invocar_estruturado(modelo, ESQUEMA_PERGUNTA, sistema, relato)
+        # 2026-11-12: com o Qwen, a pergunta cita as opções em dúvida (o Haiku já fazia sem a regra).
+        resultado = await invocar_estruturado(modelo, ESQUEMA_PERGUNTA, com_ajuste_qwen(sistema, SUFIXO_DESAMBIGUAR), relato)
         saida: dict[str, Any] = {}
         _js.definir(saida, "pergunta", _js.prop(resultado["parsed"], "pergunta"))
         saida["viaIA"] = True

@@ -15,7 +15,8 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
      não → pula pro passo 4
 4. "Qual o RG da pessoa presa?"                (texto)
      ponto, traço e espaços saem antes de conferir (#343): "12.345.678-9" vale como "123456789"
-     formato inválido (sobra algo que não é número) → pergunta de novo (ainda sem limite, #343)
+     formato inválido (sobra algo que não é número), 1ª e 2ª vez → "Não consegui ler esse RG (tentativa N de 3). Escreva só os números…" (#394)
+     formato inválido, 3ª vez       → HANDOFF: rg_formato_invalido (#394), sem consultar o Verde
      formato válido → consulta Verde (/apenado) só com os dígitos
         não encontrado, < 3 tentativas → "Quer tentar de novo?" (sim/não/RG direto)
         não encontrado, 3ª tentativa    → HANDOFF: rg_nao_encontrado
@@ -64,6 +65,7 @@ A conclusão (`concluir`, em `src/maria/fluxos/pessoa_presa/graph.py`) checa, ne
 
 Outros motivos de handoff, fora dessa função:
 - `rg_nao_encontrado` — esgotou as 3 tentativas de consulta ao Verde (RG do preso).
+- `rg_formato_invalido` (#394, decisão de 2026-11-12) — o RG foi recusado pelo formato 3 vezes (letra, barra ou texto que não é RG). O Verde não é consultado, e o texto recusado não fica nos metadados. Cada recusa gera o evento de log `rg_recusado_formato`, com `recusa`, `digitos` e `temLetra`, sem o que a pessoa digitou.
 - `nome_nao_confirmado` — achou a pessoa mas a pessoa que está perguntando disse que não é ela.
 - `falha_cadastro` (issue #183, só no caminho `viaOrquestrador`) — CPF do assistido esgotou as 3 tentativas **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`) também falhou. Roda DEPOIS da conclusão normal do RG/processo/parentesco — não confundir com os motivos acima, que são sobre o PRESO.
 - `assistido_nao_confirmado` (issue #189, só no caminho `viaOrquestrador`) — achou o assistido por CPF **ou** cadastrou com sucesso, mas ele negou que os dados são dele. Diferente de `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar) e de `nome_nao_confirmado` (que é sobre o PRESO, via RG).

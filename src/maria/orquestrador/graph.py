@@ -18,8 +18,10 @@ Pontos onde a tradução ingênua muda o comportamento (spec 06, seção 3):
 from __future__ import annotations
 
 import asyncio
+from collections.abc import Hashable
 from typing import Any, Literal, cast
 
+from langchain_core.runnables import RunnableConfig
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
@@ -33,6 +35,7 @@ from maria.orquestrador import fila as _fila
 from maria.orquestrador.state import CandidatoOrquestrador, OrquestradorState
 from maria.shared import _js
 from maria.shared.embeddings_fluxos import buscar_candidatos
+from maria.shared.pendentes_db import obter_pendentes_store
 from maria.shared.perguntas_db import OpcaoPergunta, PerguntaArvore, obter_perguntas_store
 from maria.shared.tokens_acumulados import TokensGastos
 
@@ -147,7 +150,24 @@ async def _classificar_por_necessidades(
     return {"candidatosRestantes": resolver_escolha_direta(candidatos), "fila": None, **tokens}
 
 
-def depois_de_classificar(state: OrquestradorState) -> Literal["nenhum", "um", "muitos", "fila"]:
+RotaDaClassificacao = Literal["nenhum", "um", "muitos", "fila"]
+ROTAS_DA_CLASSIFICACAO: dict[Hashable, str] = {
+    "nenhum": "naoIdentificado",
+    "um": "identificado",
+    "muitos": "prepararPerguntaDesambiguacao",
+    "fila": "perguntarOrdem",
+}
+
+
+def depois_de_classificar(state: OrquestradorState) -> Literal[RotaDaClassificacao, "buscarPendentes"]:
+    """#450 (só no release): com o `idUsuario` da Tykhe, antes de seguir, os assuntos guardados da pessoa, uma vez
+    por conversa."""
+    if precisa_buscar_pendentes(state):
+        return "buscarPendentes"
+    return rota_da_classificacao(state)
+
+
+def rota_da_classificacao(state: OrquestradorState) -> RotaDaClassificacao:
     """Esgotar o limite de rodadas com mais de 1 candidato vira "nenhum"."""
     if len(state.get("fila") or []) >= 2:
         return "fila"
@@ -312,6 +332,95 @@ def depois_de_comecar(state: OrquestradorState) -> Literal["um", "nenhum"]:
     return "um" if state.get("candidatosRestantes") else "nenhum"
 
 
+# ── #450 (multi-fluxo, só no release): os assuntos guardados da pessoa ──
+# Decisão da Nicole (2026-11-10): a pessoa é identificada pelo `idUsuario` que a Tykhe manda na 1ª chamada, e não
+# mais pelo CPF pedido logo depois da 1ª mensagem. Sem `idUsuario`, nada é buscado nem guardado, e a conversa segue
+# como antes. O CPF volta a ser pedido pelos fluxos que precisam dele.
+
+
+def precisa_buscar_pendentes(state: OrquestradorState) -> bool:
+    # #299 (futuro): com sinal de risco no relato, o aviso de segurança sai primeiro. A detecção de risco ainda não
+    # existe; quando existir, ela entra aqui, antes da pergunta dos guardados.
+    if not fluxo_em_teste_liga() or state.get("pendentesBuscados") or not state.get("idUsuario"):
+        return False
+    # Quem só quer sair da conversa não recebe a pergunta dos guardados.
+    so_sair = not state.get("fila") and [c["id"] for c in state.get("candidatosRestantes") or []] == [_fila.ID_SAIR]
+    return not so_sair
+
+
+async def buscar_pendentes(state: OrquestradorState, config: RunnableConfig) -> dict[str, Any]:
+    """Os assuntos guardados de OUTRAS conversas desta pessoa (pelo `idUsuario`), os urgentes primeiro. A consulta
+    apaga os vencidos (sem contato por 30 dias, ou 60 com a prorrogação)."""
+    id_usuario = state.get("idUsuario")
+    if not id_usuario:
+        return {"pendentesGuardados": None, "pendentesBuscados": True}
+    chat_id = str(config.get("configurable", {}).get("thread_id", "")).removeprefix("orquestrador:")
+    store = await obter_pendentes_store()
+    guardados: list[_fila.AssuntoGuardado] = []
+    nomes: set[str] = set()
+    for p in await store.listar_ativos(id_usuario):
+        if p["chatIdOrigem"] == chat_id or p["nome"] in nomes:
+            continue  # o mesmo assunto guardado duas vezes aparece uma vez só (o mais antigo)
+        nomes.add(p["nome"])
+        guardado: _fila.AssuntoGuardado = {
+            "chatIdOrigem": p["chatIdOrigem"],
+            "posicao": p["posicao"],
+            "nome": p["nome"],
+            "urgente": p["urgente"],
+            "urgencia": p["urgencia"],
+        }
+        if "flowId" in p:
+            guardado["flowId"] = p["flowId"]
+        if "tipoCaso" in p:
+            guardado["tipoCaso"] = p["tipoCaso"]
+        guardados.append(guardado)
+    return {"pendentesGuardados": _fila.em_ordem_de_urgencia(guardados) or None, "pendentesBuscados": True}
+
+
+def depois_de_buscar_pendentes(state: OrquestradorState) -> Literal[RotaDaClassificacao, "perguntar"]:
+    return "perguntar" if state.get("pendentesGuardados") else rota_da_classificacao(state)
+
+
+def assuntos_do_relato(state: OrquestradorState) -> list[_fila.AssuntoPendente]:
+    """Quando a pessoa escolhe um assunto guardado, o que ela acabou de contar vira pendente desta conversa.
+    Relato que a Maria não entendeu (nenhuma opção, ou dúvida entre opções) não vira pendente: não há o que guardar."""
+    fila = state.get("fila") or []
+    if len(fila) >= 2:
+        return [_fila.pendente(i) for i in fila]
+    candidatos = state.get("candidatosRestantes") or []
+    if len(candidatos) != 1:
+        return []
+    id_ = candidatos[0]["id"]
+    relato = _js.texto_template(state.get("mensagem", "")).strip()
+    item: _fila.ItemFila = {"id": id_, "nome": _fila.NOME_SIMPLES.get(id_, "o outro assunto"), "urgente": False, "evidencia": relato}
+    return [_fila.pendente(item)]
+
+
+async def perguntar_pendentes(state: OrquestradorState) -> dict[str, Any]:
+    """ "Quer falar dele agora ou do que você acabou de contar?" Sem entender a resposta, segue com o que a pessoa
+    acabou de contar."""
+    guardados = cast(list[_fila.AssuntoGuardado], state.get("pendentesGuardados") or [])
+    resposta = cast(
+        str,
+        interrupt(
+            {
+                "pergunta": _fila.texto_pendentes(guardados),
+                "tipo": "opcoes",
+                "opcoes": _fila.opcoes_pendentes(guardados),
+                "etapa": "pendentes",
+            }
+        ),
+    )
+    indice = _fila.pendente_escolhido(_js.texto_template(resposta), guardados)
+    if indice is None:
+        return {"pendenteEscolhido": None, "tokensGastosRodada": None}
+    return {"pendenteEscolhido": guardados[indice], "assuntosPendentes": assuntos_do_relato(state), "tokensGastosRodada": None}
+
+
+def depois_dos_pendentes(state: OrquestradorState) -> Literal[RotaDaClassificacao, "escolhido"]:
+    return "escolhido" if state.get("pendenteEscolhido") else rota_da_classificacao(state)
+
+
 _construtor = StateGraph(OrquestradorState)
 _construtor.add_node("classificar", classificar)
 _construtor.add_node("identificado", identificado)
@@ -321,12 +430,19 @@ _construtor.add_node("pedirDesambiguacao", pedir_desambiguacao)
 _construtor.add_node("perguntarOrdem", perguntar_ordem)
 _construtor.add_node("perguntarPrimeiro", perguntar_primeiro)
 _construtor.add_node("comecarFila", comecar_fila)
+_construtor.add_node("buscarPendentes", buscar_pendentes)
+_construtor.add_node("perguntarPendentes", perguntar_pendentes)
 _construtor.add_edge(START, "classificar")
 _construtor.add_conditional_edges(
     "classificar",
     depois_de_classificar,
-    {"nenhum": "naoIdentificado", "um": "identificado", "muitos": "prepararPerguntaDesambiguacao", "fila": "perguntarOrdem"},
+    {**ROTAS_DA_CLASSIFICACAO, "buscarPendentes": "buscarPendentes"},
 )
+# #450: a pergunta dos assuntos guardados (só alcançada no release, com o idUsuario da Tykhe).
+_construtor.add_conditional_edges(
+    "buscarPendentes", depois_de_buscar_pendentes, {**ROTAS_DA_CLASSIFICACAO, "perguntar": "perguntarPendentes"}
+)
+_construtor.add_conditional_edges("perguntarPendentes", depois_dos_pendentes, {**ROTAS_DA_CLASSIFICACAO, "escolhido": END})
 _construtor.add_edge("prepararPerguntaDesambiguacao", "pedirDesambiguacao")
 _construtor.add_edge("pedirDesambiguacao", "classificar")
 _construtor.add_conditional_edges("perguntarOrdem", depois_da_ordem, {"escolher": "perguntarPrimeiro", "comecar": "comecarFila"})
@@ -348,6 +464,38 @@ async def assuntos_pendentes_do_chat(chat_id: str) -> list[_fila.AssuntoPendente
     do fluxo. Só no release: na produção, nem lê o checkpoint."""
     if not fluxo_em_teste_liga():
         return None
+    # #450: num assunto aberto pela rota do próximo assunto (`<chatId>-assunto-N`), os pendentes são os da
+    # conversa de origem que vêm depois dele.
+    origem, posicao = _fila.origem_do_chat(chat_id)
+    estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{origem}"}})
+    pendentes = (estado.values or {}).get("assuntosPendentes") or []
+    return pendentes[posicao - 1 :] or None
+
+
+async def assunto_guardado_do_chat(chat_id: str) -> str | None:
+    """#450: o id (o `chatId` do assunto) da linha de `assuntos_pendentes` que este atendimento atende.
+
+    Um assunto aberto pela rota do próximo assunto (`<chatId>-assunto-N`) é ele mesmo. Um assunto guardado que a
+    pessoa escolheu numa conversa nova está no estado do orquestrador dessa conversa. Só no release: na produção,
+    nem lê o checkpoint."""
+    if not fluxo_em_teste_liga():
+        return None
+    _, posicao = _fila.origem_do_chat(chat_id)
+    if posicao >= 2:
+        return chat_id
     estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{chat_id}"}})
-    pendentes = (estado.values or {}).get("assuntosPendentes")
-    return pendentes or None
+    escolhido = (estado.values or {}).get("pendenteEscolhido")
+    if isinstance(escolhido, dict) and "flowId" in escolhido:
+        return _fila.chat_id_do_assunto(str(escolhido["chatIdOrigem"]), int(escolhido["posicao"]))
+    return None
+
+
+async def usuario_do_chat(chat_id: str) -> str | None:
+    """#450: o `idUsuario` que a Tykhe mandou na conversa deste atendimento. Com ele, os pendentes ficam guardados
+    e o fim do assunto avisa os 30 dias. Só no release."""
+    if not fluxo_em_teste_liga():
+        return None
+    origem, _ = _fila.origem_do_chat(chat_id)
+    estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{origem}"}})
+    id_usuario = (estado.values or {}).get("idUsuario")
+    return id_usuario if isinstance(id_usuario, str) and id_usuario else None

@@ -202,7 +202,11 @@ ARESTAS_PP = {
     # #438: escolheu o filho na pergunta "qual deles": volta para perguntar se é a mãe ou o pai.
     ("pedirParentesco", "prepararPerguntaParentesco"),
     ("pedirRg", "consultarApenado"),
-    ("pedirRg", "prepararPerguntaRgInvalido"),
+    # #394: a recusa pelo formato passa a ser contada; na 3ª, a conversa vai para o atendimento humano.
+    ("pedirRg", "recusarRg"),
+    ("recusarRg", "prepararPerguntaRgInvalido"),
+    ("recusarRg", "rgFormatoInvalido"),
+    ("rgFormatoInvalido", "__end__"),
     ("pedirTemProcesso", "prepararPerguntaNumeroProcesso"),
     ("pedirTemProcesso", "prepararPerguntaRg"),
     ("perguntaTentarNovamente", "consultarApenado"),
@@ -281,7 +285,13 @@ PERGUNTAS_PP_LIVRE_E_RG_INVALIDO = [
     {"pergunta": "Você tem o número do processo da pessoa que está presa?", "tipo": "sim_nao", "opcoes": SIM_NAO},
     {"pergunta": "Qual o número do processo? Informe apenas os números.", "tipo": "texto"},
     {"pergunta": "Qual o RG da pessoa presa? Informe apenas os números.", "tipo": "texto"},
-    {"pergunta": "O RG deve conter apenas números. Qual o RG da pessoa presa? Informe apenas os números.", "tipo": "texto"},
+    # #394: a mensagem de recusa diz a tentativa e dá um exemplo fictício.
+    {
+        "pergunta": (
+            "Não consegui ler esse RG (tentativa 1 de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789."
+        ),
+        "tipo": "texto",
+    },
     # #393: o nome do mock ("Pessoa de Teste (mock)") sai mascarado.
     {"pergunta": "Confirma que a pessoa presa é Pessoa T.?", "tipo": "sim_nao", "opcoes": SIM_NAO},
     {"pergunta": "Qual seu parentesco com a pessoa presa?", "tipo": "texto"},
@@ -328,7 +338,7 @@ async def test_3_rg_none_gravado_pelo_rg_invalido_nao_sobrevive_ao_passo() -> No
     # Regra de estado: o `rg: undefined` de prepararPerguntaRgInvalido vira None
     # e sobrescreve o RG inválido (omitir manteria "abc" e o bypass pularia).
     f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "abc"])
-    assert perguntas[-1]["pergunta"].startswith("O RG deve conter apenas números.")
+    assert perguntas[-1]["pergunta"].startswith("Não consegui ler esse RG (tentativa 1 de 3).")  # #394
     assert (await f.estado())["rg"] is None
 
 
@@ -573,7 +583,7 @@ async def test_6_rg_com_ponto_e_traco_consulta_o_verde_so_com_os_digitos_issue_3
     _verde(verde_real, _rotas_pp())
     f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "12.345.678-9"])
     assert _enviados(verde_real, "/apenado") == ['/apenado {"rg":"123456789"}']
-    assert not any(p["pergunta"].startswith("O RG deve conter apenas números.") for p in perguntas)
+    assert not any(p["pergunta"].startswith("Não consegui ler esse RG") for p in perguntas)  # sem recusa (#394)
     # O estado (e os metadados) guardam o que a pessoa digitou.
     assert (await f.estado())["rg"] == "12.345.678-9"
 

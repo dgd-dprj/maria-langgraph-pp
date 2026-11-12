@@ -17,6 +17,8 @@ from tests.fluxos.conftest import novo_config, pergunta
 from tests.orquestrador.conftest import Modelo
 
 TOKENS = {"tokensEntrada": 11, "tokensSaida": 7, "tokensTotal": 18}
+# O CPF da Tykhe (CPF de teste do Verde simulado) vai para o fluxo em `dadosConhecidos`, e o fluxo não o pergunta.
+CONHECIDOS = {"cpf": "11111111111"}
 
 
 def nec(i: str, evidencia: str = "", urgente: bool = False) -> dict[str, Any]:
@@ -35,7 +37,7 @@ class Conversa:
         self.config = novo_config("teste-orq-multi")
 
     async def iniciar(self, mensagem: str = "relato") -> dict[str, Any]:
-        r: dict[str, Any] = await self.grafo.ainvoke({"mensagem": mensagem}, self.config)
+        r: dict[str, Any] = await self.grafo.ainvoke({"mensagem": mensagem, "dadosConhecidos": CONHECIDOS}, self.config)
         return r
 
     async def responder(self, resposta: str) -> dict[str, Any]:
@@ -80,7 +82,13 @@ async def test_sim_segue_a_ordem_e_o_resto_fica_pendente(modelo: Modelo, respost
     assert pergunta(r) is None
     assert (r["statusFinal"], r["flowIdEscolhido"]) == ("identificado", ID_PROBLEMAS_PLANO_SAUDE)
     assert r["assuntosPendentes"] == [
-        {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA, "dadosConhecidos": {"parentesco": "Irmão(a)"}}
+        {
+            "nome": "a pessoa presa",
+            "urgente": False,
+            "urgencia": "urgente",
+            "flowId": ID_PESSOA_PRESA,
+            "dadosConhecidos": {"parentesco": "Irmão(a)"},
+        }
     ]
     assert r["ordemPerguntada"] is True
 
@@ -93,7 +101,9 @@ async def test_nao_com_dois_assuntos_troca_a_ordem(modelo: Modelo, resposta: str
     await c.iniciar()
     r = await c.responder(resposta)
     assert r["flowIdEscolhido"] == ID_PESSOA_PRESA
-    assert r["assuntosPendentes"] == [{"nome": "o plano de saúde", "urgente": True, "flowId": ID_PROBLEMAS_PLANO_SAUDE}]
+    assert r["assuntosPendentes"] == [
+        {"nome": "o plano de saúde", "urgente": True, "urgencia": "urgente", "flowId": ID_PROBLEMAS_PLANO_SAUDE}
+    ]
 
 
 @pytest.mark.usefixtures("release")
@@ -148,7 +158,13 @@ async def test_primeiro_assunto_da_tykhe_e_o_fluxo_da_maria_fica_pendente(modelo
     r = await c.responder("true")
     assert r["flowIdEscolhido"] == "tykhe:saude"
     assert r["assuntosPendentes"] == [
-        {"nome": "a pessoa presa", "urgente": False, "flowId": ID_PESSOA_PRESA, "dadosConhecidos": {"parentesco": "Irmão(a)"}}
+        {
+            "nome": "a pessoa presa",
+            "urgente": False,
+            "urgencia": "urgente",
+            "flowId": ID_PESSOA_PRESA,
+            "dadosConhecidos": {"parentesco": "Irmão(a)"},
+        }
     ]
 
 

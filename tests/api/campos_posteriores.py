@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -25,6 +26,25 @@ class CampoPosterior:
 CAMPOS_POSTERIORES: dict[str, CampoPosterior] = {
     "destino": CampoPosterior(issue=288, teste="tests/api/test_destino.py"),
 }
+
+# Campos que as linhas de log passaram a ter depois da gravação (#457). A conferência dos logs
+# (`test_contrato.py`) tira só esses campos do primeiro nível da linha obtida; o resto continua igual.
+_LOG_457 = CampoPosterior(issue=457, teste="tests/api/test_log_motivos_pessoa_presa.py")
+CAMPOS_DE_LOG_POSTERIORES: dict[str, CampoPosterior] = {
+    "statusFinal": _LOG_457,
+    "processoLocalizado": _LOG_457,
+    "origemProcesso": _LOG_457,
+    "statusVerdeProcesso": _LOG_457,
+    "criterioNaoAtendido": _LOG_457,
+    "criterioSemDado": _LOG_457,
+    "digitosRg": _LOG_457,
+}
+
+
+def linha_sem_campos_posteriores(linha: dict[str, Any]) -> dict[str, Any]:
+    """A linha de log sem os campos de `CAMPOS_DE_LOG_POSTERIORES` do primeiro nível."""
+    return {k: v for k, v in linha.items() if k not in CAMPOS_DE_LOG_POSTERIORES}
+
 
 _ESPACOS = " \t\n\r"
 _DECODIFICADOR = json.JSONDecoder()

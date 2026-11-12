@@ -94,6 +94,8 @@ class DadosPessoa(TypedDict, total=False):
     enderecoDetalhado: EnderecoDetalhado
     # Issue #172: mesmo racional de DadosApenado.falhaInfra.
     falhaInfra: bool
+    # Só na consulta completa, quando o Verde recusou por regra de negócio (#446): 400, 404 ou 422.
+    statusHttp: int
 
 
 class DadosCep(TypedDict, total=False):

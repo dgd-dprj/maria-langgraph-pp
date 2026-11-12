@@ -32,16 +32,31 @@ TEXTO_BAIRRO = "Qual o bairro?"
 TEXTO_MUNICIPIO = "Qual o município?"
 TEXTO_UF = "Qual o estado (UF, ex: RJ)?"
 
+# #446: quando o endereço é de outra pessoa (`enderecoDeOutraPessoa` no estado do pai), as perguntas falam dela.
+TEXTOS_OUTRA_PESSOA = {
+    TEXTO_CEP: "Qual o CEP do endereço da pessoa que será atendida?",
+    TEXTO_LOGRADOURO: "Qual o nome da rua/avenida da pessoa que será atendida?",
+    TEXTO_NUMERO: "Qual o número do endereço dela?",
+    TEXTO_COMPLEMENTO: 'Tem complemento (apartamento, bloco, etc)? Se não tiver, pode responder "não".',
+    TEXTO_BAIRRO: "Qual o bairro dela?",
+    TEXTO_MUNICIPIO: "Qual o município dela?",
+    TEXTO_UF: "Qual o estado dela (UF, ex: RJ)?",
+}
+
 Atualizacao = dict[str, Any]
 
 
+def _texto(state: ColetarEnderecoState, padrao: str) -> str:
+    return TEXTOS_OUTRA_PESSOA[padrao] if state.get("enderecoDeOutraPessoa") is True else padrao
+
+
 def _perguntar_texto(state: ColetarEnderecoState, padrao: str) -> str:
-    resposta: str = interrupt({"pergunta": _js.coalesce(state.get("perguntaAtualTexto"), padrao), "tipo": "texto"})
+    resposta: str = interrupt({"pergunta": _js.coalesce(state.get("perguntaAtualTexto"), _texto(state, padrao)), "tipo": "texto"})
     return resposta
 
 
 async def preparar_pergunta_cep(state: ColetarEnderecoState) -> Atualizacao:
-    return dict(await preparar_pergunta("cep", TEXTO_CEP))
+    return dict(await preparar_pergunta("cep", _texto(state, TEXTO_CEP)))
 
 
 async def pedir_cep(state: ColetarEnderecoState) -> Atualizacao:
@@ -65,7 +80,7 @@ async def consultar_cep(state: ColetarEnderecoState) -> Atualizacao:
 async def preparar_pergunta_logradouro(state: ColetarEnderecoState) -> Atualizacao:
     if state.get("logradouro") is not None:
         return {}
-    return dict(await preparar_pergunta("logradouro", TEXTO_LOGRADOURO))
+    return dict(await preparar_pergunta("logradouro", _texto(state, TEXTO_LOGRADOURO)))
 
 
 async def pedir_logradouro(state: ColetarEnderecoState) -> Atualizacao:
@@ -75,7 +90,7 @@ async def pedir_logradouro(state: ColetarEnderecoState) -> Atualizacao:
 
 
 async def preparar_pergunta_numero(state: ColetarEnderecoState) -> Atualizacao:
-    return dict(await preparar_pergunta("numero", TEXTO_NUMERO))
+    return dict(await preparar_pergunta("numero", _texto(state, TEXTO_NUMERO)))
 
 
 async def pedir_numero(state: ColetarEnderecoState) -> Atualizacao:
@@ -83,7 +98,7 @@ async def pedir_numero(state: ColetarEnderecoState) -> Atualizacao:
 
 
 async def preparar_pergunta_complemento(state: ColetarEnderecoState) -> Atualizacao:
-    return dict(await preparar_pergunta("complemento", TEXTO_COMPLEMENTO))
+    return dict(await preparar_pergunta("complemento", _texto(state, TEXTO_COMPLEMENTO)))
 
 
 def sem_complemento(resposta: str) -> bool:
@@ -101,7 +116,7 @@ async def pedir_complemento(state: ColetarEnderecoState) -> Atualizacao:
 async def preparar_pergunta_bairro(state: ColetarEnderecoState) -> Atualizacao:
     if state.get("bairro") is not None:
         return {}
-    return dict(await preparar_pergunta("bairro", TEXTO_BAIRRO))
+    return dict(await preparar_pergunta("bairro", _texto(state, TEXTO_BAIRRO)))
 
 
 async def pedir_bairro(state: ColetarEnderecoState) -> Atualizacao:
@@ -113,7 +128,7 @@ async def pedir_bairro(state: ColetarEnderecoState) -> Atualizacao:
 async def preparar_pergunta_municipio(state: ColetarEnderecoState) -> Atualizacao:
     if state.get("municipio") is not None:
         return {}
-    return dict(await preparar_pergunta("municipio", TEXTO_MUNICIPIO))
+    return dict(await preparar_pergunta("municipio", _texto(state, TEXTO_MUNICIPIO)))
 
 
 async def pedir_municipio(state: ColetarEnderecoState) -> Atualizacao:
@@ -125,7 +140,7 @@ async def pedir_municipio(state: ColetarEnderecoState) -> Atualizacao:
 async def preparar_pergunta_uf(state: ColetarEnderecoState) -> Atualizacao:
     if state.get("uf") is not None:
         return {}
-    return dict(await preparar_pergunta("uf", TEXTO_UF))
+    return dict(await preparar_pergunta("uf", _texto(state, TEXTO_UF)))
 
 
 async def pedir_uf(state: ColetarEnderecoState) -> Atualizacao:

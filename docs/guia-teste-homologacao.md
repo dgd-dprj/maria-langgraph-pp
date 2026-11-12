@@ -173,7 +173,7 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
 | Caminho | Mensagem final |
 |---|---|
 | Para você, com as fotos, tudo confirmado | "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você." |
-| Para outra pessoa (desde 2026-11-06, #433) | A Maria pede o CPF da pessoa atendida, busca os dados dela no Verde e segue com as imagens, a situação, a renda, o resumo (com os dados dela) e a confirmação. CPF com formato errado 3 vezes, CPF que o Verde não acha 3 vezes ou Verde fora do ar levam à equipe |
+| Para outra pessoa (desde 2026-11-06, #433) | A Maria pede o CPF da pessoa atendida, busca os dados dela no Verde e segue com as imagens, a situação, a renda, o resumo (com os dados dela) e a confirmação. **Desde a #444**, o e-mail ao NUDECON traz também "Solicitante - Nome" e "Solicitante - CPF" (quem pediu); o resumo não os mostra. **Desde a #446**, se o Verde não tem cadastro desse CPF (404), a Maria pede os dados dela (nome, nascimento, estado civil, profissão, RG, endereço, telefone, WhatsApp, e-mail e o parentesco com quem fala) e segue o mesmo fluxo; o resumo e o e-mail dizem "dados informados, sem cadastro no Verde". **Desde a #448**, a resposta traz `dadosColetados.solicitante` (nome e CPF de quem fala) e `dadosColetados.outraPessoa` (os dados dela e `origem`); confira que o CPF de quem fala não é o da pessoa atendida. Para testar: `52998224725` existe no Verde de homologação; um CPF válido sem cadastro (por exemplo `39053344705`) cai na coleta; um CPF com dígito errado (`11111111111`) o Verde recusa com 400 e a Maria repete a pergunta. CPF com formato errado ou recusado 3 vezes, ou Verde fora do ar, levam à equipe |
 | CEP de outro município ou sem CEP (desde 2026-11-06, #439) | Nada muda: o fluxo segue como para qualquer pessoa, sem unidade e sem handoff por município; o endereço aparece no resumo |
 
 > **Os textos são provisórios,** até o NUDECON validar (#335) e a Tykhe confirmar os destinos e a forma das opções (#336). Diferença de texto não é defeito; anote só o que travar a conversa ou levar ao destino errado. **Este caso não grava nada no Verde:** o envio ao NUDECON ainda não existe (#345).
@@ -211,6 +211,35 @@ Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada
 - uma ordem diferente da padrão sem a pessoa pedir;
 - a "Situação" do plano com o assunto de outra pessoa.
 
+### Caso G. Próximo assunto, assuntos guardados e urgência: só no release (#450)
+
+Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09 e 2026-11-10). **Na produção, nada muda.** Pela Tykhe, o caso inteiro depende da configuração da #451. Use só relatos inventados e os CPFs de teste da lista da equipe.
+
+**Mudou em 2026-11-10:** a Maria **não pergunta mais o CPF no começo**. A pessoa é reconhecida pelo `idUsuario`, o id dela na Tykhe, que a Tykhe manda na 1ª chamada. Os fluxos pedem o CPF quando precisam, como antes. Fora da Tykhe (pelo `/docs`), mande `"idUsuario": "teste-equipe-1"` no corpo da 1ª chamada.
+
+1. **Sem CPF no começo.** Com dois assuntos e o `idUsuario`, a 1ª resposta já é a ordem dos assuntos ("Entendi. Você falou de duas coisas…"). Os pendentes vêm com `urgencia`: `urgente` (saúde, plano de saúde, violência doméstica, pessoa presa, ou qualquer assunto com sinal de risco no relato) ou `menos_urgente` (caso novo, processo, horário marcado, aplicativo, outros).
+2. **Próximo assunto.** Leve o 1º assunto até o fim e chame `POST /atendimentos/proximo-assunto` com `{ "chatId": "<chatId da conversa>" }`.
+   - **Esperado:** o 2º assunto abre com o `chatId` `<chatId>-assunto-2` e a frase "Agora vamos falar …", sem perguntar de novo o parentesco nem o CPF que o 1º fluxo já pediu.
+   - Chamar duas vezes devolve o mesmo assunto, sem abrir outro.
+   - Um 2º assunto da Tykhe volta como `redirecionado`, uma vez só.
+   - Sem pendentes, a rota responde 404.
+3. **Fim do assunto.** Num 1º assunto que termina em `concluido` (por exemplo, a pessoa presa), a mensagem final ganha, no fim:
+   - com um pendente urgente: "Ainda falta um assunto urgente: … Vamos falar dele agora.";
+   - com um menos urgente: "Ficou para depois: …. Vou guardar esse assunto por até 30 dias para a gente continuar depois." (sem o `idUsuario`, só "Ficou para depois: …").
+4. **Assunto guardado.** Pare depois do 1º assunto e abra uma **conversa nova** com o mesmo `idUsuario`.
+   - **Esperado:** "Você tem um assunto guardado: … Quer falar dele agora ou do que você acabou de contar?" (ou "um assunto urgente guardado"), com as opções. Com os dois tipos guardados, a mensagem separa "Urgente:" e "Menos urgente:", e os urgentes vêm primeiro nas opções.
+   - Escolher o guardado abre o assunto dele, e o relato novo fica guardado no lugar.
+   - Escolher "O que acabei de contar" segue como no caso F.
+   - Com outro `idUsuario`, ou sem ele, a pergunta não aparece.
+
+**Anote como defeito:**
+- a Maria perguntando o CPF antes da ordem dos assuntos;
+- um assunto marcado com a urgência errada;
+- a pergunta dos assuntos guardados com um assunto que a pessoa não deixou pendente, ou de outro `idUsuario`;
+- dois atendimentos abertos para o mesmo assunto;
+- "Vou guardar … por até 30 dias" numa conversa sem `idUsuario`;
+- o CPF, o nome ou o `idUsuario` aparecendo em qualquer lugar fora da conversa.
+
 ### Casos de controle (rápidos)
 
 | Caso | Esperado |
@@ -219,7 +248,7 @@ Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada
 | Pedido de pensão alimentícia | Encaminhado à Tykhe: "Entendi. Vou te encaminhar para o atendimento de abertura de um novo caso." |
 | Relato vago, entre pessoa presa e violência doméstica | Uma pergunta de esclarecimento, e depois o fluxo certo |
 | Pessoa presa, RG com ponto e traço, do jeito que aparece no documento (ex.: o RG de teste escrito como `12.345.678-9`) | **Depois da #343:** a Maria aceita e segue para "Confirma que é <nome>?", a mesma pessoa de quando o RG vai só com números. **Antes da #343:** "O RG deve conter apenas números…", repetido a cada tentativa |
-| Pessoa presa, RG com letra (ex.: `12a`) | "O RG deve conter apenas números…" de novo (a recusa continua sem limite até a #394) |
+| Pessoa presa, RG com letra (ex.: `12a`) | **Desde a #394:** "Não consegui ler esse RG (tentativa 1 de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.", depois "tentativa 2 de 3"; na 3ª recusa, a conversa vai para o atendimento humano (`motivoHandoff: rg_formato_invalido`), sem consultar o Verde |
 
 ## 4. Como reconhecer uma falha do ambiente
 
