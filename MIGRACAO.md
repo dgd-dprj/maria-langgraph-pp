@@ -61,6 +61,13 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - As frases novas vão para a revisão da equipe.
 - Em aberto: a rota de atendimento online do Verde.
 
+**#394 (decisão da Nicole, 2026-11-12):** limite de recusas do RG pelo formato na pessoa presa.
+- A recusa diz a tentativa e dá um exemplo fictício: "Não consegui ler esse RG (tentativa N de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.".
+- Na 3ª recusa, `handoff_humano` com o **motivo novo** `rg_formato_invalido` (mudança de contrato aceita: a Tykhe encaminha pelo `destino`, como mostrou o teste de 04/11), sem consultar o Verde e sem guardar o texto recusado.
+- Evento de log `rg_recusado_formato` em cada recusa, com `recusa`, `digitos` e `temLetra`, sem o que a pessoa digitou.
+- O caso gravado `pp_rg_invalido` (conferência pr2) foi aposentado, sem editar a gravação.
+- Muda o que a pessoa vê: o guia de teste foi atualizado, e o merge espera o horário combinado com a equipe.
+
 **#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
 - As frases vêm de blocos aprovados pela equipe.
 - A emoção, o humor e o risco são lidos na mesma chamada da classificação.
