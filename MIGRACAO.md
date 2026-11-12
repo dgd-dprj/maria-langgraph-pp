@@ -66,6 +66,23 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - Fica para depois de 13/11: retomar um assunto que ficou no meio, em andamento, em outra conversa.
 - Em aberto: a rota de atendimento online do Verde.
 
+**#394 (decisão da Nicole, 2026-11-12):** limite de recusas do RG pelo formato na pessoa presa.
+- A recusa diz a tentativa e dá um exemplo fictício: "Não consegui ler esse RG (tentativa N de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.".
+- Na 3ª recusa, `handoff_humano` com o **motivo novo** `rg_formato_invalido` (mudança de contrato aceita: a Tykhe encaminha pelo `destino`, como mostrou o teste de 04/11), sem consultar o Verde e sem guardar o texto recusado.
+- Evento de log `rg_recusado_formato` em cada recusa, com `recusa`, `digitos` e `temLetra`, sem o que a pessoa digitou.
+- O caso gravado `pp_rg_invalido` (conferência pr2) foi aposentado, sem editar a gravação.
+- Muda o que a pessoa vê: o guia de teste foi atualizado, e o merge espera o horário combinado com a equipe.
+
+**#457 (2026-11-12, a pedido da Nicole):** o porquê dos atendimentos humanos da pessoa presa no log, sem dado pessoal.
+- No `atendimento_finalizado`, o `status` continua sempre "concluido", como em develop, porque os painéis contam por ele. Entra `statusFinal` (`concluido` ou `handoff_humano`) em todos os fluxos.
+- Na pessoa presa: `processoLocalizado`, `origemProcesso` ou `statusVerdeProcesso` (origem não suportada), `criterioNaoAtendido` e `criterioSemDado` (regra da #57) e `digitosRg` (RG não encontrado). Nunca o número do processo, o RG, o nome nem os valores da situação, do tipo e do regime.
+- As linhas de log gravadas da versão TypeScript não foram editadas: os campos novos entram em `CAMPOS_DE_LOG_POSTERIORES` (`tests/api/campos_posteriores.py`), como os campos novos das respostas (#294).
+**#472 (2026-11-12, a pedido da Nicole): troca do Haiku pelo Qwen no Bedrock de São Paulo, para a produção de 13/11.**
+- Medido com os 66 casos de IA em `sa-east-1`: Qwen3 Coder 30B 54 (1 passada); Qwen3 VL 235B de 61,0 a 61,7 (média de 3 passadas, quatro versões das regras); Haiku 4.5 61,3. **Recomendação: VL 235B.**
+- As regras da triagem ficaram as da #465: as versões novas não passaram da variação de cerca de 3 casos. Entrou só a regra da pergunta de desambiguação com as opções em dúvida ("pelo plano de saúde ou pelo SUS?"), só no Qwen. O prompt do Haiku não muda.
+- A suíte escolhe o modelo por `MARIA_MODELO_TESTE_IA`; sem a variável, continua o Haiku da produção.
+- Custo das medições: US$ 1,65 de US$ 3,00 aprovados.
+
 **#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
 - As frases vêm de blocos aprovados pela equipe.
 - A emoção, o humor e o risco são lidos na mesma chamada da classificação.
