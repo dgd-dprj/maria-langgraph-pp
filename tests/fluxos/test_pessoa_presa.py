@@ -314,6 +314,27 @@ async def test_rg_com_letras_corrige_na_segunda_e_segue() -> None:
     assert re.search("Confirma que a pessoa presa é", texto(r))
 
 
+# ---- #475: a pergunta do RG mostra os formatos aceitos ------------------------------
+# Decisão da Nicole (2026-11-12): os dois formatos que a Maria aceita desde o #343. Cobre os casos aposentados
+# pessoa-presa-resposta-texto-sem-opcoes-200, pp_sem_processo e orq_identifica_responde
+# (tests/api/casos_aposentados.py).
+
+
+async def test_475_pergunta_do_rg_mostra_os_formatos_aceitos() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false")
+    assert texto(r) == ("Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9.")
+
+
+async def test_475_os_dois_formatos_do_exemplo_sao_aceitos() -> None:
+    for rg in ("11111111111", "11.111.111-111"):
+        f = _fluxo()
+        await f.iniciar()
+        r = await f.responder("false", rg)
+        assert re.search("Confirma que a pessoa presa é", texto(r)), rg
+
+
 # ---- #394: limite de recusas do RG pelo formato -------------------------------------
 # Decisão da Nicole (2026-11-12): a mensagem diz a tentativa e dá um exemplo fictício; na 3ª recusa, a
 # conversa vai para o atendimento humano com `motivoHandoff: rg_formato_invalido`. Cobre o caso aposentado

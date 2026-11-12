@@ -21,8 +21,8 @@ from maria.fluxos.pessoa_presa.api import (
     MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO,
     extrair_metadados_pessoa_presa,
 )
+from maria.fluxos.pessoa_presa.graph import TEXTO_RG, normalizar_situacao, rg_formato_valido
 from maria.fluxos.pessoa_presa.graph import _construtor as construtor_pp
-from maria.fluxos.pessoa_presa.graph import normalizar_situacao, rg_formato_valido
 from maria.fluxos.pessoa_presa.graph import obter_grafo as obter_pp
 from maria.fluxos.tipos_tykhe import TIPOS_TYKHE, tipo_tykhe_por_caso, tipo_tykhe_por_id
 from maria.fluxos.violencia_domestica.api import extrair_metadados_violencia_domestica
@@ -284,7 +284,7 @@ PERGUNTAS_PP_LIVRE_E_RG_INVALIDO = [
     },
     {"pergunta": "Você tem o número do processo da pessoa que está presa?", "tipo": "sim_nao", "opcoes": SIM_NAO},
     {"pergunta": "Qual o número do processo? Informe apenas os números.", "tipo": "texto"},
-    {"pergunta": "Qual o RG da pessoa presa? Informe apenas os números.", "tipo": "texto"},
+    {"pergunta": TEXTO_RG, "tipo": "texto"},  # #475: com os formatos aceitos
     # #394: a mensagem de recusa diz a tentativa e dá um exemplo fictício.
     {
         "pergunta": (
@@ -331,7 +331,7 @@ async def test_3_rg_null_da_tykhe_pergunta_o_rg_divergencia_aceita() -> None:
     # no formato e pergunta "O RG deve conter apenas números..."; o Python
     # trata None como undefined e faz a pergunta normal. Só o texto muda.
     _, perguntas, _ = await _conversa(obter_pp(), {"rg": None}, ["Não"])
-    assert perguntas[-1]["pergunta"] == "Qual o RG da pessoa presa? Informe apenas os números."
+    assert perguntas[-1]["pergunta"] == TEXTO_RG
 
 
 async def test_3_rg_none_gravado_pelo_rg_invalido_nao_sobrevive_ao_passo() -> None:
@@ -346,13 +346,13 @@ async def test_3_tem_processo_null_pula_e_cai_em_origem_nao_suportada() -> None:
     # Achado 6 do inventário: `temProcesso: null` não é `=== false`, e não há
     # dadosProcesso, então o desfecho é origem_processo_nao_suportada.
     _, perguntas, r = await _conversa(obter_pp(), {"temProcesso": None}, ["11111111111", "Sim", "amigo"])
-    assert perguntas[0]["pergunta"] == "Qual o RG da pessoa presa? Informe apenas os números."
+    assert perguntas[0]["pergunta"] == TEXTO_RG
     assert r["motivoHandoff"] == "origem_processo_nao_suportada"
 
 
 async def test_3_numero_processo_null_pula_e_consulta_vazio() -> None:
     _, perguntas, r = await _conversa(obter_pp(), {"temProcesso": True, "numeroProcesso": None}, ["11111111111", "Sim", "amigo"])
-    assert perguntas[0]["pergunta"] == "Qual o RG da pessoa presa? Informe apenas os números."
+    assert perguntas[0]["pergunta"] == TEXTO_RG
     assert r["dadosProcesso"]["origem"] == "SEEU"
     assert r["statusFinal"] == "concluido"
 

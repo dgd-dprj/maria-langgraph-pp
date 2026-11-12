@@ -70,10 +70,14 @@ _NOME_MASCARADO = CasoAposentado(
 # `rota_get_fluxos_codificado`) quando o fluxo do plano de saúde entrou na lista. Com ele em teste,
 # desligado na produção (#324), os 6 voltaram a bater com as gravações e saíram daqui (registro no
 # `MIGRACAO.md`). As gravações não foram editadas.
+# #475 (decisão da Nicole, 2026-11-12): a pergunta do RG mostra os formatos aceitos.
+_PERGUNTA_DO_RG = CasoAposentado(issue=475, motivo="a pergunta do RG mostra os formatos aceitos", teste="tests/fluxos/test_pessoa_presa.py")
+
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
     "contrato": {
         "pessoa-presa-resposta-rg-200": _NOME_MASCARADO,
         "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
+        "pessoa-presa-resposta-texto-sem-opcoes-200": _PERGUNTA_DO_RG,
     },
     "pr1": {},
     "pr2": {
@@ -83,6 +87,8 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
         "pp_rg_invalido": CasoAposentado(
             issue=394, motivo="a mensagem de recusa do RG pelo formato mudou", teste="tests/fluxos/test_pessoa_presa.py"
         ),
+        "pp_sem_processo": _PERGUNTA_DO_RG,
+        "orq_identifica_responde": _PERGUNTA_DO_RG,
     },
 }
 

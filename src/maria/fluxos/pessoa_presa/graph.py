@@ -74,7 +74,9 @@ TEXTO_LIVRE = (
 )
 TEXTO_TEM_PROCESSO = "Você tem o número do processo da pessoa que está presa?"
 TEXTO_NUMERO_PROCESSO = "Qual o número do processo? Informe apenas os números."
-TEXTO_RG = "Qual o RG da pessoa presa? Informe apenas os números."
+# #475 (decisão da Nicole, 2026-11-12): a pergunta mostra os dois formatos que a Maria aceita desde o #343. O exemplo
+# é fictício.
+TEXTO_RG = "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9."
 # #394 (decisão da Nicole, 2026-11-12): na 3ª recusa pelo formato, a conversa vai para o atendimento humano, com
 # `motivoHandoff: rg_formato_invalido`. A mensagem de recusa diz a tentativa e dá um exemplo fictício.
 LIMITE_RECUSAS_RG_FORMATO = 3
