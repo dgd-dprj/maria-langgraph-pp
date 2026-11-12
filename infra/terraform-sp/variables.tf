@@ -49,7 +49,9 @@ variable "bedrock_model_arns" {
   type = list(string)
   default = [
     "arn:aws:bedrock:sa-east-1::foundation-model/qwen.*",
+    # #482: a volta atrás do Qwen (decisão da Nicole, #472). Trocar o modelo continua sendo só o bedrock_model_id.
+    "arn:aws:bedrock:sa-east-1::foundation-model/mistral.ministral-3-14b-instruct",
     "arn:aws:bedrock:sa-east-1::foundation-model/amazon.titan-embed-text-v2:0",
   ]
-  description = "ARNs que a task role pode invocar no Bedrock. O padrão cobre os modelos Qwen in-region (dados no Brasil) e o Titan Embed Text v2 (embeddings dos fluxos, `BEDROCK_EMBEDDING_MODEL_ID`). Para um perfil global (ex.: Claude Haiku), acrescente o inference-profile e o foundation-model das outras regiões."
+  description = "ARNs que a task role pode invocar no Bedrock. O padrão cobre os modelos Qwen in-region (dados no Brasil), o Ministral 14B (a volta atrás do Qwen, #482) e o Titan Embed Text v2 (embeddings dos fluxos, `BEDROCK_EMBEDDING_MODEL_ID`). Para um perfil global (ex.: Claude Haiku), acrescente o inference-profile e o foundation-model das outras regiões."
 }
