@@ -475,6 +475,84 @@ async def test_parentesco_sem_match_cai_em_outro_issue_17(monkeypatch: pytest.Mo
     assert r["parentesco"] == "Outro"
 
 
+# ---- #212: o parentesco da IA só vale se estiver na lista ----------------------------
+# Decisão da Nicole (2026-11-12): a IA escolhe da lista, sem inventar. Na comparação da #472, o Haiku
+# devolveu "Irmã(o)", que chegaria à Tykhe em metadados.parentesco.
+
+
+def _ia_de_parentesco(monkeypatch: pytest.MonkeyPatch, escolha: Any) -> None:
+    from maria.fluxos.pessoa_presa import graph
+
+    async def falsa(mensagem: str, sistema: str, ids: list[str]) -> dict[str, Any]:
+        assert sistema == graph.SISTEMA_PARENTESCO and ids == graph.PARENTESCOS_PERMITIDOS
+        return {"escolhaId": escolha, "viaIA": True, "tokensEntrada": 10, "tokensSaida": 2, "tokensTotal": 12}
+
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
+    monkeypatch.setattr(graph, "classificar_entre_opcoes", falsa)
+
+
+@pytest.mark.parametrize(("escolha", "motivo"), [("Irmã(o)", "fora_da_lista"), ("Tio-avô", "fora_da_lista"), (["Irmã(o)"], "tipo_errado")])
+async def test_212_parentesco_fora_da_lista_vira_outro_com_aviso_sem_o_valor(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], escolha: Any, motivo: str
+) -> None:
+    from maria.fluxos.pessoa_presa.graph import classificar_parentesco
+
+    _ia_de_parentesco(monkeypatch, escolha)
+    capsys.readouterr()
+    resultado = await classificar_parentesco("resposta da pessoa")
+    saida = capsys.readouterr().out
+    assert resultado["parentesco"] == "Outro"
+    assert resultado["tokensTotal"] == 12, "a chamada aconteceu e custou: os tokens continuam contados"
+    [linha] = [x for x in saida.splitlines() if '"parentesco_fora_da_lista"' in x]
+    assert f'"motivo":"{motivo}"' in linha.replace(" ", "")
+    for trecho in ("Irm", "Tio-av", "resposta da pessoa"):
+        assert trecho not in saida, "o log não leva o valor devolvido nem a resposta"
+
+
+@pytest.mark.parametrize(("escolha", "gravado"), [("Irmão(a)", "Irmão(a)"), ("Neto(a)", "Neto(a)"), ("Outro", "Outro"), (None, "Outro")])
+async def test_212_parentesco_da_lista_passa_sem_aviso(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], escolha: Any, gravado: str
+) -> None:
+    from maria.fluxos.pessoa_presa.graph import classificar_parentesco
+
+    _ia_de_parentesco(monkeypatch, escolha)
+    capsys.readouterr()
+    assert (await classificar_parentesco("resposta"))["parentesco"] == gravado
+    assert "parentesco_fora_da_lista" not in capsys.readouterr().out
+
+
+async def test_212_so_o_qwen_recebe_as_regras_do_parentesco(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Com o Haiku, as regras novas derrubaram o acerto ("mãe" virou "Filho(a)"): o prompt dele fica o de sempre."""
+    from maria.fluxos.pessoa_presa import graph
+    from maria.ia.ajuste_qwen import SUFIXO_PARENTESCO
+
+    enviados: list[str] = []
+
+    async def falsa(mensagem: str, sistema: str, ids: list[str]) -> dict[str, Any]:
+        enviados.append(sistema)
+        return {"escolhaId": "Mãe", "viaIA": True}
+
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setattr(graph, "classificar_entre_opcoes", falsa)
+    for modelo in ("us.anthropic.claude-haiku-4-5-20251001-v1:0", "qwen.qwen3-vl-235b-a22b"):
+        monkeypatch.setenv("BEDROCK_MODEL_ID", modelo)
+        await graph.classificar_parentesco("mãe")
+    assert enviados == [graph.SISTEMA_PARENTESCO, graph.SISTEMA_PARENTESCO + SUFIXO_PARENTESCO]
+    assert "Regras: escolha o que melhor descreve a relação" in graph.SISTEMA_PARENTESCO
+
+
+def test_212_regras_do_qwen_pedem_so_valores_da_lista() -> None:
+    from maria.ia.ajuste_qwen import SUFIXO_PARENTESCO
+
+    assert "Nunca invente outro valor" in SUFIXO_PARENTESCO
+    # As leituras erradas medidas na #472: grafia trocada, relação invertida e parente fora da lista.
+    assert '"Irmã(o)"' in SUFIXO_PARENTESCO
+    assert '"minha mãe" → "Filho(a)"' in SUFIXO_PARENTESCO
+    assert '"filha" → "Filho(a)"' in SUFIXO_PARENTESCO
+    assert 'nora e genro não são "Sogro(a)"' in SUFIXO_PARENTESCO
+
+
 # ---- #236: CPF vindo da Tykhe, pelo orquestrador ---------------------------------
 # Fora da tradução de develop: decisão de 03/11, na janela das correções (#208).
 

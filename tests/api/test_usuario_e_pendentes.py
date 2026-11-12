@@ -20,12 +20,14 @@ import httpx
 import pytest
 
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, fluxos_por_id
+from maria.orquestrador.fila import codigo_do_assunto
 from maria.orquestrador.graph import obter_grafo
 from maria.shared import pendentes_db
 from maria.shared.pendentes_db import obter_pendentes_store
 
 ORQ = "/atendimentos/orquestrador"
 PROXIMO = "/atendimentos/proximo-assunto"
+ABERTOS = "/atendimentos/assuntos-em-aberto"
 RESPOSTAS = "/atendimentos/respostas"
 CPF = "11111111111"
 ID_USUARIO = "tykhe-usuario-77"
@@ -258,6 +260,8 @@ async def test_fim_do_assunto_oferece_o_urgente_e_guarda_o_menos_urgente(
     ]
     fim = await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
     assert fim["status"] == "concluido"
+    # Com um urgente na vez, a oferta dos assuntos em aberto fica para o fim dele.
+    assert "assuntosEmAberto" not in fim and "opcoesDoFim" not in fim
     assert fim["resposta"].endswith(
         "\n\nAinda falta um assunto urgente: o caso novo. Vamos falar dele agora."
         "\n\nTambém ficou para depois: o seu horário marcado. Vou guardar esse assunto por até 30 dias para a gente continuar"
@@ -265,7 +269,7 @@ async def test_fim_do_assunto_oferece_o_urgente_e_guarda_o_menos_urgente(
     )
 
 
-async def test_fim_do_assunto_sem_id_usuario_nao_promete_guardar(
+async def test_fim_do_assunto_sem_id_usuario_nao_promete_guardar_e_oferece_os_abertos(
     cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
 ) -> None:
     release.setenv("MOCK_NECESSIDADES", json.dumps([PP, HORARIO]))
@@ -274,89 +278,229 @@ async def test_fim_do_assunto_sem_id_usuario_nao_promete_guardar(
     corpo = await _orq(cliente, auth, {"chatId": chat, "resposta": "true"})
     fim = await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
     assert fim["status"] == "concluido"
-    assert fim["resposta"].endswith("\n\nFicou para depois: o seu horário marcado.")
+    # Sem idUsuario: sem a data e sem o aviso dos 30 dias.
+    assert fim["resposta"].endswith(
+        "\n\nResumo da nossa conversa:"
+        f"\n• A pessoa presa: dados confirmados e encaminhados (código {codigo_do_assunto(chat)})"
+        "\n\nQuer continuar com algum desses assuntos ou encerrar a conversa?"
+        "\n\nAinda em aberto:\n• O seu horário marcado · menos urgente · ainda não começou"
+    )
+    assert fim["resumoDaConversa"] == [
+        {"nome": "a pessoa presa", "desfecho": "dados confirmados e encaminhados", "codigo": codigo_do_assunto(chat)}
+    ]
+    assert fim["opcoesDoFim"] == ["O seu horário marcado", "Falar de um assunto novo", "Encerrar a conversa"]
+    assert fim["assuntosEmAberto"] == [
+        {
+            "nome": "o seu horário marcado",
+            "urgente": False,
+            "urgencia": "menos_urgente",
+            "chatIdAssunto": f"{chat}-assunto-2",
+            "codigo": codigo_do_assunto(f"{chat}-assunto-2"),
+            "fase": "nao_iniciado",
+            "tipoCaso": "agendamentos",
+        }
+    ]
 
 
-# ---- 4. a pergunta dos pendentes quando a pessoa volta ---------------------------------------------
+# ---- 4. a conversa nova: sem pergunta, com a retomada e o pedido de ver -----------------------------
 
 
-async def test_conversa_nova_escolhe_o_pendente_urgente_da_maria(
+async def test_conversa_nova_do_mesmo_assunto_retoma_o_guardado(
     cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
 ) -> None:
     antiga = await _conversa_com_pendente(cliente, auth, release, PLANO, PP)
     store = await obter_pendentes_store()
-
-    release.setenv("MOCK_NECESSIDADES", json.dumps([NOVO_PROCESSO]))
+    release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
     chat = _chat()
-    corpo = await _comecar(cliente, auth, chat, "quero entrar com um processo de pensão")
-    assert corpo == {
-        "resposta": "Você tem um assunto urgente guardado: a pessoa presa. Quer falar dele agora ou do que você acabou de contar?",
-        "tipoResposta": "opcoes",
-        "opcoes": ["O que acabei de contar", "A pessoa presa"],
-        "status": "em_andamento",
-        "_links": {"self": {"href": f"/atendimentos/{chat}"}, "responder": {"href": ORQ, "method": "POST"}},
-    }
-    corpo = await _orq(cliente, auth, {"chatId": chat, "resposta": "A pessoa presa"})
-    # O assunto guardado abre nesta conversa; o que ela acabou de contar fica pendente.
+    corpo = await _comecar(cliente, auth, chat, "meu irmão está preso")
+    # Sem pergunta: a Maria entende que é o assunto guardado e continua dele.
     assert (corpo["flowId"], corpo["status"]) == (ID_PESSOA_PRESA, "em_andamento")
-    assert corpo["resposta"].startswith("Agora vamos falar da pessoa presa.\n\n")
-    assert corpo["assuntosPendentes"] == [
-        {"nome": "o caso novo", "urgente": False, "urgencia": "menos_urgente", "tipoCaso": "novo-processo"}
-    ]
+    assert corpo["resposta"].startswith("Você já tinha esse assunto com a gente: a pessoa presa. Vamos continuar.\n\n")
     item = await store.buscar(f"{antiga}-assunto-2")
     assert item is not None and item["situacao"] == "em_andamento"
-    assert [(p["chatIdAssunto"], p["nome"]) for p in await store.listar_ativos(ID_USUARIO)] == [(f"{chat}-assunto-2", "o caso novo")]
-
-    # Fim do fluxo: o assunto guardado fica resolvido.
     await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
     item = await store.buscar(f"{antiga}-assunto-2")
     assert item is not None and item["situacao"] == "resolvido"
 
 
-async def test_pergunta_separa_os_urgentes_dos_menos_urgentes(
+async def test_conversa_nova_de_outro_assunto_segue_sem_pergunta(
     cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
 ) -> None:
-    # Guardados: a pessoa presa (urgente) e o caso novo (menos urgente).
-    await _conversa_com_pendente(cliente, auth, release, PLANO, NOVO_PROCESSO, PP)
-    release.setenv("MOCK_NECESSIDADES", json.dumps([HORARIO]))
-    chat = _chat()
-    corpo = await _comecar(cliente, auth, chat, "quero remarcar o meu horário")
-    assert corpo["resposta"] == (
-        "Você tem assuntos guardados.\n\nUrgente:\n• a pessoa presa\n\nMenos urgente:\n• o caso novo\n\n"
-        "Quer falar de um deles agora ou do que você acabou de contar?"
-    )
-    # Nas opções, os urgentes vêm primeiro; o número segue a ordem das opções.
-    assert corpo["opcoes"] == ["O que acabei de contar", "A pessoa presa", "O caso novo"]
-    corpo = await _orq(cliente, auth, {"chatId": chat, "resposta": "3"})
+    antiga = await _conversa_com_pendente(cliente, auth, release, PLANO, PP)
+    release.setenv("MOCK_NECESSIDADES", json.dumps([NOVO_PROCESSO]))
+    corpo = await _comecar(cliente, auth, _chat(), "quero entrar com um processo de pensão")
     assert (corpo["status"], corpo["tipoCaso"]) == ("redirecionado", "novo-processo")
+    item = await (await obter_pendentes_store()).buscar(f"{antiga}-assunto-2")
+    assert item is not None and item["situacao"] == "pendente"
 
 
-async def test_conversa_nova_escolhe_o_que_acabou_de_contar(
+async def test_pedido_de_ver_os_assuntos_mostra_a_lista(
+    cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
+) -> None:
+    await _conversa_com_pendente(cliente, auth, release, PLANO, NOVO_PROCESSO, PP)
+    release.setenv("MOCK_NECESSIDADES", json.dumps(["tykhe:outros"]))
+    chat = _chat()
+    corpo = await _comecar(cliente, auth, chat, "quero ver meus assuntos")
+    assert corpo == {
+        "resposta": "Qual você quer resolver agora?\n\nUrgente:\n• a pessoa presa\n\nMenos urgente:\n• o caso novo",
+        "tipoResposta": "opcoes",
+        "opcoes": ["A pessoa presa", "O caso novo", "Nenhum, quero um assunto novo"],
+        "status": "em_andamento",
+        "_links": {"self": {"href": f"/atendimentos/{chat}"}, "responder": {"href": ORQ, "method": "POST"}},
+    }
+    corpo = await _orq(cliente, auth, {"chatId": chat, "resposta": "A pessoa presa"})
+    assert (corpo["flowId"], corpo["status"]) == (ID_PESSOA_PRESA, "em_andamento")
+    assert corpo["resposta"].startswith("Agora vamos falar da pessoa presa.\n\n")
+    assert "assuntosPendentes" not in corpo
+
+
+# ---- 5. a oferta no fim do assunto e a lista dos assuntos em aberto ---------------------------------
+
+
+async def test_fim_do_assunto_oferece_os_abertos_e_a_lista_abre_o_escolhido(
     cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
 ) -> None:
     antiga = await _conversa_com_pendente(cliente, auth, release, PLANO, NOVO_PROCESSO)
-    release.setenv("MOCK_NECESSIDADES", json.dumps([PLANO, PP]))
+    release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
     chat = _chat()
-    corpo = await _comecar(cliente, auth, chat)
-    assert corpo["resposta"].startswith("Você tem um assunto guardado: o caso novo.")
-    corpo = await _orq(cliente, auth, {"chatId": chat, "resposta": "O que acabei de contar"})
-    assert corpo["resposta"].startswith("Entendi. Você falou de duas coisas")
-    corpo = await _orq(cliente, auth, {"chatId": chat, "resposta": "true"})
-    assert corpo["flowId"] == ID_PROBLEMAS_PLANO_SAUDE
-    ativos = await (await obter_pendentes_store()).listar_ativos(ID_USUARIO)
-    assert [(p["chatIdOrigem"], p["nome"]) for p in ativos] == [(antiga, "o caso novo"), (chat, "a pessoa presa")]
+    corpo = await _comecar(cliente, auth, chat, "meu irmão está preso")
+    fim = await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
+    assert fim["status"] == "concluido"
+    [aberto] = fim["assuntosEmAberto"]
+    assert (aberto["nome"], aberto["chatIdAssunto"], aberto["fase"]) == ("o caso novo", f"{antiga}-assunto-2", "nao_iniciado")
+    vence = aberto["venceEm"]
+    assert fim["resposta"].endswith(
+        "\n\nQuer continuar com algum desses assuntos ou encerrar a conversa?"
+        f"\n\nAinda em aberto:\n• O caso novo · menos urgente · em aberto até {vence[8:10]}/{vence[5:7]} · ainda não começou"
+        "\n\nOs assuntos em aberto ficam guardados por até 30 dias."
+    )
+    assert fim["opcoesDoFim"] == ["O caso novo", "Falar de um assunto novo", "Encerrar a conversa"]
+
+    # A lista também vem pela rota dos assuntos em aberto, e a resposta volta para a rota do próximo assunto.
+    r = await cliente.post(ABERTOS, json={"chatId": chat}, headers=auth)
+    assert r.status_code == 200
+    assert r.json() == {
+        "resposta": "Qual você quer resolver agora?\n\n• o caso novo",
+        "tipoResposta": "opcoes",
+        "opcoes": ["O caso novo", "Nenhum, quero um assunto novo"],
+        "status": "em_andamento",
+        "assuntosEmAberto": fim["assuntosEmAberto"],
+        "_links": {"self": {"href": f"/atendimentos/{chat}"}, "responder": {"href": PROXIMO, "method": "POST"}},
+    }
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "resposta": "O caso novo"}, headers=auth)).json()
+    assert (corpo["status"], corpo["tipoCaso"], corpo["chatId"]) == ("redirecionado", "novo-processo", f"{antiga}-assunto-2")
+    item = await (await obter_pendentes_store()).buscar(f"{antiga}-assunto-2")
+    assert item is not None and item["situacao"] == "resolvido"
 
 
-async def test_resposta_nao_entendida_segue_com_o_que_acabou_de_contar(
+async def test_botao_encerrar_fecha_a_conversa_e_guarda_os_abertos(
     cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
 ) -> None:
+    antiga = await _conversa_com_pendente(cliente, auth, release, PLANO, NOVO_PROCESSO)
+    release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
+    chat = _chat()
+    corpo = await _comecar(cliente, auth, chat, "meu irmão está preso")
+    fim = await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
+    assert fim["opcoesDoFim"][-1] == "Encerrar a conversa"
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "resposta": "Encerrar a conversa"}, headers=auth)).json()
+    assert corpo == {
+        "resposta": "Combinado. Seus assuntos em aberto ficam guardados por até 30 dias. Quando quiser, é só voltar a falar com a gente.",
+        "tipoResposta": "texto",
+        "status": "concluido",
+        "_links": {"self": {"href": f"/atendimentos/{chat}"}},
+    }
+    # Encerrar não resolve nada: o caso novo continua guardado.
+    item = await (await obter_pendentes_store()).buscar(f"{antiga}-assunto-2")
+    assert item is not None and item["situacao"] == "pendente"
+
+
+async def test_botao_do_assunto_no_fim_abre_direto(cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch) -> None:
+    antiga = await _conversa_com_pendente(cliente, auth, release, PLANO, NOVO_PROCESSO)
+    release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
+    chat = _chat()
+    corpo = await _comecar(cliente, auth, chat, "meu irmão está preso")
+    await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "resposta": "O caso novo"}, headers=auth)).json()
+    assert (corpo["status"], corpo["tipoCaso"], corpo["chatId"]) == ("redirecionado", "novo-processo", f"{antiga}-assunto-2")
+
+
+async def test_assunto_unico_pelo_orquestrador_tem_resumo_e_atendimento_direto_nao(
+    cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
+) -> None:
+    release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
+    chat = _chat()
+    corpo = await _comecar(cliente, auth, chat, "meu irmão está preso")
+    fim = await _pessoa_presa_ate_o_fim(cliente, auth, chat, corpo)
+    assert fim["resposta"].endswith(
+        f"\n\nResumo da nossa conversa:\n• A pessoa presa: dados confirmados e encaminhados (código {codigo_do_assunto(chat)})"
+        "\n\nQuer falar de um assunto novo ou encerrar a conversa?"
+    )
+    assert fim["opcoesDoFim"] == ["Falar de um assunto novo", "Encerrar a conversa"]
+    assert "assuntosEmAberto" not in fim
+
+    # Atendimento aberto direto, sem o orquestrador: o fim fica como era.
+    direto = _chat()
+    r = await cliente.post("/atendimentos", json={"chatId": direto, "flowId": ID_PESSOA_PRESA}, headers=auth)
+    assert r.status_code in (200, 201)
+    fim = await _pessoa_presa_ate_o_fim(cliente, auth, direto, r.json())
+    assert fim["status"] == "concluido"
+    assert "resumoDaConversa" not in fim and "opcoesDoFim" not in fim
+    assert "Resumo da nossa conversa" not in fim["resposta"]
+
+
+async def test_lista_nenhum_pede_o_assunto_novo(cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch) -> None:
     await _conversa_com_pendente(cliente, auth, release, PLANO, NOVO_PROCESSO)
+    # Outro assunto: o caso novo guardado continua em aberto.
+    release.setenv("MOCK_NECESSIDADES", json.dumps([HORARIO]))
+    chat = _chat()
+    await _comecar(cliente, auth, chat, "quero remarcar o meu horário")
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "resposta": "Nenhum, quero um assunto novo"}, headers=auth)).json()
+    assert corpo == {
+        "resposta": "Pode me contar o que você precisa?",
+        "tipoResposta": "texto",
+        "status": "em_andamento",
+        "_links": {"self": {"href": f"/atendimentos/{chat}"}, "responder": {"href": ORQ, "method": "POST"}},
+    }
+    # Resposta que a Maria não entende: a lista de novo.
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "resposta": "hmm"}, headers=auth)).json()
+    assert corpo["opcoes"] == ["O caso novo", "Nenhum, quero um assunto novo"]
+
+
+async def test_sem_assunto_em_aberto_pede_o_que_a_pessoa_precisa(
+    cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
+) -> None:
     release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
     chat = _chat()
     await _comecar(cliente, auth, chat, "meu irmão está preso")
-    corpo = await _orq(cliente, auth, {"chatId": chat, "resposta": "hmm"})
-    assert corpo["flowId"] == ID_PESSOA_PRESA
-    assert "assuntosPendentes" not in corpo
+    corpo = (await cliente.post(ABERTOS, json={"chatId": chat}, headers=auth)).json()
+    assert (corpo["resposta"], corpo["tipoResposta"]) == ("Você não tem assuntos em aberto. Pode me contar o que você precisa?", "texto")
+
+
+async def test_guardado_de_outra_conversa_abre_pelo_id_e_e_idempotente(
+    cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
+) -> None:
+    antiga = await _conversa_com_pendente(cliente, auth, release, PLANO, PP)
+    release.setenv("MOCK_NECESSIDADES", json.dumps([NOVO_PROCESSO]))
+    chat = _chat()
+    await _comecar(cliente, auth, chat, "quero entrar com um processo de pensão")
+    assunto = f"{antiga}-assunto-2"
+    primeira = (await cliente.post(PROXIMO, json={"chatId": chat, "assunto": assunto}, headers=auth)).json()
+    assert (primeira["flowId"], primeira["chatId"]) == (ID_PESSOA_PRESA, assunto)
+    assert primeira["resposta"].startswith("Agora vamos falar da pessoa presa.\n\n")
+    item = await (await obter_pendentes_store()).buscar(assunto)
+    assert item is not None and item["situacao"] == "em_andamento"
+    segunda = (await cliente.post(PROXIMO, json={"chatId": chat, "assunto": assunto}, headers=auth)).json()
+    assert segunda["chatId"] == assunto
+    assert primeira["resposta"].endswith(segunda["resposta"])
+
+
+async def test_assunto_de_outra_pessoa_nao_abre(cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch) -> None:
+    antiga = await _conversa_com_pendente(cliente, auth, release, PLANO, PP)
+    release.setenv("MOCK_NECESSIDADES", json.dumps([NOVO_PROCESSO]))
+    chat = _chat()
+    await _comecar(cliente, auth, chat, "quero entrar com um processo", id_usuario="outra-pessoa")
+    r = await cliente.post(PROXIMO, json={"chatId": chat, "assunto": f"{antiga}-assunto-2"}, headers=auth)
+    assert (r.status_code, r.json()) == (404, {"erro": "assunto não encontrado para esta pessoa"})
 
 
 async def test_pendente_vencido_e_apagado_e_nao_e_perguntado(

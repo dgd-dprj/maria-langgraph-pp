@@ -19,10 +19,23 @@ from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
+from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.pessoa_presa.graph import campos_de_log_do_fim
-from maria.orquestrador.fila import com_dados_do_fim, texto_fim_do_assunto
-from maria.orquestrador.graph import assunto_guardado_do_chat, assuntos_pendentes_do_chat, usuario_do_chat
+from maria.orquestrador.fila import (
+    AssuntoPendente,
+    com_dados_do_fim,
+    opcoes_do_fim,
+    texto_fim_da_conversa,
+    texto_fim_do_assunto,
+    urgencia_de,
+)
+from maria.orquestrador.graph import (
+    assunto_guardado_do_chat,
+    assuntos_em_aberto,
+    assuntos_pendentes_do_chat,
+    resumo_da_conversa,
+    usuario_do_chat,
+)
 from maria.shared import _js
 from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
@@ -293,6 +306,29 @@ def _expirado(
     return montar_resposta_atendimento(fluxo, fluxo_id, chat_id, None, {**valores, "statusFinal": "expirado", "mensagemFinal": mensagem})
 
 
+async def _com_o_que_falta(chat_id: str, corpo: dict[str, Any], final: str, pendentes: list[AssuntoPendente]) -> None:
+    """#450, no fim de um assunto concluído (só no release).
+
+    - Com um urgente na vez nesta conversa (2026-11-10): "Ainda falta um assunto urgente…", e a Tykhe abre o próximo.
+      O fim da conversa fica para o fim dele.
+    - Senão, o fim da conversa (decisão da Nicole, 2026-11-11): o resumo do que foi atendido, a pergunta, o que ainda
+      está em aberto (desta conversa e guardado de outras) e os botões em `opcoesDoFim` (um por assunto em aberto, o
+      assunto novo e o encerrar). Vão também em `resumoDaConversa` e `assuntosEmAberto`."""
+    if pendentes and urgencia_de(pendentes[0]) == "urgente":
+        corpo["resposta"] = f"{final}\n\n{texto_fim_do_assunto(pendentes, await usuario_do_chat(chat_id) is not None)}"
+        return
+    resumo = await resumo_da_conversa(chat_id, str(corpo.get("status")))
+    if not resumo:
+        return  # conversa que não passou pelo orquestrador: o fim fica como era
+    abertos = await assuntos_em_aberto(chat_id)
+    guardados = any("venceEm" in a for a in abertos)
+    corpo["resposta"] = f"{final}\n\n{texto_fim_da_conversa(resumo, abertos, guardados)}"
+    corpo["resumoDaConversa"] = resumo
+    if abertos:
+        corpo["assuntosEmAberto"] = abertos
+    corpo["opcoesDoFim"] = opcoes_do_fim(abertos)
+
+
 async def _post_respostas(ctx: Contexto) -> Resposta:
     """`POST /atendimentos/respostas`: avança o fluxo, com o TTL de inatividade
     checado antes de tocar no grafo (#166). O checkpoint nunca sabe de
@@ -332,16 +368,14 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
             if pendentes:
                 # #442: o CPF informado neste assunto segue para os próximos, para não ser pedido de novo.
                 corpo_resposta["assuntosPendentes"] = com_dados_do_fim(pendentes, corpo_resposta.get("dadosColetados"))
-                final = corpo_resposta.get("resposta")
-                if corpo_resposta.get("status") == "concluido" and isinstance(final, str):
-                    # #450 (2026-11-10): o que ainda falta, separado por urgência. Só no fim concluído: no
-                    # atendimento humano, quem atende vê os pendentes.
-                    guardados = await usuario_do_chat(chat_id) is not None
-                    corpo_resposta["resposta"] = f"{final}\n\n{texto_fim_do_assunto(pendentes, guardados)}"
             # #450 (só no release): o assunto guardado que este atendimento atendia fica resolvido.
             guardado = await assunto_guardado_do_chat(chat_id)
             if guardado is not None:
                 await (await obter_pendentes_store()).marcar(guardado, "resolvido")
+            final = corpo_resposta.get("resposta")
+            if fluxo_em_teste_liga() and corpo_resposta.get("status") == "concluido" and isinstance(final, str):
+                # #450: só no fim concluído. No atendimento humano, quem atende vê os pendentes.
+                await _com_o_que_falta(chat_id, corpo_resposta, final, pendentes or [])
         return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)

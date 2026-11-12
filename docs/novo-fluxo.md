@@ -151,7 +151,7 @@ O teste lê o fluxo sem executar e depois passeia por ele, respondendo "Sim" ou 
 
 **Se o fluxo pergunta algo de texto,** declare em `ROTEIROS`, no próprio teste, as respostas que o passeio dá, por padrão do texto da pergunta. Sem elas, o passeio responde um texto genérico, e uma validação de formato pode prender a conversa: o teste falha em "fim".
 
-**Fluxo novo não tem exceção.** Pessoa presa e violência doméstica ainda não passam na A13 e na A14. As três falhas estão em `EXCECOES`, cada uma ligada à issue que a corrige, e a lista só diminui. Quando a correção entra, o teste falha até a exceção ser apagada.
+**Fluxo novo não tem exceção.** Pessoa presa e violência doméstica ainda não passam na A14. As duas falhas estão em `EXCECOES`, cada uma ligada à issue que a corrige, e a lista só diminui. Quando a correção entra, o teste falha até a exceção ser apagada. A A13 da pessoa presa saiu em 2026-11-12, com a correção da #212 (o parentesco da IA fora da lista vira "Outro").
 
 ### O que o registro muda em outros testes
 

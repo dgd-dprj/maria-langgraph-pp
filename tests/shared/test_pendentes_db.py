@@ -88,6 +88,18 @@ async def _marcar(store: PendentesStore) -> None:
         await store.marcar("chat-a-assunto-2", "excluido")  # type: ignore[arg-type]
 
 
+async def _buscar_da_pessoa(store: PendentesStore, relogio: Relogio) -> None:
+    """#450 (2026-11-11): o assunto só volta para a mesma pessoa, em qualquer situação, e só no prazo."""
+    await store.guardar("usuario-1", "chat-a", PENDENTES)
+    await store.marcar("chat-a-assunto-2", "em_andamento")
+    item = await store.buscar_da_pessoa("usuario-1", "chat-a-assunto-2")
+    assert item is not None and item["situacao"] == "em_andamento"
+    assert await store.buscar_da_pessoa("usuario-2", "chat-a-assunto-2") is None
+    assert await store.buscar_da_pessoa("usuario-1", "chat-sem-linha-assunto-2") is None
+    relogio.avancar(31)
+    assert await store.buscar_da_pessoa("usuario-1", "chat-a-assunto-3") is None
+
+
 async def _vencido_apagado(store: PendentesStore, relogio: Relogio) -> None:
     await store.guardar("usuario-1", "chat-a", PENDENTES[:1])
     await store.guardar("usuario-2", "chat-b", PENDENTES[:1])
@@ -143,6 +155,11 @@ async def test_memoria_marcar_a_situacao(relogio: Relogio) -> None:
 
 
 @pytest.mark.usefixtures("sem_banco")
+async def test_memoria_buscar_da_pessoa(relogio: Relogio) -> None:
+    await _buscar_da_pessoa(await obter_pendentes_store(), relogio)
+
+
+@pytest.mark.usefixtures("sem_banco")
 async def test_memoria_vencido_e_apagado_na_consulta(relogio: Relogio) -> None:
     await _vencido_apagado(await obter_pendentes_store(), relogio)
 
@@ -171,6 +188,11 @@ async def test_postgres_guardar_e_listar(banco_de_negocio: psycopg.AsyncConnecti
 @pytest.mark.postgres
 async def test_postgres_marcar_a_situacao(banco_de_negocio: psycopg.AsyncConnection[TupleRow], relogio: Relogio) -> None:
     await _marcar(await obter_pendentes_store())
+
+
+@pytest.mark.postgres
+async def test_postgres_buscar_da_pessoa(banco_de_negocio: psycopg.AsyncConnection[TupleRow], relogio: Relogio) -> None:
+    await _buscar_da_pessoa(await obter_pendentes_store(), relogio)
 
 
 @pytest.mark.postgres
