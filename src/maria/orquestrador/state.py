@@ -70,6 +70,13 @@ class OrquestradorState(TypedDict, total=False):
     idUsuario: str | None
     # A busca dos assuntos guardados já rodou nesta conversa (uma vez só, mesmo com a desambiguação depois).
     pendentesBuscados: bool | None
+    # #450 (2026-11-11): o assunto guardado que a conversa retomou sozinha (o que a pessoa contou era ele), para o
+    # fim do fluxo marcar como resolvido.
+    assuntoResgatado: AssuntoGuardado | None
+    # A pessoa respondeu à lista com outra coisa: o texto vira o relato, e a classificação roda de novo.
+    reclassificar: bool | None
+    # A pessoa pediu um assunto novo na lista (ou não tinha assunto em aberto).
+    querAssuntoNovo: bool | None
     # Os assuntos guardados de outras conversas desta pessoa, e o que ela escolheu atender agora.
     pendentesGuardados: list[AssuntoGuardado] | None
     pendenteEscolhido: AssuntoGuardado | None

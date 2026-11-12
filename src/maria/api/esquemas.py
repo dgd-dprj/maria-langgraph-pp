@@ -53,6 +53,32 @@ ASSUNTOS_PENDENTES: Schema = {
     },
 }
 
+# #450 (2026-11-11, só no release): os assuntos em aberto da pessoa, desta conversa e guardados de outras, os urgentes
+# primeiro. O `chatIdAssunto` é o id do assunto: a Tykhe manda em `POST /atendimentos/proximo-assunto` como `assunto`.
+ASSUNTOS_EM_ABERTO: Schema = {
+    "type": "array",
+    "items": {
+        "type": "object",
+        "properties": {
+            "nome": {"type": "string"},
+            "urgente": {"type": "boolean"},
+            "urgencia": {"type": "string", "enum": ["urgente", "menos_urgente"]},
+            "chatIdAssunto": {"type": "string"},
+            "codigo": {"type": "string"},
+            "fase": {"type": "string", "enum": ["nao_iniciado", "em_andamento"]},
+            "venceEm": {"type": "string"},
+            "flowId": {"type": "string"},
+            "tipoCaso": {"type": "string"},
+        },
+    },
+}
+
+# #450 (2026-11-11, só no release): no fim da conversa, o resumo do que foi atendido, sem nada do relato.
+RESUMO_DA_CONVERSA: Schema = {
+    "type": "array",
+    "items": {"type": "object", "properties": {"nome": {"type": "string"}, "desfecho": {"type": "string"}, "codigo": {"type": "string"}}},
+}
+
 # rotas/atendimentos.ts:146-181
 RESPOSTA_ATENDIMENTO: Schema = {
     "type": "object",
@@ -102,13 +128,38 @@ RESPOSTA_ATENDIMENTO: Schema = {
         },
         "tokensGastos": TOKENS_GASTOS,
         "assuntosPendentes": ASSUNTOS_PENDENTES,
+        # #450 (2026-11-11, só no release): no fim da conversa, o resumo, os assuntos em aberto e os botões (um por
+        # assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa").
+        "resumoDaConversa": RESUMO_DA_CONVERSA,
+        "assuntosEmAberto": ASSUNTOS_EM_ABERTO,
+        "opcoesDoFim": {"type": "array", "items": {"type": "string"}},
         "_links": LINKS,
     },
 }
 
 # #450 (multi-fluxo, fase 1b, só no release): POST /atendimentos/proximo-assunto. O corpo é o de um
 # atendimento (assunto da Maria) ou o do redirecionado (assunto da Tykhe), mais o `chatId` gerado pela Maria.
-CORPO_PROXIMO_ASSUNTO: Schema = {"type": "object", "properties": {"chatId": {"type": "string", "description": "O chatId da conversa"}}}
+CORPO_PROXIMO_ASSUNTO: Schema = {
+    "type": "object",
+    "properties": {
+        "chatId": {"type": "string", "description": "O chatId da conversa"},
+        "assunto": {"type": "string", "description": "Opcional: o chatIdAssunto de um item de assuntosEmAberto"},
+        "resposta": {"type": "string", "description": "Opcional: a resposta da pessoa à lista dos assuntos em aberto"},
+    },
+}
+# #450 (2026-11-11, só no release): POST /atendimentos/assuntos-em-aberto.
+CORPO_ASSUNTOS_EM_ABERTO: Schema = {"type": "object", "properties": {"chatId": {"type": "string", "description": "O chatId da conversa"}}}
+RESPOSTA_ASSUNTOS_EM_ABERTO: Schema = {
+    "type": "object",
+    "properties": {
+        "resposta": {"type": "string"},
+        "tipoResposta": {"type": "string", "enum": ["texto", "opcoes"]},
+        "opcoes": {"type": "array", "items": {"type": "string"}},
+        "status": {"type": "string", "enum": ["em_andamento"]},
+        "assuntosEmAberto": ASSUNTOS_EM_ABERTO,
+        "_links": LINKS,
+    },
+}
 RESPOSTA_PROXIMO_ASSUNTO: Schema = {
     "type": "object",
     "properties": {
