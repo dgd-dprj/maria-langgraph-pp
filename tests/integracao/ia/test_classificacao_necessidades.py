@@ -36,7 +36,15 @@ NOVO = "tykhe:novo-processo"
 MULTI: list[tuple[str, str, set[str]]] = [
     ("M1-pp-plano", "meu irmao ta preso e o plano da minha mae n quer libera a cirurgia dela", {PP, PLANO}),
     ("M2-vd-pp-agora", "meu marido me bate qnd bebe e meu filho rodou ontem a noite", {VD, PP}),
-    ("M4-pp-posto", "mu imao ta preso la em bangu e o posto n marca o exame da minha vo faz 3 mes", {PP, SAUDE}),
+    # #472 (critério da Nicole, 2026-11-12): o relato não pede nada sobre o irmão (visita, processo, transferência),
+    # então pela regra de 28/10 a prisão é contexto e o esperado é só a saúde, como no M5. Era {PP, SAUDE}.
+    ("M4-pp-posto", "mu imao ta preso la em bangu e o posto n marca o exame da minha vo faz 3 mes", {SAUDE}),
+    # #472: a prisão como pedido de verdade junto com a saúde, para a suíte separar contexto de demanda.
+    (
+        "M12-pp-pedido-posto",
+        "meu irmao ta preso em bangu e eu quero saber quando ele sai, e o posto n marca o exame da minha vo",
+        {PP, SAUDE},
+    ),
     # Só cita que o marido está preso, sem pedir nada sobre ele: pela regra de 28/10, a prisão é contexto (como no M11).
     ("M5-pp-tratamento", "ow meu marido ta na cana e o convenio cortou o tratamento do meu filho", {SAUDE}),
     ("M6-vd-pensao", "preciso de ajuda pq meu ex me ameaçou e tb ele n paga a pensao das crianças", {VD, NOVO}),
