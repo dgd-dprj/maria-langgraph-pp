@@ -82,6 +82,13 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 - As regras da triagem ficaram as da #465: as versões novas não passaram da variação de cerca de 3 casos. Entrou só a regra da pergunta de desambiguação com as opções em dúvida ("pelo plano de saúde ou pelo SUS?"), só no Qwen. O prompt do Haiku não muda.
 - A suíte escolhe o modelo por `MARIA_MODELO_TESTE_IA`; sem a variável, continua o Haiku da produção.
 - Custo das medições: US$ 1,65 de US$ 3,00 aprovados.
+- **Comparação na configuração da produção (2026-11-12, critérios aprovados antes; [registro](https://github.com/dgd-dprj/maria-langgraph-pp/issues/472#issuecomment-6831091969)):** o Qwen passa em triagem, falhas, custo (−57%) e tempo em São Paulo; não passa no parentesco por 1 caso e no p95 em us-east-1 (1,49 s contra 0,65 s do Haiku). **Decisão da Nicole:** aprovado para São Paulo; se a produção continuar em us-east-1, a troca espera a mudança de região, e o critério de tempo não muda. Faltam o Ícaro confirmar a cota e a volta atrás. Custo: US$ 1,39 (US$ 1,32 aprovados para a comparação e US$ 0,10 para a rodada do "genro").
+
+**#212, parentesco (decisão da Nicole, 2026-11-12): a IA escolhe só da lista, sem inventar.** Achado da comparação Haiku x Qwen da #472, com 53 respostas inventadas no formato das da produção (1 a 4 palavras, pelos tokens do log).
+- O fluxo da pessoa presa confere o parentesco da IA: valor fora da lista vira "Outro", com o evento `parentesco_fora_da_lista` (só o motivo, nunca o valor). O Haiku devolveu "Irmã(o)" 2 vezes em 159; o Qwen, nenhuma. A exceção A13 da pessoa presa saiu da conformidade.
+- O prompt ganhou regras (grafia exata, relação invertida só com "meu/minha", parente fora da lista é "Outro"), **só com o Qwen** (`SUFIXO_PARENTESCO`): Qwen VL 235B de 48 para 60 de 61, nas 2 passadas (8 respostas fora dos exemplos do prompt, todas certas). Com o Haiku, as mesmas regras derrubaram o acerto ("mãe" virou "Filho(a)"), e o prompt dele fica o de sempre (57,3 de 61).
+- Erro que fica com o Qwen: quem é casado com o filho ou a filha da pessoa presa ("genro", "sou casado com a filha dele", "marido da filha dele") vira "Sogro(a)"; o Haiku acerta o "genro". Uma regra geral de direção no prompt ("quem escreve é [valor] da pessoa presa") não corrigiu em 3 passadas e fez a "nora" voltar a errar; ficou a versão anterior. Rodada de US$ 0,10 aprovada pela Nicole.
+- A lista de 8 valores do SIPEN (Ícaro, 2026-10-16) continua fora: muda o contrato com a Tykhe.
 
 **#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
 - As frases vêm de blocos aprovados pela equipe.
