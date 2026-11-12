@@ -110,6 +110,7 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
    - **"meu filho foi preso":** ela pergunta só "Você é a mãe ou o pai dele?";
    - **dois parentes no relato:** ela reconhece qual está preso ("minha mãe disse que meu primo foi preso" é o primo). Se forem dois presos ("meu primo e meu irmão foram presos"), pergunta "Sobre qual deles é este atendimento?";
    - **a pergunta de sempre continua** quando não dá para saber: erro de digitação ("mu imao"), "meu sogro", "meu namorado".
+   - **Resposta à pergunta do parentesco, depois da #212:** nenhum valor fora da lista chega aos metadados (vira "Outro"). **Só com o Qwen**, a IA também lê melhor as respostas: "irmã" → "Irmão(a)"; "minha mãe" (a pessoa presa é a mãe) → "Filho(a)"; "meu filho" → "Outro" (não dá para saber se é a mãe ou o pai); "nora", "enteada", "padrasto" → "Outro". Erro que continua com o Qwen: quem é casado com o filho ou a filha da pessoa presa ("genro", "sou casado com a filha dele") vira "Sogro(a)". **Com o Haiku** (e antes da #212), "minha mãe" vira "Mãe", e antes da #212 um valor fora da lista (como "Irmã(o)") podia chegar aos metadados.
 
    Teste os jeitos diferentes.
 6. CPF de quem está conversando → um CPF inventado (e o cadastro, como no caso A) ou um já cadastrado.

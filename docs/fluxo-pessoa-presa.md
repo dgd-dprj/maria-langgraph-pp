@@ -23,7 +23,7 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
         encontrado                       → 5. "Confirma que a pessoa presa é <nome mascarado>?" (sim/não;
                                               #393: primeiro nome e iniciais, ex.: "Jose S. P.")
            não confirmado                 → HANDOFF: nome_nao_confirmado
-           confirmado                     → 6. "Qual seu parentesco?" (texto, classificado por IA numa lista fechada)
+           confirmado                     → 6. "Qual seu parentesco?" (texto, classificado por IA numa lista fechada; fora da lista vira "Outro", #212)
                                               → SEM viaOrquestrador (Tykhe, issue #191): conclui DIRETO, nunca
                                                 pergunta CPF do assistido — idêntico ao comportamento de antes
                                                 da issue #183.

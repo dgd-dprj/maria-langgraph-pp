@@ -7,7 +7,7 @@ from typing import Any
 import pytest
 
 from maria.ia import classificar_fluxos, classificar_necessidades, desambiguar
-from maria.ia.ajuste_qwen import SUFIXO_DESAMBIGUAR, SUFIXO_FLUXOS, SUFIXO_NECESSIDADES, com_ajuste_qwen, modelo_e_qwen
+from maria.ia.ajuste_qwen import SUFIXO_DESAMBIGUAR, SUFIXO_FLUXOS, SUFIXO_NECESSIDADES, SUFIXO_PARENTESCO, com_ajuste_qwen, modelo_e_qwen
 
 QWEN = "qwen.qwen3-vl-235b-a22b"
 HAIKU = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -37,7 +37,7 @@ def test_so_o_qwen_recebe_o_sufixo(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_sufixos_nao_tem_chaves() -> None:
     # SISTEMA usa .format e o sufixo entra em f-string: chave aqui quebraria o prompt.
-    for texto in (SUFIXO_NECESSIDADES, SUFIXO_FLUXOS, SUFIXO_DESAMBIGUAR):
+    for texto in (SUFIXO_NECESSIDADES, SUFIXO_FLUXOS, SUFIXO_DESAMBIGUAR, SUFIXO_PARENTESCO):
         assert "{" not in texto
         assert "}" not in texto
 

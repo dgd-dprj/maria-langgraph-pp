@@ -20,8 +20,6 @@ from typing import Any
 import pytest
 
 from maria.fluxos import FLUXO_PADRAO, ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, fluxos_por_id
-from maria.fluxos.pessoa_presa import graph as grafo_pessoa_presa
-from maria.ia.classificar import classificar_entre_opcoes
 from tests.fluxos import conformidade, molde_de_teste
 from tests.fluxos.conformidade import Falhas, FluxoSobConferencia, Roteiro, conferir
 from tests.integracoes.conftest import TransporteFalso
@@ -69,11 +67,11 @@ ROTEIROS: dict[str, tuple[Roteiro, ...]] = {
 }
 
 EXCECOES: dict[tuple[str, str], str] = {
-    ("pessoa-presa", "A13"): "#212",
     ("pessoa-presa", "A14"): "#239",
     ("violencia-domestica", "A14"): "#239",
 }
-EXCECOES_INICIAIS = frozenset({("pessoa-presa", "A13"), ("pessoa-presa", "A14"), ("violencia-domestica", "A14")})
+# ("pessoa-presa", "A13") saiu em 2026-11-12, com a correção da #212 (o parentesco fora da lista vira "Outro").
+EXCECOES_INICIAIS = frozenset({("pessoa-presa", "A14"), ("violencia-domestica", "A14")})
 
 FLUXOS = [FluxoSobConferencia.do_registro(id_, config, ROTEIROS.get(id_, (Roteiro(),))) for id_, config in fluxos_por_id.items()]
 FLUXOS.append(FluxoSobConferencia.do_registro(None, FLUXO_PADRAO))
@@ -116,24 +114,6 @@ async def test_o_fluxo_de_teste_segue_o_molde(transporte: TransporteFalso) -> No
 async def test_cada_defeito_quebra_a_sua_regra(defeito: str, regra: str, transporte: TransporteFalso) -> None:
     falhas = await conferir(molde_de_teste.montar(defeito), transporte)
     assert falhas[regra], f"o defeito {defeito!r} passou pela regra {regra}"
-
-
-async def test_a_correcao_da_212_faz_a_excecao_quebrar_o_teste(transporte: TransporteFalso, monkeypatch: pytest.MonkeyPatch) -> None:
-    """Simula a correção da #212 no código de pessoa presa: a escolha da IA fora
-    da lista vira "nenhum", e o fluxo grava "Outro", como já faz com "nenhum"."""
-
-    async def com_a_lista_conferida(mensagem: str, sistema: str, ids: list[str]) -> Any:
-        resultado = dict(await classificar_entre_opcoes(mensagem, sistema, ids))
-        if resultado.get("escolhaId") not in ids:
-            resultado["escolhaId"] = None
-        return resultado
-
-    monkeypatch.setattr(grafo_pessoa_presa, "classificar_entre_opcoes", com_a_lista_conferida)
-    pessoa_presa = next(f for f in FLUXOS if f.nome == "pessoa-presa")
-    falhas = await conferir(pessoa_presa, transporte)
-    assert not falhas["A13"]
-    erros = falhas_que_valem("pessoa-presa", falhas)
-    assert len(erros) == 1 and erros[0].startswith("exceção vencida: pessoa-presa passa na A13. A correção (#212)"), erros
 
 
 @pytest.mark.parametrize("nome", ["pessoa-presa", "violencia-domestica"])
