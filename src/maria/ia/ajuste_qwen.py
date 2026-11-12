@@ -1,8 +1,13 @@
-"""Regras acrescentadas aos prompts de triagem só quando o modelo é um Qwen (#458, homolog em São Paulo).
+"""Regras acrescentadas aos prompts da IA só quando o modelo é um Qwen (#458, homolog em São Paulo).
 
 O prompt foi afinado no Haiku. Medido com os 66 casos de `tests/integracao/ia`, 3 passadas, no Bedrock de
 `sa-east-1`: o Qwen3 VL 235B passou de 58,0 para 61,7 acertos com estas regras (Haiku 4.5 `us.`: 61,3 sem elas).
 Para qualquer outro modelo o prompt fica idêntico ao de antes.
+
+#472 (2026-11-12): três outras versões das regras da triagem foram medidas com o VL 235B, 3 passadas cada (61,0,
+61,7 e 61,0), sem ganho acima da variação entre rodadas (cerca de 3 casos); as regras da triagem ficaram as de
+cima. O Qwen3 Coder 30B fez 54 de 66 com elas. Entrou só a regra da pergunta de desambiguação, que com o Qwen
+perguntava sobre uma opção só ("Seu plano de saúde está envolvido nisso?").
 """
 
 from __future__ import annotations
@@ -22,6 +27,9 @@ Como decidir (vale para qualquer assunto):
 - Se o relato já traz a informação que separa dois fluxos, devolva só o fluxo que a descrição cobre. Não acrescente outro fluxo "por garantia".
 - Se falta no relato justamente a informação que separa dois fluxos, devolva os dois. Exemplo de outro assunto: se um fluxo cobre pensão alimentícia de filhos e outro pensão entre ex-cônjuges, "preciso entrar com pedido de pensão" não diz qual dos dois e devolve os dois; "meu ex não paga a pensão do nosso filho" devolve só o primeiro.
 - Não devolva lista vazia se algum fluxo cobre o assunto."""  # noqa: E501
+
+SUFIXO_DESAMBIGUAR = """
+Na pergunta, cite as opções em dúvida pelo que as separa, de forma neutra e na mesma pergunta (por exemplo: "pelo plano de saúde ou pelo SUS?", "você já tem um processo ou quer abrir um novo?"). Não pergunte só sobre uma das opções."""  # noqa: E501
 
 
 def modelo_e_qwen() -> bool:
