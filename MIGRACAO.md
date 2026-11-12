@@ -61,6 +61,12 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - As frases novas vão para a revisão da equipe.
 - Em aberto: a rota de atendimento online do Verde.
 
+**#472 (2026-11-12, a pedido da Nicole): troca do Haiku pelo Qwen no Bedrock de São Paulo, para a produção de 13/11.**
+- Medido com os 66 casos de IA em `sa-east-1`: Qwen3 Coder 30B 54 (1 passada); Qwen3 VL 235B de 61,0 a 61,7 (média de 3 passadas, quatro versões das regras); Haiku 4.5 61,3. **Recomendação: VL 235B.**
+- As regras da triagem ficaram as da #465: as versões novas não passaram da variação de cerca de 3 casos. Entrou só a regra da pergunta de desambiguação com as opções em dúvida ("pelo plano de saúde ou pelo SUS?"), só no Qwen. O prompt do Haiku não muda.
+- A suíte escolhe o modelo por `MARIA_MODELO_TESTE_IA`; sem a variável, continua o Haiku da produção.
+- Custo das medições: US$ 1,65 de US$ 3,00 aprovados.
+
 **#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
 - As frases vêm de blocos aprovados pela equipe.
 - A emoção, o humor e o risco são lidos na mesma chamada da classificação.
