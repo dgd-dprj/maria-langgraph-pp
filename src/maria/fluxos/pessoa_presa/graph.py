@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -147,6 +148,53 @@ def dados_apenado_atendidos(state: PessoaPresaState) -> bool:
         and _to_upper_case(tipo_preso, "tipoPreso") == TIPO_PRESO_PERMITIDO
         and _to_upper_case(regime, "regime") in REGIMES_PERMITIDOS
     )
+
+
+def _criterio_nao_atendido(dados: Any) -> tuple[str, bool] | None:
+    """O 1º critério da #57 que barrou, na ordem do `concluir`, e se foi por falta do dado. None se todos batem."""
+    for campo in ("situacao", "tipoPreso", "regime"):
+        valor = _js.prop(dados, campo) if _js.verdadeiro(dados) else _js.AUSENTE
+        if valor is _js.AUSENTE or not isinstance(valor, str):
+            return campo, True
+        if campo == "situacao" and normalizar_situacao(valor) not in SITUACOES_PERMITIDAS:
+            return campo, False
+        if campo == "tipoPreso" and valor.upper() != TIPO_PRESO_PERMITIDO:
+            return campo, False
+        if campo == "regime" and valor.upper() not in REGIMES_PERMITIDOS:
+            return campo, False
+    return None
+
+
+def campos_de_log_do_fim(values: Mapping[str, Any]) -> dict[str, Any]:
+    """#457: o porquê de cada atendimento humano, no `atendimento_finalizado`, só quando se aplica e **sem dado pessoal**:
+    nunca o número do processo, o RG, o nome, a situação, o tipo ou o regime, só o nome do critério.
+
+    - `origem_processo_nao_suportada`: `processoLocalizado` e, quando o Verde achou, `origemProcesso` (o sistema de
+      origem, como "PJe"); quando não achou, `statusVerdeProcesso` (400, 404 ou 422).
+    - `dados_pessoa_nao_atendidos`: `criterioNaoAtendido` (`situacao`, `tipoPreso` ou `regime`, o 1º que barrou) e
+      `criterioSemDado` (o Verde não mandou esse campo).
+    - `rg_nao_encontrado`: `digitosRg`, quantos dígitos tinha o último RG consultado."""
+    motivo = values.get("motivoHandoff")
+    campos: dict[str, Any] = {}
+    if motivo == "origem_processo_nao_suportada":
+        processo = values.get("dadosProcesso")
+        localizado = isinstance(processo, Mapping) and _js.verdadeiro(processo.get("encontrado"))
+        campos["processoLocalizado"] = localizado
+        origem = processo.get("origem") if isinstance(processo, Mapping) else None
+        if localizado and isinstance(origem, str):
+            campos["origemProcesso"] = origem
+        status = values.get("statusConsultaProcesso")
+        if not localizado and isinstance(status, int):
+            campos["statusVerdeProcesso"] = status
+    elif motivo == "dados_pessoa_nao_atendidos":
+        criterio = _criterio_nao_atendido(values.get("dadosApenado"))
+        if criterio is not None:
+            campos["criterioNaoAtendido"], campos["criterioSemDado"] = criterio
+    elif motivo == "rg_nao_encontrado":
+        rg = values.get("rg")
+        if isinstance(rg, str):
+            campos["digitosRg"] = sum(c in "0123456789" for c in limpar_rg(rg))
+    return campos
 
 
 def extracao_livre_habilitada() -> bool:

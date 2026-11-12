@@ -19,7 +19,8 @@ from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
-from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo, fluxo_em_teste_liga
+from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo, fluxo_em_teste_liga
+from maria.fluxos.pessoa_presa.graph import campos_de_log_do_fim
 from maria.orquestrador.fila import (
     AssuntoPendente,
     com_dados_do_fim,
@@ -227,6 +228,9 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         return
     status_final = resultado.get("statusFinal")
     destino = destino_do_log(fluxo_id, status_final, resultado)
+    # `status="concluido"` é o de develop (o atendimento terminou) e fica, porque os painéis contam por ele. #457: o
+    # `statusFinal` diz como terminou (`concluido` ou `handoff_humano`), e a pessoa presa ganha o porquê do
+    # atendimento humano, sem dado pessoal.
     log.info(
         "atendimento finalizado",
         fluxoId=fluxo_id,
@@ -236,6 +240,8 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         destino=destino,
         motivoHandoff=resultado.get("motivoHandoff"),
         tokensGastos=resultado.get("tokensGastos"),
+        statusFinal=status_final,
+        **(campos_de_log_do_fim(resultado) if fluxo_id == ID_PESSOA_PRESA else {}),
     )
     if _js.verdadeiro(status_final):
         conclusao: dict[str, Any] = {"statusFinal": status_final}
