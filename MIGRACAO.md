@@ -61,6 +61,11 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - As frases novas vão para a revisão da equipe.
 - Em aberto: a rota de atendimento online do Verde.
 
+**#457 (2026-11-12, a pedido da Nicole):** o porquê dos atendimentos humanos da pessoa presa no log, sem dado pessoal.
+- No `atendimento_finalizado`, o `status` continua sempre "concluido", como em develop, porque os painéis contam por ele. Entra `statusFinal` (`concluido` ou `handoff_humano`) em todos os fluxos.
+- Na pessoa presa: `processoLocalizado`, `origemProcesso` ou `statusVerdeProcesso` (origem não suportada), `criterioNaoAtendido` e `criterioSemDado` (regra da #57) e `digitosRg` (RG não encontrado). Nunca o número do processo, o RG, o nome nem os valores da situação, do tipo e do regime.
+- As linhas de log gravadas da versão TypeScript não foram editadas: os campos novos entram em `CAMPOS_DE_LOG_POSTERIORES` (`tests/api/campos_posteriores.py`), como os campos novos das respostas (#294).
+
 **#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
 - As frases vêm de blocos aprovados pela equipe.
 - A emoção, o humor e o risco são lidos na mesma chamada da classificação.
