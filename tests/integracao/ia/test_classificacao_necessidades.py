@@ -25,7 +25,7 @@ from maria.ia._estruturado import criar_modelo
 from maria.orquestrador.fila import montar_fila
 from maria.orquestrador.graph import CANDIDATOS_MAXIMOS, resolver_escolha_direta
 from maria.shared.embeddings_fluxos import buscar_candidatos
-from tests.integracao.ia.test_classificacao_plano_saude import CASOS, MODELO_DE_PRODUCAO
+from tests.integracao.ia.test_classificacao_plano_saude import CASOS, MODELO_DO_TESTE
 
 pytestmark = pytest.mark.integracao
 
@@ -56,7 +56,7 @@ def _release_com_o_modelo_da_producao(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.setenv("MARIA_AMBIENTE", "release")
     monkeypatch.delenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", raising=False)
-    monkeypatch.setenv("BEDROCK_MODEL_ID", MODELO_DE_PRODUCAO)
+    monkeypatch.setenv("BEDROCK_MODEL_ID", MODELO_DO_TESTE)
     monkeypatch.setattr(cn, "modelo", criar_modelo())
 
 

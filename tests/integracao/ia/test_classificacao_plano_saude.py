@@ -19,6 +19,8 @@ cirurgia), formais e informais, continuam em `tykhe:saude`: são os casos "plano
 
 from __future__ import annotations
 
+import os
+
 import pytest
 
 from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, catalogo_para_classificacao
@@ -31,6 +33,8 @@ from maria.shared.embeddings_fluxos import buscar_candidatos
 pytestmark = pytest.mark.integracao
 
 MODELO_DE_PRODUCAO = "us.anthropic.claude-haiku-4-5-20251001-v1:0"  # infra/terraform/ecs.tf
+# Para medir outro modelo (ex.: o Qwen de São Paulo, com AWS_REGION=sa-east-1), sem mudar o padrão.
+MODELO_DO_TESTE = os.environ.get("MARIA_MODELO_TESTE_IA") or MODELO_DE_PRODUCAO
 PLANO = ID_PROBLEMAS_PLANO_SAUDE
 SAUDE = "tykhe:saude"
 
@@ -72,7 +76,7 @@ def _release_com_o_modelo_da_producao(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("APP_ENV", "development")
     monkeypatch.setenv("MARIA_AMBIENTE", "release")
     monkeypatch.delenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", raising=False)
-    monkeypatch.setenv("BEDROCK_MODEL_ID", MODELO_DE_PRODUCAO)
+    monkeypatch.setenv("BEDROCK_MODEL_ID", MODELO_DO_TESTE)
     # O modelo é criado na importação do módulo: troca pelo da produção, qualquer que seja o .env.
     monkeypatch.setattr(classificar, "modelo", criar_modelo())
 

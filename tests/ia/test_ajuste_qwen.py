@@ -6,8 +6,8 @@ from typing import Any
 
 import pytest
 
-from maria.ia import classificar_fluxos, classificar_necessidades
-from maria.ia.ajuste_qwen import SUFIXO_FLUXOS, SUFIXO_NECESSIDADES, com_ajuste_qwen, modelo_e_qwen
+from maria.ia import classificar_fluxos, classificar_necessidades, desambiguar
+from maria.ia.ajuste_qwen import SUFIXO_DESAMBIGUAR, SUFIXO_FLUXOS, SUFIXO_NECESSIDADES, com_ajuste_qwen, modelo_e_qwen
 
 QWEN = "qwen.qwen3-vl-235b-a22b"
 HAIKU = "us.anthropic.claude-haiku-4-5-20251001-v1:0"
@@ -37,7 +37,7 @@ def test_so_o_qwen_recebe_o_sufixo(monkeypatch: pytest.MonkeyPatch) -> None:
 
 def test_sufixos_nao_tem_chaves() -> None:
     # SISTEMA usa .format e o sufixo entra em f-string: chave aqui quebraria o prompt.
-    for texto in (SUFIXO_NECESSIDADES, SUFIXO_FLUXOS):
+    for texto in (SUFIXO_NECESSIDADES, SUFIXO_FLUXOS, SUFIXO_DESAMBIGUAR):
         assert "{" not in texto
         assert "}" not in texto
 
@@ -84,3 +84,27 @@ async def test_fluxos_qwen_leva_o_sufixo_e_outro_modelo_fica_identico(monkeypatc
     com_qwen = await _sistema_dos_fluxos(monkeypatch, QWEN)
     assert SUFIXO_FLUXOS not in com_haiku
     assert com_qwen == com_haiku + SUFIXO_FLUXOS
+
+
+async def _sistema_da_desambiguacao(monkeypatch: pytest.MonkeyPatch, modelo_id: str) -> str:
+    capturado: dict[str, Any] = {}
+
+    async def falso(_modelo: object, _esquema: object, sistema: str, _mensagem: str) -> dict[str, Any]:
+        capturado["sistema"] = sistema
+        return {"parsed": {"pergunta": "?"}, "raw": None}
+
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("BEDROCK_MODEL_ID", modelo_id)
+    monkeypatch.setattr(desambiguar, "invocar_estruturado", falso)
+    monkeypatch.setattr(desambiguar, "definir_tokens", lambda *_: None)
+    await desambiguar.gerar_pergunta_desambiguacao(
+        "relato", [{"id": "a", "nome": "n", "descricao": "d"}, {"id": "b", "nome": "m", "descricao": "e"}]
+    )
+    return str(capturado["sistema"])
+
+
+async def test_desambiguacao_qwen_cita_as_opcoes_e_outro_modelo_fica_identico_472(monkeypatch: pytest.MonkeyPatch) -> None:
+    com_haiku = await _sistema_da_desambiguacao(monkeypatch, HAIKU)
+    com_qwen = await _sistema_da_desambiguacao(monkeypatch, QWEN)
+    assert SUFIXO_DESAMBIGUAR not in com_haiku
+    assert com_qwen == com_haiku + SUFIXO_DESAMBIGUAR
