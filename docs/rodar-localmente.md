@@ -169,7 +169,7 @@ curl -s -X POST http://127.0.0.1:3001/atendimentos/respostas \
 **Resposta esperada no modo A**, depois da 1ª pergunta de pessoa presa ("Você tem o número do processo…?"), respondendo `false`:
 
 ```json
-{"resposta":"Qual o RG da pessoa presa? Informe apenas os números.","tipoResposta":"texto","status":"em_andamento","flowId":"3df874f2-675a-4c43-9ec7-480f7c702f50","metadados":{"temProcesso":false},"dadosColetados":{},"_links":{"self":{"href":"/atendimentos/teste-1"},"responder":{"href":"/atendimentos/respostas","method":"POST"}}}
+{"resposta":"Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9.","tipoResposta":"texto","status":"em_andamento","flowId":"3df874f2-675a-4c43-9ec7-480f7c702f50","metadados":{"temProcesso":false},"dadosColetados":{},"_links":{"self":{"href":"/atendimentos/teste-1"},"responder":{"href":"/atendimentos/respostas","method":"POST"}}}
 ```
 
 Para ver em que pé está um atendimento, sem avançar nada:

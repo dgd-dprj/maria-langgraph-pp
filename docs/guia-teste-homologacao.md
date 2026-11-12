@@ -248,6 +248,7 @@ Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09 e 2026-11-10). **Na pr
 | Pedido de pensão alimentícia | Encaminhado à Tykhe: "Entendi. Vou te encaminhar para o atendimento de abertura de um novo caso." |
 | Relato vago, entre pessoa presa e violência doméstica | Uma pergunta de esclarecimento, e depois o fluxo certo |
 | Pessoa presa, RG com ponto e traço, do jeito que aparece no documento (ex.: o RG de teste escrito como `12.345.678-9`) | **Depois da #343:** a Maria aceita e segue para "Confirma que é <nome>?", a mesma pessoa de quando o RG vai só com números. **Antes da #343:** "O RG deve conter apenas números…", repetido a cada tentativa |
+| Pessoa presa, a pergunta do RG (#475) | **Desde a #475:** "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9." Os dois formatos do exemplo são aceitos |
 | Pessoa presa, RG com letra (ex.: `12a`) | **Desde a #394:** "Não consegui ler esse RG (tentativa 1 de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.", depois "tentativa 2 de 3"; na 3ª recusa, a conversa vai para o atendimento humano (`motivoHandoff: rg_formato_invalido`), sem consultar o Verde |
 
 ## 4. Como reconhecer uma falha do ambiente

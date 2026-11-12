@@ -13,7 +13,7 @@ Quem busca informação/encaminhamento sobre alguém que está presa (geralmente
 2. "Você tem o número do processo?"           (sim/não)
      sim → 3. "Qual o número do processo?"     (texto) → consulta Verde (informativo, não bloqueia)
      não → pula pro passo 4
-4. "Qual o RG da pessoa presa?"                (texto)
+4. "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: …" (texto; #475)
      ponto, traço e espaços saem antes de conferir (#343): "12.345.678-9" vale como "123456789"
      formato inválido (sobra algo que não é número), 1ª e 2ª vez → "Não consegui ler esse RG (tentativa N de 3). Escreva só os números…" (#394)
      formato inválido, 3ª vez       → HANDOFF: rg_formato_invalido (#394), sem consultar o Verde
