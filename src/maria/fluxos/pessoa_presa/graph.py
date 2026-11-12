@@ -8,7 +8,7 @@ e cadastra quem não foi encontrado (`cadastro_pessoa`).
 Reproduzido de develop, com issues abertas para depois da migração:
 - `pedirConfirmaNome` mostrava o nome do apenado a partir do RG digitado (#236);
   desde a #393, mostra o nome mascarado (primeiro nome e iniciais);
-- parentesco não validado, e a lista difere da do SIPEN (#212);
+- a lista de parentescos difere da do SIPEN (#212); desde 2026-11-12, o valor da IA fora da lista vira "Outro";
 - `situacao`, `tipoPreso` ou `regime` com `null` do Verde lançam TypeError no
   `concluir`, como o `null.toUpperCase()` de develop (spec 05, 3.2).
 
@@ -35,6 +35,7 @@ from maria.fluxos.pessoa_presa.api import (
     MENSAGEM_HANDOFF_SEM_NUMERO_PROCESSO,
 )
 from maria.fluxos.pessoa_presa.state import PessoaPresaState
+from maria.ia.ajuste_qwen import SUFIXO_PARENTESCO, com_ajuste_qwen
 from maria.ia.classificar import classificar_entre_opcoes
 from maria.ia.extrair import extrair_campos_livre
 from maria.ia.reescrever import preparar_pergunta
@@ -100,6 +101,7 @@ PARENTESCOS_PERMITIDOS = [
     "Outro",
 ]
 
+# O prompt de sempre (o do Haiku da produção). Com o Qwen, entram as regras de `SUFIXO_PARENTESCO` (#212).
 SISTEMA_PARENTESCO = f"""Você classifica o parentesco de quem busca informação sobre uma pessoa presa, na Defensoria Pública do RJ, a partir de um relato livre.
 Parentescos possíveis: {", ".join(PARENTESCOS_PERMITIDOS)}.
 Regras: escolha o que melhor descreve a relação, mesmo que o relato seja indireto (ex: "fui casada com ele mas já nos divorciamos" → "Ex-esposo(a)"). Se não bater com confiança em nenhum, responda "nenhum"."""  # noqa: E501
@@ -442,9 +444,22 @@ async def classificar_parentesco(resposta_livre: str) -> ResultadoClassificarPar
     # `NODE_ENV === "test"` em develop. `??`: uma variável vazia passa como "".
     if os.environ.get("APP_ENV") == "test":
         return {"parentesco": _js.coalesce(os.environ.get("MOCK_CLASSIFICACAO_PARENTESCO"), "Outro")}
-    resultado = await classificar_entre_opcoes(resposta_livre, SISTEMA_PARENTESCO, PARENTESCOS_PERMITIDOS)
+    resultado = await classificar_entre_opcoes(
+        resposta_livre, com_ajuste_qwen(SISTEMA_PARENTESCO, SUFIXO_PARENTESCO), PARENTESCOS_PERMITIDOS
+    )
+    escolha = resultado.get("escolhaId")
+    if escolha is not None and not (isinstance(escolha, str) and escolha in PARENTESCOS_PERMITIDOS):
+        # #212 (decisão da Nicole, 2026-11-12): valor fora da lista não chega à Tykhe; vira "Outro", como o
+        # "nenhum". O log diz só o motivo, nunca o valor devolvido nem a resposta da pessoa.
+        logger.warn(
+            "[parentesco] a IA devolveu um valor fora da lista; gravado como Outro",
+            **contexto_atual(),
+            evento="parentesco_fora_da_lista",
+            motivo="fora_da_lista" if isinstance(escolha, str) else "tipo_errado",
+        )
+        escolha = None
     return {
-        "parentesco": _js.coalesce(resultado.get("escolhaId"), "Outro"),
+        "parentesco": _js.coalesce(escolha, "Outro"),
         "tokensTotal": resultado.get("tokensTotal"),
         "tokensEntrada": resultado.get("tokensEntrada"),
         "tokensSaida": resultado.get("tokensSaida"),
