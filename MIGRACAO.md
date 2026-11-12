@@ -90,6 +90,8 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 - Erro que fica com o Qwen: quem é casado com o filho ou a filha da pessoa presa ("genro", "sou casado com a filha dele", "marido da filha dele") vira "Sogro(a)"; o Haiku acerta o "genro". Uma regra geral de direção no prompt ("quem escreve é [valor] da pessoa presa") não corrigiu em 3 passadas e fez a "nora" voltar a errar; ficou a versão anterior. Rodada de US$ 0,10 aprovada pela Nicole.
 - A lista de 8 valores do SIPEN (Ícaro, 2026-10-16) continua fora: muda o contrato com a Tykhe.
 
+**#475 (decisão da Nicole, 2026-11-12):** a pergunta do RG da pessoa presa mostra os formatos aceitos: "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9.". O que a Maria aceita não muda (#343), e o "RG não encontrado" continua com 3 tentativas. Três respostas gravadas aposentadas com registro, sem editar. O PR #437, que recusava o RG com espaços, foi fechado como superado pelo #343 e pelo #470.
+
 **#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
 - As frases vêm de blocos aprovados pela equipe.
 - A emoção, o humor e o risco são lidos na mesma chamada da classificação.
