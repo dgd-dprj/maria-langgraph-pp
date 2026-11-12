@@ -14,6 +14,7 @@ from __future__ import annotations
 
 import json
 from dataclasses import dataclass
+from typing import Any
 
 
 @dataclass(frozen=True)
@@ -40,7 +41,7 @@ CAMPOS_DE_LOG_POSTERIORES: dict[str, CampoPosterior] = {
 }
 
 
-def linha_sem_campos_posteriores(linha: dict[str, object]) -> dict[str, object]:
+def linha_sem_campos_posteriores(linha: dict[str, Any]) -> dict[str, Any]:
     """A linha de log sem os campos de `CAMPOS_DE_LOG_POSTERIORES` do primeiro nível."""
     return {k: v for k, v in linha.items() if k not in CAMPOS_DE_LOG_POSTERIORES}
 

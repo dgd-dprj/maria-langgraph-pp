@@ -84,7 +84,7 @@ def test_outros_desfechos_nao_ganham_campo(motivo: str | None) -> None:
 
 def _fim(saida: str) -> dict[str, Any]:
     [linha] = [json.loads(x) for x in saida.splitlines() if '"atendimento_finalizado"' in x]
-    return linha
+    return dict(linha)
 
 
 async def _pessoa_presa(cliente: httpx.AsyncClient, auth: dict[str, str], respostas: list[str]) -> dict[str, Any]:
