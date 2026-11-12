@@ -6,7 +6,13 @@ from pathlib import Path
 
 import pytest
 
-from tests.api.campos_posteriores import CAMPOS_POSTERIORES, CampoPosterior, sem_campos_posteriores
+from tests.api.campos_posteriores import (
+    CAMPOS_DE_LOG_POSTERIORES,
+    CAMPOS_POSTERIORES,
+    CampoPosterior,
+    linha_sem_campos_posteriores,
+    sem_campos_posteriores,
+)
 
 
 @pytest.mark.parametrize(
@@ -73,6 +79,16 @@ def _conferir_registro(campo: str, registro: CampoPosterior) -> None:
 @pytest.mark.parametrize(("campo", "registro"), sorted(CAMPOS_POSTERIORES.items()))
 def test_cada_campo_cita_a_issue_e_um_teste_que_existe_e_cobre_o_campo(campo: str, registro: CampoPosterior) -> None:
     _conferir_registro(campo, registro)
+
+
+@pytest.mark.parametrize(("campo", "registro"), sorted(CAMPOS_DE_LOG_POSTERIORES.items()))
+def test_cada_campo_de_log_cita_a_issue_e_um_teste_que_cobre_o_campo(campo: str, registro: CampoPosterior) -> None:
+    _conferir_registro(campo, registro)
+
+
+def test_linha_de_log_perde_so_os_campos_registrados() -> None:
+    linha = {"evento": "atendimento_finalizado", "status": "concluido", "statusFinal": "handoff_humano", "digitosRg": 9, "novo": 1}
+    assert linha_sem_campos_posteriores(linha) == {"evento": "atendimento_finalizado", "status": "concluido", "novo": 1}
 
 
 def test_registro_com_teste_inexistente_falha() -> None:

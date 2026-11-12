@@ -28,7 +28,7 @@ import httpx
 import pytest
 
 from maria.app import criar_app
-from tests.api.campos_posteriores import sem_campos_posteriores
+from tests.api.campos_posteriores import linha_sem_campos_posteriores, sem_campos_posteriores
 from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
@@ -69,7 +69,7 @@ _VARIAVEIS_LOG = {"time", "pid", "hostname", "reqId", "responseTime"}
 
 
 def _normalizar(linha: dict[str, Any], status_500: bool) -> dict[str, Any]:
-    out = {k: v for k, v in linha.items() if k not in _VARIAVEIS_LOG}
+    out = {k: v for k, v in linha_sem_campos_posteriores(linha).items() if k not in _VARIAVEIS_LOG}
     if isinstance(out.get("req"), dict):
         out["req"] = {k: v for k, v in out["req"].items() if k not in ("remoteAddress", "remotePort", "host")}
     if isinstance(out.get("err"), dict):
