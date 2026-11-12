@@ -59,8 +59,24 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - Ela vem de uma tabela por assunto (saúde, plano de saúde, violência doméstica e pessoa presa são urgentes; o resto é menos urgente). O sinal de risco do relato sobe qualquer assunto para urgente.
   - A mensagem ao assistido separa os dois grupos, na pergunta dos guardados e no fim de cada assunto concluído, e o urgente é oferecido logo.
   - As frases novas vão para a revisão da equipe.
+- **Assuntos em aberto (decisão da Nicole, 2026-11-11).** A pessoa vem resolver alguma coisa, então a conversa não começa com pergunta.
+  - Se o que ela contou é um assunto já guardado, a Maria retoma esse assunto ("Você já tinha esse assunto com a gente…"), sem abrir outro igual.
+  - Se ela pede para ver os assuntos ("quero ver meus assuntos"), a Maria mostra a lista.
+  - No fim de cada assunto concluído, inclusive no multi-fluxo, sem um urgente na vez, o fim da conversa: "Resumo da nossa conversa:" (cada assunto atendido, com o desfecho e um código de 6 letras e números), "Quer continuar com algum desses assuntos ou encerrar a conversa?" e "Ainda em aberto:" (urgência, "em aberto até dd/mm" e a fase). Os botões: um por assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa". A violência doméstica aparece como "a situação que você contou", com desfecho neutro. Campos novos `resumoDaConversa` e `opcoesDoFim`; `assuntosEmAberto` ganha `codigo`, `fase` e `venceEm`. A lista também vem pela rota nova `POST /atendimentos/assuntos-em-aberto`, e a escolha abre pela rota do próximo assunto.
+  - Fica para depois de 13/11: retomar um assunto que ficou no meio, em andamento, em outra conversa.
 - Em aberto: a rota de atendimento online do Verde.
 
+**#394 (decisão da Nicole, 2026-11-12):** limite de recusas do RG pelo formato na pessoa presa.
+- A recusa diz a tentativa e dá um exemplo fictício: "Não consegui ler esse RG (tentativa N de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.".
+- Na 3ª recusa, `handoff_humano` com o **motivo novo** `rg_formato_invalido` (mudança de contrato aceita: a Tykhe encaminha pelo `destino`, como mostrou o teste de 04/11), sem consultar o Verde e sem guardar o texto recusado.
+- Evento de log `rg_recusado_formato` em cada recusa, com `recusa`, `digitos` e `temLetra`, sem o que a pessoa digitou.
+- O caso gravado `pp_rg_invalido` (conferência pr2) foi aposentado, sem editar a gravação.
+- Muda o que a pessoa vê: o guia de teste foi atualizado, e o merge espera o horário combinado com a equipe.
+
+**#457 (2026-11-12, a pedido da Nicole):** o porquê dos atendimentos humanos da pessoa presa no log, sem dado pessoal.
+- No `atendimento_finalizado`, o `status` continua sempre "concluido", como em develop, porque os painéis contam por ele. Entra `statusFinal` (`concluido` ou `handoff_humano`) em todos os fluxos.
+- Na pessoa presa: `processoLocalizado`, `origemProcesso` ou `statusVerdeProcesso` (origem não suportada), `criterioNaoAtendido` e `criterioSemDado` (regra da #57) e `digitosRg` (RG não encontrado). Nunca o número do processo, o RG, o nome nem os valores da situação, do tipo e do regime.
+- As linhas de log gravadas da versão TypeScript não foram editadas: os campos novos entram em `CAMPOS_DE_LOG_POSTERIORES` (`tests/api/campos_posteriores.py`), como os campos novos das respostas (#294).
 **#472 (2026-11-12, a pedido da Nicole): troca do Haiku pelo Qwen no Bedrock de São Paulo, para a produção de 13/11.**
 - Medido com os 66 casos de IA em `sa-east-1`: Qwen3 Coder 30B 54 (1 passada); Qwen3 VL 235B de 61,0 a 61,7 (média de 3 passadas, quatro versões das regras); Haiku 4.5 61,3. **Recomendação: VL 235B.**
 - As regras da triagem ficaram as da #465: as versões novas não passaram da variação de cerca de 3 casos. Entrou só a regra da pergunta de desambiguação com as opções em dúvida ("pelo plano de saúde ou pelo SUS?"), só no Qwen. O prompt do Haiku não muda.
