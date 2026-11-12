@@ -1,7 +1,7 @@
 """Fluxo de pessoa presa (develop: `fluxos/pessoaPresa/graph.ts`).
 
 Perguntas: relato livre (só com `EXTRACAO_LIVRE_IA`), processo, número, RG (até
-3 tentativas), confirmação do nome da pessoa presa e parentesco (classificado
+3 tentativas no Verde e até 3 recusas pelo formato, #394), confirmação do nome da pessoa presa e parentesco (classificado
 por IA). Vindo do orquestrador, identifica quem pede (`identificar_assistido`)
 e cadastra quem não foi encontrado (`cadastro_pessoa`).
 
@@ -41,6 +41,8 @@ from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_apenado_por_rg
 from maria.integracoes.verde import consultar_processo_com_status as consultar_processo_verde
 from maria.shared import _js
+from maria.shared.contexto import contexto_atual
+from maria.shared.logger import logger
 from maria.shared.nomes import nome_mascarado
 from maria.shared.parentesco import MAE_OU_PAI_DELA, MAE_OU_PAI_DELE, OPCOES_MAE_PAI, ler_resposta_parentesco, texto_mae_ou_pai
 from maria.shared.respostas import resposta_eh_sim
@@ -73,7 +75,9 @@ TEXTO_LIVRE = (
 TEXTO_TEM_PROCESSO = "Você tem o número do processo da pessoa que está presa?"
 TEXTO_NUMERO_PROCESSO = "Qual o número do processo? Informe apenas os números."
 TEXTO_RG = "Qual o RG da pessoa presa? Informe apenas os números."
-TEXTO_RG_INVALIDO = "O RG deve conter apenas números. Qual o RG da pessoa presa? Informe apenas os números."
+# #394 (decisão da Nicole, 2026-11-12): na 3ª recusa pelo formato, a conversa vai para o atendimento humano, com
+# `motivoHandoff: rg_formato_invalido`. A mensagem de recusa diz a tentativa e dá um exemplo fictício.
+LIMITE_RECUSAS_RG_FORMATO = 3
 TEXTO_PARENTESCO = "Qual seu parentesco com a pessoa presa?"
 
 PARENTESCOS_PERMITIDOS = [
@@ -221,6 +225,14 @@ def rg_veio_da_extracao(state: PessoaPresaState) -> bool:
     return state.get("rg") is not None and _js.coalesce(state.get("tentativasRg"), 0) == 0
 
 
+def texto_rg_invalido(recusa: int) -> str:
+    """#394: a mensagem de recusa do RG pelo formato, com a tentativa e um exemplo fictício."""
+    return (
+        f"Não consegui ler esse RG (tentativa {recusa} de {LIMITE_RECUSAS_RG_FORMATO}). "
+        "Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789."
+    )
+
+
 def texto_tentar_novamente(state: PessoaPresaState) -> str:
     tentativa = _js.coalesce(state.get("tentativasRg"), 1)
     return f"Não encontrei ninguém com esse RG (tentativa {_js.texto_template(tentativa)} de 3). Quer tentar de novo?"
@@ -318,8 +330,34 @@ def depois_de_pedir_rg(state: PessoaPresaState) -> str:
     return "valido" if rg_formato_valido(_js.coalesce(state.get("rg"), "")) else "invalido"
 
 
+async def recusar_rg(state: PessoaPresaState) -> Atualizacao:
+    """#394: conta a recusa pelo formato e registra o evento, sem o que a pessoa digitou (só quantos dígitos havia e
+    se havia letra)."""
+    rg = state.get("rg")
+    texto = rg if isinstance(rg, str) else ""
+    recusas = _js.coalesce(state.get("recusasRgFormato"), 0) + 1
+    logger.info(
+        "RG recusado pelo formato",
+        **contexto_atual(),
+        evento="rg_recusado_formato",
+        recusa=recusas,
+        digitos=sum(c in "0123456789" for c in texto),
+        temLetra=any(c.isalpha() for c in texto),
+    )
+    return {"recusasRgFormato": recusas}
+
+
+def depois_de_recusar_rg(state: PessoaPresaState) -> str:
+    return "esgotado" if _js.coalesce(state.get("recusasRgFormato"), 0) >= LIMITE_RECUSAS_RG_FORMATO else "perguntarDeNovo"
+
+
+async def rg_formato_invalido(state: PessoaPresaState) -> Atualizacao:
+    """#394: três recusas pelo formato. O texto recusado não fica no estado (nem nos metadados)."""
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "rg_formato_invalido", "rg": None}
+
+
 async def preparar_pergunta_rg_invalido(state: PessoaPresaState) -> Atualizacao:
-    preparado = await preparar_pergunta("rgInvalido", TEXTO_RG_INVALIDO)
+    preparado = await preparar_pergunta("rgInvalido", texto_rg_invalido(_js.coalesce(state.get("recusasRgFormato"), 1)))
     # `{ ...preparado, rg: undefined }`: limpa o RG inválido para o pedirRg
     # perguntar de novo (regra de estado: undefined no canal vira None).
     return {**preparado, "rg": None}
@@ -523,6 +561,8 @@ _construtor.add_node("pedirNumeroProcesso", pedir_numero_processo)
 _construtor.add_node("consultarProcesso", consultar_processo)
 _construtor.add_node("prepararPerguntaRg", preparar_pergunta_rg)
 _construtor.add_node("pedirRg", pedir_rg)
+_construtor.add_node("recusarRg", recusar_rg)
+_construtor.add_node("rgFormatoInvalido", rg_formato_invalido)
 _construtor.add_node("prepararPerguntaRgInvalido", preparar_pergunta_rg_invalido)
 _construtor.add_node("consultarApenado", consultar_apenado)
 _construtor.add_node("prepararPerguntaTentarNovamente", preparar_pergunta_tentar_novamente)
@@ -551,7 +591,11 @@ _construtor.add_edge("prepararPerguntaNumeroProcesso", "pedirNumeroProcesso")
 _construtor.add_edge("pedirNumeroProcesso", "consultarProcesso")
 _construtor.add_edge("consultarProcesso", "prepararPerguntaRg")
 _construtor.add_edge("prepararPerguntaRg", "pedirRg")
-_construtor.add_conditional_edges("pedirRg", depois_de_pedir_rg, {"valido": "consultarApenado", "invalido": "prepararPerguntaRgInvalido"})
+_construtor.add_conditional_edges("pedirRg", depois_de_pedir_rg, {"valido": "consultarApenado", "invalido": "recusarRg"})
+_construtor.add_conditional_edges(
+    "recusarRg", depois_de_recusar_rg, {"perguntarDeNovo": "prepararPerguntaRgInvalido", "esgotado": "rgFormatoInvalido"}
+)
+_construtor.add_edge("rgFormatoInvalido", END)
 _construtor.add_edge("prepararPerguntaRgInvalido", "pedirRg")
 _construtor.add_conditional_edges(
     "consultarApenado",

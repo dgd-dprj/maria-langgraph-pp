@@ -76,7 +76,14 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
         "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
     },
     "pr1": {},
-    "pr2": {"pp_rg": _NOME_MASCARADO, "pp_get_confirma_nome": _NOME_MASCARADO},
+    "pr2": {
+        "pp_rg": _NOME_MASCARADO,
+        "pp_get_confirma_nome": _NOME_MASCARADO,
+        # #394 (decisão da Nicole, 2026-11-12): a recusa do RG pelo formato diz a tentativa e dá um exemplo.
+        "pp_rg_invalido": CasoAposentado(
+            issue=394, motivo="a mensagem de recusa do RG pelo formato mudou", teste="tests/fluxos/test_pessoa_presa.py"
+        ),
+    },
 }
 
 

@@ -314,6 +314,54 @@ async def test_rg_com_letras_corrige_na_segunda_e_segue() -> None:
     assert re.search("Confirma que a pessoa presa é", texto(r))
 
 
+# ---- #394: limite de recusas do RG pelo formato -------------------------------------
+# Decisão da Nicole (2026-11-12): a mensagem diz a tentativa e dá um exemplo fictício; na 3ª recusa, a
+# conversa vai para o atendimento humano com `motivoHandoff: rg_formato_invalido`. Cobre o caso aposentado
+# pp_rg_invalido (tests/api/casos_aposentados.py).
+
+
+async def test_394_recusa_diz_a_tentativa_e_da_um_exemplo() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r1 = await f.responder("false", "abc123")
+    assert texto(r1) == (
+        "Não consegui ler esse RG (tentativa 1 de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789."
+    )
+    r2 = await f.responder("12/345")
+    assert texto(r2).startswith("Não consegui ler esse RG (tentativa 2 de 3).")
+
+
+async def test_394_terceira_recusa_vai_para_o_atendimento_humano_sem_consultar_o_verde() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "abc", "12/345", "não sei o RG")
+    assert pergunta(r) is None
+    assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "rg_formato_invalido")
+    assert r.get("dadosApenado") is None, "nenhuma consulta ao Verde"
+    # O texto recusado não fica no estado (nem nos metadados).
+    assert r.get("rg") is None
+
+
+async def test_394_rg_certo_depois_de_duas_recusas_segue_normal() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "abc", "12/345", "11.111.111-111")
+    assert re.search("Confirma que a pessoa presa é", texto(r))
+
+
+async def test_394_evento_da_recusa_sem_o_que_foi_digitado(capsys: pytest.CaptureFixture[str]) -> None:
+    f = _fluxo()
+    await f.iniciar()
+    capsys.readouterr()
+    await f.responder("false", "ab12c3")
+    saida = capsys.readouterr().out
+    [linha] = [x for x in saida.splitlines() if '"rg_recusado_formato"' in x]
+    assert '"recusa":1' in linha.replace(" ", "")
+    assert '"digitos":3' in linha.replace(" ", "")
+    assert '"temLetra":true' in linha.replace(" ", "")
+    assert "ab12c3" not in saida
+
+
 # ---- #393: o nome da pessoa presa sai mascarado ------------------------------------
 # Decisão da Nicole (2026-11-04): quem digita o RG de qualquer pessoa não vê o nome
 # completo dela. Cobre os casos aposentados pessoa-presa-resposta-rg-200,
