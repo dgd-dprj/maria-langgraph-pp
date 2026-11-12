@@ -16,6 +16,8 @@ build/
 # Terraform
 infra/terraform/.terraform/
 infra/terraform/*.tfplan
+infra/terraform-sp/.terraform/
+infra/terraform-sp/*.tfplan
 
 # Grafo local do graphify (ferramenta de navegação; gerado, não versionado)
 graphify-out/

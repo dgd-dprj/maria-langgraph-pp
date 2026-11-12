@@ -33,7 +33,8 @@ NAO_LIGAM = [None, "", "producao", "Release", "RELEASE", "release ", " release",
 TRECHO_PLANO = "plano de saúde que negou cobertura, "
 TROCA_RELEASE = "plano de saúde que negou cobertura de exame, remédio, tratamento, internação ou reembolso (menos cirurgia), "
 # O CEP faz o fluxo do plano seguir para a 1ª pergunta, em vez de encerrar por não saber o município.
-DADOS_NO_RIO = {"endereco": {"cep": "20000000"}}
+# O CPF da Tykhe (CPF de teste do Verde simulado) vai para o fluxo em `dadosConhecidos`, e o fluxo não o pergunta.
+DADOS_NO_RIO = {"endereco": {"cep": "20000000"}, "cpf": "11111111111"}
 
 _ids = count(1)
 
@@ -154,7 +155,8 @@ async def test_h3_release_saude_publica_continua_com_a_tykhe(
 ) -> None:
     _ambiente(monkeypatch, "release")
     monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", "tykhe:saude")
-    r = await cliente.post(BASE, json={"chatId": _chat(), "mensagem": "preciso de um remédio que o posto não tem"}, headers=auth)
+    corpo = {"chatId": _chat(), "mensagem": "preciso de um remédio que o posto não tem", "dadosConhecidos": DADOS_NO_RIO}
+    r = await cliente.post(BASE, json=corpo, headers=auth)
     assert r.status_code == 200
     assert (r.json()["status"], r.json()["tipoCaso"]) == ("redirecionado", "saude")
 
@@ -170,6 +172,7 @@ async def test_h4_release_relato_ambiguo_entre_plano_e_saude_segue_direto_no_flu
     assert r.status_code == 200
     assert r.json()["status"] == "em_andamento"
     assert r.json()["flowId"] == ID_PROBLEMAS_PLANO_SAUDE
-    assert r.json()["tipoResposta"] == "sim_nao"  # a 1ª pergunta do fluxo: para quem é o atendimento (#430)
-    assert r.json()["opcoes"] == ["Sim", "Não"]
-    assert "para você" in r.json()["resposta"]
+    # #438: "preciso de uma cirurgia" já diz que o atendimento é para a própria pessoa, então o fluxo
+    # pula "O atendimento é para você?" (#430) e vai direto para a foto da carteirinha.
+    assert r.json()["tipoResposta"] == "link_imagem"
+    assert "para você" not in r.json()["resposta"]

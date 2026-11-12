@@ -36,6 +36,7 @@ from maria.shared.checkpointer import fechar_checkpointer, inicializar_checkpoin
 from maria.shared.embeddings_fluxos import aquecer_catalogo, fechar_busca_fluxos
 from maria.shared.fluxos_planejados_db import fechar_fluxos_planejados_store, listar_fluxos_planejados
 from maria.shared.logger import logger
+from maria.shared.pendentes_db import fechar_pendentes_store
 from maria.shared.perguntas_db import fechar_perguntas_store, obter_perguntas_store
 
 Inicializador = Callable[[], Awaitable[object]]
@@ -66,6 +67,8 @@ FINALIZADORES: tuple[Inicializador, ...] = (
     fechar_fluxos_planejados_store,
     fechar_busca_fluxos,
     fechar_cliente_http,
+    # #450: a store dos assuntos pendentes não entra no boot (só o release a usa), mas fecha junto.
+    fechar_pendentes_store,
 )
 
 

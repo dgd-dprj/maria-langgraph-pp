@@ -48,7 +48,7 @@ flowchart TD
 ```
 
 - **Modelo**: `ChatBedrockConverse` (langchain-aws), via `BEDROCK_MODEL_ID` (padrão `anthropic.claude-3-haiku-20240307-v1:0`; produção usa `us.anthropic.claude-haiku-4-5-20251001-v1:0`) e `AWS_REGION` (padrão `us-east-1`). Uma instância por módulo, criada na importação (`criar_modelo()` em `_estruturado.py`).
-- **Saída estruturada** (`invocar_estruturado`): reproduz o `withStructuredOutput` da versão TypeScript, **sem validar** a saída do modelo — a ausência de validação é defeito herdado, mantido de propósito até a decisão da #212. Por isso não se troca por `with_structured_output` com classe Pydantic (ver [`src/maria/ia/CLAUDE.md`](../src/maria/ia/CLAUDE.md)).
+- **Saída estruturada** (`invocar_estruturado`): reproduz o `withStructuredOutput` da versão TypeScript, **sem validar** a saída do modelo — a ausência de validação é defeito herdado, mantido de propósito até a decisão da #212. Desde 2026-11-12 (#212), o fluxo da pessoa presa confere o parentesco: valor fora da lista vira "Outro", com o evento `parentesco_fora_da_lista` no log (só o motivo, nunca o valor). Com o Qwen, o prompt do parentesco ganha as regras de `SUFIXO_PARENTESCO` (`ajuste_qwen.py`); com o Haiku, elas derrubavam o acerto, e o prompt dele fica o de sempre. Por isso não se troca por `with_structured_output` com classe Pydantic (ver [`src/maria/ia/CLAUDE.md`](../src/maria/ia/CLAUDE.md)).
 - **Retry**: 3 tentativas (`TENTATIVAS_RETRY_IA`) antes de desistir — absorve instabilidade passageira do Bedrock (throttle, timeout de rede), não mascara erro real. Falha de parse não dispara retry; só erro do modelo.
 - **Fallback nunca quebra o fluxo**: se a chamada falhar mesmo depois do retry, cada módulo cai num valor seguro (texto original, lista vazia, `None`) — a pergunta/fluxo continua funcionando, só sem o benefício da IA naquela vez. Nunca propaga a exceção pro chamador.
 - **`viaIA`** no retorno de todos — `True` só quando a chamada de IA aconteceu de verdade; `False` cobre tanto "não chamou" (modo mock/flag desligada) quanto "chamou e falhou". Tokens (`tokensEntrada`/`tokensSaida`/`tokensTotal`) só vêm preenchidos quando `viaIA` é `True` — capturados do `usage_metadata` da `AIMessage` crua.
@@ -89,9 +89,22 @@ Resume o relato acumulado do orquestrador quando a desambiguação passa de um l
 
 | Flag | Default | Efeito |
 |---|---|---|
-| `BEDROCK_MODEL_ID` | `anthropic.claude-3-haiku-20240307-v1:0` | Modelo usado por todos os módulos. |
+| `BEDROCK_MODEL_ID` | `anthropic.claude-3-haiku-20240307-v1:0` | Modelo usado por todos os módulos. Se começar por `qwen`, os prompts de `classificar_necessidades` e `classificar_fluxos` ganham um sufixo (ver [Modelo por ambiente](#modelo-por-ambiente-e-residência-dos-dados)). |
 | `AWS_REGION` | `us-east-1` | Região do Bedrock. |
 | `REESCREVER_IA` | desligada | Reescrita de texto de pergunta — desligada por decisão de produto. |
 | `EXTRACAO_LIVRE_IA` | desligada | Extração de campos por IA no fluxo pessoa presa. |
 
 A lista completa de variáveis está no [`README.md`](../README.md). Ver [`src/maria/ia/CLAUDE.md`](../src/maria/ia/CLAUDE.md) pras regras que não podem falhar (nunca logar dado sensível indo pro Bedrock, nunca remover o caminho mock).
+
+## Modelo por ambiente e residência dos dados
+
+| Ambiente | Região | `BEDROCK_MODEL_ID` | Onde a inferência roda |
+|---|---|---|---|
+| Produção e release (Virgínia) | `us-east-1` | `us.anthropic.claude-haiku-4-5-20251001-v1:0` | Perfil `us.` (Estados Unidos). |
+| Release em São Paulo (homolog, #458) | `sa-east-1` | `qwen.qwen3-vl-235b-a22b` | No Brasil: modelo aberto in-region. |
+
+O Haiku 4.5 em `sa-east-1` só existe por perfil `global.`, que pode processar em qualquer região; por isso o homolog de São Paulo usa o Qwen. A task role só autoriza Qwen in-region (`bedrock_model_arns`, #460).
+
+**Sufixo só para Qwen** (`src/maria/ia/ajuste_qwen.py`, #465): quando `BEDROCK_MODEL_ID` começa por `qwen` (função `modelo_e_qwen`, lida a cada chamada), os prompts de triagem de `classificar_necessidades.py` e `classificar_fluxos.py` recebem regras a mais (pedido explícito, lista não vazia, ambiguidade, não acrescentar fluxo "por garantia"). Com qualquer outro modelo o prompt é idêntico ao de antes (teste em `tests/ia/test_ajuste_qwen.py`). Nada muda em `_estruturado.py` nem nos esquemas.
+
+**Medição** (66 casos de `tests/integracao/ia`, 3 passadas, Bedrock de `sa-east-1`, acertos de 66): Qwen3 VL 235B sem o sufixo **58,0**, com o sufixo **61,7**; Haiku 4.5 `us.` sem o sufixo **61,3**. **Ressalva:** o ganho foi medido nos mesmos 66 casos em que as regras foram escritas (risco de overfitting). Antes de usar o Qwen em produção, validar com 20 a 30 relatos novos × 5 passadas (critério da #465, fora do PR de código).

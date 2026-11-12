@@ -35,8 +35,7 @@ DESCRICOES_RESPOSTA: dict[str, Schema] = {
         "description": (
             "Só em atendimento encerrado: para onde a pessoa vai. `atendimento_humano` (acompanha `handoff_humano`), "
             "`agendamento` (violência doméstica concluída), "
-            "`email_enviado` (plano de saúde concluído no Rio, por e-mail), "
-            "`unidade_informada` (plano de saúde, fora do Rio com a unidade que ele deve procurar) ou `sessao_expirada`. "
+            "`email_enviado` (plano de saúde concluído, por e-mail ao NUDECON) ou `sessao_expirada`. "
             "Ausente quando o fluxo concluído não tem destino definido."
         )
     },
@@ -48,6 +47,10 @@ DESCRICOES_RESPOSTA: dict[str, Schema] = {
         "description": (
             "Dados já coletados pelo fluxo. Hoje `cpf`, quando existe, e, no plano de saúde concluído, `imagens` "
             "(`carteirinhaFrente` e `carteirinhaVerso`: links das imagens, para a Tykhe repassar à função de e-mail; nunca em log). "
+            ""
+            "No plano de saúde para outra pessoa (#448), também `solicitante` (`nome`, `cpf`: quem está falando) e `outraPessoa` "
+            "(`cpf`, `nome`, `dataNascimento`, `endereco`, `telefone`, `whatsapp`, `email`, `estadoCivil`, `profissao`, `rg`, "
+            "`parentesco` e `origem`: `verde` ou `informado`); `cpf` continua o de quem fala. Dado pessoal: nunca em log. "
             "Só aparece na resposta do fluxo da Maria identificado; nunca no `redirecionado` nem na desambiguação."
         ),
         "properties": {
@@ -95,6 +98,10 @@ CORPOS: dict[tuple[str, str], CamposCorpo] = {
             "mensagem": "Relato livre da pessoa. Use na 1ª chamada da conversa.",
             "resposta": ("Resposta à pergunta de desambiguação. Use nas chamadas seguintes, na mesma rota. Não pode ser vazia (400)."),
             "dadosConhecidos": _DADOS_CONHECIDOS,
+            "idUsuario": (
+                "Opcional, só no ambiente de teste (release). O id da pessoa na Tykhe, na 1ª chamada: a chave dos "
+                "assuntos guardados para quando ela voltar. Sem ele, nada fica guardado. Nunca o CPF nem o telefone."
+            ),
         },
         exemplo={
             "chatId": "conversa-0001",

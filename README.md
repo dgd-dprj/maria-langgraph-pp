@@ -6,7 +6,7 @@ Cada fluxo de atendimento é um grafo de estados do [LangGraph](https://langchai
 
 Vai contribuir? Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) (fluxo de issue, branch, commit e PR).
 
-**Branches e ambientes:** `develop` faz o papel de **staging**. Cada merge nela sobe no ambiente de homologação, que a infraestrutura chama de `release`, e é onde a equipe valida. `main` é a **produção**. Detalhes em [`CONTRIBUTING.md`](CONTRIBUTING.md#branches-e-ambientes). **Corrigido em 2026-10-26:** hoje a equipe testa na `main` (produção), pela Tykhe, e ninguém usa o release.
+**Branches e ambientes (GitLab Flow, #427):** `develop` é o **dev** (integração, só CI, sem deploy); `staging` é o **QA** (cada merge nela sobe no ambiente que a infraestrutura chama de `release`); `main` é a **produção**. O código sobe por PR: `develop` → `staging` → `main`. Detalhes em [`CONTRIBUTING.md`](CONTRIBUTING.md#branches-e-ambientes).
 
 > **Migração.** Até outubro de 2026 a Maria foi escrita em TypeScript (Fastify e LangGraph JS). A tradução para Python reproduziu o comportamento da versão TypeScript, inclusive os defeitos conhecidos, que foram registrados em issues para corrigir depois. O registro completo, com cada decisão, está em [`MIGRACAO.md`](MIGRACAO.md) e em [`docs/migracao/`](docs/migracao/).
 
@@ -61,6 +61,7 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 | `WHATSAPP_VERIFY_TOKEN` | ausente | Token da verificação do webhook (`GET /webhook/whatsapp`). Sem ele, a verificação sempre devolve 403 |
 | `MOCK_CLASSIFICACAO_FLOWID` | ausente | Com `APP_ENV=test`, o fluxo que a classificação simulada escolhe. Sem ela, o relato vai para `outros` |
 | `MOCK_CLASSIFICACAO_FLOWIDS` | ausente | Com `APP_ENV=test`, vários ids separados por vírgula: simula um relato ambíguo (desambiguação) |
+| `MOCK_NECESSIDADES` | ausente | Com `APP_ENV=test` e `MARIA_AMBIENTE=release`, a lista (JSON) de necessidades que a classificação do multi-fluxo simulada devolve: ids ou objetos com `id`, `evidencia` e `urgente` (#435). Sem ela, vale o sentido de `MOCK_CLASSIFICACAO_FLOWID(S)` |
 | `MOCK_CLASSIFICACAO_PARENTESCO` | `Outro` | Com `APP_ENV=test`, o parentesco que a IA simulada devolve no fluxo pessoa presa |
 | `MOCK_SUMARIZACAO_RESUMO` | ausente | Com `APP_ENV=test`, o resumo que a sumarização simulada devolve |
 | `MOCK_CEP_INCOMPLETO` | ausente | No Verde simulado, com `true`, o CEP volta só com a UF, sem cidade nem logradouro (para testar o pedido de endereço completo) |

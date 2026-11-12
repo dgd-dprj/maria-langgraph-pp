@@ -8,6 +8,8 @@ mão com `uv run pytest -m integracao tests/integracao/ia`.
 
 import pytest
 
+from maria.fluxos.pessoa_presa.graph import PARENTESCOS_PERMITIDOS, SISTEMA_PARENTESCO
+from maria.ia.ajuste_qwen import SUFIXO_PARENTESCO, com_ajuste_qwen, modelo_e_qwen
 from maria.ia.classificar import classificar_entre_opcoes, classificar_multiplo_entre_opcoes
 from maria.ia.desambiguar import gerar_pergunta_desambiguacao
 from maria.ia.extrair import extrair_campos_livre
@@ -95,28 +97,8 @@ async def test_extrair_nao_forca_campo_nao_mencionado() -> None:
 
 
 # ---- parentesco.test.ts (lista e sistema reais de classificarParentesco) -----------
-
-PARENTESCOS_PERMITIDOS = [
-    "Mãe",
-    "Pai",
-    "Irmão(a)",
-    "Esposo(a)",
-    "Ex-esposo(a)",
-    "Companheiro(a)",
-    "Filho(a)",
-    "Amigo(a)",
-    "Primo(a)",
-    "Tio(a)",
-    "Sobrinho(a)",
-    "Avô/Avó",
-    "Cunhado(a)",
-    "Sogro(a)",
-    "Outro",
-]
-
-SISTEMA_PARENTESCO = f"""Você classifica o parentesco de quem busca informação sobre uma pessoa presa, na Defensoria Pública do RJ, a partir de um relato livre.
-Parentescos possíveis: {", ".join(PARENTESCOS_PERMITIDOS)}.
-Regras: escolha o que melhor descreve a relação, mesmo que o relato seja indireto (ex: "fui casada com ele mas já nos divorciamos" → "Ex-esposo(a)"). Se não bater com confiança em nenhum, responda "nenhum"."""  # noqa: E501
+# #212 (2026-11-12): a lista e o prompt vêm do fluxo, e não de uma cópia. A cópia que havia aqui era a de develop,
+# sem o "Neto(a)" da #438 e sem as regras de escolher só da lista.
 
 
 @pytest.mark.parametrize(
@@ -128,13 +110,34 @@ Regras: escolha o que melhor descreve a relação, mesmo que o relato seja indir
     ],
 )
 async def test_parentesco_issue_17(relato: str, esperado: str) -> None:
-    resultado = await classificar_entre_opcoes(relato, SISTEMA_PARENTESCO, PARENTESCOS_PERMITIDOS)
+    resultado = await classificar_entre_opcoes(relato, com_ajuste_qwen(SISTEMA_PARENTESCO, SUFIXO_PARENTESCO), PARENTESCOS_PERMITIDOS)
     assert resultado["viaIA"] is True
-    assert resultado.get("escolhaId") == esperado
+    # "nenhum" (None) e "Outro" dão no mesmo: classificar_parentesco grava "Outro".
+    assert (resultado.get("escolhaId") or "Outro") == esperado
+
+
+@pytest.mark.skipif(not modelo_e_qwen(), reason="#212: as regras novas do parentesco são só do Qwen")
+@pytest.mark.parametrize(
+    ("relato", "esperado"),
+    [
+        # #212: as leituras erradas da comparação da #472.
+        ("Irmã", "Irmão(a)"),  # o Haiku escreveu "Irmã(o)", fora da lista
+        ("minha mãe", "Filho(a)"),  # relação invertida
+        ("filha", "Filho(a)"),  # palavra só: sem inverter
+        ("nora", "Outro"),  # parente fora da lista: o Qwen dizia "Sogro(a)"
+        ("enteada", "Outro"),  # o Qwen dizia "Filho(a)"
+    ],
+)
+async def test_parentesco_qwen_so_da_lista_212(relato: str, esperado: str) -> None:
+    resultado = await classificar_entre_opcoes(relato, SISTEMA_PARENTESCO + SUFIXO_PARENTESCO, PARENTESCOS_PERMITIDOS)
+    assert resultado["viaIA"] is True
+    assert (resultado.get("escolhaId") or "Outro") == esperado
 
 
 async def test_parentesco_sem_match_claro_termina_em_outro() -> None:
-    resultado = await classificar_entre_opcoes("gosto de pizza aos domingos", SISTEMA_PARENTESCO, PARENTESCOS_PERMITIDOS)
+    resultado = await classificar_entre_opcoes(
+        "gosto de pizza aos domingos", com_ajuste_qwen(SISTEMA_PARENTESCO, SUFIXO_PARENTESCO), PARENTESCOS_PERMITIDOS
+    )
     assert resultado["viaIA"] is True
     # "Outro" é candidato da lista; classificarParentesco trata "Outro" e
     # "nenhum" (None) igual.

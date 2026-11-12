@@ -7,7 +7,9 @@ executada de verdade.
 
 import base64
 import json
+import shutil
 import subprocess
+import sys
 import time
 import urllib.request
 from pathlib import Path
@@ -37,10 +39,39 @@ def test_yaml_valido(nome: str) -> None:
     _carregar(nome)
 
 
-def test_ci_dispara_em_pr_para_develop_e_main() -> None:
+def test_ci_dispara_em_pr_para_develop_staging_e_main() -> None:
     # Os gatilhos de antes da migração voltaram no corte (#268); `migration` saiu
-    # depois do merge da migration em develop (PR #267).
-    assert _gatilhos(_carregar("ci.yml")) == {"pull_request": {"branches": ["develop", "main"]}}
+    # depois do merge da migration em develop (PR #267). `staging` entrou com a #427.
+    assert _gatilhos(_carregar("ci.yml")) == {"pull_request": {"branches": ["develop", "staging", "main"]}}
+
+
+def test_deploys_seguem_o_gitlab_flow() -> None:
+    # #427: develop é dev (sem deploy), staging alimenta o release (QA), main é a produção.
+    # A produção não mudou: continua disparando só em main.
+    assert _gatilhos(_carregar("deploy-release.yml")) == {"push": {"branches": ["staging"]}}
+    assert _gatilhos(_carregar("deploy-prod.yml")) == {"push": {"branches": ["main"]}}
+
+
+def _origem_do_pr(destino: str, origem: str) -> int:
+    passo = next(p for p in _carregar("ci.yml")["jobs"]["test"]["steps"] if p.get("name") == "Origem do PR")
+    assert passo["env"] == {"DESTINO": "${{ github.base_ref }}", "ORIGEM": "${{ github.head_ref }}"}
+    return subprocess.run(["bash", "-c", passo["run"]], env={"DESTINO": destino, "ORIGEM": origem}, capture_output=True).returncode
+
+
+@pytest.mark.skipif(sys.platform == "win32" or shutil.which("bash") is None, reason="o passo roda em bash, no runner Linux do CI")
+@pytest.mark.parametrize(
+    ("destino", "origem", "aceita"),
+    [
+        ("main", "staging", True),
+        ("main", "develop", False),
+        ("main", "fix/qualquer", False),
+        ("staging", "develop", True),
+        ("staging", "feat/qualquer", False),
+        ("develop", "feat/qualquer", True),
+    ],
+)
+def test_ci_confere_a_origem_do_pr(destino: str, origem: str, aceita: bool) -> None:
+    assert (_origem_do_pr(destino, origem) == 0) is aceita
 
 
 def test_ci_mantem_os_jobs_que_os_rulesets_exigem() -> None:

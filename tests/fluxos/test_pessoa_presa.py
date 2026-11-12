@@ -314,6 +314,75 @@ async def test_rg_com_letras_corrige_na_segunda_e_segue() -> None:
     assert re.search("Confirma que a pessoa presa é", texto(r))
 
 
+# ---- #475: a pergunta do RG mostra os formatos aceitos ------------------------------
+# Decisão da Nicole (2026-11-12): os dois formatos que a Maria aceita desde o #343. Cobre os casos aposentados
+# pessoa-presa-resposta-texto-sem-opcoes-200, pp_sem_processo e orq_identifica_responde
+# (tests/api/casos_aposentados.py).
+
+
+async def test_475_pergunta_do_rg_mostra_os_formatos_aceitos() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false")
+    assert texto(r) == ("Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9.")
+
+
+async def test_475_os_dois_formatos_do_exemplo_sao_aceitos() -> None:
+    for rg in ("11111111111", "11.111.111-111"):
+        f = _fluxo()
+        await f.iniciar()
+        r = await f.responder("false", rg)
+        assert re.search("Confirma que a pessoa presa é", texto(r)), rg
+
+
+# ---- #394: limite de recusas do RG pelo formato -------------------------------------
+# Decisão da Nicole (2026-11-12): a mensagem diz a tentativa e dá um exemplo fictício; na 3ª recusa, a
+# conversa vai para o atendimento humano com `motivoHandoff: rg_formato_invalido`. Cobre o caso aposentado
+# pp_rg_invalido (tests/api/casos_aposentados.py).
+
+
+async def test_394_recusa_diz_a_tentativa_e_da_um_exemplo() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r1 = await f.responder("false", "abc123")
+    assert texto(r1) == (
+        "Não consegui ler esse RG (tentativa 1 de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789."
+    )
+    r2 = await f.responder("12/345")
+    assert texto(r2).startswith("Não consegui ler esse RG (tentativa 2 de 3).")
+
+
+async def test_394_terceira_recusa_vai_para_o_atendimento_humano_sem_consultar_o_verde() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "abc", "12/345", "não sei o RG")
+    assert pergunta(r) is None
+    assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "rg_formato_invalido")
+    assert r.get("dadosApenado") is None, "nenhuma consulta ao Verde"
+    # O texto recusado não fica no estado (nem nos metadados).
+    assert r.get("rg") is None
+
+
+async def test_394_rg_certo_depois_de_duas_recusas_segue_normal() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "abc", "12/345", "11.111.111-111")
+    assert re.search("Confirma que a pessoa presa é", texto(r))
+
+
+async def test_394_evento_da_recusa_sem_o_que_foi_digitado(capsys: pytest.CaptureFixture[str]) -> None:
+    f = _fluxo()
+    await f.iniciar()
+    capsys.readouterr()
+    await f.responder("false", "ab12c3")
+    saida = capsys.readouterr().out
+    [linha] = [x for x in saida.splitlines() if '"rg_recusado_formato"' in x]
+    assert '"recusa":1' in linha.replace(" ", "")
+    assert '"digitos":3' in linha.replace(" ", "")
+    assert '"temLetra":true' in linha.replace(" ", "")
+    assert "ab12c3" not in saida
+
+
 # ---- #393: o nome da pessoa presa sai mascarado ------------------------------------
 # Decisão da Nicole (2026-11-04): quem digita o RG de qualquer pessoa não vê o nome
 # completo dela. Cobre os casos aposentados pessoa-presa-resposta-rg-200,
@@ -404,6 +473,84 @@ async def test_parentesco_sem_match_cai_em_outro_issue_17(monkeypatch: pytest.Mo
     monkeypatch.delenv("MOCK_CLASSIFICACAO_PARENTESCO", raising=False)
     r = await _ate_parentesco("um relato qualquer sem relação clara")
     assert r["parentesco"] == "Outro"
+
+
+# ---- #212: o parentesco da IA só vale se estiver na lista ----------------------------
+# Decisão da Nicole (2026-11-12): a IA escolhe da lista, sem inventar. Na comparação da #472, o Haiku
+# devolveu "Irmã(o)", que chegaria à Tykhe em metadados.parentesco.
+
+
+def _ia_de_parentesco(monkeypatch: pytest.MonkeyPatch, escolha: Any) -> None:
+    from maria.fluxos.pessoa_presa import graph
+
+    async def falsa(mensagem: str, sistema: str, ids: list[str]) -> dict[str, Any]:
+        assert sistema == graph.SISTEMA_PARENTESCO and ids == graph.PARENTESCOS_PERMITIDOS
+        return {"escolhaId": escolha, "viaIA": True, "tokensEntrada": 10, "tokensSaida": 2, "tokensTotal": 12}
+
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setenv("BEDROCK_MODEL_ID", "us.anthropic.claude-haiku-4-5-20251001-v1:0")
+    monkeypatch.setattr(graph, "classificar_entre_opcoes", falsa)
+
+
+@pytest.mark.parametrize(("escolha", "motivo"), [("Irmã(o)", "fora_da_lista"), ("Tio-avô", "fora_da_lista"), (["Irmã(o)"], "tipo_errado")])
+async def test_212_parentesco_fora_da_lista_vira_outro_com_aviso_sem_o_valor(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], escolha: Any, motivo: str
+) -> None:
+    from maria.fluxos.pessoa_presa.graph import classificar_parentesco
+
+    _ia_de_parentesco(monkeypatch, escolha)
+    capsys.readouterr()
+    resultado = await classificar_parentesco("resposta da pessoa")
+    saida = capsys.readouterr().out
+    assert resultado["parentesco"] == "Outro"
+    assert resultado["tokensTotal"] == 12, "a chamada aconteceu e custou: os tokens continuam contados"
+    [linha] = [x for x in saida.splitlines() if '"parentesco_fora_da_lista"' in x]
+    assert f'"motivo":"{motivo}"' in linha.replace(" ", "")
+    for trecho in ("Irm", "Tio-av", "resposta da pessoa"):
+        assert trecho not in saida, "o log não leva o valor devolvido nem a resposta"
+
+
+@pytest.mark.parametrize(("escolha", "gravado"), [("Irmão(a)", "Irmão(a)"), ("Neto(a)", "Neto(a)"), ("Outro", "Outro"), (None, "Outro")])
+async def test_212_parentesco_da_lista_passa_sem_aviso(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], escolha: Any, gravado: str
+) -> None:
+    from maria.fluxos.pessoa_presa.graph import classificar_parentesco
+
+    _ia_de_parentesco(monkeypatch, escolha)
+    capsys.readouterr()
+    assert (await classificar_parentesco("resposta"))["parentesco"] == gravado
+    assert "parentesco_fora_da_lista" not in capsys.readouterr().out
+
+
+async def test_212_so_o_qwen_recebe_as_regras_do_parentesco(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Com o Haiku, as regras novas derrubaram o acerto ("mãe" virou "Filho(a)"): o prompt dele fica o de sempre."""
+    from maria.fluxos.pessoa_presa import graph
+    from maria.ia.ajuste_qwen import SUFIXO_PARENTESCO
+
+    enviados: list[str] = []
+
+    async def falsa(mensagem: str, sistema: str, ids: list[str]) -> dict[str, Any]:
+        enviados.append(sistema)
+        return {"escolhaId": "Mãe", "viaIA": True}
+
+    monkeypatch.setenv("APP_ENV", "development")
+    monkeypatch.setattr(graph, "classificar_entre_opcoes", falsa)
+    for modelo in ("us.anthropic.claude-haiku-4-5-20251001-v1:0", "qwen.qwen3-vl-235b-a22b"):
+        monkeypatch.setenv("BEDROCK_MODEL_ID", modelo)
+        await graph.classificar_parentesco("mãe")
+    assert enviados == [graph.SISTEMA_PARENTESCO, graph.SISTEMA_PARENTESCO + SUFIXO_PARENTESCO]
+    assert "Regras: escolha o que melhor descreve a relação" in graph.SISTEMA_PARENTESCO
+
+
+def test_212_regras_do_qwen_pedem_so_valores_da_lista() -> None:
+    from maria.ia.ajuste_qwen import SUFIXO_PARENTESCO
+
+    assert "Nunca invente outro valor" in SUFIXO_PARENTESCO
+    # As leituras erradas medidas na #472: grafia trocada, relação invertida e parente fora da lista.
+    assert '"Irmã(o)"' in SUFIXO_PARENTESCO
+    assert '"minha mãe" → "Filho(a)"' in SUFIXO_PARENTESCO
+    assert '"filha" → "Filho(a)"' in SUFIXO_PARENTESCO
+    assert 'nora e genro não são "Sogro(a)"' in SUFIXO_PARENTESCO
 
 
 # ---- #236: CPF vindo da Tykhe, pelo orquestrador ---------------------------------

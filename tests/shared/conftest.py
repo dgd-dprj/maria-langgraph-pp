@@ -17,9 +17,18 @@ from psycopg.rows import TupleRow
 from maria.shared.atendimentos_db import fechar_atendimentos_store
 from maria.shared.embeddings_fluxos import fechar_busca_fluxos
 from maria.shared.fluxos_planejados_db import fechar_fluxos_planejados_store
+from maria.shared.pendentes_db import fechar_pendentes_store
 from maria.shared.perguntas_db import fechar_perguntas_store
 
-TABELAS_DE_NEGOCIO = ("atendimentos", "perguntas", "assuntos_verde", "flow_assuntos", "fluxos_planejados", "fluxo_embeddings")
+TABELAS_DE_NEGOCIO = (
+    "atendimentos",
+    "perguntas",
+    "assuntos_verde",
+    "flow_assuntos",
+    "fluxos_planejados",
+    "fluxo_embeddings",
+    "assuntos_pendentes",
+)
 
 
 async def _fechar_todas() -> None:
@@ -27,6 +36,7 @@ async def _fechar_todas() -> None:
     await fechar_perguntas_store()
     await fechar_fluxos_planejados_store()
     await fechar_busca_fluxos()
+    await fechar_pendentes_store()
 
 
 @pytest.fixture

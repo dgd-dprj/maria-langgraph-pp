@@ -1,12 +1,13 @@
 name: Deploy — release (homolog)
 
-# Dispara em todo push em develop (ou seja, todo merge de PR pra develop —
-# branch protection não deixa push direto lá). Ambiente release aponta hoje
+# Dispara em todo push em staging, ou seja, em toda promoção develop → staging por PR
+# (o ruleset não deixa push direto lá). #427: o release é o ambiente de QA; develop é
+# a integração (dev), sem deploy. Antes da #427 disparava em develop. Ambiente release aponta hoje
 # pro Verde de homologação (mesma credencial do ambiente prod até a
 # credencial de produção do Verde chegar — ver infra/terraform/release.tf).
 on:
   push:
-    branches: [develop]
+    branches: [staging]
 
 # Issue #64 — 2 pushes próximos em develop disparavam 2 runs em paralelo,
 # cada um forçando novo deployment no MESMO serviço ECS ao mesmo tempo. O

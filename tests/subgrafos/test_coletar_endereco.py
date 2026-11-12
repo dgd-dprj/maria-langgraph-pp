@@ -95,3 +95,12 @@ async def test_7_complemento_none_no_canal_nao_deixa_o_valor_anterior() -> None:
     await c.iniciar({})
     await c.responder("20000000", "2", "não")
     assert "complemento" not in (await c.estado())["endereco"]
+
+
+async def test_446_endereco_de_outra_pessoa_pergunta_sobre_ela() -> None:
+    c = await (await _conversa().iniciar({"enderecoDeOutraPessoa": True})).responder(
+        "00000000", "Rua Sem CEP", "45", "não", "Bairro", "Cidade", "rj"
+    )
+    assert all("sua" not in q["pergunta"] and "seu" not in q["pergunta"] for q in c.perguntas)
+    assert "pessoa que será atendida" in c.perguntas[0]["pergunta"]
+    assert c.pendente is None

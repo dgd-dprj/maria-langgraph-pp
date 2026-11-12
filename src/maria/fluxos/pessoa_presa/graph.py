@@ -1,14 +1,14 @@
 """Fluxo de pessoa presa (develop: `fluxos/pessoaPresa/graph.ts`).
 
 Perguntas: relato livre (só com `EXTRACAO_LIVRE_IA`), processo, número, RG (até
-3 tentativas), confirmação do nome da pessoa presa e parentesco (classificado
+3 tentativas no Verde e até 3 recusas pelo formato, #394), confirmação do nome da pessoa presa e parentesco (classificado
 por IA). Vindo do orquestrador, identifica quem pede (`identificar_assistido`)
 e cadastra quem não foi encontrado (`cadastro_pessoa`).
 
 Reproduzido de develop, com issues abertas para depois da migração:
 - `pedirConfirmaNome` mostrava o nome do apenado a partir do RG digitado (#236);
   desde a #393, mostra o nome mascarado (primeiro nome e iniciais);
-- parentesco não validado, e a lista difere da do SIPEN (#212);
+- a lista de parentescos difere da do SIPEN (#212); desde 2026-11-12, o valor da IA fora da lista vira "Outro";
 - `situacao`, `tipoPreso` ou `regime` com `null` do Verde lançam TypeError no
   `concluir`, como o `null.toUpperCase()` de develop (spec 05, 3.2).
 
@@ -21,6 +21,7 @@ from __future__ import annotations
 
 import os
 import re
+from collections.abc import Mapping
 from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
@@ -34,13 +35,17 @@ from maria.fluxos.pessoa_presa.api import (
     MENSAGEM_HANDOFF_SEM_NUMERO_PROCESSO,
 )
 from maria.fluxos.pessoa_presa.state import PessoaPresaState
+from maria.ia.ajuste_qwen import SUFIXO_PARENTESCO, com_ajuste_qwen
 from maria.ia.classificar import classificar_entre_opcoes
 from maria.ia.extrair import extrair_campos_livre
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_apenado_por_rg
 from maria.integracoes.verde import consultar_processo_com_status as consultar_processo_verde
 from maria.shared import _js
+from maria.shared.contexto import contexto_atual
+from maria.shared.logger import logger
 from maria.shared.nomes import nome_mascarado
+from maria.shared.parentesco import MAE_OU_PAI_DELA, MAE_OU_PAI_DELE, OPCOES_MAE_PAI, ler_resposta_parentesco, texto_mae_ou_pai
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.cadastro_pessoa.graph import grafo as subgrafo_cadastro_pessoa
 from maria.subgrafos.identificar_assistido.graph import grafo as subgrafo_identificar_assistido
@@ -70,8 +75,12 @@ TEXTO_LIVRE = (
 )
 TEXTO_TEM_PROCESSO = "Você tem o número do processo da pessoa que está presa?"
 TEXTO_NUMERO_PROCESSO = "Qual o número do processo? Informe apenas os números."
-TEXTO_RG = "Qual o RG da pessoa presa? Informe apenas os números."
-TEXTO_RG_INVALIDO = "O RG deve conter apenas números. Qual o RG da pessoa presa? Informe apenas os números."
+# #475 (decisão da Nicole, 2026-11-12): a pergunta mostra os dois formatos que a Maria aceita desde o #343. O exemplo
+# é fictício.
+TEXTO_RG = "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9."
+# #394 (decisão da Nicole, 2026-11-12): na 3ª recusa pelo formato, a conversa vai para o atendimento humano, com
+# `motivoHandoff: rg_formato_invalido`. A mensagem de recusa diz a tentativa e dá um exemplo fictício.
+LIMITE_RECUSAS_RG_FORMATO = 3
 TEXTO_PARENTESCO = "Qual seu parentesco com a pessoa presa?"
 
 PARENTESCOS_PERMITIDOS = [
@@ -89,9 +98,12 @@ PARENTESCOS_PERMITIDOS = [
     "Avô/Avó",
     "Cunhado(a)",
     "Sogro(a)",
+    # #438 (decisão da Nicole, 2026-11-06): "meu avô foi preso" também é parentesco.
+    "Neto(a)",
     "Outro",
 ]
 
+# O prompt de sempre (o do Haiku da produção). Com o Qwen, entram as regras de `SUFIXO_PARENTESCO` (#212).
 SISTEMA_PARENTESCO = f"""Você classifica o parentesco de quem busca informação sobre uma pessoa presa, na Defensoria Pública do RJ, a partir de um relato livre.
 Parentescos possíveis: {", ".join(PARENTESCOS_PERMITIDOS)}.
 Regras: escolha o que melhor descreve a relação, mesmo que o relato seja indireto (ex: "fui casada com ele mas já nos divorciamos" → "Ex-esposo(a)"). Se não bater com confiança em nenhum, responda "nenhum"."""  # noqa: E501
@@ -146,6 +158,53 @@ def dados_apenado_atendidos(state: PessoaPresaState) -> bool:
     )
 
 
+def _criterio_nao_atendido(dados: Any) -> tuple[str, bool] | None:
+    """O 1º critério da #57 que barrou, na ordem do `concluir`, e se foi por falta do dado. None se todos batem."""
+    for campo in ("situacao", "tipoPreso", "regime"):
+        valor = _js.prop(dados, campo) if _js.verdadeiro(dados) else _js.AUSENTE
+        if valor is _js.AUSENTE or not isinstance(valor, str):
+            return campo, True
+        if campo == "situacao" and normalizar_situacao(valor) not in SITUACOES_PERMITIDAS:
+            return campo, False
+        if campo == "tipoPreso" and valor.upper() != TIPO_PRESO_PERMITIDO:
+            return campo, False
+        if campo == "regime" and valor.upper() not in REGIMES_PERMITIDOS:
+            return campo, False
+    return None
+
+
+def campos_de_log_do_fim(values: Mapping[str, Any]) -> dict[str, Any]:
+    """#457: o porquê de cada atendimento humano, no `atendimento_finalizado`, só quando se aplica e **sem dado pessoal**:
+    nunca o número do processo, o RG, o nome, a situação, o tipo ou o regime, só o nome do critério.
+
+    - `origem_processo_nao_suportada`: `processoLocalizado` e, quando o Verde achou, `origemProcesso` (o sistema de
+      origem, como "PJe"); quando não achou, `statusVerdeProcesso` (400, 404 ou 422).
+    - `dados_pessoa_nao_atendidos`: `criterioNaoAtendido` (`situacao`, `tipoPreso` ou `regime`, o 1º que barrou) e
+      `criterioSemDado` (o Verde não mandou esse campo).
+    - `rg_nao_encontrado`: `digitosRg`, quantos dígitos tinha o último RG consultado."""
+    motivo = values.get("motivoHandoff")
+    campos: dict[str, Any] = {}
+    if motivo == "origem_processo_nao_suportada":
+        processo = values.get("dadosProcesso")
+        localizado = isinstance(processo, Mapping) and _js.verdadeiro(processo.get("encontrado"))
+        campos["processoLocalizado"] = localizado
+        origem = processo.get("origem") if isinstance(processo, Mapping) else None
+        if localizado and isinstance(origem, str):
+            campos["origemProcesso"] = origem
+        status = values.get("statusConsultaProcesso")
+        if not localizado and isinstance(status, int):
+            campos["statusVerdeProcesso"] = status
+    elif motivo == "dados_pessoa_nao_atendidos":
+        criterio = _criterio_nao_atendido(values.get("dadosApenado"))
+        if criterio is not None:
+            campos["criterioNaoAtendido"], campos["criterioSemDado"] = criterio
+    elif motivo == "rg_nao_encontrado":
+        rg = values.get("rg")
+        if isinstance(rg, str):
+            campos["digitosRg"] = sum(c in "0123456789" for c in limpar_rg(rg))
+    return campos
+
+
 def extracao_livre_habilitada() -> bool:
     # Lida a cada chamada, como em develop.
     return os.environ.get("EXTRACAO_LIVRE_IA") == "true"
@@ -168,6 +227,14 @@ def rg_veio_da_extracao(state: PessoaPresaState) -> bool:
     # gravado por `prepararPerguntaRgInvalido`, e um `rg: null` da Tykhe também
     # pergunta (divergência aceita, MIGRACAO.md).
     return state.get("rg") is not None and _js.coalesce(state.get("tentativasRg"), 0) == 0
+
+
+def texto_rg_invalido(recusa: int) -> str:
+    """#394: a mensagem de recusa do RG pelo formato, com a tentativa e um exemplo fictício."""
+    return (
+        f"Não consegui ler esse RG (tentativa {recusa} de {LIMITE_RECUSAS_RG_FORMATO}). "
+        "Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789."
+    )
 
 
 def texto_tentar_novamente(state: PessoaPresaState) -> str:
@@ -267,8 +334,34 @@ def depois_de_pedir_rg(state: PessoaPresaState) -> str:
     return "valido" if rg_formato_valido(_js.coalesce(state.get("rg"), "")) else "invalido"
 
 
+async def recusar_rg(state: PessoaPresaState) -> Atualizacao:
+    """#394: conta a recusa pelo formato e registra o evento, sem o que a pessoa digitou (só quantos dígitos havia e
+    se havia letra)."""
+    rg = state.get("rg")
+    texto = rg if isinstance(rg, str) else ""
+    recusas = _js.coalesce(state.get("recusasRgFormato"), 0) + 1
+    logger.info(
+        "RG recusado pelo formato",
+        **contexto_atual(),
+        evento="rg_recusado_formato",
+        recusa=recusas,
+        digitos=sum(c in "0123456789" for c in texto),
+        temLetra=any(c.isalpha() for c in texto),
+    )
+    return {"recusasRgFormato": recusas}
+
+
+def depois_de_recusar_rg(state: PessoaPresaState) -> str:
+    return "esgotado" if _js.coalesce(state.get("recusasRgFormato"), 0) >= LIMITE_RECUSAS_RG_FORMATO else "perguntarDeNovo"
+
+
+async def rg_formato_invalido(state: PessoaPresaState) -> Atualizacao:
+    """#394: três recusas pelo formato. O texto recusado não fica no estado (nem nos metadados)."""
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "rg_formato_invalido", "rg": None}
+
+
 async def preparar_pergunta_rg_invalido(state: PessoaPresaState) -> Atualizacao:
-    preparado = await preparar_pergunta("rgInvalido", TEXTO_RG_INVALIDO)
+    preparado = await preparar_pergunta("rgInvalido", texto_rg_invalido(_js.coalesce(state.get("recusasRgFormato"), 1)))
     # `{ ...preparado, rg: undefined }`: limpa o RG inválido para o pedirRg
     # perguntar de novo (regra de estado: undefined no canal vira None).
     return {**preparado, "rg": None}
@@ -338,7 +431,8 @@ async def pedir_confirma_nome(state: PessoaPresaState) -> Atualizacao:
 async def preparar_pergunta_parentesco(state: PessoaPresaState) -> Atualizacao:
     if "parentesco" in state:
         return {}
-    return dict(await preparar_pergunta("parentesco", TEXTO_PARENTESCO))
+    # #438: com "meu filho" no relato, "Você é a mãe ou o pai dele?"; com dois parentes, qual deles.
+    return dict(await preparar_pergunta("parentesco", state.get("perguntaParentesco") or TEXTO_PARENTESCO))
 
 
 class ResultadoClassificarParentesco(TypedDict, total=False):
@@ -352,9 +446,22 @@ async def classificar_parentesco(resposta_livre: str) -> ResultadoClassificarPar
     # `NODE_ENV === "test"` em develop. `??`: uma variável vazia passa como "".
     if os.environ.get("APP_ENV") == "test":
         return {"parentesco": _js.coalesce(os.environ.get("MOCK_CLASSIFICACAO_PARENTESCO"), "Outro")}
-    resultado = await classificar_entre_opcoes(resposta_livre, SISTEMA_PARENTESCO, PARENTESCOS_PERMITIDOS)
+    resultado = await classificar_entre_opcoes(
+        resposta_livre, com_ajuste_qwen(SISTEMA_PARENTESCO, SUFIXO_PARENTESCO), PARENTESCOS_PERMITIDOS
+    )
+    escolha = resultado.get("escolhaId")
+    if escolha is not None and not (isinstance(escolha, str) and escolha in PARENTESCOS_PERMITIDOS):
+        # #212 (decisão da Nicole, 2026-11-12): valor fora da lista não chega à Tykhe; vira "Outro", como o
+        # "nenhum". O log diz só o motivo, nunca o valor devolvido nem a resposta da pessoa.
+        logger.warn(
+            "[parentesco] a IA devolveu um valor fora da lista; gravado como Outro",
+            **contexto_atual(),
+            evento="parentesco_fora_da_lista",
+            motivo="fora_da_lista" if isinstance(escolha, str) else "tipo_errado",
+        )
+        escolha = None
     return {
-        "parentesco": _js.coalesce(resultado.get("escolhaId"), "Outro"),
+        "parentesco": _js.coalesce(escolha, "Outro"),
         "tokensTotal": resultado.get("tokensTotal"),
         "tokensEntrada": resultado.get("tokensEntrada"),
         "tokensSaida": resultado.get("tokensSaida"),
@@ -365,6 +472,15 @@ async def pedir_parentesco(state: PessoaPresaState) -> Atualizacao:
     if "parentesco" in state:
         return {}
     resposta: str = interrupt({"pergunta": _js.coalesce(state.get("perguntaAtualTexto"), TEXTO_PARENTESCO), "tipo": "texto"})
+    opcoes = state.get("opcoesParentesco")
+    if opcoes:
+        # #438: a resposta à pergunta curta é lida pelas palavras ("o primo", "sou a mãe").
+        escolhido = ler_resposta_parentesco(resposta, opcoes)
+        if escolhido in (MAE_OU_PAI_DELE, MAE_OU_PAI_DELA):
+            # Escolheu o filho ou a filha: falta só saber se é a mãe ou o pai (volta à pergunta).
+            return {"perguntaParentesco": texto_mae_ou_pai(escolhido), "opcoesParentesco": dict(OPCOES_MAE_PAI)}
+        if escolhido in PARENTESCOS_PERMITIDOS:
+            return {"parentesco": escolhido, "opcoesParentesco": None}
     classificado = await classificar_parentesco(resposta)
     return {
         "parentesco": classificado["parentesco"],
@@ -414,6 +530,9 @@ def depois_de_confirmar_nome(state: PessoaPresaState) -> str:
 
 
 def depois_de_parentesco(state: PessoaPresaState) -> str:
+    if "parentesco" not in state:
+        # #438: escolheu o filho na pergunta de "qual deles": pergunta se é a mãe ou o pai.
+        return "perguntarDeNovo"
     return "identificar" if _js.verdadeiro(_ler(state, "viaOrquestrador")) else "concluir"
 
 
@@ -459,6 +578,8 @@ _construtor.add_node("pedirNumeroProcesso", pedir_numero_processo)
 _construtor.add_node("consultarProcesso", consultar_processo)
 _construtor.add_node("prepararPerguntaRg", preparar_pergunta_rg)
 _construtor.add_node("pedirRg", pedir_rg)
+_construtor.add_node("recusarRg", recusar_rg)
+_construtor.add_node("rgFormatoInvalido", rg_formato_invalido)
 _construtor.add_node("prepararPerguntaRgInvalido", preparar_pergunta_rg_invalido)
 _construtor.add_node("consultarApenado", consultar_apenado)
 _construtor.add_node("prepararPerguntaTentarNovamente", preparar_pergunta_tentar_novamente)
@@ -487,7 +608,11 @@ _construtor.add_edge("prepararPerguntaNumeroProcesso", "pedirNumeroProcesso")
 _construtor.add_edge("pedirNumeroProcesso", "consultarProcesso")
 _construtor.add_edge("consultarProcesso", "prepararPerguntaRg")
 _construtor.add_edge("prepararPerguntaRg", "pedirRg")
-_construtor.add_conditional_edges("pedirRg", depois_de_pedir_rg, {"valido": "consultarApenado", "invalido": "prepararPerguntaRgInvalido"})
+_construtor.add_conditional_edges("pedirRg", depois_de_pedir_rg, {"valido": "consultarApenado", "invalido": "recusarRg"})
+_construtor.add_conditional_edges(
+    "recusarRg", depois_de_recusar_rg, {"perguntarDeNovo": "prepararPerguntaRgInvalido", "esgotado": "rgFormatoInvalido"}
+)
+_construtor.add_edge("rgFormatoInvalido", END)
 _construtor.add_edge("prepararPerguntaRgInvalido", "pedirRg")
 _construtor.add_conditional_edges(
     "consultarApenado",
@@ -509,7 +634,11 @@ _construtor.add_conditional_edges(
     "pedirConfirmaNome", depois_de_confirmar_nome, {"concluir": "prepararPerguntaParentesco", "naoConfirmado": "naoConfirmado"}
 )
 _construtor.add_edge("prepararPerguntaParentesco", "pedirParentesco")
-_construtor.add_conditional_edges("pedirParentesco", depois_de_parentesco, {"identificar": "identificarAssistido", "concluir": "concluir"})
+_construtor.add_conditional_edges(
+    "pedirParentesco",
+    depois_de_parentesco,
+    {"identificar": "identificarAssistido", "concluir": "concluir", "perguntarDeNovo": "prepararPerguntaParentesco"},
+)
 _construtor.add_conditional_edges(
     "identificarAssistido",
     depois_de_identificar_assistido,

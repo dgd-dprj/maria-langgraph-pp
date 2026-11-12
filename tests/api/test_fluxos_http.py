@@ -210,37 +210,94 @@ async def test_plano_saude_outra_pessoa_pergunta_o_cpf_e_cpf_invalido_tres_vezes
     assert corpo["metadados"]["motivoHandoff"] == "cpf_outra_pessoa_invalido"
 
 
+CPF_SOLICITANTE_HTTP = "00000000000"
+CPF_ATENDIDO_HTTP = "52998224725"
+DADOS_PERSONAGEM = {
+    **PLANO_SAUDE_COM_CEP,
+    "cpf": CPF_SOLICITANTE_HTTP,
+    "nome": "Pessoa de Teste",
+    "imagensRecebidas": True,
+    "relato": "o plano negou",
+}
+
+
 @pytest.mark.usefixtures("no_release")
-async def test_plano_saude_outra_pessoa_com_cpf_valido_segue_para_as_imagens_sem_devolver_dado_dela(
-    cliente: httpx.AsyncClient, auth: dict[str, str]
+async def test_plano_saude_outra_pessoa_devolve_solicitante_e_pessoa_atendida_em_dados_coletados_e_nao_em_metadados_nem_log(
+    cliente: httpx.AsyncClient, auth: dict[str, str], capsys: pytest.CaptureFixture[str]
 ) -> None:
+    # #448: o dado de terceiro volta em `dadosColetados` (padrão dos outros fluxos); `metadados` e log seguem sem ele.
     chat_id = f"teste-ps-http-{next(_ids)}"
     await cliente.post(
-        "/atendimentos",
-        json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": PLANO_SAUDE_COM_CEP},
-        headers=auth,
+        "/atendimentos", json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": DADOS_PERSONAGEM}, headers=auth
     )
     await _responder(cliente, auth, chat_id, "false")
-    r = await _responder(cliente, auth, chat_id, "529.982.247-25")  # Verde simulado (mock): encontra qualquer CPF
+    r = await _responder(cliente, auth, chat_id, CPF_ATENDIDO_HTTP)  # Verde simulado (mock): encontra qualquer CPF
     corpo = r.json()
-    assert (r.status_code, corpo["status"], corpo["tipoResposta"]) == (200, "em_andamento", "link_imagem")
-    resposta = json.dumps(corpo, ensure_ascii=False)
-    for dado_dela in ("52998224725", "Pessoa de Teste (mock)", "teste@exemplo.org", "21999990000"):
-        assert dado_dela not in resposta, "dado da outra pessoa não volta na resposta da API"
+    assert (r.status_code, corpo["status"], corpo["tipoResposta"]) == (200, "em_andamento", "texto"), "imagens já vieram: vai à renda"
+    coletados = corpo["dadosColetados"]
+    assert coletados["cpf"] == CPF_SOLICITANTE_HTTP, "o cpf de cima continua o de quem fala"
+    assert coletados["solicitante"] == {"nome": "Pessoa de Teste", "cpf": CPF_SOLICITANTE_HTTP}
+    assert coletados["outraPessoa"]["cpf"] == CPF_ATENDIDO_HTTP and coletados["outraPessoa"]["origem"] == "verde"
+    assert coletados["outraPessoa"]["nome"] == "Pessoa de Teste (mock)" and coletados["outraPessoa"]["email"] == "teste@exemplo.org"
+    metadados = json.dumps(corpo["metadados"], ensure_ascii=False)
+    saida = capsys.readouterr().out
+    for dado in (CPF_ATENDIDO_HTTP, "Pessoa de Teste", "teste@exemplo.org", "21999990000"):
+        assert dado not in metadados, "metadados continua sem dado pessoal"
+        assert dado not in saida, "log continua sem dado pessoal, mesmo com o dado na resposta"
 
 
 @pytest.mark.usefixtures("no_release")
-async def test_plano_saude_sem_municipio_do_rio_encerra_na_criacao_com_atendimento_humano(
+async def test_plano_saude_para_si_mesmo_nao_traz_solicitante_nem_outra_pessoa(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+    chat_id = f"teste-ps-http-{next(_ids)}"
+    await cliente.post(
+        "/atendimentos", json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": DADOS_PERSONAGEM}, headers=auth
+    )
+    r = await _responder(cliente, auth, chat_id, "true")
+    assert r.json()["dadosColetados"] == {"cpf": CPF_SOLICITANTE_HTTP}
+
+
+@pytest.mark.usefixtures("no_release")
+async def test_plano_saude_cpf_do_solicitante_e_o_da_pessoa_atendida_ficam_separados_ate_o_email(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from maria.integracoes.email_nudecon import ResultadoEmail
+
+    enviados: list[dict[str, str]] = []
+
+    async def enviar(protocolo: str, dados: dict[str, str], imagens: dict[str, str]) -> ResultadoEmail:
+        enviados.append(dados)
+        return ResultadoEmail(True)
+
+    monkeypatch.setattr("maria.fluxos.plano_saude.graph.enviar_email_nudecon", enviar)
+    chat_id = f"teste-ps-http-{next(_ids)}"
+    await cliente.post(
+        "/atendimentos", json={"chatId": chat_id, "flowId": ID_PROBLEMAS_PLANO_SAUDE, "dadosConhecidos": DADOS_PERSONAGEM}, headers=auth
+    )
+    for resposta in ("false", CPF_ATENDIDO_HTTP, "2500"):
+        await _responder(cliente, auth, chat_id, resposta)
+    r = await _responder(cliente, auth, chat_id, "true")
+    corpo = r.json()
+    assert corpo["status"] == "concluido"
+    assert corpo["dadosColetados"]["solicitante"]["cpf"] == CPF_SOLICITANTE_HTTP
+    assert corpo["dadosColetados"]["outraPessoa"]["cpf"] == CPF_ATENDIDO_HTTP
+    [dados] = enviados
+    assert dados["CPF"] == CPF_ATENDIDO_HTTP and dados["Solicitante - CPF"] == CPF_SOLICITANTE_HTTP
+    assert dados["Solicitante - Nome"] == "Pessoa de Teste"
+
+
+@pytest.mark.usefixtures("no_release")
+async def test_plano_saude_sem_endereco_nao_encerra_na_criacao_e_comeca_em_para_voce(
     cliente: httpx.AsyncClient, auth: dict[str, str]
 ) -> None:
+    # #439: sem verificação de município, o CEP deixou de ser exigido.
     r = await cliente.post(
         "/atendimentos", json={"chatId": f"teste-ps-http-{next(_ids)}", "flowId": ID_PROBLEMAS_PLANO_SAUDE}, headers=auth
     )
     corpo = r.json()
     assert r.status_code == 200
-    assert corpo["status"] == "handoff_humano"
-    assert corpo["destino"] == "atendimento_humano"
-    assert corpo["metadados"]["motivoHandoff"] == "municipio_nao_identificado"
+    assert (corpo["status"], corpo["tipoResposta"], corpo["opcoes"]) == ("em_andamento", "sim_nao", ["Sim", "Não"])
+    assert "para você" in corpo["resposta"]
+    assert "destino" not in corpo
 
 
 LINK_FRENTE_HTTP = "https://downloads.tykhe.dev/arquivos/id-frente-http?token=segredo-frente-http"

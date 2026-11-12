@@ -130,7 +130,7 @@ Rodar só os testes do fluxo: `uv run pytest tests/fluxos/test_<nome>.py`. Antes
 | A1 | O estado tem `statusFinal`, e todo fim grava `concluido` ou `handoff_humano` |
 | A2 | O estado tem `tokensGastos: CanalTokensGastos` |
 | A3 | O estado tem `mensagemFinal`; sem valor, vale a mensagem padrão do registro |
-| A4 | Cada pausa manda `pergunta` e `tipo` (`texto` ou `sim_nao`) |
+| A4 | Cada pausa manda `pergunta` e `tipo` (`texto`, `sim_nao`, `opcoes` ou `link_imagem`) |
 | A5 | Pergunta sim/não leva as opções `["Sim", "Não"]`, e a resposta passa por `resposta_eh_sim` |
 | A6 | Cada pergunta é um par: o nó que prepara (`preparar_pergunta`) e o que pede |
 | A7 | O nó que prepara e o que pede pulam pela mesma condição |
@@ -151,7 +151,7 @@ O teste lê o fluxo sem executar e depois passeia por ele, respondendo "Sim" ou 
 
 **Se o fluxo pergunta algo de texto,** declare em `ROTEIROS`, no próprio teste, as respostas que o passeio dá, por padrão do texto da pergunta. Sem elas, o passeio responde um texto genérico, e uma validação de formato pode prender a conversa: o teste falha em "fim".
 
-**Fluxo novo não tem exceção.** Pessoa presa e violência doméstica ainda não passam na A13 e na A14. As três falhas estão em `EXCECOES`, cada uma ligada à issue que a corrige, e a lista só diminui. Quando a correção entra, o teste falha até a exceção ser apagada.
+**Fluxo novo não tem exceção.** Pessoa presa e violência doméstica ainda não passam na A14. As duas falhas estão em `EXCECOES`, cada uma ligada à issue que a corrige, e a lista só diminui. Quando a correção entra, o teste falha até a exceção ser apagada. A A13 da pessoa presa saiu em 2026-11-12, com a correção da #212 (o parentesco da IA fora da lista vira "Outro").
 
 ### O que o registro muda em outros testes
 
