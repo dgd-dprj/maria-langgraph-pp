@@ -45,7 +45,14 @@ from maria.shared import _js
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
 from maria.shared.nomes import nome_mascarado
-from maria.shared.parentesco import MAE_OU_PAI_DELA, MAE_OU_PAI_DELE, OPCOES_MAE_PAI, ler_resposta_parentesco, texto_mae_ou_pai
+from maria.shared.parentesco import (
+    MAE_OU_PAI_DELA,
+    MAE_OU_PAI_DELE,
+    OPCOES_MAE_PAI,
+    ler_resposta_parentesco,
+    parentesco_pela_resposta,
+    texto_mae_ou_pai,
+)
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.cadastro_pessoa.graph import grafo as subgrafo_cadastro_pessoa
 from maria.subgrafos.identificar_assistido.graph import grafo as subgrafo_identificar_assistido
@@ -100,6 +107,9 @@ PARENTESCOS_PERMITIDOS = [
     "Sogro(a)",
     # #438 (decisão da Nicole, 2026-11-06): "meu avô foi preso" também é parentesco.
     "Neto(a)",
+    # #212 (decisão da Nicole, 2026-11-13): quem é casado com o filho ou a filha da pessoa presa. Antes era "Outro",
+    # e o Qwen lia como "Sogro(a)". Valor novo para a Tykhe: só vai para a produção depois de ela confirmar (#479).
+    "Genro/Nora",
     "Outro",
 ]
 
@@ -481,6 +491,11 @@ async def pedir_parentesco(state: PessoaPresaState) -> Atualizacao:
             return {"perguntaParentesco": texto_mae_ou_pai(escolhido), "opcoesParentesco": dict(OPCOES_MAE_PAI)}
         if escolhido in PARENTESCOS_PERMITIDOS:
             return {"parentesco": escolhido, "opcoesParentesco": None}
+    # #212: as formas comuns ("genro", "sou a mãe dele", "marido da filha dele") pelas palavras, sem IA.
+    pelas_palavras = parentesco_pela_resposta(resposta)
+    if pelas_palavras in PARENTESCOS_PERMITIDOS:
+        logger.info("[parentesco] lido pelas palavras, sem IA", **contexto_atual(), evento="parentesco_sem_ia")
+        return {"parentesco": pelas_palavras}
     classificado = await classificar_parentesco(resposta)
     return {
         "parentesco": classificado["parentesco"],
