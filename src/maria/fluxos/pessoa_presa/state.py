@@ -21,11 +21,18 @@ MotivoHandoffPessoaPresa = Literal[
     "falha_cadastro",
     "assistido_nao_confirmado",
     "falha_infra_verde",
+    # #394 (decisão da Nicole, 2026-11-12): três RGs recusados pelo formato. Valor novo no contrato; a Tykhe
+    # encaminha pelo `destino`, como nos outros handoffs.
+    "rg_formato_invalido",
 ]
 
 
 class PessoaPresaState(TypedDict, total=False):
     parentesco: str | None
+    # #438: a pergunta curta tirada do relato ("Você é a mãe ou o pai dele?", "Sobre qual deles…?") e
+    # as respostas que ela aceita (palavra sem acento -> parentesco). None: a pergunta de sempre.
+    perguntaParentesco: str | None
+    opcoesParentesco: dict[str, str] | None
     temProcesso: bool | None
     numeroProcesso: str | None
     dadosProcesso: DadosProcesso | None
@@ -52,3 +59,9 @@ class PessoaPresaState(TypedDict, total=False):
     perguntaAtualViaIA: bool | None
     perguntaAtualTokensTotal: int | None
     tokensGastos: CanalTokensGastos
+    # #341/#352, fora dos 27 de develop: o status da resposta do Verde quando ele
+    # não acha o processo (400, 404, 422). Interno: não vai para os metadados.
+    statusConsultaProcesso: int | None
+    # #394, fora dos 27 de develop: quantas vezes o RG foi recusado pelo formato. Na 3ª, a conversa vai para o
+    # atendimento humano. Interno: não vai para os metadados.
+    recusasRgFormato: int | None

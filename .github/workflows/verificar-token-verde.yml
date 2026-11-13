@@ -34,6 +34,10 @@ jobs:
           - ambiente: release
             ecs_service: api-release
     steps:
+      # Issue #298 — a consulta de status vem de scripts/conferir_token_verde.py,
+      # o mesmo código que o deploy usa para conferir o token (só leitura).
+      - uses: actions/checkout@v4
+
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
@@ -53,6 +57,9 @@ jobs:
 
           python3 - <<'EOF'
           import base64, json, os, subprocess, sys, time, urllib.error, urllib.request
+
+          sys.path.insert(0, "scripts")
+          from conferir_token_verde import ErroDeStatus, consultar_status, ler_status
 
           ambiente = os.environ["AMBIENTE"]
           secret_id = f"maria-langgraph-pp-{ambiente}/app"
@@ -87,28 +94,14 @@ jobs:
                   corpo = err.read().decode("utf-8", errors="replace")
                   return err.code, corpo
 
-          status_code, status_bruto = chamar("GET", "/autenticacao/token/status", token)
-          if status_code != 200:
-              print(f"::error::[{ambiente}] GET token/status falhou (HTTP {status_code}): {status_bruto}")
-              sys.exit(1)
-
-          # Issue #194 — achado ao vivo testando contra a Verde homolog real:
-          # GET token/status devolve envelopado em "dados" ({"dados": {...}}),
-          # mesmo padrão de TODO o resto da API (ver src/integracoes/verde.ts)
-          # — só não bate com o exemplo do Swagger, que mostrava flat. Sem
-          # isso, revogado/expirado sempre liam o default (False), quebrando
-          # silenciosamente a checagem mais importante do workflow. Diferente
-          # de POST token/refresh, que É flat de verdade (confirmado no mesmo
-          # teste ao vivo) — não envelopar isso quebraria o refresh.
-          status = status_bruto.get("dados", status_bruto) if isinstance(status_bruto, dict) else {}
-          # Achado no code review da própria #194: um shape inesperado (sem
-          # "dados" E sem os campos flat, ou resposta que não é dict) não
-          # pode virar silenciosamente "token saudável, não faz nada" — é
-          # exatamente o bug que essa issue corrigiu, só que disparado por
-          # outra causa. Mesma disciplina de fail-loud já usada no bloco de
-          # refresh logo abaixo (checagem de "token" in refresh).
-          if not isinstance(status, dict) or not ({"revogado", "expirado", "valido"} & status.keys()):
-              print(f"::error::[{ambiente}] GET token/status devolveu 200 mas sem nenhum campo esperado — contrato da Verde mudou? corpo: {status_bruto}")
+          # Issue #194 (o envelope "dados" do token/status e o fail-loud para um
+          # formato inesperado) e issue #298 (a consulta saiu para o script, que o
+          # deploy também usa): ver scripts/conferir_token_verde.py. Só o refresh,
+          # abaixo, continua usando `chamar`.
+          try:
+              status = ler_status(*consultar_status(api_url, token, client_id))
+          except ErroDeStatus as erro:
+              print(f"::error::[{ambiente}] {erro}")
               sys.exit(1)
 
           revogado = status.get("revogado", False)
@@ -148,27 +141,38 @@ jobs:
           token_novo = refresh["token"]
 
           segredo["VERDE_JWT_TOKEN"] = token_novo
-          subprocess.run(
-              [
-                  "aws", "secretsmanager", "put-secret-value",
-                  "--secret-id", secret_id,
-                  "--secret-string", json.dumps(segredo),
-                  "--region", region,
-              ],
-              check=True,
-          )
-          print(f"[{ambiente}] token renovado, gravado no Secrets Manager — forçando redeploy do ECS")
-
           try:
               subprocess.run(
+                  [
+                      "aws", "secretsmanager", "put-secret-value",
+                      "--secret-id", secret_id,
+                      "--secret-string", json.dumps(segredo),
+                      "--region", region,
+                  ],
+                  check=True,
+              )
+          except subprocess.CalledProcessError as err:
+              # #316: sem o try, o traceback do CalledProcessError imprime o
+              # comando inteiro, com o segredo dentro. A mensagem leva só o
+              # código de saída.
+              print(f"::error::[{ambiente}] token renovado na Verde, mas a gravação no Secrets Manager falhou (código {err.returncode}) — o token antigo já foi invalidado e o novo não foi gravado: precisa de token NOVO emitido manualmente na Verde")
+              sys.exit(1)
+          print(f"[{ambiente}] token renovado, gravado no Secrets Manager — forçando redeploy do ECS")
+
+          redeploy_manual = f"aws ecs update-service --cluster {cluster} --service {service} --force-new-deployment --region {region}"
+          try:
+              atualizado = subprocess.run(
                   [
                       "aws", "ecs", "update-service",
                       "--cluster", cluster,
                       "--service", service,
                       "--force-new-deployment",
                       "--region", region,
+                      "--output", "json",
                   ],
                   check=True,
+                  capture_output=True,
+                  text=True,
               )
           except subprocess.CalledProcessError as err:
               # Nesse ponto o token JÁ foi trocado no Secrets Manager e a
@@ -177,7 +181,55 @@ jobs:
               # diferenciado de propósito, pra não confundir com uma falha
               # de renovação comum (aqui a renovação FUNCIONOU, só o
               # redeploy automático que não rodou).
-              print(f"::error::[{ambiente}] token renovado com sucesso, mas o redeploy do ECS falhou ({err}) — rode manualmente: aws ecs update-service --cluster {cluster} --service {service} --force-new-deployment --region {region}")
+              print(f"::error::[{ambiente}] token renovado com sucesso, mas o redeploy do ECS falhou ({err}) — rode manualmente: {redeploy_manual}")
               sys.exit(1)
-          print(f"[{ambiente}] redeploy disparado ({cluster}/{service}) — task nova vai subir com o token renovado")
+          # Os deploys que já existiam rodam containers que leram o token
+          # antigo no boot. Se um deles sobrar no fim, o token renovado não
+          # chegou a ninguém.
+          deploys_antigos = {d["id"] for d in json.loads(atualizado.stdout)["service"]["deployments"] if d["status"] != "PRIMARY"}
+          print(f"[{ambiente}] redeploy disparado ({cluster}/{service}) — esperando o serviço estabilizar")
+
+          # #316: em 2026-10-22 o redeploy travou, o job terminou com sucesso,
+          # e o container antigo ficou ~23 h no ar com o token invalidado
+          # (401 em toda consulta). Mesma espera dos deploys (deploy-prod.yml).
+          container_velho = (
+              f"::error::[{ambiente}] token renovado e gravado no Secrets Manager, mas o container novo não subiu ({cluster}/{service}) — "
+              f"o container em execução está com o token INVALIDADO e toda consulta à Verde vai receber 401. "
+              f"Veja os eventos do serviço no ECS e force o deploy de novo: {redeploy_manual}"
+          )
+          try:
+              subprocess.run(
+                  [
+                      "aws", "ecs", "wait", "services-stable",
+                      "--cluster", cluster,
+                      "--services", service,
+                      "--region", region,
+                  ],
+                  check=True,
+              )
+          except subprocess.CalledProcessError:
+              print(f"{container_velho} (o serviço não estabilizou no tempo de espera)")
+              sys.exit(1)
+
+          servico = json.loads(
+              subprocess.run(
+                  [
+                      "aws", "ecs", "describe-services",
+                      "--cluster", cluster,
+                      "--services", service,
+                      "--region", region,
+                      "--output", "json",
+                  ],
+                  check=True,
+                  capture_output=True,
+                  text=True,
+              ).stdout
+          )["services"][0]
+          # Um deploy mais novo que o da renovação (outro push no meio) também
+          # lê o segredo já atualizado, então vale; um dos antigos, não.
+          deploys = servico["deployments"]
+          if len(deploys) != 1 or deploys[0]["id"] in deploys_antigos or servico["runningCount"] < 1 or servico["runningCount"] != servico["desiredCount"]:
+              print(f"{container_velho} (depois da espera: {len(deploys)} deploy(s), {servico['runningCount']} de {servico['desiredCount']} tarefa(s), deploy antigo no ar: {any(d['id'] in deploys_antigos for d in deploys)})")
+              sys.exit(1)
+          print(f"[{ambiente}] container novo no ar ({cluster}/{service}, {servico['runningCount']} tarefa(s)) — token renovado em uso")
           EOF

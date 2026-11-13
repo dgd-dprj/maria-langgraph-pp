@@ -14,6 +14,14 @@ Toda issue: clara, acionável, testável, com contexto suficiente pra ser entend
 - **Procure issue aberta sobre o mesmo assunto:** `gh issue list --state open --search "<palavras do assunto>"`. Se houver, acrescente nela (comentário) em vez de abrir outra.
 - **Achou duplicata depois de abrir:** feche a que foi aberta **por último**, pelo horário de criação do GitHub (`gh issue view <n> --json createdAt`), citando a outra e um motivo que dê para conferir. Não escreva o motivo de memória: em 2026-10-22, a #292 foi fechada dizendo que a #293 era "minutos antes", e ela era 18 segundos depois.
 
+## Issue só de texto: sem branch e sem PR próprios (regra de 2026-10-27, #357)
+
+- Issue de documentação, índice, padrão, skill ou `MIGRACAO.md` não ganha branch nem PR próprios.
+- O texto entra junto no próximo PR com mudança de código (commit `:books: docs:`), e a issue fecha com o `Closes #N` desse PR.
+- Nos critérios de aceitação, escreva: "entra junto no próximo PR com código".
+- Mensagem ao assistido em `src/` é código, não "só texto".
+- Vale para as issues abertas e para as que vierem. Regra completa na skill `padroes-pull-request`.
+
 ## Título
 
 ```

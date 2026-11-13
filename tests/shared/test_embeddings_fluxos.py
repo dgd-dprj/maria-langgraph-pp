@@ -145,3 +145,32 @@ async def test_postgres_busca_devolve_os_k_mais_proximos(
     assert len(candidatos) == 5
     assert candidatos[0]["id"] == "fluxo-3"
     assert set(candidatos[0]) == {"id", "nome", "descricao"}
+
+
+def test_preencher_dimensoes_completa_com_zeros_e_preserva_o_cosseno() -> None:
+    # O embedding falso (APP_ENV=test) tem 16 posições; a coluna é vector(1024).
+    falso = embedding_falso("meu filho foi preso")
+    completo = embeddings_fluxos._preencher_dimensoes(falso)
+    assert len(completo) == embeddings_fluxos.DIMENSOES
+    assert list(completo[:16]) == list(falso)
+    assert not any(completo[16:])
+    outro = embeddings_fluxos._preencher_dimensoes(embedding_falso("violência doméstica"))
+    assert embeddings_fluxos.similaridade_cosseno(completo, outro) == pytest.approx(
+        embeddings_fluxos.similaridade_cosseno(falso, embedding_falso("violência doméstica"))
+    )
+
+
+def test_preencher_dimensoes_nao_mexe_em_vetor_completo() -> None:
+    vetor = [0.5] * embeddings_fluxos.DIMENSOES
+    assert embeddings_fluxos._preencher_dimensoes(vetor) is vetor
+
+
+@pytest.mark.postgres
+async def test_postgres_indexa_com_o_embedding_falso_de_16_posicoes(
+    banco_de_negocio: psycopg.AsyncConnection[TupleRow], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Docker Compose local (#361) usa APP_ENV=test com Postgres: a indexação não pode falhar.
+    monkeypatch.setenv("APP_ENV", "test")
+    await aquecer_catalogo(catalogo(3))
+    cursor = await banco_de_negocio.execute("SELECT count(*) FROM fluxo_embeddings")
+    assert (await cursor.fetchone() or (0,))[0] == 3

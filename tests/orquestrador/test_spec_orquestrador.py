@@ -12,7 +12,7 @@ from typing import Any
 import pytest
 from langgraph.types import Command
 
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA
+from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA
 from maria.ia.desambiguar import TEXTO_FALLBACK
 from maria.orquestrador import graph
 from maria.orquestrador.graph import (
@@ -22,6 +22,7 @@ from maria.orquestrador.graph import (
     mesmo_conjunto_de_opcoes,
     obter_grafo,
 )
+from maria.orquestrador.state import CandidatoOrquestrador
 from maria.shared.perguntas_db import PerguntaArvore
 from tests.fluxos.conftest import novo_config, pergunta
 from tests.ia.conftest import BedrockFalso, ferramenta
@@ -29,6 +30,8 @@ from tests.orquestrador.conftest import Modelo
 
 DOIS = [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA]
 TOKENS = {"tokensEntrada": 11, "tokensSaida": 7, "tokensTotal": 18}
+# O CPF vindo da Tykhe (CPF de teste do Verde simulado) segue para o fluxo em `dadosConhecidos`.
+CONHECIDOS = {"cpf": "11111111111"}
 
 
 class Conversa:
@@ -36,8 +39,11 @@ class Conversa:
         self.grafo = obter_grafo()
         self.config = novo_config("teste-orq-spec")
 
-    async def iniciar(self, mensagem: str = "relato") -> dict[str, Any]:
-        r: dict[str, Any] = await self.grafo.ainvoke({"mensagem": mensagem}, self.config)
+    async def iniciar(self, mensagem: str = "relato", conhecidos: dict[str, Any] | None = None) -> dict[str, Any]:
+        entrada: dict[str, Any] = {"mensagem": mensagem}
+        if conhecidos is not None:
+            entrada["dadosConhecidos"] = conhecidos
+        r: dict[str, Any] = await self.grafo.ainvoke(entrada, self.config)
         return r
 
     async def responder(self, *respostas: str) -> dict[str, Any]:
@@ -88,6 +94,9 @@ def store(monkeypatch: pytest.MonkeyPatch) -> StoreFalsa:
 
 
 def test_1_topologia_igual_a_de_develop() -> None:
+    """A topologia de develop, mais os 3 nós do multi-fluxo (#435) e os 3 dos assuntos guardados e em aberto (#450,
+    pelo idUsuario da Tykhe), que só são alcançados no release (as arestas novas do `classificar` só saem quando
+    `fluxo_em_teste_liga`)."""
     desenho = obter_grafo().get_graph()
     assert set(desenho.nodes) == {
         "__start__",
@@ -96,6 +105,13 @@ def test_1_topologia_igual_a_de_develop() -> None:
         "naoIdentificado",
         "prepararPerguntaDesambiguacao",
         "pedirDesambiguacao",
+        "perguntarOrdem",
+        "perguntarPrimeiro",
+        "comecarFila",
+        # #450
+        "buscarPendentes",
+        "perguntarAbertos",
+        "pedirAssuntoNovo",
         "__end__",
     }
     assert {(a.source, a.target, a.conditional) for a in desenho.edges} == {
@@ -107,11 +123,31 @@ def test_1_topologia_igual_a_de_develop() -> None:
         ("pedirDesambiguacao", "classificar", False),
         ("identificado", "__end__", False),
         ("naoIdentificado", "__end__", False),
+        # #435
+        ("classificar", "perguntarOrdem", True),
+        ("perguntarOrdem", "perguntarPrimeiro", True),
+        ("perguntarOrdem", "comecarFila", True),
+        ("perguntarPrimeiro", "comecarFila", False),
+        ("comecarFila", "identificado", True),
+        ("comecarFila", "naoIdentificado", True),
+        # #450
+        ("classificar", "buscarPendentes", True),
+        ("buscarPendentes", "naoIdentificado", True),
+        ("buscarPendentes", "identificado", True),
+        ("buscarPendentes", "prepararPerguntaDesambiguacao", True),
+        ("buscarPendentes", "perguntarOrdem", True),
+        ("buscarPendentes", "perguntarAbertos", True),
+        ("buscarPendentes", "pedirAssuntoNovo", True),
+        ("perguntarAbertos", "__end__", True),
+        ("perguntarAbertos", "pedirAssuntoNovo", True),
+        ("perguntarAbertos", "classificar", True),
+        ("pedirAssuntoNovo", "classificar", False),
     }
 
 
 def test_1_constantes() -> None:
-    assert (graph.CANDIDATOS_MAXIMOS, graph.LIMITE_RODADAS, graph.LIMITE_RODADAS_SUMARIZACAO) == (10, 5, 3)
+    # CANDIDATOS_MAXIMOS era 10 em develop; 15 desde a #353.
+    assert (graph.CANDIDATOS_MAXIMOS, graph.LIMITE_RODADAS, graph.LIMITE_RODADAS_SUMARIZACAO) == (15, 5, 3)
 
 
 # ---- 2. interrupt ---------------------------------------------------------------------
@@ -480,3 +516,44 @@ def test_7_trim_do_js_e_nao_o_strip() -> None:
     # trim() do JS remove U+FEFF e NÃO remove \x1c; strip() faz o contrário.
     assert mesmo_conjunto_de_opcoes([{"id": 1, "resposta": "﻿Sim"}], [{"id": 1, "resposta": "sim"}])
     assert not mesmo_conjunto_de_opcoes([{"id": 1, "resposta": "Sim\x1c"}], [{"id": 1, "resposta": "sim"}])
+
+
+# ── #419: plano de saúde x cirurgia pelo SUS segue direto no fluxo, sem pergunta ─────────────────────────────────
+@pytest.mark.parametrize("ordem", [[ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude"], ["tykhe:saude", ID_PROBLEMAS_PLANO_SAUDE]])
+async def test_419_plano_de_saude_e_saude_identificam_o_fluxo_sem_perguntar_em_qualquer_ordem(
+    modelo: Modelo, monkeypatch: pytest.MonkeyPatch, ordem: list[str]
+) -> None:
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
+    modelo.classificacoes = [{"ids": ordem, "viaIA": True, **TOKENS}]
+    r = await Conversa().iniciar("preciso de uma cirurgia", CONHECIDOS)
+    assert pergunta(r) is None
+    assert r["statusFinal"] == "identificado"
+    assert r["flowIdEscolhido"] == ID_PROBLEMAS_PLANO_SAUDE
+    assert modelo.textos_desambiguados == []
+
+
+async def test_419_outro_par_de_candidatos_segue_com_a_desambiguacao(modelo: Modelo) -> None:
+    modelo.classificacoes = [{"ids": DOIS, "viaIA": True, **TOKENS}]
+    modelo.perguntas = [{"pergunta": "P?", "viaIA": True, **TOKENS}]
+    r = await Conversa().iniciar()
+    assert pergunta(r) == {"pergunta": "P?", "tipo": "texto"}
+
+
+async def test_419_trio_que_inclui_o_par_segue_com_a_desambiguacao(modelo: Modelo, monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
+    modelo.classificacoes = [{"ids": [ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude", ID_PESSOA_PRESA], "viaIA": True, **TOKENS}]
+    modelo.perguntas = [{"pergunta": "P?", "viaIA": True, **TOKENS}]
+    r = await Conversa().iniciar(conhecidos=CONHECIDOS)
+    assert pergunta(r) == {"pergunta": "P?", "tipo": "texto"}
+
+
+def test_419_escolha_direta_so_vale_para_o_par() -> None:
+    plano, saude, presa = (_candidato(i) for i in (ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude", ID_PESSOA_PRESA))
+    assert graph.resolver_escolha_direta([saude, plano]) == [plano]
+    assert graph.resolver_escolha_direta([plano]) == [plano]
+    assert graph.resolver_escolha_direta([plano, saude, presa]) == [plano, saude, presa]
+    assert graph.resolver_escolha_direta([]) == []
+
+
+def _candidato(id_: str) -> CandidatoOrquestrador:
+    return {"id": id_, "nome": id_, "descricao": "d"}

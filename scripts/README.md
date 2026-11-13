@@ -2,14 +2,14 @@
 
 Utilitários pontuais em `scripts/` — nenhum roda como parte do serviço em produção, e nenhum entra na imagem.
 
-Os dois scripts Python rodam a partir da raiz do repositório, com o ambiente do projeto (`uv sync` antes):
+Os dois scripts Python que usam o banco rodam a partir da raiz do repositório, com o ambiente do projeto (`uv sync` antes):
 
 ```bash
 uv run python scripts/coletar_arvore_perguntas_verde.py
 uv run python scripts/seed_fluxos_planejados.py
 ```
 
-> **Efeito ao iniciar, herdado de develop (#255).** Os dois scripts inicializam o checkpointer do LangGraph antes de qualquer outra coisa, como a importação dos fluxos fazia em develop:
+> **Efeito ao iniciar, herdado de develop (#255).** Esses dois scripts inicializam o checkpointer do LangGraph antes de qualquer outra coisa, como a importação dos fluxos fazia em develop:
 > - sem `DATABASE_URL`, a primeira linha da saída é um aviso em JSON (`[checkpoint] DATABASE_URL ausente — usando MemorySaver`);
 > - com `DATABASE_URL`, o script **cria as tabelas de checkpoint** (no schema `checkpoint_py`) no banco de destino;
 > - com o banco inalcançável, o script morre com a pilha do psycopg, **sem** a mensagem `seed falhou:`/`crawl falhou:`. No Windows, o libpq não percebe a conexão recusada e pode ficar esperando sem limite: confira o `DATABASE_URL` antes.
@@ -22,6 +22,16 @@ Varre a árvore de perguntas/assuntos do Verde (`GET /integra/assunto/consultar-
 - **Não incremental** — recrawleia (limpa e reinsere) cada `flowId` visitado a cada rodada.
 - **Precisa**: `DATABASE_URL` + `VERDE_JWT_TOKEN`/`VERDE_CLIENT_ID` reais no `.env` — sem modo mock, é coleta de dado real.
 - **Atenção (#251)**: a categoria é apagada antes de ser varrida, sem transação. Se o Verde falhar no meio, ela fica com a árvore parcial ou vazia, e o script **sai com código 0** mesmo assim. Leia o resumo final: "N falha(s)" e a lista de categorias com falha. Cada chamada ao Verde tem prazo de 20 s, como no script de develop (o serviço usa 30 s, #196).
+
+## `conferir_token_verde.py` (issue #298)
+
+Confere se o Verde aceita o token do segredo de um ambiente. **Só leitura**: chama `GET /autenticacao/token/status` e nunca o `refresh`, que invalida o token antigo na hora e é exclusivo do `verificar-token-verde.yml`. Roda nos workflows de deploy e no `verificar-token-verde.yml`, no runner do GitHub, só com a biblioteca padrão (`python3`, sem `uv sync`):
+
+```bash
+python3 scripts/conferir_token_verde.py --ambiente release --segredo segredo.json
+```
+
+`segredo.json` é o `SecretString` do `maria-langgraph-pp-<ambiente>/app`. Sai com código 1 quando o Verde não aceita o token, e o log nunca traz o token. Testes sem rede em `tests/scripts/test_conferir_token_verde.py`.
 
 ## `seed_fluxos_planejados.py` (issue #26)
 

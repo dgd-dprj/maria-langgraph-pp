@@ -1,12 +1,19 @@
 # Guia de teste em homologação: a Maria em Python no release
 
+> **Corrigido em 2026-10-26: a equipe está testando na produção (`main`, serviço `api`), pela Tykhe, e não no release.** Isso muda três coisas para quem usa este guia:
+> - **os atendimentos de teste ficam misturados aos de cidadãos** na produção. Os dois chegam pela Tykhe, com o mesmo formato de `chatId`, e o log da Maria não separa um do outro (#208);
+> - **o horário combinado vale para o PR de release** (`develop` → `main`), que reinicia a produção, e não para os merges em `develop`;
+> - **a produção também consulta o Verde de homologação** (#286), então a regra de usar só dados inventados ou os de teste da homologação continua valendo.
+>
+> O resto do guia foi escrito para o release e fica como está, para registro.
+
 > **O release usa o Verde de homologação** (verificado em 2026-10-22, #286). As gravações do teste ficam na homologação, e isso está autorizado. Use só dados inventados ou os de teste da homologação.
 >
 > **Onde a Maria grava no Verde**, para saber o que cada caso deixa registrado:
 > - **o cadastro de pessoa:** quando o CPF não é encontrado 3 vezes, a Maria pede nome, data de nascimento e endereço. **O registro é criado logo depois do último dado de endereço;**
 > - **o encaminhamento de violência doméstica:** **o registro é criado logo depois do "Sim" em "Confirma que seus dados são…?"**.
 >
-> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**.
+> **Atenção:** essa pergunta de confirmação **só existe quando a conversa começa por um relato livre** (o orquestrador). Se o fluxo da Tykhe abrir violência doméstica **direto**, por um menu e sem relato, a Maria não pede confirmação: **encontrado o CPF, ela cria o encaminhamento em seguida**. **Desde a #236 (2026-11-03), o mesmo vale quando o CPF vem da Tykhe** (em `dadosConhecidos`), mesmo começando pelo relato livre: a Maria não mostra o nome e não pede confirmação. A pergunta só aparece quando a pessoa digita o CPF na conversa.
 
 Este guia é para a equipe que vai testar a Maria no ambiente de homologação (o release), depois da troca da versão TypeScript pela versão em Python (2026-10-21, #268).
 
@@ -40,6 +47,14 @@ Nada disso foi exercitado ainda **no release**:
 
 **Os dois fluxos estão conferidos no release só até a primeira pergunta:** violência doméstica até "Você é a vítima?", e pessoa presa até a entrada no fluxo. Tudo o que vem depois é o que este teste precisa cobrir.
 
+### O que o deploy confere sozinho (#298)
+
+Depois de cada deploy, o último passo do workflow (`deploy-release.yml`; `deploy-prod.yml` a partir do próximo release para `main`) lê o segredo do ambiente e chama `GET /autenticacao/token/status` no Verde, **só de leitura**. **O deploy termina com falha** se o Verde responder diferente de 200, ou disser que o token está `revogado` ou `expirado`. O log mostra o status HTTP, o `codigo` do Verde e os campos `expirado`, `revogado` e `expiraEm`, **nunca o token**. O código é o `scripts/conferir_token_verde.py`, o mesmo que o `verificar-token-verde.yml` usa para ler o status.
+
+**O que isso cobre:** o token do segredo do release ser aceito pelo Verde, que é a linha "O token do Verde" da tabela acima.
+
+**O que continua sendo teste humano:** a rede **do container** até o Verde (a consulta sai do runner do GitHub, não da Maria), o banco com a conversa no meio de um fluxo, e tudo o que a Tykhe faz com as respostas. Um deploy verde **não** prova que a Maria consegue consultar o Verde.
+
 ### Nunca conferido em lugar nenhum
 
 - **Pessoa presa até `concluido`.** Exige um número de processo de origem SEEU de teste no Verde de homologação. Os testes de 20/10 terminaram em encaminhamento para a equipe ("sem número do processo").
@@ -69,7 +84,7 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 ### Caso A. Violência doméstica, pelo Sim, até o encaminhamento (o mais importante)
 
 1. Relato livre de violência doméstica (inventado).
-2. "Você é a vítima de violência doméstica?" → **Sim**.
+2. "Você é a vítima de violência doméstica?" → **Sim**. **Depois da #438:** se o relato já disser que a violência é contra quem escreve ("meu marido **me** bate", "fui agredida"), a Maria pula esta pergunta. Se a vítima parecer ser outra pessoa ("o ex da minha filha ameaça ela"), ela pergunta, porque o Não encerra o atendimento.
 3. Processo → responda **Não** (ou informe um número de teste).
 4. Boletim de ocorrência → **Sim** em uma rodada e **Não** em outra.
 5. CPF → um **CPF inventado** (não existe na homologação). A Maria pede de novo; depois de 3 tentativas, ela começa o **cadastro**: nome, data de nascimento, CEP, número e complemento.
@@ -77,7 +92,10 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 
 **Esperado:** uma mensagem de encaminhamento com o **nome de um órgão** e um **número de protocolo**.
 
-Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro.
+Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro. Isso vale para o CPF digitado na conversa; se a Tykhe já mandou o CPF, não há confirmação (#236).
+- **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Confirma que seus dados são: Maria S. S.?"). Se o cadastro tiver nome social, é ele que aparece, também mascarado.
+- **Antes da #393:** o nome completo do cadastro.
+- **No cadastro do passo 5,** a confirmação continua com o nome que você acabou de digitar, por inteiro.
 
 > **Este caso grava duas vezes na homologação:** o cadastro no passo 5 (com CPF inventado) e o encaminhamento no passo 6.
 
@@ -86,13 +104,23 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 1. Relato livre sobre um familiar preso (inventado).
 2. Número do processo → **Sim** e um número de teste (SEEU, se houver), ou **Não**.
 3. RG da pessoa presa → o **RG de teste**.
-4. "Confirma que é <nome>?" → **Sim**.
-5. Parentesco → por exemplo, "sou a mãe".
+4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
+5. Parentesco → por exemplo, "sou a mãe". **Depois da #438, o relato do passo 1 conta:**
+   - **com o parentesco no relato** ("meu primo foi preso", "meu avô foi preso", "sou a mãe dele"), a Maria **não pergunta**;
+   - **"meu filho foi preso":** ela pergunta só "Você é a mãe ou o pai dele?";
+   - **"meu irmão foi preso" ou "minha irmã tá presa" (13/11):** ela pergunta só "Você é irmão ou irmã dele?" (ou "dela"). "Irmão(a)" virou dois valores, "Irmão" e "Irmã";
+   - **dois parentes no relato:** ela reconhece qual está preso ("minha mãe disse que meu primo foi preso" é o primo). Se forem dois presos ("meu primo e meu irmão foram presos"), pergunta "Sobre qual deles é este atendimento?";
+   - **a pergunta de sempre continua** quando não dá para saber: erro de digitação ("mu imao"), "meu namorado", "meu enteado". **Depois da #212 (13/11):** "meu sogro foi preso" dá "Genro/Nora", sem perguntar.
+   - **Resposta à pergunta do parentesco, depois da #212 (13/11): as formas comuns são lidas pelas palavras, sem IA, para todos os parentescos.** Exemplos: "genro", "nora", "sou casado com a filha dele", "marido da filha dele" → "Genro/Nora" (valor novo); "sou a mãe dele", "mãe do preso" → "Mãe"; "mãe da esposa dele", "meu genro" → "Sogro(a)"; "irmão da esposa dele" → "Cunhado(a)"; "filho do irmão dele", "meu tio" → "Sobrinho(a)"; "enteado", "padrinho", "advogado" → "Outro". Também (13/11): "o preso é o meu sogro" e "pai da minha esposa" → "Genro/Nora"; "irmão" → "Irmão" e "irmã" → "Irmã"; "meu filho" e "meu irmão" levam à pergunta curta ("Você é a mãe ou o pai dele?", "Você é irmão ou irmã dele?"). Resposta longa ou com nome próprio continua com a IA.
+   - **Resposta à pergunta do parentesco, depois da #212:** nenhum valor fora da lista chega aos metadados (vira "Outro"). **Só com o Qwen**, a IA também lê melhor as respostas: "irmã" → "Irmã" (13/11: "Irmão(a)" virou "Irmão" e "Irmã"); "minha mãe" (a pessoa presa é a mãe) → "Filho(a)"; "meu filho" → "Outro" (não dá para saber se é a mãe ou o pai); "enteada", "padrasto" → "Outro". **Com o Haiku** (e antes da #212), "minha mãe" vira "Mãe", e antes da #212 um valor fora da lista (como "Irmã(o)") podia chegar aos metadados.
+
+   Teste os jeitos diferentes.
 6. CPF de quem está conversando → um CPF inventado (e o cadastro, como no caso A) ou um já cadastrado.
 
 **Esperado:**
 - sem número de processo: "Já confirmei os dados da pessoa presa, mas como você não tem o número do processo, vou encaminhar seu atendimento pra equipe localizar isso e dar continuidade.";
-- com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui."
+- com um processo SEEU e a situação aceita: "Show! Já confirmei os dados da pessoa presa. Vou seguir com o encaminhamento a partir daqui.";
+- **com um número de processo que o Verde não acha** (por exemplo, um número inventado, no passo 2): **depois da #341,** "Não consegui localizar esse número de processo no sistema. Vou encaminhar seu atendimento pra equipe conferir com você." **Antes da #341,** a mensagem dizia que o processo "tem uma origem que ainda não consigo tratar por aqui". Um processo que existe, mas não é do SEEU, continua com a mensagem da origem.
 
 > **Este caso só grava se cair no cadastro** (passo 6 com um CPF que não existe). Pessoa presa não cria encaminhamento no Verde.
 
@@ -119,6 +147,112 @@ Depois de terminar os casos A e B (e o de controle "não sou a vítima"), mande 
 - **#280:** a API diz "atendimento já foi concluído" também depois de um encaminhamento para atendente humano. O que a pessoa vê na Tykhe?
 - **A reabertura pela Tykhe:** a pessoa consegue começar um atendimento novo, ou fica presa na conversa encerrada?
 
+### Caso E. Plano de saúde (NUDECON): só no release (#324, #329)
+
+O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele fica **ligado só no release** e **desligado na produção** (decisão da Nicole de 2026-11-03).
+
+**Na produção (`main`), onde a equipe testa hoje, o fluxo não existe para a Tykhe:**
+- `GET /fluxos` lista só pessoa presa e violência doméstica, como antes;
+- quem abrir o atendimento pelo id do plano de saúde recebe "fluxo não encontrado", a mesma resposta de um id que não existe;
+- **um relato livre sobre plano de saúde** ("o plano negou minha cirurgia") continua indo para a Tykhe como questão de saúde (`tipoCaso: "saude"`), como antes (#386);
+- **se, testando na `main`, a conversa chegar a uma pergunta sobre plano de saúde, carteirinha ou NUDECON, é defeito:** registre com o horário.
+
+**No release (o ambiente de QA, alimentado pela branch `staging` depois da #427), depois do `terraform apply` do Ícaro:**
+- **Como começar, por dois caminhos:**
+  - **pelo relato livre** (orquestrador, #386), **por enquanto, só o que envolve cirurgia com o plano:** "o plano negou minha cirurgia", "a Unimed tá demorando pra liberar a cirurgia" ou "o convênio não paga a prótese da cirurgia" abrem o fluxo; "a Unimed não quer reembolsar" e "o posto não tem o remédio" continuam indo para a Tykhe como questão de saúde; "preciso de uma cirurgia" entra direto no fluxo do plano, sem pergunta (#419); anote o que acontece se a cirurgia for pelo SUS. **A Tykhe ainda não confirmou o `flowId` novo nem os destinos novos (#336):** por enquanto, teste pela API;
+  - **pelo id do fluxo,** `84433c84-4776-4b05-a5a0-af8012d8eced`, que precisa estar configurado no fluxo de teste da Tykhe. Confirme com a Nicole antes.
+- **Sem verificação de município** (desde 2026-11-06, #439): o fluxo começa direto na primeira pergunta, com ou sem CEP em `dadosConhecidos`, e de qualquer município. O endereço que a Tykhe manda aparece no resumo ("não informado" se faltar).
+- **As perguntas,** nesta ordem:
+  1. se o atendimento é para você (**depois da #438,** pulada quando o relato já diz: "o plano da **minha mãe**" segue para o CPF dela; "**meu** plano negou **minha** cirurgia" ou "preciso de uma cirurgia" seguem para as fotos);
+  2. as fotos da carteirinha do plano, frente e verso;
+  3. o que o plano negou ou deixou de fazer, se o relato não veio;
+  4. a renda mensal;
+  5. a confirmação dos dados.
+
+  (Desde 2026-11-06, #430, a pergunta "como prefere seguir: por aqui, por e-mail ou presencialmente" saiu do fluxo: no Rio tudo segue por e-mail ao NUDECON.)
+
+**Esperado:**
+
+| Caminho | Mensagem final |
+|---|---|
+| Para você, com as fotos, tudo confirmado | "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você." |
+| Para outra pessoa (desde 2026-11-06, #433) | A Maria pede o CPF da pessoa atendida, busca os dados dela no Verde e segue com as imagens, a situação, a renda, o resumo (com os dados dela) e a confirmação. **Desde a #444**, o e-mail ao NUDECON traz também "Solicitante - Nome" e "Solicitante - CPF" (quem pediu); o resumo não os mostra. **Desde a #446**, se o Verde não tem cadastro desse CPF (404), a Maria pede os dados dela (nome, nascimento, estado civil, profissão, RG, endereço, telefone, WhatsApp, e-mail e o parentesco com quem fala) e segue o mesmo fluxo; o resumo e o e-mail dizem "dados informados, sem cadastro no Verde". **Desde a #448**, a resposta traz `dadosColetados.solicitante` (nome e CPF de quem fala) e `dadosColetados.outraPessoa` (os dados dela e `origem`); confira que o CPF de quem fala não é o da pessoa atendida. Para testar: `52998224725` existe no Verde de homologação; um CPF válido sem cadastro (por exemplo `39053344705`) cai na coleta; um CPF com dígito errado (`11111111111`) o Verde recusa com 400 e a Maria repete a pergunta. CPF com formato errado ou recusado 3 vezes, ou Verde fora do ar, levam à equipe |
+| CEP de outro município ou sem CEP (desde 2026-11-06, #439) | Nada muda: o fluxo segue como para qualquer pessoa, sem unidade e sem handoff por município; o endereço aparece no resumo |
+
+> **Os textos são provisórios,** até o NUDECON validar (#335) e a Tykhe confirmar os destinos e a forma das opções (#336). Diferença de texto não é defeito; anote só o que travar a conversa ou levar ao destino errado. **Este caso não grava nada no Verde:** o envio ao NUDECON ainda não existe (#345).
+
+### Caso F. Dois assuntos no mesmo relato (multi-fluxo): só no release (#435)
+
+Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada muda:** o relato com dois assuntos segue como antes, com um assunto só, e a resposta não traz `assuntosPendentes`.
+
+**No release, pelo relato livre:**
+- **Escreva os dois assuntos numa frase só, do jeito que a pessoa escreve,** com erro de digitação. Exemplos inventados:
+  - "meu irmao ta preso e o plano da minha mae n quer libera a cirurgia dela";
+  - "meu marido me bate qnd bebe e meu filho rodou ontem a noite";
+  - "preciso de ajuda pq meu ex me ameaçou e tb ele n paga a pensao das crianças".
+- **A Maria propõe a ordem e pergunta "Pode ser assim?"** (Sim/Não). A ordem padrão é violência doméstica, pessoa presa, saúde (e plano de saúde) e depois o resto, com o urgente antes. **Mudou em 13/11:** antes, a saúde vinha primeiro.
+- **Responda de jeitos diferentes:** "Sim", "pode", "Não", o nome do assunto ("o do meu irmão") ou algo que a Maria não entende ("hmm").
+
+**Esperado:**
+
+| Resposta | O que acontece |
+|---|---|
+| Sim, "pode", "blz" | começa pelo 1º assunto da ordem proposta |
+| Não, com dois assuntos | troca a ordem |
+| Não, com três assuntos | "Qual você quer resolver primeiro?", com a lista numerada, botões e "Responda com o número da opção." (13/11) |
+| O nome do assunto ou uma palavra do relato | começa por esse assunto |
+| Algo que a Maria não entende | segue a ordem proposta, sem perguntar de novo |
+
+- **Quando o 1º assunto é da Maria,** o fluxo abre com "Combinado. Vamos começar pela …" antes da 1ª pergunta. Quando é da Tykhe (saúde pública, pensão), o relato é redirecionado como hoje.
+- **A Maria trata só o 1º assunto.** Os outros aparecem em `assuntosPendentes` na resposta da API: na que abre o fluxo e na resposta final. **Pela Tykhe, os outros assuntos ainda não seguem sozinhos**, até a Tykhe usar esse campo. Isso não é defeito.
+- **O plano de saúde recebe só o trecho do relato sobre o plano,** e não a parte da pessoa presa: confira a "Situação" no resumo da confirmação.
+- **O que a pessoa já disse fica guardado (#442):** em "o plano negou minha cirurgia e meu sobrinho foi preso", o item pendente da pessoa presa traz `dadosConhecidos` com `parentesco: "Tio(a)"`. No fim do 1º assunto, traz também o CPF. Abrindo a pessoa presa pela API com esse `dadosConhecidos`, a Maria não pergunta o parentesco. Os dados que a Tykhe mandou na 1ª chamada também valem depois da pergunta da ordem, mesmo se a resposta vier só com `{ chatId, resposta }`.
+
+**Anote como defeito:**
+- um assunto que a Maria não achou;
+- um assunto que ela inventou;
+- uma ordem diferente da padrão sem a pessoa pedir;
+- a "Situação" do plano com o assunto de outra pessoa.
+
+### Caso G. Próximo assunto, assuntos guardados e urgência: só no release (#450)
+
+Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09 e 2026-11-10). **Na produção, nada muda.** Pela Tykhe, o caso inteiro depende da configuração da #451. Use só relatos inventados e os CPFs de teste da lista da equipe.
+
+**Mudou em 2026-11-10:** a Maria **não pergunta mais o CPF no começo**. A pessoa é reconhecida pelo `idUsuario`, o id dela na Tykhe, que a Tykhe manda na 1ª chamada. Os fluxos pedem o CPF quando precisam, como antes. Fora da Tykhe (pelo `/docs`), mande `"idUsuario": "teste-equipe-1"` no corpo da 1ª chamada.
+
+1. **Sem CPF no começo.** Com dois assuntos e o `idUsuario`, a 1ª resposta já é a ordem dos assuntos ("Entendi. Você falou de duas coisas…"). Os pendentes vêm com `urgencia`: `urgente` (saúde, plano de saúde, violência doméstica, pessoa presa, ou qualquer assunto com sinal de risco no relato) ou `menos_urgente` (caso novo, processo, horário marcado, aplicativo, outros).
+2. **Próximo assunto.** Leve o 1º assunto até o fim e chame `POST /atendimentos/proximo-assunto` com `{ "chatId": "<chatId da conversa>" }`.
+   - **Esperado:** o 2º assunto abre com o `chatId` `<chatId>-assunto-2` e a frase "Agora vamos falar …", sem perguntar de novo o parentesco nem o CPF que o 1º fluxo já pediu.
+   - Chamar duas vezes devolve o mesmo assunto, sem abrir outro.
+   - Um 2º assunto da Tykhe volta como `redirecionado`, uma vez só.
+   - Sem pendentes, a rota responde 404.
+3. **Fim do assunto com um urgente na vez.** Num 1º assunto que termina em `concluido` (por exemplo, a pessoa presa) com um pendente urgente, a mensagem final ganha, no fim: "Ainda falta um assunto urgente: … Vamos falar dele agora.". Sem urgente na vez, vale o fim da conversa do passo 5.
+4. **Conversa nova, sem pergunta no começo (mudou em 2026-11-11).** Pare depois do 1º assunto e abra uma **conversa nova** com o mesmo `idUsuario`.
+   - **Do mesmo assunto guardado** (por exemplo, a pessoa presa de novo): a Maria retoma, com "Você já tinha esse assunto com a gente: a pessoa presa. Vamos continuar.", sem abrir outro igual.
+   - **De outro assunto:** segue direto, sem pergunta.
+   - **"Quero ver meus assuntos"** (ou "o que ficou pendente"): "Qual você quer resolver agora?", com a lista numerada em "Urgente:" e "Menos urgente:", "Outras opções:" com "Nenhum, quero um assunto novo" e "Responda com o número da opção." (13/11).
+5. **O fim da conversa (mudou em 2026-11-11; texto revisto em 13/11).** Num assunto que termina em `concluido`, sem um urgente na vez, a mensagem final ganha, no fim:
+   - "Resumo da nossa conversa:", um item por assunto atendido, com o que aconteceu e o código (por exemplo, "• A pessoa presa: dados confirmados e encaminhados (código YI7NXZ)");
+   - "Quer continuar com algum dos assuntos em aberto ou encerrar a conversa?" (com um só: "com o assunto em aberto");
+   - "Ainda em aberto:", com os assuntos **numerados**, separados em "Urgente:" e "Menos urgente:", cada um com os detalhes entre parênteses: "(guardado até dd/mm, ainda não começou)";
+   - "Outras opções:", numeradas em seguida: "Falar de um assunto novo" e "Encerrar a conversa";
+   - "Responda com o número da opção." (e, com o `idUsuario`, o aviso dos 30 dias);
+   - os botões com o mesmo número ("1. O caso novo"). Vale responder o número, o texto do botão ou o nome do assunto.
+   - **A lista dos assuntos em aberto** (`POST /atendimentos/assuntos-em-aberto`) também traz "Encerrar a conversa".
+   - **Assunto que termina no atendimento humano** com outro assunto pendente: a mensagem final ganha "Também ficou para depois: …" (13/11).
+   - **Botão de um assunto** (`POST /atendimentos/proximo-assunto` com a `resposta`): abre o assunto com o `chatId` dele.
+   - **"Encerrar a conversa":** "Combinado. … Quando quiser, é só voltar a falar com a gente.", e os guardados continuam guardados.
+   - **"Falar de um assunto novo":** a conversa recomeça no orquestrador com `chatId` novo.
+
+**Anote como defeito:**
+- a Maria perguntando o CPF, ou qualquer coisa, antes de seguir com o que a pessoa contou (fora o "Pode ser assim?" e a desambiguação);
+- um assunto marcado com a urgência errada;
+- a lista dos assuntos em aberto com um assunto que a pessoa não deixou pendente, ou de outro `idUsuario`;
+- dois atendimentos abertos para o mesmo assunto, ou um assunto guardado que não foi retomado quando a pessoa falou dele de novo;
+- "Vou guardar … por até 30 dias" ou "ficam guardados por até 30 dias" numa conversa sem `idUsuario`;
+- no resumo, algo do relato da pessoa, ou "violência" no lugar de "a situação que você contou";
+- o CPF, o nome ou o `idUsuario` aparecendo em qualquer lugar fora da conversa.
+
 ### Casos de controle (rápidos)
 
 | Caso | Esperado |
@@ -126,6 +260,9 @@ Depois de terminar os casos A e B (e o de controle "não sou a vítima"), mande 
 | Violência doméstica, "Você é a vítima?" → **Não** | "Esse atendimento é destinado apenas para quem é vítima da violência. Vou encaminhar você para um atendente humano." |
 | Pedido de pensão alimentícia | Encaminhado à Tykhe: "Entendi. Vou te encaminhar para o atendimento de abertura de um novo caso." |
 | Relato vago, entre pessoa presa e violência doméstica | Uma pergunta de esclarecimento, e depois o fluxo certo |
+| Pessoa presa, RG com ponto e traço, do jeito que aparece no documento (ex.: o RG de teste escrito como `12.345.678-9`) | **Depois da #343:** a Maria aceita e segue para "Confirma que é <nome>?", a mesma pessoa de quando o RG vai só com números. **Antes da #343:** "O RG deve conter apenas números…", repetido a cada tentativa |
+| Pessoa presa, a pergunta do RG (#475) | **Desde a #475:** "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9." Os dois formatos do exemplo são aceitos |
+| Pessoa presa, RG com letra (ex.: `12a`) | **Desde a #394:** "Não consegui ler esse RG (tentativa 1 de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.", depois "tentativa 2 de 3"; na 3ª recusa, a conversa vai para o atendimento humano (`motivoHandoff: rg_formato_invalido`), sem consultar o Verde |
 
 ## 4. Como reconhecer uma falha do ambiente
 
@@ -152,6 +289,15 @@ Depois de terminar os casos A e B (e o de controle "não sou a vítima"), mande 
 
 **Não registre nada disso como "a Maria não achou a pessoa".** Registre com o horário exato. Pelo horário, dá para conferir nos logs se a consulta ao Verde falhou por autenticação ou infraestrutura.
 
+### Durante uma manutenção do Verde
+
+> **Registrado em 2026-10-23 (#308):** a equipe do Verde vai fazer manutenção preventiva, **sem data confirmada**. Durante a manutenção, as consultas ao Verde falham, e a Maria mostra as mesmas mensagens das tabelas acima.
+
+- **Antes de começar uma rodada de teste,** confirme com o Ícaro se há manutenção anunciada para aquele horário.
+- **Se o teste cair dentro de uma manutenção anunciada,** não registre como defeito. Anote o horário e "durante a manutenção do Verde", e repita o caso depois que ela terminar.
+- **Fora de uma manutenção anunciada,** a falha continua valendo: registre com o horário exato, como acima.
+- **Para quem confere nos logs:** manutenção costuma aparecer como erro de serviço (5xx) ou tempo esgotado. **Uma recusa de autenticação (401) não é manutenção**: é o token do Verde, vencido, revogado ou trocado sem o container ter sido reiniciado. Em 2026-10-22 e 23, a falha em produção foi 401 do começo ao fim.
+
 ## 5. O que não é defeito novo
 
 Estes comportamentos já são conhecidos e já têm issue. Não precisam ser registrados de novo:
@@ -162,6 +308,7 @@ Estes comportamentos já são conhecidos e já têm issue. Não precisam ser reg
 | O texto da pergunta de esclarecimento muda de uma vez para outra (é gerado pela IA) | — (esperado) |
 | "Falha. Diferente de 200" depois de um encaminhamento à Tykhe | correção no fluxo da Tykhe (seção 2) |
 | A mensagem depois do fim diz "concluído" mesmo após o encaminhamento para um atendente | #280 (mas anote o que aparece; ver o caso D) |
+| Consultas ao Verde falhando durante uma manutenção anunciada do Verde | — (anote o horário e repita depois; ver a seção 4) |
 
 ## 6. Como registrar o resultado
 
@@ -186,7 +333,7 @@ Em todo caso que começa com um relato livre (A, B, C e os de controle), anote t
 
 Não precisa escrever relatos a mais: basta anotar os que você já escreveu para os casos. Essas anotações viram a base de relatos rotulados que a **#256** usa para medir se a Maria classifica certo. A base é montada a partir das suas anotações, e não dos logs.
 
-**Os testes entram no painel do Grafana** do release como atendimentos normais. Informe as datas e horários do teste a quem acompanha o painel.
+**Os testes entram no painel de acompanhamento (Visor Maria)** do release como atendimentos normais. Informe as datas e horários do teste a quem acompanha o painel.
 
 ## 7. Para quem dá suporte ao teste
 

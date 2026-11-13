@@ -38,11 +38,18 @@ resource "aws_ecs_task_definition" "api" {
       # `aws bedrock get-foundation-model`/`list-inference-profiles`) —
       # mesmo fix já validado em release.tf e local.
       { name = "BEDROCK_MODEL_ID", value = "us.anthropic.claude-haiku-4-5-20251001-v1:0" },
+      # #324: qual é o ambiente. Só "release" exato liga os fluxos em teste
+      # (maria/fluxos/__init__.py); um teste do CI confere este valor. Fica em
+      # environment, e não em secrets, para não ser copiado com os segredos.
+      { name = "MARIA_AMBIENTE", value = "producao" },
     ]
-    secrets = [
+    secrets = concat([
       for k in ["VERDE_API_URL", "VERDE_JWT_TOKEN", "VERDE_CLIENT_ID", "DATABASE_URL", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT", "API_KEY"] :
       { name = k, valueFrom = "${aws_secretsmanager_secret.app.arn}:${k}::" }
-    ]
+      ], [
+      for k in ["EMAIL_NUDECON_URL", "EMAIL_NUDECON_API_KEY"] :
+      { name = k, valueFrom = "${aws_secretsmanager_secret.email_nudecon.arn}:${k}::" }
+    ])
     logConfiguration = {
       logDriver = "awslogs"
       options = {

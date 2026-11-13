@@ -69,6 +69,18 @@ jobs:
             --services "$ECS_SERVICE" \
             --region "$AWS_REGION"
 
+      # Issue #298 — mesma conferência do deploy-release.yml: só leitura, nunca renova.
+      - name: Conferir que o Verde aceita o token do ambiente
+        env:
+          AMBIENTE: prod
+        run: |
+          SEGREDO="$RUNNER_TEMP/segredo-verde.json"
+          trap 'rm -f "$SEGREDO"' EXIT
+          aws secretsmanager get-secret-value \
+            --secret-id "maria-langgraph-pp-${AMBIENTE}/app" --region "$AWS_REGION" \
+            --query SecretString --output text > "$SEGREDO"
+          python3 scripts/conferir_token_verde.py --ambiente "$AMBIENTE" --segredo "$SEGREDO"
+
   # Issue #145 — só roda depois do deploy ter sucesso; não bloqueia nem
   # atrasa o deploy em si (job separado, sem "needs" na direção contrária).
   tag:

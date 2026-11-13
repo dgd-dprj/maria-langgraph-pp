@@ -12,7 +12,7 @@ from itertools import count
 import httpx
 import pytest
 
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA
+from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA
 
 BASE = "/atendimentos"
 FLOW_ID = ID_VIOLENCIA_DOMESTICA
@@ -39,11 +39,25 @@ async def test_health_nao_exige_authorization(cliente: httpx.AsyncClient) -> Non
 
 
 async def test_fluxos_lista_pessoa_presa_e_violencia_domestica(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:
+    # Sem MARIA_AMBIENTE (como na produção): o fluxo do NUDECON (#329) está em teste (#324) e
+    # não aparece; a lista é a das gravações da versão TypeScript.
     r = await cliente.get("/fluxos", headers=auth)
     assert r.status_code == 200
     corpo = r.json()
-    assert sorted(f["id"] for f in corpo) == sorted([ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA])
-    assert next(f for f in corpo if f["id"] == ID_PESSOA_PRESA)["nome"] == "pessoa-presa"
+    assert [f["id"] for f in corpo] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA]
+    assert corpo[0]["nome"] == "pessoa-presa"
+
+
+async def test_fluxos_no_release_lista_tambem_o_plano_de_saude(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #329: o fluxo do NUDECON entra na lista onde o fluxo em teste liga (#324).
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
+    r = await cliente.get("/fluxos", headers=auth)
+    assert r.status_code == 200
+    corpo = r.json()
+    assert [f["id"] for f in corpo] == [ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, ID_PROBLEMAS_PLANO_SAUDE]
+    assert corpo[2]["nome"] == "problemas-plano-de-saude"
 
 
 async def test_post_atendimentos_sem_flow_id_400(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:

@@ -16,9 +16,13 @@ import pytest
 from maria.fluxos import FLUXO_PADRAO, ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, buscar_fluxo, catalogo_para_classificacao
 from maria.fluxos.padrao.graph import _construtor as construtor_padrao
 from maria.fluxos.padrao.graph import obter_grafo as obter_padrao
-from maria.fluxos.pessoa_presa.api import extrair_metadados_pessoa_presa
+from maria.fluxos.pessoa_presa.api import (
+    MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA,
+    MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO,
+    extrair_metadados_pessoa_presa,
+)
+from maria.fluxos.pessoa_presa.graph import TEXTO_RG, normalizar_situacao, rg_formato_valido
 from maria.fluxos.pessoa_presa.graph import _construtor as construtor_pp
-from maria.fluxos.pessoa_presa.graph import normalizar_situacao, rg_formato_valido
 from maria.fluxos.pessoa_presa.graph import obter_grafo as obter_pp
 from maria.fluxos.tipos_tykhe import TIPOS_TYKHE, tipo_tykhe_por_caso, tipo_tykhe_por_id
 from maria.fluxos.violencia_domestica.api import extrair_metadados_violencia_domestica
@@ -195,8 +199,14 @@ ARESTAS_PP = {
     ("pedirNumeroProcesso", "consultarProcesso"),
     ("pedirParentesco", "concluir"),
     ("pedirParentesco", "identificarAssistido"),
+    # #438: escolheu o filho na pergunta "qual deles": volta para perguntar se é a mãe ou o pai.
+    ("pedirParentesco", "prepararPerguntaParentesco"),
     ("pedirRg", "consultarApenado"),
-    ("pedirRg", "prepararPerguntaRgInvalido"),
+    # #394: a recusa pelo formato passa a ser contada; na 3ª, a conversa vai para o atendimento humano.
+    ("pedirRg", "recusarRg"),
+    ("recusarRg", "prepararPerguntaRgInvalido"),
+    ("recusarRg", "rgFormatoInvalido"),
+    ("rgFormatoInvalido", "__end__"),
     ("pedirTemProcesso", "prepararPerguntaNumeroProcesso"),
     ("pedirTemProcesso", "prepararPerguntaRg"),
     ("perguntaTentarNovamente", "consultarApenado"),
@@ -274,9 +284,16 @@ PERGUNTAS_PP_LIVRE_E_RG_INVALIDO = [
     },
     {"pergunta": "Você tem o número do processo da pessoa que está presa?", "tipo": "sim_nao", "opcoes": SIM_NAO},
     {"pergunta": "Qual o número do processo? Informe apenas os números.", "tipo": "texto"},
-    {"pergunta": "Qual o RG da pessoa presa? Informe apenas os números.", "tipo": "texto"},
-    {"pergunta": "O RG deve conter apenas números. Qual o RG da pessoa presa? Informe apenas os números.", "tipo": "texto"},
-    {"pergunta": "Confirma que a pessoa presa é Pessoa de Teste (mock)?", "tipo": "sim_nao", "opcoes": SIM_NAO},
+    {"pergunta": TEXTO_RG, "tipo": "texto"},  # #475: com os formatos aceitos
+    # #394: a mensagem de recusa diz a tentativa e dá um exemplo fictício.
+    {
+        "pergunta": (
+            "Não consegui ler esse RG (tentativa 1 de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789."
+        ),
+        "tipo": "texto",
+    },
+    # #393: o nome do mock ("Pessoa de Teste (mock)") sai mascarado.
+    {"pergunta": "Confirma que a pessoa presa é Pessoa T.?", "tipo": "sim_nao", "opcoes": SIM_NAO},
     {"pergunta": "Qual seu parentesco com a pessoa presa?", "tipo": "texto"},
 ]
 
@@ -314,14 +331,14 @@ async def test_3_rg_null_da_tykhe_pergunta_o_rg_divergencia_aceita() -> None:
     # no formato e pergunta "O RG deve conter apenas números..."; o Python
     # trata None como undefined e faz a pergunta normal. Só o texto muda.
     _, perguntas, _ = await _conversa(obter_pp(), {"rg": None}, ["Não"])
-    assert perguntas[-1]["pergunta"] == "Qual o RG da pessoa presa? Informe apenas os números."
+    assert perguntas[-1]["pergunta"] == TEXTO_RG
 
 
 async def test_3_rg_none_gravado_pelo_rg_invalido_nao_sobrevive_ao_passo() -> None:
     # Regra de estado: o `rg: undefined` de prepararPerguntaRgInvalido vira None
     # e sobrescreve o RG inválido (omitir manteria "abc" e o bypass pularia).
     f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "abc"])
-    assert perguntas[-1]["pergunta"].startswith("O RG deve conter apenas números.")
+    assert perguntas[-1]["pergunta"].startswith("Não consegui ler esse RG (tentativa 1 de 3).")  # #394
     assert (await f.estado())["rg"] is None
 
 
@@ -329,13 +346,13 @@ async def test_3_tem_processo_null_pula_e_cai_em_origem_nao_suportada() -> None:
     # Achado 6 do inventário: `temProcesso: null` não é `=== false`, e não há
     # dadosProcesso, então o desfecho é origem_processo_nao_suportada.
     _, perguntas, r = await _conversa(obter_pp(), {"temProcesso": None}, ["11111111111", "Sim", "amigo"])
-    assert perguntas[0]["pergunta"] == "Qual o RG da pessoa presa? Informe apenas os números."
+    assert perguntas[0]["pergunta"] == TEXTO_RG
     assert r["motivoHandoff"] == "origem_processo_nao_suportada"
 
 
 async def test_3_numero_processo_null_pula_e_consulta_vazio() -> None:
     _, perguntas, r = await _conversa(obter_pp(), {"temProcesso": True, "numeroProcesso": None}, ["11111111111", "Sim", "amigo"])
-    assert perguntas[0]["pergunta"] == "Qual o RG da pessoa presa? Informe apenas os números."
+    assert perguntas[0]["pergunta"] == TEXTO_RG
     assert r["dadosProcesso"]["origem"] == "SEEU"
     assert r["statusFinal"] == "concluido"
 
@@ -487,9 +504,11 @@ async def test_4_metadados_violencia_domestica_concluido_byte_a_byte() -> None:
 
 
 async def test_4_metadados_pessoa_presa_concluido_byte_a_byte() -> None:
+    # #212 (decisão da Nicole, 2026-11-13, janela das correções): "amigo" é lido pelas palavras, sem a IA simulada.
+    # Em develop era "Outro" (o mock da IA).
     f, _, _ = await _conversa(obter_pp(), {}, [*PP_COM, "11111111111", "Sim", "amigo"])
     assert await _metadados(f, extrair_metadados_pessoa_presa) == (
-        '{"parentesco":"Outro","temProcesso":true,"numeroProcesso":"0000088-95.2026.8.19.0010","dadosProcesso":{"id":999999,"origem":"SEEU"},'
+        '{"parentesco":"Amigo(a)","temProcesso":true,"numeroProcesso":"0000088-95.2026.8.19.0010","dadosProcesso":{"id":999999,"origem":"SEEU"},'
         '"rg":"11111111111","dadosApenado":{"idSeap":999999,"idPessoa":999999,"nome":"Pessoa de Teste (mock)","situacao":"ATIVO",'
         '"tipoPreso":"CONDENADO","regime":"SEMIABERTO"}}'
     )
@@ -544,15 +563,38 @@ async def test_5_campo_ausente_nao_lanca(verde_real: TransporteFalso) -> None:
         ("\ufeff123", True),  # o trim do JS remove o BOM
         ("\x1c123", False),  # e não remove \x1c, que o strip() do Python removeria
         ("123\n", True),  # o trim remove a quebra final antes da regex
-        ("1\n2", False),
+        ("1\n2", True),  # #343: espaço no meio também sai (develop recusava)
         ("١٢٣", False),  # \d do JS é só ASCII
         ("12a", False),
         ("", False),
         (123, False),  # z.string() recusa número
+        # #343: o RG como aparece no documento (exemplos fictícios)
+        ("12.345.678-9", True),
+        ("12 345 678 9", True),
+        ("12.345.678–9", True),  # traço do celular (U+2013)
+        ("12.345.678-X", False),  # letra continua recusada
+        (".-", False),  # só pontuação não é RG
+        ("12/345", False),  # barra não está entre os sinais aceitos
     ],
 )
-def test_6_rg_formato_como_zod(rg: object, valido: bool) -> None:
+def test_6_rg_formato(rg: object, valido: bool) -> None:
     assert rg_formato_valido(rg) is valido
+
+
+async def test_6_rg_com_ponto_e_traco_consulta_o_verde_so_com_os_digitos_issue_343(verde_real: TransporteFalso) -> None:
+    _verde(verde_real, _rotas_pp())
+    f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "12.345.678-9"])
+    assert _enviados(verde_real, "/apenado") == ['/apenado {"rg":"123456789"}']
+    assert not any(p["pergunta"].startswith("Não consegui ler esse RG") for p in perguntas)  # sem recusa (#394)
+    # O estado (e os metadados) guardam o que a pessoa digitou.
+    assert (await f.estado())["rg"] == "12.345.678-9"
+
+
+async def test_6_rg_com_ponto_e_traco_digitado_direto_no_retry_issue_343(verde_real: TransporteFalso) -> None:
+    _verde(verde_real, _rotas_pp(apenado={}))
+    f, _, _ = await _conversa(obter_pp(), {}, ["Não", "000000000", "12.345.678-9"])
+    assert (await f.estado())["digitouRgDireto"] is True
+    assert _enviados(verde_real, "/apenado")[-1] == '/apenado {"rg":"123456789"}'
 
 
 @pytest.mark.parametrize(
@@ -593,7 +635,7 @@ async def test_6_um_no_retry_do_rg_vira_rg_digitado() -> None:
     f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "000000000", "1"])
     estado = await f.estado()
     assert estado["rg"] == "1" and estado["digitouRgDireto"] is True
-    assert perguntas[-1]["pergunta"] == "Confirma que a pessoa presa é Pessoa de Teste (mock)?"
+    assert perguntas[-1]["pergunta"] == "Confirma que a pessoa presa é Pessoa T.?"  # #393: nome mascarado
 
 
 async def test_6_processo_pontuado_de_20_digitos_e_digitado_direto_e_gravado_cru() -> None:
@@ -744,7 +786,8 @@ def test_tipos_tykhe_busca_por_id() -> None:
 async def test_3_mock_de_parentesco_vazio_passa_como_vazio_pelo_coalesce(monkeypatch: pytest.MonkeyPatch) -> None:
     # `process.env.MOCK_CLASSIFICACAO_PARENTESCO ?? "Outro"`: "" não é nullish.
     monkeypatch.setenv("MOCK_CLASSIFICACAO_PARENTESCO", "")
-    f, _, _ = await _conversa(obter_pp(), {}, ["Não", "11111111111", "Sim", "amigo"])
+    # #212: uma resposta que vai para a IA ("amigo" é lido pelas palavras e não chega ao mock).
+    f, _, _ = await _conversa(obter_pp(), {}, ["Não", "11111111111", "Sim", "conheço ele faz tempo"])
     assert (await f.estado())["parentesco"] == ""
 
 
@@ -768,3 +811,48 @@ async def test_3_rg_none_do_rg_invalido_nao_vai_para_os_metadados() -> None:
     # Develop grava undefined, que some do JSON; o None do Python não pode virar null.
     f, _, _ = await _conversa(obter_pp(), {}, ["Não", "abc"])
     assert "rg" not in json.loads(await _metadados(f, extrair_metadados_pessoa_presa))
+
+
+# ---- #341/#352: processo que o Verde não acha não ouve "origem" ----------------------
+# Decisão da Nicole (2026-11-03): o motivo continua origem_processo_nao_suportada (o
+# contrato com a Tykhe não muda); só a mensagem troca, nos três códigos de "não achei".
+
+PP_ATE_O_FIM = [*PP_COM, "123456", "Sim", "amigo"]
+
+
+@pytest.mark.parametrize("status", [400, 404, 422])
+async def test_341_processo_nao_localizado_troca_so_a_mensagem(verde_real: TransporteFalso, status: int) -> None:
+    rotas = _rotas_pp()
+    rotas[("GET", "/processo/consultar/")] = (status, {"mensagem": "erro do Verde"})
+    _verde(verde_real, rotas)
+    f, _, r = await _conversa(obter_pp(), {}, PP_ATE_O_FIM)
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "origem_processo_nao_suportada"
+    assert r["mensagemFinal"] == MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO
+    # O status fica no estado e não vai para os metadados que a Tykhe recebe.
+    assert (await f.estado())["statusConsultaProcesso"] == status
+    assert "statusConsultaProcesso" not in await _metadados(f, extrair_metadados_pessoa_presa)
+
+
+async def test_341_origem_diferente_de_seeu_continua_com_a_mensagem_de_origem(verde_real: TransporteFalso) -> None:
+    rotas = _rotas_pp()
+    rotas[("GET", "/processo/consultar/")] = (200, {"dados": {**PROCESSO, "origem": "e-Proc"}})
+    _verde(verde_real, rotas)
+    _, _, r = await _conversa(obter_pp(), {}, PP_ATE_O_FIM)
+    assert r["motivoHandoff"] == "origem_processo_nao_suportada"
+    assert r["mensagemFinal"] == MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA
+
+
+@pytest.mark.parametrize(
+    "rota",
+    [(503, {"mensagem": "fora do ar"}), (200, {"dados": {"origem": "SEEU"}})],
+    ids=["falha_de_infra", "dados_sem_id"],
+)
+async def test_341_fora_da_decisao_continua_como_hoje(verde_real: TransporteFalso, rota: tuple[int, object]) -> None:
+    # Falha de infra é da #239; dados sem id não entrou na decisão de 03/11.
+    rotas = _rotas_pp()
+    rotas[("GET", "/processo/consultar/")] = rota
+    _verde(verde_real, rotas)
+    _, _, r = await _conversa(obter_pp(), {}, PP_ATE_O_FIM)
+    assert r["motivoHandoff"] == "origem_processo_nao_suportada"
+    assert r["mensagemFinal"] == MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA

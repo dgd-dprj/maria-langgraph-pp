@@ -19,6 +19,10 @@ class IdentificarAssistidoState(TypedDict, total=False):
     querTentarNovamenteCpf: bool | None
     digitouCpfDireto: bool | None
     confirmaAssistido: bool | None
+    # Interno do subgrafo (#236): o CPF consultado veio da Tykhe
+    # (`dadosConhecidos`), e não foi digitado na conversa. Os fluxos pai não
+    # têm este canal, então ele não sai do subgrafo nem chega à resposta HTTP.
+    cpfDaTykhe: bool
     viaOrquestrador: bool | None
     perguntaAtualTexto: str | None
     perguntaAtualViaIA: bool

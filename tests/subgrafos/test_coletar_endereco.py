@@ -20,7 +20,7 @@ def _conversa() -> Conversa:
 
 
 async def test_cep_completo_pula_logradouro_bairro_municipio_e_uf() -> None:
-    c = await (await _conversa().iniciar({})).responder("20000000", "123", "não")
+    c = await (await _conversa().iniciar({})).responder("20000-000", "123", "não")
     assert [bool(re.search(p, q["pergunta"])) for p, q in zip(("CEP", "número", "complemento"), c.perguntas, strict=True)] == [True] * 3
     assert c.pendente is None
     endereco = (await c.estado())["endereco"]
@@ -47,16 +47,17 @@ async def test_cep_nao_encontrado_pergunta_todos_os_campos() -> None:
 
 async def test_cep_incompleto_pergunta_so_o_que_falta(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setenv("MOCK_CEP_INCOMPLETO", "true")
-    c = await (await _conversa().iniciar({})).responder("20000000", "Rua Nova", "10", "não", "Centro", "Rio de Janeiro")
+    c = await (await _conversa().iniciar({})).responder("20000-000", "Rua Nova", "45", "não", "Centro", "Rio de Janeiro")
     padroes = ("CEP", "rua/avenida", "número", "complemento", "bairro", "município")
     assert [bool(re.search(p, q["pergunta"])) for p, q in zip(padroes, c.perguntas, strict=True)] == [True] * len(padroes)
+    assert c.pendente is None, "UF já veio do CEP incompleto: não deveria pausar de novo"
     assert not any("estado" in q["pergunta"] for q in c.perguntas)
     endereco = (await c.estado())["endereco"]
     assert endereco == {
-        "cep": "20000000",
+        "cep": "20000-000",
         "uf": "RJ",
         "logradouro": "Rua Nova",
-        "numero": "10",
+        "numero": "45",
         "bairro": "Centro",
         "municipio": "Rio de Janeiro",
     }
@@ -94,3 +95,12 @@ async def test_7_complemento_none_no_canal_nao_deixa_o_valor_anterior() -> None:
     await c.iniciar({})
     await c.responder("20000000", "2", "não")
     assert "complemento" not in (await c.estado())["endereco"]
+
+
+async def test_446_endereco_de_outra_pessoa_pergunta_sobre_ela() -> None:
+    c = await (await _conversa().iniciar({"enderecoDeOutraPessoa": True})).responder(
+        "00000000", "Rua Sem CEP", "45", "não", "Bairro", "Cidade", "rj"
+    )
+    assert all("sua" not in q["pergunta"] and "seu" not in q["pergunta"] for q in c.perguntas)
+    assert "pessoa que será atendida" in c.perguntas[0]["pergunta"]
+    assert c.pendente is None

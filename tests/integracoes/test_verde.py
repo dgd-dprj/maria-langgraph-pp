@@ -552,3 +552,87 @@ async def test_22_cpf_nao_aparece_em_nenhuma_linha_de_log(
 
 def _linhas_brutas(texto: str) -> list[str]:
     return [linha for linha in texto.splitlines() if linha.strip()]
+
+
+# --- Consulta completa da pessoa (#433): data de nascimento, e-mail e telefones só quando pedido ----------------------
+
+CORPO_PESSOA = {
+    "dados": {
+        "idPessoa": 7,
+        "nome": "PESSOA FICTICIA",
+        "nomeSocial": "",
+        "genero": "Feminino",
+        "dataNascimento": "02/02/1991",
+        "email": "ficticia@exemplo.org",
+        "endereco": "Rua Fictícia, nº 2",
+        "enderecoDetalhado": {"cep": "24020005"},
+        "telefonesAssistido": [{"numeroTelefone": "21977770000", "inWhatsapp": True, "tipo": "Celular"}],
+        "representantes": [{"idPessoa": 9, "nome": "OUTRA", "tipoRepresentante": "Familiar", "temSigilo": False}],
+    }
+}
+
+
+async def test_pessoa_sem_completo_le_o_mesmo_de_antes(verde_real: TransporteFalso) -> None:
+    async def tratar(_req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=CORPO_PESSOA)
+
+    verde_real.tratador = tratar
+    pessoa = await verde.consultar_pessoa_por_cpf("52998224725")
+    assert set(pessoa) == {"encontrado", "idPessoa", "nome", "nomeSocial", "genero", "endereco", "enderecoDetalhado"}
+    assert not {"dataNascimento", "email", "telefonesAssistido", "representantes"} & pessoa.keys()
+
+
+async def test_pessoa_completa_traz_nascimento_email_e_telefones_e_nunca_os_representantes(verde_real: TransporteFalso) -> None:
+    async def tratar(_req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=CORPO_PESSOA)
+
+    verde_real.tratador = tratar
+    pessoa = await verde.consultar_pessoa_por_cpf("52998224725", completo=True)
+    assert pessoa["dataNascimento"] == "02/02/1991" and pessoa["email"] == "ficticia@exemplo.org"
+    assert pessoa["telefonesAssistido"] == [{"numeroTelefone": "21977770000", "inWhatsapp": True, "tipo": "Celular"}]
+    assert "representantes" not in pessoa
+    assert pessoa["nome"] == "PESSOA FICTICIA" and pessoa["encontrado"] is True
+
+
+async def test_pessoa_completa_com_campos_ausentes_nao_levanta_e_o_log_nao_leva_dado(
+    verde_real: TransporteFalso, capsys: pytest.CaptureFixture[str]
+) -> None:
+    async def tratar(_req: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json={"dados": {"idPessoa": 7, "nome": "SO NOME"}})
+
+    verde_real.tratador = tratar
+    capsys.readouterr()
+    pessoa = await verde.consultar_pessoa_por_cpf("52998224725", completo=True)
+    assert pessoa["encontrado"] is True and pessoa["nome"] == "SO NOME"
+    saida = capsys.readouterr().out
+    for dado in ("52998224725", "SO NOME", "exemplo.org"):
+        assert dado not in saida
+
+
+def test_pessoa_mock_completo_traz_os_campos_extras_so_quando_pedido() -> None:
+    import asyncio
+
+    simples = asyncio.run(verde.consultar_pessoa_por_cpf("11111111111"))
+    completo = asyncio.run(verde.consultar_pessoa_por_cpf("11111111111", completo=True))
+    assert "email" not in simples and "dataNascimento" not in simples
+    assert completo["dataNascimento"] and completo["telefonesAssistido"][0]["inWhatsapp"] is True
+
+
+@pytest.mark.parametrize("status", [400, 404, 422])
+async def test_446_consulta_completa_devolve_o_status_da_recusa_de_negocio_e_a_simples_nao(
+    verde_real: TransporteFalso, status: int
+) -> None:
+    async def tratar(req: httpx.Request) -> httpx.Response:
+        return json_ok({"codigo": "X", "mensagem": "recusa"}, status)
+
+    verde_real.tratador = tratar
+    assert await verde.consultar_pessoa_por_cpf("1", completo=True) == {"encontrado": False, "statusHttp": status}
+    assert await verde.consultar_pessoa_por_cpf("1") == {"encontrado": False}, "os outros fluxos não mudam"
+
+
+async def test_446_falha_de_infra_na_consulta_completa_nao_leva_status(verde_real: TransporteFalso) -> None:
+    async def tratar(req: httpx.Request) -> httpx.Response:
+        return json_ok({}, 503)
+
+    verde_real.tratador = tratar
+    assert await verde.consultar_pessoa_por_cpf("1", completo=True) == {"encontrado": False, "falhaInfra": True}

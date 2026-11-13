@@ -29,13 +29,14 @@ from fastapi import FastAPI
 from maria.api import atendimentos, basicas, orquestrador, webhook_whatsapp
 from maria.api.docs import registrar_docs
 from maria.api.pipeline import PipelineFastify
-from maria.fluxos import catalogo_para_classificacao
+from maria.fluxos import ambiente, catalogo_para_classificacao, fluxos_ligados, fluxos_por_id
 from maria.integracoes.cliente_http import fechar_cliente_http
 from maria.shared.atendimentos_db import fechar_atendimentos_store, obter_atendimentos_store
 from maria.shared.checkpointer import fechar_checkpointer, inicializar_checkpointer
 from maria.shared.embeddings_fluxos import aquecer_catalogo, fechar_busca_fluxos
 from maria.shared.fluxos_planejados_db import fechar_fluxos_planejados_store, listar_fluxos_planejados
 from maria.shared.logger import logger
+from maria.shared.pendentes_db import fechar_pendentes_store
 from maria.shared.perguntas_db import fechar_perguntas_store, obter_perguntas_store
 
 Inicializador = Callable[[], Awaitable[object]]
@@ -66,6 +67,8 @@ FINALIZADORES: tuple[Inicializador, ...] = (
     fechar_fluxos_planejados_store,
     fechar_busca_fluxos,
     fechar_cliente_http,
+    # #450: a store dos assuntos pendentes não entra no boot (só o release a usa), mas fecha junto.
+    fechar_pendentes_store,
 )
 
 
@@ -79,6 +82,19 @@ async def _pre_aquecer_catalogo() -> None:
         logger.error("[embeddingsFluxos] falha ao pré-aquecer catálogo no boot", err=erro)
 
 
+def _registrar_fluxos_ligados() -> None:
+    """#324: o ambiente e os fluxos ligados ficam visíveis a cada subida."""
+    ligados = fluxos_ligados()
+    logger.info(
+        "[fluxos] ambiente e fluxos ligados",
+        evento="fluxos_ligados",
+        # O logger omite None: sem a variável, a linha diz "(ausente)", e não fica sem a chave.
+        ambiente=ambiente() if ambiente() is not None else "(ausente)",
+        fluxosLigados=[cfg.nome for cfg in ligados.values()],
+        fluxosEmTesteDesligados=[cfg.nome for id_, cfg in fluxos_por_id.items() if id_ not in ligados],
+    )
+
+
 def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO, pre_aquecer: bool = True) -> FastAPI:
     # Sem default silencioso: erra alto na subida, nunca sobe a API "aberta" (app.ts:86-87).
     chave_api = os.environ.get("API_KEY")
@@ -89,6 +105,7 @@ def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO,
     async def lifespan(_app: FastAPI) -> AsyncIterator[None]:
         for inicializar in inicializadores:
             await inicializar()
+        _registrar_fluxos_ligados()
         aquecimento = asyncio.create_task(_pre_aquecer_catalogo()) if pre_aquecer else None
         try:
             yield

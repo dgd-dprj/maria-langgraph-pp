@@ -6,11 +6,13 @@ Cada fluxo de atendimento é um grafo de estados do [LangGraph](https://langchai
 
 Vai contribuir? Ver [`CONTRIBUTING.md`](CONTRIBUTING.md) (fluxo de issue, branch, commit e PR).
 
-**Branches e ambientes:** `develop` faz o papel de **staging**. Cada merge nela sobe no ambiente de homologação, que a infraestrutura chama de `release`, e é onde a equipe valida. `main` é a **produção**. Detalhes em [`CONTRIBUTING.md`](CONTRIBUTING.md#branches-e-ambientes).
+**Branches e ambientes (GitLab Flow, #427):** `develop` é o **dev** (integração, só CI, sem deploy); `staging` é o **QA** (cada merge nela sobe no ambiente que a infraestrutura chama de `release`); `main` é a **produção**. O código sobe por PR: `develop` → `staging` → `main`. Detalhes em [`CONTRIBUTING.md`](CONTRIBUTING.md#branches-e-ambientes).
 
 > **Migração.** Até outubro de 2026 a Maria foi escrita em TypeScript (Fastify e LangGraph JS). A tradução para Python reproduziu o comportamento da versão TypeScript, inclusive os defeitos conhecidos, que foram registrados em issues para corrigir depois. O registro completo, com cada decisão, está em [`MIGRACAO.md`](MIGRACAO.md) e em [`docs/migracao/`](docs/migracao/).
 
 ## Rodando local
+
+Para subir a API com um Postgres local, use `docker compose up --build` e confira com `curl -s http://127.0.0.1:3001/health` (seção 6.1 do guia abaixo).
 
 O guia completo, testado numa pasta limpa, está em [`docs/rodar-localmente.md`](docs/rodar-localmente.md): instalação, os dois modos (sem AWS e com o Bedrock real), como chamar o orquestrador e responder às perguntas, e problemas comuns.
 
@@ -36,6 +38,7 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 |---|---|---|
 | `API_KEY` | **obrigatória** | Chave que as rotas exigem em `Authorization: Bearer <chave>`. Sem ela, a API não sobe |
 | `APP_ENV` | ausente | **Só o valor `test` muda o comportamento:** IA e embeddings simulados (nunca chama o Bedrock) e `chatId` opcional, gerado se faltar. **Qualquer outro valor, inclusive `development` e ausente, é o comportamento de produção:** IA real e `chatId` obrigatório |
+| `MARIA_AMBIENTE` | ausente | Qual é o ambiente, declarado no Terraform: `producao` no `ecs.tf` e `release` no `release.tf` (#324). **Só o valor `release` exato liga os fluxos em teste** (`em_teste=True` no registro); ausente, vazia ou qualquer outro valor conta como produção. Para ver um fluxo em teste na sua máquina, ponha `MARIA_AMBIENTE=release` no `.env` |
 | `DATABASE_URL` | ausente | Postgres com a extensão pgvector. Sem ela, checkpoints, atendimentos, perguntas, fluxos planejados e embeddings ficam em memória |
 | `AWS_REGION` | `us-east-1` | Região do Bedrock |
 | `AWS_PROFILE` | ausente | Perfil do AWS CLI usado pelo SDK para chamar o Bedrock |
@@ -50,12 +53,15 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 | `VERDE_API_URL` | homologação do Verde | Endereço da API do Verde |
 | `VERDE_JWT_TOKEN` | ausente | Token do Verde. Sem ele, todas as chamadas ao Verde são simuladas |
 | `VERDE_CLIENT_ID` | ausente | Enviado ao Verde no cabeçalho `x-client-id` |
+| `EMAIL_NUDECON_URL` | ausente | Endereço da função Lambda `maria-email-nudecon`, que a Maria chama ao concluir o plano de saúde no Rio (#405). Sem ele (ou sem a chave) o envio não acontece e a conversa vai ao atendimento humano; só com `APP_ENV=test` é simulado |
+| `EMAIL_NUDECON_API_KEY` | ausente | Chave enviada à função em `Authorization: Bearer` |
 | `WHATSAPP_API_URL` | `https://graph.facebook.com/v21.0` | API da Meta para o bridge do WhatsApp ([`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md)) |
 | `WHATSAPP_PHONE_NUMBER_ID` | ausente | Número do WhatsApp na Meta. Sem ele (ou sem o token), o envio é simulado e só registrado no log |
 | `WHATSAPP_ACCESS_TOKEN` | ausente | Token da Meta para enviar mensagens |
 | `WHATSAPP_VERIFY_TOKEN` | ausente | Token da verificação do webhook (`GET /webhook/whatsapp`). Sem ele, a verificação sempre devolve 403 |
 | `MOCK_CLASSIFICACAO_FLOWID` | ausente | Com `APP_ENV=test`, o fluxo que a classificação simulada escolhe. Sem ela, o relato vai para `outros` |
 | `MOCK_CLASSIFICACAO_FLOWIDS` | ausente | Com `APP_ENV=test`, vários ids separados por vírgula: simula um relato ambíguo (desambiguação) |
+| `MOCK_NECESSIDADES` | ausente | Com `APP_ENV=test` e `MARIA_AMBIENTE=release`, a lista (JSON) de necessidades que a classificação do multi-fluxo simulada devolve: ids ou objetos com `id`, `evidencia` e `urgente` (#435). Sem ela, vale o sentido de `MOCK_CLASSIFICACAO_FLOWID(S)` |
 | `MOCK_CLASSIFICACAO_PARENTESCO` | `Outro` | Com `APP_ENV=test`, o parentesco que a IA simulada devolve no fluxo pessoa presa |
 | `MOCK_SUMARIZACAO_RESUMO` | ausente | Com `APP_ENV=test`, o resumo que a sumarização simulada devolve |
 | `MOCK_CEP_INCOMPLETO` | ausente | No Verde simulado, com `true`, o CEP volta só com a UF, sem cidade nem logradouro (para testar o pedido de endereço completo) |
@@ -90,7 +96,6 @@ src/maria/
 tests/                # espelha src/maria/; fixtures de contrato em tests/fixtures/
 scripts/              # utilitários de manutenção, fora da imagem (ver scripts/README.md)
 infra/terraform/      # infraestrutura AWS
-infra/grafana/        # painéis e alertas versionados
 ```
 
 Ferramentas fora do Python: o **Node.js** só é preciso para os hooks do Claude Code (`.claude/hooks/`), para o `scripts/logs-prod.sh` (`pino-pretty`) e para gerar diagramas (`mermaid-cli`). Nada da aplicação depende dele.
@@ -104,7 +109,7 @@ Ferramentas fora do Python: o **Node.js** só é preciso para os hooks do Claude
 - [`docs/integracao-verde.md`](docs/integracao-verde.md): cada endpoint do Verde usado, o formato real das respostas e os defeitos encontrados ao vivo.
 - [`docs/ia.md`](docs/ia.md): cada chamada de IA, o padrão comum de retentativa, simulação e flags.
 - [`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md): o bridge do WhatsApp (só no ambiente de release).
-- [`docs/guia-teste-homologacao.md`](docs/guia-teste-homologacao.md): o roteiro para a equipe testar no release, pelo WhatsApp e pela Tykhe, com o que já foi conferido e onde focar.
+- [`docs/guia-teste-homologacao.md`](docs/guia-teste-homologacao.md): o roteiro para a equipe testar no release, pelo WhatsApp e pela Tykhe, com o que já foi conferido e onde focar. **Corrigido em 2026-10-26:** a equipe está testando na produção, e não no release (ver o aviso no topo do guia).
 - [`docs/testes.md`](docs/testes.md): como os testes são organizados e rodados, e o que roda no CI.
 - [`docs/novo-fluxo.md`](docs/novo-fluxo.md): passo a passo para criar um fluxo novo.
 - [`scripts/README.md`](scripts/README.md): os scripts de manutenção e quando rodar cada um.

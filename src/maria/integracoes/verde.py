@@ -38,6 +38,7 @@ from maria.shared.types import (
     DadosPessoa,
     DadosProcesso,
     OrgaoAtendimento,
+    OrgaosPrimeiroAtendimento,
     OrgaosViolenciaDomestica,
     Plantao,
     ResultadoCadastroPessoa,
@@ -279,42 +280,64 @@ async def consultar_apenado_por_rg(rg: str) -> DadosApenado:
 
 
 async def consultar_processo(numero: str) -> DadosProcesso:
+    dados, _ = await consultar_processo_com_status(numero)
+    return dados
+
+
+# #341/#352: respostas em que o Verde diz que não achou o número (Swagger de
+# `GET /processo/consultar`): 400 fora do padrão, 404 não encontrado, 422 inválido
+# ou de fora do RJ. Nenhuma é "origem que ainda não consigo tratar".
+STATUS_PROCESSO_NAO_LOCALIZADO = frozenset({400, 404, 422})
+
+
+async def consultar_processo_com_status(numero: str) -> tuple[DadosProcesso, int | None]:
+    """A consulta de processo e, quando o Verde responde que não achou, o status
+    HTTP dessa resposta de negócio (#341). `None` em sucesso, na falha de infra e
+    no modo mock. O status fica fora de `DadosProcesso` porque violência
+    doméstica devolve `dadosProcesso` inteiro à Tykhe, e o contrato não muda."""
     if not VERDE_JWT_TOKEN:
         logger.warn(MENSAGEM_MOCK, **contexto_atual())
         # Issue #51: só origem "SEEU" é resolvida pelo bot.
         if numero == "000000000":
-            return {"encontrado": False}
+            return {"encontrado": False}, None
         if numero == "0000000-00.0000.0.00.0000":
-            return {"encontrado": True, "id": 999999, "origem": "e-Proc (mock)", "nomeAssunto": "Processo de Teste (mock)"}
-        return {"encontrado": True, "id": 999999, "origem": "SEEU", "nomeAssunto": "Processo de Teste (mock)"}
+            return {"encontrado": True, "id": 999999, "origem": "e-Proc (mock)", "nomeAssunto": "Processo de Teste (mock)"}, None
+        return {"encontrado": True, "id": 999999, "origem": "SEEU", "nomeAssunto": "Processo de Teste (mock)"}, None
     inicio = _agora_ms()
     url = f"{VERDE_API_URL}/processo/consultar/{_escapar(numero)}"
     resultado = await chamar_verde_com_retry("processo", _requisicao("GET", url, com_accept=True, ler_corpo=True))
     if not resultado.ok or resultado.res is None:
+        status = resultado.res.status_code if resultado.res is not None and not resultado.falha_infra else None
         await _fechar(resultado)
-        return {"encontrado": False}
+        return {"encontrado": False}, status
     corpo = _js.json_parse(resultado.res.content)
     _sucesso("processo", inicio)
     dados = _js.prop(corpo, "dados")
     if not _js.verdadeiro(dados) or _js.prop(dados, "id") is AUSENTE:
-        return {"encontrado": False}
+        return {"encontrado": False}, None
     saida: dict[str, Any] = {"encontrado": True}
     for chave in ("id", "origem", "instancia", "nomeAssunto", "nomeOrgaoJulgador", "movimentos"):
         _js.definir(saida, chave, _js.prop(dados, chave))
-    return cast(DadosProcesso, saida)
+    return cast(DadosProcesso, saida), None
 
 
 # --- Pessoa (GET /pessoa?cpf=) ---------------------------------------------------
 
 
-async def consultar_pessoa_por_cpf(cpf: str) -> DadosPessoa:
+CHAVES_PESSOA = ("idPessoa", "nome", "nomeSocial", "genero", "endereco", "enderecoDetalhado")
+# #433: data de nascimento, e-mail e telefones, só quando pedido (`completo=True`). Os outros fluxos continuam lendo
+# o que liam, para não levar mais dado do Verde ao estado e à resposta.
+CHAVES_PESSOA_COMPLETA = (*CHAVES_PESSOA, "dataNascimento", "email", "telefonesAssistido")
+
+
+async def consultar_pessoa_por_cpf(cpf: str, *, completo: bool = False) -> DadosPessoa:
     if not VERDE_JWT_TOKEN:
         logger.warn(MENSAGEM_MOCK, **contexto_atual())
         if cpf == "00000000000":
             return {"encontrado": False}
         if cpf == "66666666666":
             return {"encontrado": False, "falhaInfra": True}
-        return {
+        mock: DadosPessoa = {
             "encontrado": True,
             "idPessoa": 999999,
             "nome": "Pessoa de Teste (mock)",
@@ -322,20 +345,31 @@ async def consultar_pessoa_por_cpf(cpf: str) -> DadosPessoa:
             "endereco": "Rua de Teste, 123 (mock)",
             "enderecoDetalhado": {"cep": "20000-000"},
         }
+        if completo:
+            mock["dataNascimento"] = "01/01/1990"
+            mock["email"] = "teste@exemplo.org"
+            mock["telefonesAssistido"] = [{"numeroTelefone": "21999990000", "inWhatsapp": True, "tipo": "Celular"}]
+        return mock
     inicio = _agora_ms()
     # 404 (não encontrado) e 422 (mais de uma pessoa) caem no mesmo encontrado: False.
     url = f"{VERDE_API_URL}/pessoa?cpf={_escapar(cpf)}"
     resultado = await chamar_verde_com_retry("pessoa", _requisicao("GET", url, com_accept=True, ler_corpo=True))
     if not resultado.ok or resultado.res is None:
+        status = resultado.res.status_code if resultado.res is not None else None
         await _fechar(resultado)
-        return cast(DadosPessoa, _com_falha_infra({"encontrado": False}, resultado.falha_infra))
+        nao_achou = _com_falha_infra({"encontrado": False}, resultado.falha_infra)
+        # #446: na consulta completa, o status da falha de negócio separa "sem cadastro" (404) de "CPF inválido" (400)
+        # e "mais de uma pessoa" (422). Os outros fluxos continuam recebendo só `encontrado`.
+        if completo and status is not None and not resultado.falha_infra:
+            nao_achou["statusHttp"] = status
+        return cast(DadosPessoa, nao_achou)
     corpo = _js.json_parse(resultado.res.content)
     _sucesso("pessoa", inicio)
     dados = _js.prop(corpo, "dados")
     if not _js.verdadeiro(dados) or _js.prop(dados, "idPessoa") is AUSENTE:
         return {"encontrado": False}
     saida: dict[str, Any] = {"encontrado": True}
-    for chave in ("idPessoa", "nome", "nomeSocial", "genero", "endereco", "enderecoDetalhado"):
+    for chave in CHAVES_PESSOA_COMPLETA if completo else CHAVES_PESSOA:
         _js.definir(saida, chave, _js.prop(dados, chave))
     return cast(DadosPessoa, saida)
 
@@ -376,7 +410,7 @@ async def consultar_cep(cep: str) -> DadosCep:
     resultado = await chamar_verde_com_retry("cep", _requisicao("GET", url, com_accept=True, ler_corpo=True))
     if not resultado.ok or resultado.res is None:
         await _fechar(resultado)
-        return {"encontrado": False}
+        return cast(DadosCep, _com_falha_infra({"encontrado": False}, resultado.falha_infra))
     corpo = _js.json_parse(resultado.res.content)
     _sucesso("cep", inicio)
     dados = _js.prop(corpo, "dados")
@@ -455,6 +489,39 @@ async def consultar_orgaos_violencia_domestica(indicacao_ro: bool, id_pessoa: in
     # "CONTACTAR_CRC": "não achei nada, ligue 129" (só com RO). Igualdade estrita.
     if _js.prop(corpo, "codigo") == "CONTACTAR_CRC":
         return _contactar_crc(_js.prop(corpo, "mensagem"))
+    orgaos = _orgaos(_js.coalesce(_js.prop(corpo, "dados"), []))
+    return {"encontrado": len(orgaos) > 0, "orgaos": orgaos}
+
+
+async def consultar_orgaos_primeiro_atendimento(id_pessoa: int, id_assunto: int) -> OrgaosPrimeiroAtendimento:
+    """Órgãos habilitados para o assunto, escolhidos pelo endereço cadastrado da pessoa
+    (o CEP que a Tykhe manda não entra). Lista vazia vira `encontrado: False`.
+    Sem `idPessoa` o Verde responde 400; com `idPessoa` inexistente, 500."""
+    if not VERDE_JWT_TOKEN:
+        logger.warn(MENSAGEM_MOCK, **contexto_atual())
+        orgao: OrgaoAtendimento = {
+            "id": 1358,
+            "nome": "Núcleo de Primeiro Atendimento Cível de Teste (mock)",
+            "enderecos": [
+                {
+                    "logradouro": "Rua de Teste",
+                    "numero": "1",
+                    "bairro": "Centro",
+                    "municipio": "Município de Teste",
+                    "uf": "RJ",
+                    "horariosUrgenciaFormatado": "Seg a Sex, 11:00-17:00",
+                }
+            ],
+        }
+        return {"encontrado": True, "orgaos": [orgao]}
+    inicio = _agora_ms()
+    url = f"{VERDE_API_URL}/orgao/primeiro-atendimento?idAssunto={_js.texto_template(id_assunto)}&idPessoa={_js.texto_template(id_pessoa)}"
+    resultado = await chamar_verde_com_retry("orgao-primeiro-atendimento", _requisicao("GET", url, com_accept=True, ler_corpo=True))
+    if not resultado.ok or resultado.res is None:
+        await _fechar(resultado)
+        return cast(OrgaosPrimeiroAtendimento, _com_falha_infra({"encontrado": False, "orgaos": []}, resultado.falha_infra))
+    corpo = _js.json_parse(resultado.res.content)
+    _sucesso("orgao-primeiro-atendimento", inicio)
     orgaos = _orgaos(_js.coalesce(_js.prop(corpo, "dados"), []))
     return {"encontrado": len(orgaos) > 0, "orgaos": orgaos}
 

@@ -1,0 +1,62 @@
+# Maria + Postgres local (#361). Uso e detalhes: docs/rodar-localmente.md, seção 7.
+#
+#   docker compose up --build            sobe o banco e a API (IA e Verde simulados)
+#   docker compose --profile catalogo up --build
+#                                        idem, e carrega docker/catalogo/catalogo-release.sql
+#
+# O schema NÃO é criado aqui: a API cria a extensão, as tabelas e o schema do checkpoint
+# no startup (lifespan), como em produção. Os valores abaixo são só para uso local.
+services:
+  db:
+    image: pgvector/pgvector:pg16 # a mesma major do CI (ci.yml) e de docs/testes.md
+    environment:
+      POSTGRES_USER: maria
+      POSTGRES_PASSWORD: maria
+      POSTGRES_DB: maria
+    ports:
+      # Só o seu computador enxerga o banco.
+      - "127.0.0.1:${DB_PORTA:-55432}:5432"
+    volumes:
+      - banco:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U maria -d maria"]
+      interval: 3s
+      timeout: 3s
+      retries: 20
+
+  app:
+    build: .
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      API_KEY: ${API_KEY:-troque-esta-chave}
+      # Só "test" simula a IA e os embeddings (sem credencial AWS).
+      APP_ENV: ${APP_ENV:-test}
+      DATABASE_URL: postgresql://maria:maria@db:5432/maria
+    ports:
+      - "127.0.0.1:3001:3001"
+    healthcheck:
+      # A imagem não tem curl; o /health só responde depois do lifespan (tabelas criadas).
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:3001/health', timeout=3)"]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+      start_period: 10s
+
+  # Opcional (profile "catalogo"): carrega o catálogo copiado do release, depois que a
+  # API criou as tabelas. Repetir não duplica nada (o dump usa ON CONFLICT DO NOTHING).
+  catalogo:
+    profiles: ["catalogo"]
+    image: pgvector/pgvector:pg16
+    depends_on:
+      app:
+        condition: service_healthy
+    environment:
+      PGPASSWORD: maria
+    volumes:
+      - ./docker/catalogo:/catalogo:ro
+    entrypoint: ["psql", "-h", "db", "-U", "maria", "-d", "maria", "-v", "ON_ERROR_STOP=1", "-f", "/catalogo/catalogo-release.sql"]
+
+volumes:
+  banco:

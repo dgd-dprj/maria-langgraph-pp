@@ -22,8 +22,10 @@ from typing import Literal, Required, TypedDict
 
 class Pergunta(TypedDict, total=False):
     pergunta: Required[str]
-    tipo: Required[Literal["texto", "sim_nao", "opcoes"]]
+    tipo: Required[Literal["texto", "sim_nao", "opcoes", "link_imagem"]]
     opcoes: list[str]
+    # Só em `link_imagem` (#398): qual imagem a Tykhe deve pedir à pessoa.
+    tipoImagem: str
 
 
 class DadosApenado(TypedDict, total=False):
@@ -70,16 +72,30 @@ class EnderecoDetalhado(TypedDict, total=False):
     idMunicipio: int
 
 
+class TelefoneAssistido(TypedDict, total=False):
+    """Item de `telefonesAssistido` do `GET /pessoa` (só na consulta completa, #433)."""
+
+    numeroTelefone: str
+    inWhatsapp: bool
+    tipo: str
+
+
 class DadosPessoa(TypedDict, total=False):
     encontrado: Required[bool]
     idPessoa: int | None
     nome: str
     nomeSocial: str
+    # Só na consulta completa (`completo=True`, #433): dado de terceiro, nunca em log.
+    dataNascimento: str
+    email: str
+    telefonesAssistido: list[TelefoneAssistido]
     genero: str
     endereco: str
     enderecoDetalhado: EnderecoDetalhado
     # Issue #172: mesmo racional de DadosApenado.falhaInfra.
     falhaInfra: bool
+    # Só na consulta completa, quando o Verde recusou por regra de negócio (#446): 400, 404 ou 422.
+    statusHttp: int
 
 
 class DadosCep(TypedDict, total=False):
@@ -94,6 +110,8 @@ class DadosCep(TypedDict, total=False):
     bairro: str
     municipio: str
     logradouro: str
+    # Mesmo racional de DadosPessoa.falhaInfra: o Verde falhou (401/403/5xx), não "CEP não encontrado".
+    falhaInfra: bool
 
 
 class HorarioUrgencia(TypedDict, total=False):
@@ -132,6 +150,15 @@ class OrgaosViolenciaDomestica(TypedDict, total=False):
     # mensagemCrc vem pronta do Verde ("...ligar 129").
     contactarCrc: bool
     mensagemCrc: str
+
+
+class OrgaosPrimeiroAtendimento(TypedDict, total=False):
+    """`GET /orgao/primeiro-atendimento`: órgãos habilitados para o assunto e a pessoa."""
+
+    encontrado: Required[bool]
+    orgaos: Required[list[OrgaoAtendimento]]
+    # Mesmo racional de DadosPessoa.falhaInfra.
+    falhaInfra: bool
 
 
 class Plantao(TypedDict, total=False):

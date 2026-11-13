@@ -1,0 +1,665 @@
+"""Fluxo Problemas com plano de saúde (NUDECON, issue #329).
+
+Conversa: "para quem", imagens dos documentos, situação (só quando o relato não veio),
+renda e confirmação do resumo, e então o e-mail ao NUDECON (#345, #405). A pergunta do canal
+(aqui, e-mail ou presencial) saiu do fluxo por enquanto (#430).
+
+Se o atendimento é para outra pessoa, a Maria pede o CPF dela, busca os dados no Verde e segue o fluxo
+com os dados dela no lugar dos de quem pede (#433, fase 1 da #347). Sem cadastro no Verde (404), a Maria pede os dados
+dela na conversa (#446, `dados_outra.py`); CPF inválido (400) repete a pergunta; o resto (422, infra) vai à equipe.
+
+O fluxo começa direto em "para quem": não verifica o município (#439). O endereço de quem fala vem da Tykhe
+(`dadosConhecidos.endereco`) só para o resumo e o e-mail; ausente, aparece como "não informado".
+Qualquer falha encerra com atendimento humano: o assistido não pode ficar sem atendimento.
+
+Premissas desta etapa, a confirmar: a Tykhe coleta as imagens e avisa com
+`imagensRecebidas` em `dadosConhecidos` (#336); sem o aviso, a Maria pergunta se
+a pessoa já enviou. O relato chega do orquestrador no canal
+`relato` (#334, entregue pela rota quando `FluxoConfig.usa_relato`); sem ele, a Maria pergunta a situação.
+"""
+
+from __future__ import annotations
+
+import functools
+import re
+import unicodedata
+from collections.abc import Awaitable, Callable, Hashable, Mapping
+from typing import Any
+
+from langgraph.errors import GraphBubbleUp
+from langgraph.graph import END, START, StateGraph
+from langgraph.types import interrupt
+
+from maria.fluxos._fabrica import FabricaGrafo, GrafoCompilado
+from maria.fluxos.plano_saude.api import (
+    MENSAGEM_CONCLUIDO,
+    MENSAGEM_CPF_OUTRA_INVALIDO,
+    MENSAGEM_DADOS_NAO_CONFIRMADOS,
+    MENSAGEM_DADOS_OUTRA_INVALIDOS,
+    MENSAGEM_ERRO_INTERNO,
+    MENSAGEM_FALHA_ENVIO_EMAIL,
+    MENSAGEM_FALHA_INFRA_VERDE,
+    MENSAGEM_IMAGENS_NAO_ANEXADAS,
+    MENSAGEM_IMAGENS_PENDENTES,
+    MENSAGEM_RENDA_NAO_ENTENDIDA,
+    MENSAGEM_SITUACAO_NAO_INFORMADA,
+    TIPOS_IMAGEM,
+    url_imagem_valida,
+)
+from maria.fluxos.plano_saude.dados_outra import CAMPOS, ETAPA_ENDERECO, ETAPAS, MAXIMO_TENTATIVAS_DADOS_OUTRA, Campo, etapa_depois_de
+from maria.fluxos.plano_saude.state import PlanoSaudeState
+from maria.ia.reescrever import preparar_pergunta
+from maria.integracoes.email_nudecon import enviar_email_nudecon, protocolo_do_atendimento
+from maria.integracoes.verde import consultar_pessoa_por_cpf
+from maria.shared.contexto import contexto_atual
+from maria.shared.logger import logger
+from maria.shared.respostas import resposta_eh_sim
+from maria.subgrafos.coletar_endereco.graph import grafo as subgrafo_coletar_endereco
+
+MAXIMO_TENTATIVAS_CPF_OUTRA = 3
+MAXIMO_TENTATIVAS_IMAGENS = 3
+MAXIMO_TENTATIVAS_SITUACAO = 3
+MAXIMO_TENTATIVAS_RENDA = 3
+PALAVRAS_MINIMAS_SITUACAO = 3
+MAXIMO_TENTATIVAS_CONFIRMACAO = 3
+RENDA_MAXIMA = 10_000_000
+
+TEXTO_PARA_QUEM = "O atendimento é para você? Responda não se for para outra pessoa."
+TEXTO_CPF_OUTRA = "Qual o CPF da pessoa que será atendida?"
+TEXTO_CPF_OUTRA_INVALIDO = "Não entendi esse CPF. Envie os 11 números do CPF da pessoa que será atendida."
+# Lista provisória de documentos: a definitiva é da #335.
+TEXTO_IMAGEM = {
+    "carteirinha_frente": "Envie a foto da frente da carteirinha do plano de saúde.",
+    "carteirinha_verso": "Agora envie a foto do verso da carteirinha do plano de saúde.",
+}
+TEXTO_IMAGEM_NOVAMENTE = {
+    "carteirinha_frente": "Não recebi a foto. Envie a foto da frente da carteirinha do plano de saúde.",
+    "carteirinha_verso": "Não recebi a foto. Envie a foto do verso da carteirinha do plano de saúde.",
+}
+TEXTO_SITUACAO = "Conte em poucas palavras o que aconteceu com o seu plano de saúde."
+TEXTO_SITUACAO_NOVAMENTE = "Preciso de um pouco mais de detalhe. O que o plano de saúde negou ou deixou de fazer?"
+TEXTO_RENDA = "Qual é a sua renda mensal, em reais? Se não tem renda, responda 0."
+TEXTO_RENDA_NOVAMENTE = (
+    "Não entendi o valor. Informe a sua renda mensal em reais, só o número (por exemplo, 2500). Se não tem renda, responda 0."
+)
+TEXTO_RENDA_CORRIGIR = "Vamos corrigir. Qual é a sua renda mensal, em reais?"
+TEXTO_CONFIRMACAO = "Confira os dados do atendimento. Está tudo certo?"
+NAO_INFORMADO = "não informado"
+
+Atualizacao = dict[str, Any]
+
+
+def _sem_acento(texto: str) -> str:
+    return "".join(c for c in unicodedata.normalize("NFD", texto) if unicodedata.category(c) != "Mn").lower()
+
+
+async def preparar_pergunta_para_quem(state: PlanoSaudeState) -> Atualizacao:
+    if state.get("paraSiPeloRelato") is True:
+        # #438: o relato já disse ("o plano da minha mãe", "meu plano negou minha cirurgia").
+        return {}
+    return dict(await preparar_pergunta("paraSi", TEXTO_PARA_QUEM))
+
+
+async def pedir_para_quem(state: PlanoSaudeState) -> Atualizacao:
+    if state.get("paraSiPeloRelato") is True:
+        return {}
+    resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or TEXTO_PARA_QUEM, "tipo": "sim_nao", "opcoes": ["Sim", "Não"]})
+    return {"paraSi": resposta_eh_sim(resposta)}
+
+
+def depois_de_para_quem(state: PlanoSaudeState) -> str:
+    if not state.get("paraSi"):
+        return "cpfOutra"
+    return _primeira_etapa_do_pedido(state)
+
+
+def _primeira_etapa_do_pedido(state: PlanoSaudeState) -> str:
+    """Depois de saber para quem é (e, para outra pessoa, de achar o cadastro dela): imagens, situação ou renda."""
+    return "imagens" if state.get("imagensRecebidas") is not True else _depois_das_imagens_enviadas(state)
+
+
+def _so_digitos(texto: str) -> str:
+    return re.sub(r"[^0-9]", "", texto)
+
+
+def texto_cpf_outra(state: PlanoSaudeState) -> str:
+    return TEXTO_CPF_OUTRA_INVALIDO if state.get("erroCpfOutra") == "invalido" else TEXTO_CPF_OUTRA
+
+
+async def preparar_pergunta_cpf_outra(state: PlanoSaudeState) -> Atualizacao:
+    return dict(await preparar_pergunta("cpfOutra", texto_cpf_outra(state)))
+
+
+async def pedir_cpf_outra(state: PlanoSaudeState) -> Atualizacao:
+    resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_cpf_outra(state), "tipo": "texto"})
+    cpf = _so_digitos(resposta)
+    if len(cpf) == 11:
+        return {"cpfOutraPessoa": cpf, "erroCpfOutra": None}
+    return {"cpfOutraPessoa": None, "erroCpfOutra": "invalido", "tentativasCpfOutra": (state.get("tentativasCpfOutra") or 0) + 1}
+
+
+def depois_do_cpf_outra(state: PlanoSaudeState) -> str:
+    if state.get("cpfOutraPessoa"):
+        return "consultar"
+    return "cpfInvalido" if (state.get("tentativasCpfOutra") or 0) >= MAXIMO_TENTATIVAS_CPF_OUTRA else "cpf"
+
+
+async def cpf_outra_invalido(state: PlanoSaudeState) -> Atualizacao:
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "cpf_outra_pessoa_invalido", "mensagemFinal": MENSAGEM_CPF_OUTRA_INVALIDO}
+
+
+def _dados_da_outra_pessoa(dados: Mapping[str, Any]) -> dict[str, Any]:
+    """Só o que o e-mail ao NUDECON e o resumo usam. Dado de terceiro: nunca em log nem em `metadados`."""
+    telefones = [t for t in (dados.get("telefonesAssistido") or []) if isinstance(t, Mapping) and t.get("numeroTelefone")]
+    whatsapp = next((t for t in telefones if t.get("inWhatsapp") is True), None)
+    return {
+        "nome": _texto(dados.get("nome")),
+        "dataNascimento": _texto(dados.get("dataNascimento")),
+        "email": _texto(dados.get("email")),
+        "telefone": _texto(telefones[0].get("numeroTelefone")) if telefones else "",
+        "whatsapp": _texto(whatsapp.get("numeroTelefone")) if whatsapp else "",
+        "endereco": _texto(dados.get("endereco")),
+    }
+
+
+STATUS_CPF_INVALIDO = 400
+STATUS_SEM_CADASTRO = 404
+
+
+async def consultar_outra_pessoa(state: PlanoSaudeState) -> Atualizacao:
+    """200: usa os dados do Verde. 404 (ou "não encontrado" sem status): coleta os dados na conversa (#446). 400: CPF
+    inválido, repete a pergunta. 422 (mais de uma pessoa) e falha de infra: equipe, nunca coleta."""
+    dados = await consultar_pessoa_por_cpf(state.get("cpfOutraPessoa") or "", completo=True)
+    if dados.get("falhaInfra"):
+        return {"statusFinal": "handoff_humano", "motivoHandoff": "falha_infra_verde", "mensagemFinal": MENSAGEM_FALHA_INFRA_VERDE}
+    if dados.get("encontrado"):
+        return {"dadosOutraPessoa": _dados_da_outra_pessoa(dados), "erroCpfOutra": None}
+    status = dados.get("statusHttp")
+    if status == STATUS_CPF_INVALIDO:
+        return {"cpfOutraPessoa": None, "erroCpfOutra": "invalido", "tentativasCpfOutra": (state.get("tentativasCpfOutra") or 0) + 1}
+    if status is None or status == STATUS_SEM_CADASTRO:
+        return {"dadosOutraPessoa": {"origem": "informado"}, "erroCpfOutra": None, "tentativasDadosOutra": 0, "enderecoDeOutraPessoa": True}
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "falha_infra_verde", "mensagemFinal": MENSAGEM_FALHA_INFRA_VERDE}
+
+
+def _coleta_em_andamento(state: PlanoSaudeState) -> bool:
+    outra = state.get("dadosOutraPessoa") or {}
+    return outra.get("origem") == "informado" and "parentesco" not in outra
+
+
+def depois_de_consultar_outra_pessoa(state: PlanoSaudeState) -> str:
+    if state.get("statusFinal"):
+        return "encerrar"
+    if state.get("dadosOutraPessoa"):
+        return "coletar" if _coleta_em_andamento(state) else _primeira_etapa_do_pedido(state)
+    return "cpfInvalido" if (state.get("tentativasCpfOutra") or 0) >= MAXIMO_TENTATIVAS_CPF_OUTRA else "cpf"
+
+
+def _no_da_etapa(etapa: str) -> str:
+    return "coletarEnderecoOutra" if etapa == ETAPA_ENDERECO else f"prepararPergunta{etapa[0].upper()}{etapa[1:]}Outra"
+
+
+def texto_dado_outra(campo: Campo, state: PlanoSaudeState) -> str:
+    return campo.novamente if state.get("tentativasDadosOutra") else campo.pergunta
+
+
+def _no_preparar_dado_outra(campo: Campo) -> Callable[[PlanoSaudeState], Awaitable[Atualizacao]]:
+    async def preparar(state: PlanoSaudeState) -> Atualizacao:
+        return dict(await preparar_pergunta(f"{campo.chave}Outra", texto_dado_outra(campo, state)))
+
+    preparar.__name__ = f"preparar_pergunta_{campo.chave}_outra"
+    return preparar
+
+
+def _no_pedir_dado_outra(campo: Campo) -> Callable[[PlanoSaudeState], Awaitable[Atualizacao]]:
+    async def pedir(state: PlanoSaudeState) -> Atualizacao:
+        pergunta: dict[str, Any] = {"pergunta": state.get("perguntaAtualTexto") or texto_dado_outra(campo, state)}
+        pergunta.update({"tipo": "opcoes", "opcoes": campo.opcoes} if campo.opcoes else {"tipo": "texto"})
+        resposta: str = interrupt(pergunta)
+        outra = dict(state.get("dadosOutraPessoa") or {})
+        valor = campo.interpretar(resposta, {k: v for k, v in outra.items() if isinstance(v, str)})
+        if valor is None:
+            return {"tentativasDadosOutra": (state.get("tentativasDadosOutra") or 0) + 1}
+        return {"dadosOutraPessoa": {**outra, campo.chave: valor}, "tentativasDadosOutra": 0}
+
+    pedir.__name__ = f"pedir_{campo.chave}_outra"
+    return pedir
+
+
+def _roteador_dado_outra(campo: Campo) -> Callable[[PlanoSaudeState], str]:
+    def depois(state: PlanoSaudeState) -> str:
+        if campo.chave in (state.get("dadosOutraPessoa") or {}):
+            return "proxima" if etapa_depois_de(campo.chave) else _primeira_etapa_do_pedido(state)
+        return "invalidos" if (state.get("tentativasDadosOutra") or 0) >= MAXIMO_TENTATIVAS_DADOS_OUTRA else "repetir"
+
+    return depois
+
+
+async def guardar_endereco_outra(state: PlanoSaudeState) -> Atualizacao:
+    """O endereço que o subgrafo coletou é o da outra pessoa: vai para os dados dela, como texto."""
+    outra = {**(state.get("dadosOutraPessoa") or {}), "endereco": _endereco(state.get("endereco"))}
+    return {"dadosOutraPessoa": outra, "enderecoDeOutraPessoa": None}
+
+
+async def dados_outra_invalidos(state: PlanoSaudeState) -> Atualizacao:
+    return {
+        "statusFinal": "handoff_humano",
+        "motivoHandoff": "dados_outra_pessoa_invalidos",
+        "mensagemFinal": MENSAGEM_DADOS_OUTRA_INVALIDOS,
+    }
+
+
+def _depois_das_imagens_enviadas(state: PlanoSaudeState) -> str:
+    """Sem relato (atendimento criado direto, sem orquestrador), a Maria pergunta a situação."""
+    return "renda" if _texto(state.get("relato")) else "situacao"
+
+
+def _proxima_imagem(state: PlanoSaudeState) -> tuple[str, str]:
+    """A próxima imagem que falta pedir: (chave do estado, `tipoImagem` do contrato)."""
+    links = state.get("imagensLinks") or {}
+    return next(((chave, tipo) for chave, tipo in TIPOS_IMAGEM if chave not in links), TIPOS_IMAGEM[-1])
+
+
+def texto_imagens(state: PlanoSaudeState) -> str:
+    _, tipo = _proxima_imagem(state)
+    if state.get("tentativasImagens"):
+        return TEXTO_IMAGEM_NOVAMENTE[tipo]
+    return TEXTO_IMAGEM[tipo]
+
+
+async def preparar_pergunta_imagens(state: PlanoSaudeState) -> Atualizacao:
+    return dict(await preparar_pergunta("imagens", texto_imagens(state)))
+
+
+async def pedir_imagens(state: PlanoSaudeState) -> Atualizacao:
+    """Uma pergunta por imagem (`tipoResposta: link_imagem`). A Tykhe responde com a URL de baixar; o link é
+    segredo e só vai para o estado (nunca para log)."""
+    chave, tipo = _proxima_imagem(state)
+    resposta: str = interrupt(
+        {"pergunta": state.get("perguntaAtualTexto") or texto_imagens(state), "tipo": "link_imagem", "tipoImagem": tipo}
+    )
+    url = url_imagem_valida(resposta)
+    if url is None:
+        return {"tentativasImagens": (state.get("tentativasImagens") or 0) + 1}
+    links = {**(state.get("imagensLinks") or {}), chave: url}
+    # A contagem de tentativas inválidas zera a cada imagem recebida.
+    return {"imagensLinks": links, "tentativasImagens": 0, "imagensRecebidas": all(c in links for c, _ in TIPOS_IMAGEM) or None}
+
+
+def depois_das_imagens(state: PlanoSaudeState) -> str:
+    if state.get("imagensRecebidas") is True:
+        return _depois_das_imagens_enviadas(state)
+    return "imagensPendentes" if (state.get("tentativasImagens") or 0) >= MAXIMO_TENTATIVAS_IMAGENS else "imagens"
+
+
+async def imagens_pendentes(state: PlanoSaudeState) -> Atualizacao:
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "imagens_pendentes", "mensagemFinal": MENSAGEM_IMAGENS_PENDENTES}
+
+
+def texto_situacao(state: PlanoSaudeState) -> str:
+    return TEXTO_SITUACAO if not state.get("tentativasSituacao") else TEXTO_SITUACAO_NOVAMENTE
+
+
+async def preparar_pergunta_situacao(state: PlanoSaudeState) -> Atualizacao:
+    return dict(await preparar_pergunta("situacao", texto_situacao(state)))
+
+
+async def pedir_situacao(state: PlanoSaudeState) -> Atualizacao:
+    resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_situacao(state), "tipo": "texto"})
+    relato = resposta.strip()
+    if len(relato.split()) >= PALAVRAS_MINIMAS_SITUACAO:
+        return {"relato": relato}
+    return {"tentativasSituacao": (state.get("tentativasSituacao") or 0) + 1}
+
+
+def depois_da_situacao(state: PlanoSaudeState) -> str:
+    if _texto(state.get("relato")):
+        return "renda"
+    return "situacaoNaoInformada" if (state.get("tentativasSituacao") or 0) >= MAXIMO_TENTATIVAS_SITUACAO else "situacao"
+
+
+async def situacao_nao_informada(state: PlanoSaudeState) -> Atualizacao:
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "situacao_nao_informada", "mensagemFinal": MENSAGEM_SITUACAO_NAO_INFORMADA}
+
+
+def interpretar_renda(resposta: str) -> float | None:
+    """A renda mensal em reais, ou `None` quando não dá para saber (sem número,
+    negativa ou absurda). "Não tenho renda" vale 0: é uma resposta possível e
+    quem não tem renda é justamente quem o NUDECON atende."""
+    texto = _sem_acento(resposta).strip()
+    if re.search(r"\b(sem renda|nao tenho renda|nenhuma|nenhum|zero)\b", texto):
+        return 0.0
+    achado = re.search(r"(-)?\s*(\d[\d.,]*)(\s*mil\b)?", texto)
+    if achado is None or achado.group(1):
+        return None
+    numero = achado.group(2).rstrip(".,")
+    if "," in numero:
+        numero = numero.replace(".", "").replace(",", ".")
+    elif re.fullmatch(r"\d{1,3}(\.\d{3})+", numero):
+        numero = numero.replace(".", "")
+    try:
+        valor = float(numero)
+    except ValueError:
+        return None
+    if achado.group(3):
+        valor *= 1000
+    return valor if 0 <= valor <= RENDA_MAXIMA else None
+
+
+def texto_renda(state: PlanoSaudeState) -> str:
+    if state.get("tentativasRenda"):
+        return TEXTO_RENDA_NOVAMENTE
+    return TEXTO_RENDA_CORRIGIR if state.get("tentativasConfirmacao") else TEXTO_RENDA
+
+
+async def preparar_pergunta_renda(state: PlanoSaudeState) -> Atualizacao:
+    return dict(await preparar_pergunta("renda", texto_renda(state)))
+
+
+async def pedir_renda(state: PlanoSaudeState) -> Atualizacao:
+    resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_renda(state), "tipo": "texto"})
+    renda = interpretar_renda(resposta)
+    if renda is not None:
+        return {"renda": renda, "tentativasRenda": 0}
+    return {"renda": None, "tentativasRenda": (state.get("tentativasRenda") or 0) + 1}
+
+
+def depois_da_renda(state: PlanoSaudeState) -> str:
+    if state.get("renda") is not None:
+        return "confirmacao"
+    return "rendaNaoEntendida" if (state.get("tentativasRenda") or 0) >= MAXIMO_TENTATIVAS_RENDA else "renda"
+
+
+async def renda_nao_entendida(state: PlanoSaudeState) -> Atualizacao:
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "renda_nao_entendida", "mensagemFinal": MENSAGEM_RENDA_NAO_ENTENDIDA}
+
+
+def _texto(valor: object) -> str:
+    """Vazio e ausente valem o mesmo; o CPF pode chegar como número (#296)."""
+    if valor is None or isinstance(valor, bool):
+        return ""
+    return str(valor).strip()
+
+
+def _endereco(endereco: object) -> str:
+    if not isinstance(endereco, dict):
+        return _texto(endereco)
+    cidade = "/".join(p for p in (_texto(endereco.get("municipio")), _texto(endereco.get("uf"))) if p)
+    cep = _texto(endereco.get("cep"))
+    partes = [
+        _texto(endereco.get("logradouro")),
+        _texto(endereco.get("numero")),
+        _texto(endereco.get("complemento")),
+        _texto(endereco.get("bairro")),
+        cidade,
+        f"CEP {cep}" if cep else "",
+    ]
+    return ", ".join(p for p in partes if p)
+
+
+def _reais(valor: float) -> str:
+    inteiro, centavos = f"{valor:,.2f}".split(".")
+    return f"R$ {inteiro.replace(',', '.')},{centavos}"
+
+
+def _linhas_resumo(state: PlanoSaudeState) -> list[tuple[str, str]]:
+    """Os dados do resumo e do e-mail ao NUDECON. Para outra pessoa (#433), são os dela, vindos do Verde, no lugar
+    dos de quem pede; campo que o Verde não trouxe fica vazio ("não informado"), sem cair nos dados de quem pede."""
+    renda = state.get("renda")
+    outra = state.get("dadosOutraPessoa")
+    if outra and outra.get("origem") == "informado":
+        pessoa = [
+            ("Atendimento para", "outra pessoa (dados informados, sem cadastro no Verde)"),
+            ("Parentesco com quem pediu", _texto(outra.get("parentesco"))),
+            ("Nome", _texto(outra.get("nome"))),
+            ("CPF", _texto(state.get("cpfOutraPessoa"))),
+            ("Data de nascimento", _texto(outra.get("dataNascimento"))),
+            ("Estado civil", _texto(outra.get("estadoCivil"))),
+            ("Profissão", _texto(outra.get("profissao"))),
+            ("RG", _texto(outra.get("rg"))),
+            ("E-mail", _texto(outra.get("email"))),
+            ("Telefone", _texto(outra.get("telefone"))),
+            ("WhatsApp", _texto(outra.get("whatsapp"))),
+            ("Endereço", _texto(outra.get("endereco"))),
+        ]
+    elif outra:
+        pessoa = [
+            ("Atendimento para", "outra pessoa (dados do cadastro do Verde)"),
+            ("Nome", _texto(outra.get("nome"))),
+            ("CPF", _texto(state.get("cpfOutraPessoa"))),
+            ("Data de nascimento", _texto(outra.get("dataNascimento"))),
+            ("E-mail", _texto(outra.get("email"))),
+            ("Telefone", _texto(outra.get("telefone"))),
+            ("WhatsApp", _texto(outra.get("whatsapp"))),
+            ("Endereço", _texto(outra.get("endereco"))),
+        ]
+    else:
+        pessoa = [
+            ("Nome", _texto(state.get("nome"))),
+            ("CPF", _texto(state.get("cpf"))),
+            ("Data de nascimento", _texto(state.get("dataNascimento"))),
+            ("E-mail", _texto(state.get("email"))),
+            ("Telefone", _texto(state.get("telefone"))),
+            ("Endereço", _endereco(state.get("endereco"))),
+        ]
+    return [*pessoa, ("Situação", _texto(state.get("relato"))), ("Renda mensal", _reais(renda) if renda is not None else "")]
+
+
+def montar_resumo(state: PlanoSaudeState) -> str:
+    """Os dados da Tykhe como vieram, mais a renda. Dado ausente aparece como "não informado"."""
+    return "\n".join(f"{rotulo}: {valor or NAO_INFORMADO}" for rotulo, valor in _linhas_resumo(state))
+
+
+async def preparar_pergunta_confirmacao(state: PlanoSaudeState) -> Atualizacao:
+    # Só a pergunta passa pela IA: o resumo tem CPF, nome e endereço e é colado depois (LGPD).
+    return dict(await preparar_pergunta("confirmacao", TEXTO_CONFIRMACAO))
+
+
+async def pedir_confirmacao(state: PlanoSaudeState) -> Atualizacao:
+    pergunta_texto = f"{state.get('perguntaAtualTexto') or TEXTO_CONFIRMACAO}\n\n{montar_resumo(state)}"
+    resposta: str = interrupt({"pergunta": pergunta_texto, "tipo": "sim_nao", "opcoes": ["Sim", "Não"]})
+    if resposta_eh_sim(resposta):
+        return {"confirmado": True}
+    return {"confirmado": False, "tentativasConfirmacao": (state.get("tentativasConfirmacao") or 0) + 1}
+
+
+def depois_da_confirmacao(state: PlanoSaudeState) -> str:
+    if state.get("confirmado"):
+        return "concluir"
+    # A correção por campo fica para outra issue (#329); por ora só a renda se refaz.
+    return "naoConfirmado" if (state.get("tentativasConfirmacao") or 0) >= MAXIMO_TENTATIVAS_CONFIRMACAO else "renda"
+
+
+async def nao_confirmado(state: PlanoSaudeState) -> Atualizacao:
+    return {"statusFinal": "handoff_humano", "motivoHandoff": "dados_nao_confirmados", "mensagemFinal": MENSAGEM_DADOS_NAO_CONFIRMADOS}
+
+
+def _linhas_email(state: PlanoSaudeState) -> list[tuple[str, str]]:
+    """O resumo, mais (#444) quem pediu quando o atendimento é para outra pessoa: o NUDECON precisa saber o solicitante.
+    Só o e-mail leva; o resumo mostrado a quem pede não muda."""
+    linhas = _linhas_resumo(state)
+    if not state.get("dadosOutraPessoa"):
+        return linhas
+    solicitante = [("Solicitante - Nome", _texto(state.get("nome"))), ("Solicitante - CPF", _texto(state.get("cpf")))]
+    return [linhas[0], *solicitante, *linhas[1:]]
+
+
+async def concluir(state: PlanoSaudeState) -> Atualizacao:
+    # #405: o e-mail ao NUDECON sai aqui, e `email_enviado` só vale depois da confirmação da função.
+    contexto = contexto_atual()
+    dados = {rotulo: valor or NAO_INFORMADO for rotulo, valor in _linhas_email(state)}
+    resultado = await enviar_email_nudecon(protocolo_do_atendimento(contexto.get("chatId", "")), dados, state.get("imagensLinks") or {})
+    if not resultado.enviado:
+        return {"statusFinal": "handoff_humano", "motivoHandoff": "falha_envio_email", "mensagemFinal": MENSAGEM_FALHA_ENVIO_EMAIL}
+    if resultado.anexos_falhos > 0:
+        # #423: o e-mail com os dados já saiu, mas faltou imagem; a equipe segue o caso e pede as imagens.
+        return {"statusFinal": "handoff_humano", "motivoHandoff": "imagens_nao_anexadas", "mensagemFinal": MENSAGEM_IMAGENS_NAO_ANEXADAS}
+    return {"statusFinal": "concluido", "destino": "email_enviado", "mensagemFinal": MENSAGEM_CONCLUIDO}
+
+
+def _deu_erro(state: PlanoSaudeState) -> bool:
+    return state.get("motivoHandoff") == "erro_interno"
+
+
+def _protegido(no: Callable[[PlanoSaudeState], Awaitable[Atualizacao]]) -> Callable[..., Any]:
+    """Falha inesperada em qualquer nó encerra com atendimento humano, e não com 500: o assistido não pode
+    ficar sem atendimento. O interrupt do LangGraph passa (é um GraphBubbleUp). O log leva só o nome do nó
+    e o tipo do erro, nunca a mensagem, que pode carregar dado da pessoa."""
+
+    @functools.wraps(no)
+    async def com_guarda(state: PlanoSaudeState) -> Atualizacao:
+        try:
+            return await no(state)
+        except GraphBubbleUp:
+            raise
+        except Exception as erro:
+            logger.error(
+                "[plano-saude] falha inesperada no fluxo: encerra com atendimento humano",
+                **contexto_atual(),
+                no=no.__name__,
+                tipoErro=type(erro).__name__,
+            )
+            return {"statusFinal": "handoff_humano", "motivoHandoff": "erro_interno", "mensagemFinal": MENSAGEM_ERRO_INTERNO}
+
+    return com_guarda
+
+
+def _seguir(origem: str, destino: str) -> None:
+    """Aresta fixa que, depois de uma falha, vai ao fim em vez de seguir para o próximo nó."""
+    _condicional(origem, lambda state: "seguir", {"seguir": destino})
+
+
+def _condicional(origem: str, roteador: Callable[[PlanoSaudeState], str], destinos: Mapping[str, str]) -> None:
+    def roteador_com_guarda(state: PlanoSaudeState) -> str:
+        return "erroInterno" if _deu_erro(state) else roteador(state)
+
+    caminhos: dict[Hashable, str] = {chave: destino for chave, destino in destinos.items()}
+    caminhos["erroInterno"] = END
+    _construtor.add_conditional_edges(origem, roteador_com_guarda, caminhos)
+
+
+_construtor = StateGraph(PlanoSaudeState)
+_construtor.add_node("prepararPerguntaParaQuem", _protegido(preparar_pergunta_para_quem))
+_construtor.add_node("pedirParaQuem", _protegido(pedir_para_quem))
+_construtor.add_node("prepararPerguntaCpfOutra", _protegido(preparar_pergunta_cpf_outra))
+_construtor.add_node("pedirCpfOutra", _protegido(pedir_cpf_outra))
+_construtor.add_node("cpfOutraInvalido", _protegido(cpf_outra_invalido))
+_construtor.add_node("consultarOutraPessoa", _protegido(consultar_outra_pessoa))
+for _etapa in ETAPAS:
+    if _etapa == ETAPA_ENDERECO:
+        continue
+    _construtor.add_node(_no_da_etapa(_etapa), _protegido(_no_preparar_dado_outra(CAMPOS[_etapa])))
+    _construtor.add_node(f"pedir{_etapa[0].upper()}{_etapa[1:]}Outra", _protegido(_no_pedir_dado_outra(CAMPOS[_etapa])))
+# Subgrafo aninhado, como no cadastro_pessoa: coleta o endereço da outra pessoa sem verificar o município (#446).
+_construtor.add_node("coletarEnderecoOutra", subgrafo_coletar_endereco)
+_construtor.add_node("guardarEnderecoOutra", _protegido(guardar_endereco_outra))
+_construtor.add_node("dadosOutraInvalidos", _protegido(dados_outra_invalidos))
+_construtor.add_node("prepararPerguntaImagens", _protegido(preparar_pergunta_imagens))
+_construtor.add_node("pedirImagens", _protegido(pedir_imagens))
+_construtor.add_node("imagensPendentes", _protegido(imagens_pendentes))
+_construtor.add_node("prepararPerguntaSituacao", _protegido(preparar_pergunta_situacao))
+_construtor.add_node("pedirSituacao", _protegido(pedir_situacao))
+_construtor.add_node("situacaoNaoInformada", _protegido(situacao_nao_informada))
+_construtor.add_node("prepararPerguntaRenda", _protegido(preparar_pergunta_renda))
+_construtor.add_node("pedirRenda", _protegido(pedir_renda))
+_construtor.add_node("rendaNaoEntendida", _protegido(renda_nao_entendida))
+_construtor.add_node("prepararPerguntaConfirmacao", _protegido(preparar_pergunta_confirmacao))
+_construtor.add_node("pedirConfirmacao", _protegido(pedir_confirmacao))
+_construtor.add_node("naoConfirmado", _protegido(nao_confirmado))
+_construtor.add_node("concluir", _protegido(concluir))
+_construtor.add_edge(START, "prepararPerguntaParaQuem")
+_seguir("prepararPerguntaParaQuem", "pedirParaQuem")
+_condicional(
+    "pedirParaQuem",
+    depois_de_para_quem,
+    {
+        "imagens": "prepararPerguntaImagens",
+        "situacao": "prepararPerguntaSituacao",
+        "renda": "prepararPerguntaRenda",
+        "cpfOutra": "prepararPerguntaCpfOutra",
+    },
+)
+_seguir("prepararPerguntaCpfOutra", "pedirCpfOutra")
+_condicional(
+    "pedirCpfOutra",
+    depois_do_cpf_outra,
+    {"consultar": "consultarOutraPessoa", "cpf": "prepararPerguntaCpfOutra", "cpfInvalido": "cpfOutraInvalido"},
+)
+_condicional(
+    "consultarOutraPessoa",
+    depois_de_consultar_outra_pessoa,
+    {
+        "imagens": "prepararPerguntaImagens",
+        "situacao": "prepararPerguntaSituacao",
+        "renda": "prepararPerguntaRenda",
+        "cpf": "prepararPerguntaCpfOutra",
+        "cpfInvalido": "cpfOutraInvalido",
+        "coletar": _no_da_etapa(ETAPAS[0]),
+        "encerrar": END,
+    },
+)
+for _etapa in ETAPAS:
+    if _etapa == ETAPA_ENDERECO:
+        _construtor.add_edge("coletarEnderecoOutra", "guardarEnderecoOutra")
+        _seguir("guardarEnderecoOutra", _no_da_etapa(etapa_depois_de(_etapa) or ""))
+        continue
+    _seguir(_no_da_etapa(_etapa), f"pedir{_etapa[0].upper()}{_etapa[1:]}Outra")
+    _proxima = etapa_depois_de(_etapa)
+    _condicional(
+        f"pedir{_etapa[0].upper()}{_etapa[1:]}Outra",
+        _roteador_dado_outra(CAMPOS[_etapa]),
+        {
+            "proxima": _no_da_etapa(_proxima) if _proxima else "prepararPerguntaImagens",
+            "repetir": _no_da_etapa(_etapa),
+            "invalidos": "dadosOutraInvalidos",
+            "imagens": "prepararPerguntaImagens",
+            "situacao": "prepararPerguntaSituacao",
+            "renda": "prepararPerguntaRenda",
+        },
+    )
+_seguir("prepararPerguntaImagens", "pedirImagens")
+_condicional(
+    "pedirImagens",
+    depois_das_imagens,
+    {
+        "situacao": "prepararPerguntaSituacao",
+        "renda": "prepararPerguntaRenda",
+        "imagens": "prepararPerguntaImagens",
+        "imagensPendentes": "imagensPendentes",
+    },
+)
+_seguir("prepararPerguntaSituacao", "pedirSituacao")
+_condicional(
+    "pedirSituacao",
+    depois_da_situacao,
+    {"renda": "prepararPerguntaRenda", "situacao": "prepararPerguntaSituacao", "situacaoNaoInformada": "situacaoNaoInformada"},
+)
+_seguir("prepararPerguntaRenda", "pedirRenda")
+_condicional(
+    "pedirRenda",
+    depois_da_renda,
+    {"confirmacao": "prepararPerguntaConfirmacao", "renda": "prepararPerguntaRenda", "rendaNaoEntendida": "rendaNaoEntendida"},
+)
+_seguir("prepararPerguntaConfirmacao", "pedirConfirmacao")
+_condicional(
+    "pedirConfirmacao",
+    depois_da_confirmacao,
+    {"concluir": "concluir", "renda": "prepararPerguntaRenda", "naoConfirmado": "naoConfirmado"},
+)
+for _fim in (
+    "cpfOutraInvalido",
+    "dadosOutraInvalidos",
+    "imagensPendentes",
+    "situacaoNaoInformada",
+    "rendaNaoEntendida",
+    "naoConfirmado",
+    "concluir",
+):
+    _construtor.add_edge(_fim, END)
+
+_fabrica = FabricaGrafo(_construtor)
+criar_grafo = _fabrica.criar
+
+
+def obter_grafo() -> GrafoCompilado:
+    return _fabrica.obter()

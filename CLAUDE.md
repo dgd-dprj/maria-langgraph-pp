@@ -5,6 +5,7 @@ Contexto completo: [`README.md`](README.md) e [`docs/`](docs/). Fluxo de contrib
 ## Nunca
 
 - Commitar direto em `develop`/`main` — tudo entra por pull request ([`docs/padroes-branch.md`](docs/padroes-branch.md)).
+- Abrir pull request só para mudança de texto (documentação, índice de issues, `MIGRACAO.md`, skills, `CLAUDE.md`). PR só com mudança de código de fato; o texto vai junto no próximo PR com código. Mensagem ao assistido em `src/` conta como código. Exceção só com decisão registrada na #208 ([`docs/padroes-pull-request.md`](docs/padroes-pull-request.md), "Quando abrir PR"; regra de 2026-10-27, #357).
 - Logar CPF, RG, nome ou endereço de pessoa presa/vítima de violência doméstica em texto plano — são dados sensíveis (LGPD, categoria especial pra vítima de violência). Logs de negócio usam `chatId`/`fluxoId` pra correlação, nunca o dado em si.
 - Commitar fonte de diagrama (`.mmd`, `.eraser`) ou o `.png` gerado — só a URL pública do bucket de docs entra em markdown (ver seção Diagramas abaixo).
 - Rodar `terraform apply` sem `-target` explícito fora de uma sessão claramente autorizada pro escopo inteiro.
@@ -12,6 +13,7 @@ Contexto completo: [`README.md`](README.md) e [`docs/`](docs/). Fluxo de contrib
 ## Sempre
 
 - Issue antes do código quando o pedido for "cria X" (ver [`docs/padroes-issues.md`](docs/padroes-issues.md)).
+  - **Exceção (decisão da Nicole, 2026-11-05):** mudança só de tipagem, lint ou formatação, sem mudar comportamento, pode ir sem issue, com o título do PR começando por `chore:`. Os testes continuam obrigatórios.
 - Branch a partir de `develop` atualizada, nomenclatura `tipo/numero-descricao`.
 - **Antes de começar uma issue, ou de abrir uma, procure se o trabalho já existe:** PR e branch com o número dela (`gh pr list --search "<número>" --state all`) e issue aberta sobre o mesmo assunto (`gh issue list --search`). Ao começar, atribua a issue a você. Uma issue, uma sessão. Detalhe em [`docs/padroes-branch.md`](docs/padroes-branch.md) e [`docs/padroes-issues.md`](docs/padroes-issues.md).
 - **Comentário compartilhado** (como o catálogo de issues na #208): leia de novo logo antes de gravar e confira que ninguém gravou depois da sua leitura (`updated_at`). Em 2026-10-22, duas sessões gravaram por cima uma da outra, e uma linha sumiu.

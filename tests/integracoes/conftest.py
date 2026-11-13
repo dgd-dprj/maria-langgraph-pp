@@ -11,7 +11,7 @@ from dataclasses import dataclass, field
 import httpx
 import pytest
 
-from maria.integracoes import verde, whatsapp
+from maria.integracoes import email_nudecon, verde, whatsapp
 from maria.integracoes.cliente_http import criar_cliente_http, definir_cliente_http, fechar_cliente_http
 
 URL_VERDE = "https://verde.teste/api/integra"
@@ -58,4 +58,11 @@ def whatsapp_real(monkeypatch: pytest.MonkeyPatch, transporte: TransporteFalso) 
     monkeypatch.setattr(whatsapp, "WHATSAPP_ACCESS_TOKEN", "token-meta")
     monkeypatch.setattr(whatsapp, "WHATSAPP_PHONE_NUMBER_ID", "123456")
     monkeypatch.setattr(whatsapp, "WHATSAPP_API_URL", "https://graph.teste/v21.0")
+    return transporte
+
+
+@pytest.fixture
+def email_real(monkeypatch: pytest.MonkeyPatch, transporte: TransporteFalso) -> TransporteFalso:
+    monkeypatch.setattr(email_nudecon, "EMAIL_NUDECON_URL", "https://email.teste/")
+    monkeypatch.setattr(email_nudecon, "EMAIL_NUDECON_API_KEY", "chave-de-teste")
     return transporte

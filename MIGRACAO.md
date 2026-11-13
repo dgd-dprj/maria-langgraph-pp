@@ -6,9 +6,183 @@ Este documento conta a mesma história da issue [#208](https://github.com/dgd-dp
 
 O serviço foi reescrito de TypeScript (Node 22, Fastify, LangGraph JS, pnpm) para Python 3.12 (FastAPI, LangGraph Python, uv, ruff, mypy, pytest).
 
-**A régua é comportamento idêntico ao de `develop` @ `4e695f2`**: mesmas perguntas, mesmos desfechos, mesmo contrato HTTP com a Tykhe e mesmos logs consumidos pelo Grafana. Funcionalidade nova, melhoria e mudança de contrato ficaram fora. O que valia melhorar está na seção [Melhorias registradas, fora do escopo](#melhorias-registradas-fora-do-escopo), sem implementar.
+**A régua é comportamento idêntico ao de `develop` @ `4e695f2`**: mesmas perguntas, mesmos desfechos, mesmo contrato HTTP com a Tykhe e mesmos logs consumidos pelo Grafana. Funcionalidade nova, melhoria e mudança de contrato ficaram fora. O que valia melhorar está na seção [Melhorias registradas, fora do escopo](#melhorias-registradas-fora-do-escopo), sem implementar. **A régua cumpriu o papel dela em 2026-10-23**, quando produção passou a rodar Python. Ver a seção "Janela das correções", logo abaixo.
 
 O código TypeScript não foi copiado nem convive com o Python. Ele continua em `develop` (e no histórico do git) como fonte de comportamento.
+
+## Janela das correções (aberta em 2026-10-23)
+
+**Decisão da Nicole, registrada na #208.**
+
+> **Corrigido em 2026-10-26 (Nicole): a equipe testa na `main` (produção), e não no release.** A janela vale para a `main`, onde estão a equipe e o atendimento real. Merge em `develop` sobe só o release, que ninguém usa, e não espera pela janela: o #319, o #322 e o #328 entraram nesse dia por isso. As regras abaixo continuam, aplicadas ao PR de release (`develop` → `main`): o grupo 5 não vai para a `main` enquanto a equipe testa, e o PR de release que leva correção que muda comportamento entra em horário combinado e com o guia de teste atualizado. Os atendimentos de teste estão misturados aos reais na produção (#208). O texto original fica como está, para registro.
+
+**Por quê:** com produção em Python (release #310, `15fd757`, estável às 12:33), não há mais versão TypeScript em nenhum ambiente para comparar. A régua de reproduzir develop, inclusive os defeitos, existia para que cada diferença entre as versões fosse erro de tradução, e não mudança de propósito. Com uma versão só, essa comparação acabou. As correções marcadas "aprovada, aguardando janela" no índice de issues podem entrar.
+
+**Ordem:**
+
+| Prioridade | Issues | Motivo |
+|---|---|---|
+| 1 | #316 | Prazo: a próxima renovação automática do token de produção, em 2026-10-25, ~13:27. É a causa do incidente de 22 e 23/10 (#308). **Feita em 2026-10-23** (PR #318, `fc345df`) |
+| 2 | #239 e #232 | O mesmo padrão do incidente: falha de infraestrutura (Verde, CEP) vira resposta de negócio para a pessoa |
+| 3 | #220 | Corpo da resposta do Verde no log, com dado pessoal. Falta a medição |
+| 4 | #212 | Validação da saída da IA e lista de parentescos |
+| 5 | #210, #211, #231 e #280 | Mudam o que a Tykhe recebe |
+| 6 | #230 | Contagem de tokens. Falta a medição |
+
+**Regras para toda correção:**
+1. **O grupo 5 não entra enquanto a equipe estiver testando.** Mudar o contrato com a Tykhe no meio da validação confunde quem testa e quem lê o resultado.
+2. **Resposta gravada não se edita.** Se uma correção mudar o **valor** de uma resposta gravada em `tests/fixtures/contrato/`, o caso é **aposentado da conferência com registro**: o motivo, a issue e o teste escrito que passa a cobrir o comportamento novo. A fixture fica intacta. Campo novo e opcional continua no mecanismo da #294 (`tests/api/campos_posteriores.py`). Ver "As respostas gravadas são evidência, não teste de regressão".
+3. **Guia de teste:** cada PR de correção que muda comportamento atualiza o `docs/guia-teste-homologacao.md`, e o merge entra em horário combinado com a equipe. Todo merge em `develop` reinicia o release.
+
+**#393, item 1 (decisão da Nicole, 2026-11-04):** com o CPF digitado na conversa, "Confirma que seus dados são: …?" mostra o nome **mascarado**, com o primeiro nome e as iniciais dos outros ("Maria S. S."), e o nome social quando o Verde tiver um. Quem digita o CPF de outra pessoa não vê mais o nome completo dela. Contrato igual e nenhuma resposta gravada aposentada.
+
+**#393, item 2 (decisão da Nicole, 2026-11-04):** depois do RG, "Confirma que a pessoa presa é …?" também mostra o nome mascarado ("Jose S. P."). O contrato não muda, mas o valor de quatro respostas gravadas muda, e os casos saem da conferência com registro (regra 2), em `tests/api/casos_aposentados.py`: `pessoa-presa-resposta-rg-200` e `pessoa-presa-get-metadados-parciais-200` (conferência `contrato`), e `pp_rg` e `pp_get_confirma_nome` (`pr2`). As fixtures ficam intactas; o teste escrito é o `test_393_*` de `tests/fluxos/test_pessoa_presa.py`. A medição da #321 (o que um fluxo novo muda) desconta esses casos, que falham com ou sem fluxo novo.
+
+Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a confirmação no cadastro) continuam aguardando decisão.
+
+**#248 (decisão da Nicole, 2026-11-09, [registro na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6748053659)):** quando a classificação falha por erro da IA, continua o padrão: 3 tentativas e o encaminhamento para a equipe (`redirecionado`, `tipoCaso: outros`). O encaminhamento passa a levar `motivo: "ia_indisponivel"` e, em `resposta`, a mensagem "Estou com uma instabilidade agora e não consegui entender sua mensagem. Vou te passar para a nossa equipe. Se preferir, tente de novo daqui a alguns minutos." Relato vago continua sem o campo. É do grupo 5 (muda o que a Tykhe recebe): entra depois do teste da equipe. A confirmar com a Tykhe se ela mostra a `resposta` no `redirecionado`.
+
+**#450 (decisão da Nicole, 2026-11-09, [registro na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6749628235)):** multi-fluxo fase 1b, só no release.
+- A Maria gera um `chatId` para cada assunto (`POST /atendimentos/proximo-assunto`).
+- Os pendentes ficam guardados por assistido, pelo `idPessoa` do Verde, por 30 dias, com aviso ao assistido. Se surgir algo que possa demorar, o prazo é prorrogado por mais 30 dias. Sem contato até o fim do prazo, o pendente é excluído.
+- Quando a pessoa volta, a Maria pergunta se ela quer o assunto novo ou o pendente.
+- Nunca se guarda o texto do relato.
+- **CPF desde o começo, em qualquer fluxo** ([decisão na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6749752479)): vem da Tykhe na 1ª chamada ou é perguntado logo depois da 1ª mensagem. O risco vem antes, e os fluxos não perguntam de novo.
+- **Uma prorrogação por assunto** ([decisão na #208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6749808513)): 30 dias, mais 30, no máximo 60; com mais de um assunto, cada um tem a sua.
+- **Revisto em 2026-11-10 (decisão da Nicole): identificação pelo `idUsuario`, ID do assunto e `chatId`, no lugar do CPF no começo.**
+  - A Tykhe manda o `idUsuario` (o id da pessoa na Tykhe) na 1ª chamada do orquestrador. Ele é a chave da pessoa nos assuntos guardados, no lugar do `idPessoa` do Verde. Sem ele, nada é guardado.
+  - Cada assunto guardado também tem o `chatId` da conversa e o próprio id, que é o `chatId` do assunto (`<chatId>-assunto-N`).
+  - A Maria deixa de perguntar o CPF logo depois da 1ª mensagem; os fluxos voltam a pedir o CPF quando precisam. A decisão de 09/11 sobre o CPF desde o começo deixa de valer.
+  - A tabela `assuntos_pendentes` do release migra sozinha: `id_pessoa` vira `id_usuario`, e as linhas de 09/11 ganham o prefixo `idPessoa:` (nada é apagado; elas vencem em 30 dias).
+- **Urgência por assunto (decisão da Nicole, 2026-11-10).**
+  - Cada pendente traz `urgencia` (`urgente` ou `menos_urgente`).
+  - Ela vem de uma tabela por assunto (saúde, plano de saúde, violência doméstica e pessoa presa são urgentes; o resto é menos urgente). O sinal de risco do relato sobe qualquer assunto para urgente.
+  - A mensagem ao assistido separa os dois grupos, na pergunta dos guardados e no fim de cada assunto concluído, e o urgente é oferecido logo.
+  - As frases novas vão para a revisão da equipe.
+- **Assuntos em aberto (decisão da Nicole, 2026-11-11).** A pessoa vem resolver alguma coisa, então a conversa não começa com pergunta.
+  - Se o que ela contou é um assunto já guardado, a Maria retoma esse assunto ("Você já tinha esse assunto com a gente…"), sem abrir outro igual.
+  - Se ela pede para ver os assuntos ("quero ver meus assuntos"), a Maria mostra a lista.
+  - No fim de cada assunto concluído, inclusive no multi-fluxo, sem um urgente na vez, o fim da conversa: "Resumo da nossa conversa:" (cada assunto atendido, com o desfecho e um código de 6 letras e números), "Quer continuar com algum desses assuntos ou encerrar a conversa?" e "Ainda em aberto:" (urgência, "em aberto até dd/mm" e a fase). Os botões: um por assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa". A violência doméstica aparece como "a situação que você contou", com desfecho neutro. Campos novos `resumoDaConversa` e `opcoesDoFim`; `assuntosEmAberto` ganha `codigo`, `fase` e `venceEm`. A lista também vem pela rota nova `POST /atendimentos/assuntos-em-aberto`, e a escolha abre pela rota do próximo assunto.
+  - Fica para depois de 13/11: retomar um assunto que ficou no meio, em andamento, em outra conversa.
+- **O assunto pelo `flowId` (decisão da Nicole, 2026-11-13).** Em `assuntosEmAberto` (no fim da conversa e na rota dos assuntos em aberto), o assunto é identificado pelo `flowId` (assunto da Maria) ou pelo `tipoCaso` (assunto da Tykhe), e não mais pelo `chatIdAssunto`, que saiu da resposta. Cada um aparece uma vez só na lista. A Tykhe manda esse valor como `assunto` na rota do próximo assunto (`"assunto": "agendamentos"`), e a Maria acha o assunto em aberto da pessoa. O id interno (`<chatId>-assunto-N`) ainda é aceito, para quem já usava; um `flowId` que não está em aberto dá 404. O `chatId` que a Maria gera para cada assunto continua na resposta que abre o assunto: é com ele que a conversa segue em `/atendimentos/respostas`. Muda o contrato com a Tykhe (só no release); `docs/contrato-tykhe.md` atualizado.
+- **A ordem dos assuntos (decisão da Nicole, 2026-11-13):** violência doméstica, pessoa presa e saúde (com o plano de saúde), nessa ordem, e depois o resto. Antes, a saúde vinha primeiro (28 e 29/10). Os testes que levavam o plano até o fim agora escolhem o plano na resposta à ordem ("o plano primeiro").
+- **Os textos do fim (decisão da Nicole, 2026-11-13).**
+  - O fim da conversa mantém a pergunta antes ("Quer continuar com algum dos assuntos em aberto ou encerrar a conversa?", ou "com o assunto em aberto" quando é um só). Depois vem "Ainda em aberto:", com os assuntos numerados e separados em "Urgente:" e "Menos urgente:", e "Outras opções:", com o assunto novo e o encerrar.
+  - Todas as listas de escolha saem numeradas, com "Responda com o número da opção.", e os botões levam o mesmo número ("1. O caso novo"). A resposta vale pelo número, pelo texto do botão ou pelo nome.
+  - "Qual você quer resolver primeiro?" passa a ter botões (`opcoes`).
+  - A lista da rota dos assuntos em aberto ganha "Encerrar a conversa".
+  - O assunto que termina no atendimento humano com outro pendente avisa: "Também ficou para depois: …". Antes, só quem atendia via os pendentes.
+  - As frases novas vão para a revisão da equipe, e o guia de teste foi atualizado.
+- Em aberto: a rota de atendimento online do Verde.
+
+**#394 (decisão da Nicole, 2026-11-12):** limite de recusas do RG pelo formato na pessoa presa.
+- A recusa diz a tentativa e dá um exemplo fictício: "Não consegui ler esse RG (tentativa N de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.".
+- Na 3ª recusa, `handoff_humano` com o **motivo novo** `rg_formato_invalido` (mudança de contrato aceita: a Tykhe encaminha pelo `destino`, como mostrou o teste de 04/11), sem consultar o Verde e sem guardar o texto recusado.
+- Evento de log `rg_recusado_formato` em cada recusa, com `recusa`, `digitos` e `temLetra`, sem o que a pessoa digitou.
+- O caso gravado `pp_rg_invalido` (conferência pr2) foi aposentado, sem editar a gravação.
+- Muda o que a pessoa vê: o guia de teste foi atualizado, e o merge espera o horário combinado com a equipe.
+
+**#457 (2026-11-12, a pedido da Nicole):** o porquê dos atendimentos humanos da pessoa presa no log, sem dado pessoal.
+- No `atendimento_finalizado`, o `status` continua sempre "concluido", como em develop, porque os painéis contam por ele. Entra `statusFinal` (`concluido` ou `handoff_humano`) em todos os fluxos.
+- Na pessoa presa: `processoLocalizado`, `origemProcesso` ou `statusVerdeProcesso` (origem não suportada), `criterioNaoAtendido` e `criterioSemDado` (regra da #57) e `digitosRg` (RG não encontrado). Nunca o número do processo, o RG, o nome nem os valores da situação, do tipo e do regime.
+- As linhas de log gravadas da versão TypeScript não foram editadas: os campos novos entram em `CAMPOS_DE_LOG_POSTERIORES` (`tests/api/campos_posteriores.py`), como os campos novos das respostas (#294).
+
+**#472 (2026-11-12, a pedido da Nicole): troca do Haiku pelo Qwen no Bedrock de São Paulo, para a produção de 13/11.**
+- Medido com os 66 casos de IA em `sa-east-1`: Qwen3 Coder 30B 54 (1 passada); Qwen3 VL 235B de 61,0 a 61,7 (média de 3 passadas, quatro versões das regras); Haiku 4.5 61,3. **Recomendação: VL 235B.**
+- As regras da triagem ficaram as da #465: as versões novas não passaram da variação de cerca de 3 casos. Entrou só a regra da pergunta de desambiguação com as opções em dúvida ("pelo plano de saúde ou pelo SUS?"), só no Qwen. O prompt do Haiku não muda.
+- A suíte escolhe o modelo por `MARIA_MODELO_TESTE_IA`; sem a variável, continua o Haiku da produção.
+- Custo das medições: US$ 1,65 de US$ 3,00 aprovados.
+- **Comparação na configuração da produção (2026-11-12, critérios aprovados antes; [registro](https://github.com/dgd-dprj/maria-langgraph-pp/issues/472#issuecomment-6831091969)):** o Qwen passa em triagem, falhas, custo (−57%) e tempo em São Paulo; não passa no parentesco por 1 caso e no p95 em us-east-1 (1,49 s contra 0,65 s do Haiku). **Decisão da Nicole:** aprovado para São Paulo; se a produção continuar em us-east-1, a troca espera a mudança de região, e o critério de tempo não muda. Faltam o Ícaro confirmar a cota e a volta atrás. Custo: US$ 1,39 (US$ 1,32 aprovados para a comparação e US$ 0,10 para a rodada do "genro").
+
+**#212, parentesco (decisão da Nicole, 2026-11-12): a IA escolhe só da lista, sem inventar.** Achado da comparação Haiku x Qwen da #472, com 53 respostas inventadas no formato das da produção (1 a 4 palavras, pelos tokens do log).
+- O fluxo da pessoa presa confere o parentesco da IA: valor fora da lista vira "Outro", com o evento `parentesco_fora_da_lista` (só o motivo, nunca o valor). O Haiku devolveu "Irmã(o)" 2 vezes em 159; o Qwen, nenhuma. A exceção A13 da pessoa presa saiu da conformidade.
+- O prompt ganhou regras (grafia exata, relação invertida só com "meu/minha", parente fora da lista é "Outro"), **só com o Qwen** (`SUFIXO_PARENTESCO`): Qwen VL 235B de 48 para 60 de 61, nas 2 passadas (8 respostas fora dos exemplos do prompt, todas certas). Com o Haiku, as mesmas regras derrubaram o acerto ("mãe" virou "Filho(a)"), e o prompt dele fica o de sempre (57,3 de 61).
+- Erro que fica com o Qwen: quem é casado com o filho ou a filha da pessoa presa ("genro", "sou casado com a filha dele", "marido da filha dele") vira "Sogro(a)"; o Haiku acerta o "genro". Uma regra geral de direção no prompt ("quem escreve é [valor] da pessoa presa") não corrigiu em 3 passadas e fez a "nora" voltar a errar; ficou a versão anterior. Rodada de US$ 0,10 aprovada pela Nicole.
+- A lista de 8 valores do SIPEN (Ícaro, 2026-10-16) continua fora: muda o contrato com a Tykhe.
+
+**#212, genro e nora (decisão da Nicole, 2026-11-13): "Genro/Nora" entra na lista, e as formas comuns do parentesco são lidas pelas palavras, sem IA.**
+- **Valor novo para a Tykhe** em `metadados.parentesco`. Escolhido pela Nicole entre três opções (reconhecer e mandar "Outro"; valor novo já; a lista do SIPEN). Entra na develop agora e **só vai para a produção depois de a Tykhe confirmar que converte o valor** (pergunta na #479). Até lá, a promoção para a `main` espera, ou sai sem este commit.
+- **Frases de identificação** (`parentesco_pela_resposta`, `maria/shared/parentesco.py`): a resposta à pergunta do parentesco é lida pelas palavras quando casa inteira com uma forma conhecida, para todos os parentescos:
+  - a palavra ("genro", "mãe", "vó");
+  - "sou o X", "X dele", "X do preso";
+  - "A do B dele" ("marido da filha dele" é o genro; "mãe da esposa dele", a sogra; "filho do irmão dele", o sobrinho);
+  - "casado com a filha dele";
+  - "meu X", com a relação invertida ("meu genro" é o sogro).
+- "Outro", lido pelas palavras: parente fora da lista e quem não é parente (enteado, padrasto, madrasta, padrinho, advogado, vizinho, colega) e, por decisão da Nicole de 13/11, **namorado e namorada**.
+- O resto (frase longa, nome próprio, "meu filho") continua com a IA, como antes. O log ganha o evento `parentesco_sem_ia`, sem a resposta nem o valor.
+- "Meu sogro foi preso", no relato do orquestrador, passa a dar "Genro/Nora" sem perguntar.
+- O prompt do Qwen (`SUFIXO_PARENTESCO`) troca "genro e nora são Outro" por "quem é casado com o filho ou a filha é Genro/Nora". O do Haiku só ganha o valor novo na lista. **Ainda sem medição no Bedrock.**
+- Testes: um banco de frases por parentesco, cobrindo os 17 valores da lista, e as frases que precisam ir para a IA. Dois testes de conformidade com develop mudam, porque "amigo" passa a ser lido pelas palavras (era o "Outro" da IA simulada).
+- **Medido no mesmo dia** (76 casos, US$ 0,37, [registro na #212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212#issuecomment-6858129514)): no caminho da produção, Haiku 71 de 76 e Qwen 74 de 76; o "Genro/Nora" na lista não piorou o Haiku nos 61 casos de antes.
+
+**#212, irmão e irmã e o sogro pela posse (decisões da Nicole, 2026-11-13, depois da medição).**
+- **"Irmão(a)" sai da lista e entram "Irmão" e "Irmã".** Valores novos para a Tykhe: entram na pergunta da #479, como o "Genro/Nora".
+- **"Meu irmão" e "minha irmã"** não dizem se quem fala é irmão ou irmã: a Maria pergunta "Você é irmão ou irmã dele?" (ou "dela"), com as opções Irmão e Irmã, como faz com "Você é a mãe ou o pai dele?". Vale no relato do orquestrador e na resposta à pergunta do parentesco. "Meu filho" e "minha filha", na resposta, também passam a ter a pergunta curta, em vez de ir para a IA. A pergunta curta sai uma vez só: se a pessoa repetir, a resposta vai para a IA.
+- **A leitura pelas palavras entende mais duas formas**, que o Haiku e o Qwen erravam na medição:
+  - "o preso é o meu sogro" → "Genro/Nora";
+  - "pai da minha esposa" → "Genro/Nora", e o mesmo para os outros parentes compostos com "meu/minha".
+- **Frase com vírgula** ("ele é o pai da minha esposa, ela pediu pra eu ver"): vale o parentesco dos trechos lidos, se todos derem o mesmo, se a frase não tiver "não" e se nenhum trecho não lido citar outro parente.
+- **Prompt do Qwen:** ganha a regra do gênero ("Irmão" e "Irmã" dizem o gênero de quem escreve; "meu irmão" → "nenhum"). **Sem medição no Bedrock.**
+- **Duas respostas gravadas aposentadas** com registro, sem editar: `pp_parentesco` e `pp_get_concluido` (conferência pr2).
+
+**#475 (decisão da Nicole, 2026-11-12):** a pergunta do RG da pessoa presa mostra os formatos aceitos: "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9.". O que a Maria aceita não muda (#343), e o "RG não encontrado" continua com 3 tentativas. Três respostas gravadas aposentadas com registro, sem editar. O PR #437, que recusava o RG com espaços, foi fechado como superado pelo #343 e pelo #470.
+
+**#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
+- As frases vêm de blocos aprovados pela equipe.
+- A emoção, o humor e o risco são lidos na mesma chamada da classificação.
+- No fim, uma avaliação de 1 a 5.
+- Falta decidir o limite de perguntas, a prioridade no risco e o aprendizado.
+
+## Padronização de fluxos (decidida em 2026-10-23)
+
+**Decisão da Nicole, registrada na #208.** O objetivo é que um fluxo novo entre sem quebrar a aplicação nem o contrato com a Tykhe, e que a IA entre aos poucos, um ponto por vez. **Nenhuma peça reorganiza pastas nem move código existente: todas acrescentam.**
+
+| Peça | Issue | O quê |
+|---|---|---|
+| 1 | #321 (PR #322) | Aposentar casos da conferência com registro, sem editar fixture |
+| 2 | #323 | Teste de conformidade: as 14 regras do molde em todo fluxo registrado |
+| 3 | #327 | Gerador de fluxo novo |
+| 4 | #324 | Fluxo em teste, ligado só no release |
+| 5 | #325 | Pontos de IA com o mesmo contrato |
+| 6 | #326 | Medir a busca por similaridade antes de o catálogo passar de 15 (era 10 até a #353, decisão de 2026-11-03) |
+
+**O molde (#323):** as regras A1 a A12 foram tiradas dos fluxos existentes. A Nicole acrescentou duas:
+- **A13:** toda saída da IA de um conjunto fechado é conferida contra a lista fixa (#212).
+- **A14:** falha de infraestrutura nunca vira resposta de negócio (spec 10, #239).
+
+Pessoa presa não passa na A13 nem na A14, e violência doméstica não passa na A14. **As duas regras valem para fluxo novo, e o molde não força refatoração agora.** As três falhas viram exceções registradas, ligadas à #212 e à #239, e a lista só diminui.
+
+**Parte C:**
+- O destino do atendimento concluído passa a ser declarado no registro, com o primeiro fluxo novo.
+- O molde exige só o canal de tokens; a forma de contar fica para a #230.
+- A mensagem final não vira regra.
+- Um fluxo sem perguntas é aceito.
+
+**Interruptor por ambiente (#324):**
+- `MARIA_AMBIENTE` tem valor fixo no Terraform de cada ambiente.
+- **O padrão é desligado:** só o valor exato `release` liga um fluxo em teste.
+- Uma conversa em andamento termina normalmente.
+- O `.env` local fica documentado.
+- **2026-10-26:** a equipe passou a testar na `main`, e o PR ficou parado: o fluxo em teste só existiria no release, que ninguém usa.
+- **2026-11-03 (Nicole): fluxo novo é testado no release, depois que o teste da equipe acabar.** O desenho volta a valer.
+- **2026-11-03 (Nicole): o próximo release `develop` → `main` leva o fluxo do plano de saúde (NUDECON, #329) desligado na produção**, pelo desenho da #324. Ele é o primeiro fluxo com `em_teste=True`.
+  - **Na produção** (`MARIA_AMBIENTE=producao`, ou sem a variável): `GET /fluxos` é idêntico ao da `main` de hoje (2 fluxos), e `POST /atendimentos` com o `flowId` dele responde exatamente como a um id desconhecido: `404 {"erro":"fluxo não encontrado — ver GET /fluxos"}`. O contrato com a Tykhe não muda.
+  - **No release** (`MARIA_AMBIENTE=release`): 3 fluxos, e o do plano de saúde atende. O orquestrador continuava sem oferecê-lo (`oferecer_ao_orquestrador=False`, até a #266); desde a #386, oferece (abaixo).
+  - **Ordem da infraestrutura:** o padrão sem a variável já é desligado, então o código novo pode subir antes ou depois do `terraform apply` sem ligar o fluxo na produção. O apply só acrescenta a variável às duas definições de task e reinicia os dois serviços. No release, o fluxo só liga depois do apply.
+  - **2026-11-04 (Nicole): na produção, o apply vem logo depois do deploy do release na `main`.** Assim, a produção reinicia uma vez só pela #324, no mesmo horário do release, sem um reinício a mais durante o teste da equipe. Entre o deploy e o apply, o padrão mantém o fluxo desligado. No release, o apply continua logo depois do merge em `develop`.
+  - As conferências contra as respostas gravadas passam a rodar com o ambiente da produção (seção "As respostas gravadas são evidência, não teste de regressão"). **Confirmado pela Nicole em 2026-11-04:** só com o ambiente da produção.
+  - **2026-11-05: o merge da `develop` no PR #389** pôs no `ecs.tf` da produção as variáveis da Lambda de e-mail (#408). O apply da produção vem depois do #411, que as tira.
+  - **2026-11-05 (Nicole): o orquestrador oferece o plano de saúde (#386, decisão da #266), só no release.**
+    - **A produção não muda em nenhum caractere.** Um teste compara o catálogo de classificação e a descrição de `tykhe:saude` com a cópia gravada em 2026-11-05, antes da #386 (`tests/fixtures/orquestrador/catalogo-producao-2026-11-05.json`). A cópia não se regrava.
+    - **No release,** o plano entra no catálogo (10 opções). O `tipoCaso` `saude` não muda.
+    - **Só o que envolve cirurgia, por enquanto (Nicole, mais tarde no mesmo dia).** O orquestrador manda ao fluxo tudo o que envolve cirurgia com o plano: negativa, demora para autorizar, material ou prótese e reembolso da cirurgia. Cirurgia pelo SUS e as outras negativas do plano (exame, tratamento, internação, remédio, reembolso sem cirurgia) continuam em `tykhe:saude`, cuja descrição mantém "plano de saúde que negou cobertura" e perde só a parte de cirurgia (`TipoTykhe.trecho_de_fluxo_da_maria`). **Escopo confirmado em 2026-11-05: só cirurgia, por decisão de quem pediu.** No teste de integração com a IA de verdade (22 relatos, 2026-11-05), 20 passaram; as duas negativas de internação pelo plano voltaram com o plano e a saúde juntos, o que faria a Maria perguntar antes de escolher. O critério H2 da #386 (reembolso de exame vai para o fluxo) fica para depois.
+    - **Futuro:** as outras negativas e, se o NUDECON confirmar, reajuste e cancelamento entram no orquestrador depois de validadas. A pergunta ao NUDECON foi enviada pela Nicole.
+    - **A IA de verdade** é conferida num teste de integração com 15 relatos (H1 a H6, versões informais e o SUS escrito de forma popular), rodado à mão depois da aprovação do custo.
+
+**Critério de liberação da busca por similaridade (#326):**
+- Nenhum relato da base rotulada perde o fluxo certo no corte.
+- O corte não acrescenta mais de 1 s ao p95, que hoje é de 3,3 s.
+- **Desde 2026-11-03 (decisão da Nicole, #353, PR #360), o corte da 1ª rodada é de 15**, e não de 10. O critério acima passa a valer acima de 15 opções, e a medição usa catálogos de 16 e 17 opções. A medição da #353 não cumpre este critério: o destino principal fica fora dos candidatos em 31 de 265 relatos, e o p95 de ponta a ponta não foi medido.
 
 ## Modelo de branch
 
@@ -113,11 +287,21 @@ scripts/
 
 ### Contrato HTTP
 
-- Status, content-type e corpo de toda resposta, inclusive de erro, idênticos às fixtures de `tests/fixtures/contrato/`. Elas foram gravadas com a aplicação TypeScript de develop @ `4e695f2` rodando de verdade: 50 casos e as linhas de log de cada uma das 5 instâncias. A receita está anexada à #209. A comparação byte a byte acontece no módulo `api`.
+- Status, content-type e corpo de toda resposta, inclusive de erro, idênticos às fixtures de `tests/fixtures/contrato/`. Elas foram gravadas com a aplicação TypeScript de develop @ `4e695f2` rodando de verdade e regravadas em develop @ `1157a6d` (commit `b8d6e64`, spec 07, decisão D-1): 50 casos e as linhas de log de cada uma das 5 instâncias. A receita está anexada à #209. A comparação byte a byte acontece no módulo `api`.
 - **Fixtures que refletem a store em memória, e não a de produção.** A captura rodou sem `DATABASE_URL`, como os testes de develop. Onde as duas stores divergem, a fixture registra o comportamento da memória:
   - **`ttl-confirmacao-200`**: depois de confirmar "quer continuar?", a store em memória devolve a resposta pendente, e a fixture mostra o fluxo avançando com ela. **Em produção, a store Postgres devolve `NULL`, e a resposta da pessoa é descartada** ([#217](https://github.com/dgd-dprj/maria-langgraph-pp/issues/217)). A fixture é contrato da store em memória; não serve de prova do comportamento de produção nesse caminho.
 - **Identificadores da máquina de captura trocados nas linhas de log, antes do primeiro commit.** O valor dessas fixtures está nos nomes de campo e na ordem do envelope, e não nos valores de ambiente. O `hostname` virou `maquina-de-captura` (166 linhas). O IP de rede interna nas linhas "Server listening" virou `192.0.2.10`, da faixa reservada para documentação (RFC 5737; 5 linhas). Os caminhos locais nos `stack` de erro, com o usuário e a pasta temporária, viraram o prefixo `C:\captura\develop-ts\` (39 linhas). A ordem das chaves não mudou, e um teste impede que esses dados voltem. A chave de API já tinha sido mascarada na captura (`Bearer <API_KEY>`).
 - Os sete formatos de corpo de erro de develop são reproduzidos, inclusive o 400 de validação com corpo `{}`, que é o mais contraintuitivo (tabela na #208). O 500 vaza a mensagem interna (#210) e o 400 não dá motivo (#211): os dois são tratados depois da migração.
+- **Critérios 1 e 2 da #208, aprovados pela Nicole em 2026-11-03.**
+  - **Critério 1 (suíte de develop traduzida):** os 192 testes TypeScript de develop @ `a3a1a31` têm correspondente no pytest. Das 5 diferenças sem registro, todas foram alinhadas aos cenários de develop, sem mudar `src/`. Os 12 testes de integração com o Bedrock real passaram na primeira rodada registrada (13 s).
+  - **Critério 2 (contrato da Tykhe):** `tests/api/test_contrato.py::test_fixtures_byte_a_byte` cobre o caminho feliz (23 fixtures 200), a validação (5 com `{}`), a autenticação (3) e o não tratado (1, tudo menos `message`, conferido por mutação), e vai além: os 7 formatos de erro, o `Location` e as linhas de log.
+  - **Lacunas registradas:**
+    - "idêntico" não vale à letra no 500, que é comparado como JSON, sem a formatação;
+    - o campo `destino` sai da comparação (#294);
+    - a `fluxos-200` foi aposentada (#329);
+    - há uma única fixture de 500, e o 401 só é exercitado no `GET /fluxos`;
+    - tudo roda sem Postgres.
+  - As fixtures extras de 500 e 401 ficam na [#387](https://github.com/dgd-dprj/maria-langgraph-pp/issues/387).
 
 ### Especificações dos módulos (decisões já tomadas, antes das issues)
 
@@ -179,11 +363,32 @@ scripts/
 
 **Não edite nada em `tests/fixtures/contrato/`.** Nem quando um teste falhar por causa de uma mudança legítima de contrato.
 
-- **O que elas são:** respostas HTTP e linhas de log gravadas com a versão TypeScript rodando de verdade (as 50 da #209, gravadas em develop @ `4e695f2`, e as das conferências do `api`). Elas **provam que o Python devolve o que o TypeScript devolvia**. É evidência da tradução, e tem valor só enquanto for exatamente o que o servidor real devolveu.
+- **O que elas são:** respostas HTTP e linhas de log gravadas com a versão TypeScript rodando de verdade (as 50 da #209, gravadas em develop @ `4e695f2` e regravadas em `1157a6d`, e as das conferências do `api`). Elas **provam que o Python devolve o que o TypeScript devolvia**. É evidência da tradução, e tem valor só enquanto for exatamente o que o servidor real devolveu.
 - **Por que não editar:** a versão TypeScript não existe mais para regravar. Uma fixture editada à mão deixa de ser observação e passa a ser opinião. Depois de três edições, ninguém sabe mais o que veio do servidor real e o que foi escrito. A evidência some sem aviso.
 - **O contrato atual é conferido por testes escritos:** asserções explícitas sobre status, corpo e campos, como as de `tests/api/test_app.py`. Uma mudança de contrato muda o teste escrito, e o PR diz por quê.
 - **Quando uma mudança legítima quebra a conferência contra a fixture** (o primeiro caso conhecido é um fluxo novo mudando `GET /fluxos`, achado C7 da spec 09): o caso sai da conferência, sem tocar na fixture, e o comportamento novo ganha um teste escrito. O mecanismo para tirar o caso da conferência (por exemplo, uma lista de casos aposentados, com o motivo e o PR de cada um) é definido no primeiro PR que precisar dele. A fixture continua no repositório, intacta.
 - **Atualizado em 2026-10-22: o primeiro PR que precisou não definiu o mecanismo (#294).** O campo `destino` (#288) é o primeiro campo novo da resposta depois da gravação das fixtures. O PR #289, que o entregou, tirou o campo da conferência com uma expressão regular que serve só para ele, repetida em `tests/api/test_contrato.py:64-70` e `tests/api/test_conferencia_pr2.py:118-123`. A outra implementação da mesma issue (PR #290, fechado sem merge) trazia um mecanismo reaproveitável, `tests/api/sem_campos_posteriores.py` (commit `4d120e7`). **O mecanismo ficou para a #294.** Sem ele, cada campo novo quebra a conferência e pede outra expressão, e a tentação de editar a fixture volta: **é o mecanismo que torna esta decisão sustentável.** Para campo novo e opcional, a proposta da #294 é tirar só o campo, e não aposentar o caso inteiro, porque o resto da resposta continua conferido byte a byte. Aposentar casos continua valendo para mudança de comportamento, como o `GET /fluxos` do C7.
+- **Mecanismo definido em 2026-10-22 (#294): campo novo e opcional no primeiro nível do corpo.**
+  - **Onde:** `tests/api/campos_posteriores.py` lista os campos posteriores à gravação, cada um com a issue que o criou e o teste escrito que o cobre (`destino`: #288, `tests/api/test_destino.py`). As duas conferências (`test_contrato.py` e `test_conferencia_pr2.py`) tiram só esses campos da resposta obtida antes de comparar.
+  - **Como tira:** o campo é cortado do texto original, com a vírgula do vizinho, e nada é reserializado. O resto fica como foi gravado, inclusive números como `1e-7`, que o `json.dumps` do Python escreveria `1e-07`. Corpo sem campo listado não é tocado. Campo com o mesmo nome dentro de objeto aninhado ou de texto continua conferido.
+  - **Para registrar um campo novo:** uma entrada na lista, com a issue e o teste. Campo fora da lista quebra a conferência, de propósito. O teste do mecanismo falha se a entrada citar um teste que não existe ou que não menciona o campo.
+  - **Fora do mecanismo:** campo novo dentro de objeto aninhado (como `metadados`) e linha de log nova; cada um fica para quando o primeiro caso aparecer. O de log já tem caso à vista: o `reqId` nas linhas do Verde e da IA (issue da instrumentação).
+- **Mecanismo definido em 2026-10-23 (#321): caso aposentado, para mudança de valor numa resposta gravada.**
+  - **Onde:** `tests/api/casos_aposentados.py` lista, por conferência (`contrato`, `pr1`, `pr2`), os casos que saíram da comparação, cada um com a issue, o motivo e o teste escrito que cobre o comportamento novo. A lista começa vazia.
+  - **Como funciona:**
+    - cada conferência devolve as falhas por caso, e a lista é aplicada depois;
+    - o caso aposentado **continua sendo enviado**, porque os seguintes dependem do estado que ele deixa;
+    - **caso aposentado que volta a bater com a gravação falha a conferência**, para a entrada não ficar esquecida;
+    - `tests/api/test_casos_aposentados.py` confere o registro: conferência, caso e teste citados precisam existir, e o teste precisa citar o caso ou a issue.
+  - **O primeiro uso previsto é um fluxo novo.** Um teste registra um fluxo de brinquedo só durante a execução (`tests/api/fluxo_de_brinquedo.py`) e mede os casos que ele muda: 6, todos `GET /fluxos` respondido com 200 (1 no `contrato`, 4 no `pr1` e 1 no `pr2`). A lista está no `docs/novo-fluxo.md`. Se ela mudar, o teste do brinquedo falha.
+  - **Verificado por mutação:** sem pular a comparação dos aposentados, 6 testes falham; sem a checagem do caso que voltou a bater, 1 falha.
+  - Regra reafirmada na abertura da janela das correções (seção "Janela das correções"): **resposta gravada não se edita**.
+- **Decisão de 2026-11-03 (#324): as conferências rodam com o ambiente da produção, e os 6 casos da #329 saíram da lista de aposentados.**
+  - **O que aconteceu:** a #329 aposentou os 6 casos de `GET /fluxos` quando o fluxo do plano de saúde entrou na lista. Com ele em teste (`em_teste=True`), desligado na produção, `GET /fluxos` da produção volta a ter os 2 fluxos das gravações, e os 6 casos voltaram a bater. O mecanismo da #321 falhou, como devia, e pediu para tirar as entradas.
+  - **A escolha:** as três conferências fixam `MARIA_AMBIENTE` no valor da produção (`AMBIENTE_DAS_CONFERENCIAS = "producao"`, em `tests/api/casos_aposentados.py`), e um teste exige que esse valor seja o mesmo do `infra/terraform/ecs.tf`. As gravações são o contrato com a Tykhe, e esse contrato vale na produção. Os casos deixam de ser aposentados, e a lista fica vazia nas três conferências.
+  - **O release** (com o fluxo em teste ligado) é coberto por testes escritos, e não pelas gravações: `tests/api/test_fluxo_em_teste.py` e `tests/api/test_app.py`. O teste do fluxo de brinquedo continua medindo o que um fluxo novo muda nas conferências.
+  - **Alternativa descartada:** rodar as conferências nos dois ambientes, com os 6 casos aposentados só no release. Dobraria o tempo das três conferências (656 casos) para conferir o que o teste do brinquedo já mede.
+  - **Quando o fluxo sair do teste** (PR que tira o `em_teste=True`), os 6 casos são aposentados de novo, nesse PR, com registro. Nenhuma gravação foi editada.
 
 ## Divergências aceitas
 
@@ -638,6 +843,37 @@ Leva a `migration` para `develop`. O PR #267 (`migration` → `develop`) foi abe
   4. **A chave de API não foi trocada.** O roteiro usou a chave atual, e a troca segue pendente.
 - **Atendimentos de teste no release:** o roteiro deixou 4 atendimentos gravados, nos `chatId` **`conf-b2810080-c1`, `conf-b2810080-c2`, `conf-b2810080-c3` e `conf-b2810080-c4`**, com os relatos inventados do roteiro e nenhum dado real. Eles ficam na tabela `atendimentos` e no `checkpoint_py` do release, e **entram nas contagens do painel do Grafana**. Quem olhar o painel precisa saber disso. Para tirá-los de uma consulta: `WHERE chat_id NOT LIKE 'conf-b2810080-%'`.
 - **Pendências:** o token do Verde no segredo do release continua vencido. A primeira consulta de pessoa presa ou de violência doméstica vai falhar até o Ícaro gravar o token válido e fazer o deploy. Também falta trocar a chave de API.
+- **Corrigido em 2026-10-26: o token do release ficou vencido 19 dias sem ninguém notar** (de 04/10, 11:57, a 23/10, ~10:40), porque ninguém usa o release: a equipe testa na `main`. Desde 23/10, o token gravado está válido até 23/11, às 10:34 (*executado*: verificação diária de 26/10, execução `40374463138`, "token saudável, expira em 27,8 dias"), e a renovação automática cobre o release. **A prioridade muda:** manter o token do release deixa de ser urgente e vira **pré-requisito de quando alguém for testar lá**: antes de usar o release, conferir a validade na verificação diária do dia.
+
+**Produção em Python: `main` recebeu `develop` em 2026-10-23, e o serviço `api` estabilizou às 12:33 (Brasília).** É a última etapa da troca de versão.
+- **O merge:**
+  - release #310 (`develop` → `main`), aberto pelo Ícaro;
+  - aprovado pela Nicole, depois da mudança na proteção de `main` (#214, seção "Branches, ambientes e proteção");
+  - merge do Ícaro às 12:28:42, com merge commit (**`15fd757`**). O `main` anterior, ainda TypeScript, é o `06f2157`, de 2026-10-01.
+- **O deploy:** `deploy-prod.yml`, run `39978612911`.
+  - Os testes passaram, a imagem `latest` foi publicada, o serviço foi forçado a trocar e estabilizou. A tag `v1.1.0` foi criada às 12:33.
+  - O primeiro container Python subiu às 12:30:33, e o que ficou no ar subiu às 12:31:01.
+  - A última requisição do container TypeScript, que rodava desde 2026-10-20, foi às 12:31:55.
+  - A métrica de deploys do ECS voltou a 1 às 12:33.
+- **O incidente de 22 e 23/10 fechou com a troca:** o primeiro sucesso do Verde veio às 12:34:25, depois de cerca de 23 horas de recusas do token (#308). A troca resolveu o sintoma, e não a causa, que é a #316: a renovação automática do token não confere se o container novo subiu.
+- **As primeiras duas horas** (12:30 a 14:45, só contagens do CloudWatch):
+  - **o Verde:** 49 consultas, 43 com sucesso e 6 "não encontrado" (400, 404, 422). **Nenhuma recusa de token nem erro 5xx.** As 4 recusas registradas às 12:30 são do container TypeScript, antes da troca;
+  - **os atendimentos:** 30 iniciados e 21 encerrados, com os desfechos na proporção de antes do incidente;
+  - **a API:** nenhuma resposta 5xx.
+- **Conversas cortadas pela troca:** 4. Elas receberam o tratamento da #270 (`atendimento_sem_checkpoint`, 409 `expirado`, com texto próprio) entre 12:31 e 13:40.
+- **O que a troca não teve, do que este documento previa:** a linha de base do roteiro de 4 casos pela Tykhe, na versão TypeScript (seção "A janela", item 4). Ela nunca foi feita, nem no release nem em produção. A comparação disponível é a da API local nas duas versões e a das fixtures de contrato.
+- **A premissa "nenhum ambiente atende cidadão"** (seção "A janela", registrada em 2026-10-22) **foi questionada em 2026-10-23.** Os padrões de uso do `api` nos logs parecem de uso real:
+  - curva de horário comercial;
+  - conversas curtas;
+  - cerca de 2.500 conversas distintas em 30 dias.
+
+  A pergunta está com o Ícaro e a Tykhe. Até a resposta, as conversas cortadas e o incidente devem ser lidos como possivelmente de pessoas reais.
+- **O que continua aberto na #268:**
+  - a troca da chave de API;
+  - a decisão em aberto 1 (major do Postgres de produção);
+  - o teste da equipe pelos fluxos inteiros;
+  - o critério da linha de base.
+- **Rollback:** reverter o merge `15fd757` em `main` volta a imagem para a versão TypeScript. O que acontece com o histórico está em "O histórico num rollback".
 
 **O que entrou em develop desde a base (`4e695f2`), e onde está na `migration`:** #226 (`2403bab`, módulo fluxos), #229 (`814395b`), #234 (`respostas.py`, PR #250) e #242 (PRs #245, #247 e #250), todos já na `migration`. O #254 (Dependabot) não se aplica, porque mudou só o `pnpm-lock.yaml`. A única mudança de develop que faltava, o painel `observabilidade.json` do #242, entra pelo merge, e os 3 eventos que ele filtra existem no código Python.
 
@@ -711,6 +947,8 @@ O fluxo "Orquestrador" da Tykhe chama `https://d2urkrsd5u4rck.cloudfront.net`. *
 > - **A janela do deploy:** a janela anunciada protege quem está testando. Um deploy fora dela interrompe um teste, e não um atendimento.
 > - **As conversas perdidas na troca** (item 3 abaixo e decisão em aberto 3): quem recomeça a conversa é alguém da equipe, e não uma pessoa no meio de um relato de violência ou da busca por um familiar preso.
 > - **O token do Verde vencido no release** (decisão em aberto 4): bloqueia o teste dos fluxos na primeira consulta ao Verde, mas não deixa ninguém sem atendimento. Continua sendo pré-requisito do teste.
+>
+> **Corrigido em 2026-10-26:** a equipe testa na `main`, e não no release. A premissa de que a produção só recebia teste continua contestada (#208), e os atendimentos de teste estão misturados aos reais na produção. O token do release foi regravado em 23/10 e vale até 23/11; ver "Pendências", na seção do roteiro.
 >
 > **Quando algum dos ambientes passar a atender cidadão, as três voltam ao peso original.** O texto abaixo foi escrito antes desta informação e fica como estava.
 >
@@ -818,15 +1056,115 @@ Duas coisas diferentes:
 
 ## Branches, ambientes e proteção (decidido em 2026-10-22)
 
+> **Revisto em 2026-11-06 (#427, decisão da Nicole):** três branches no estilo do GitLab Flow. `develop` é o dev (só CI, sem deploy), `staging` é o QA (alimenta o release) e `main` é a produção, que não muda. O CI recusa PR para `staging` que não venha da `develop` e PR para `main` que não venha da `staging`. Dev sem servidor próprio, sem custo novo na AWS. Para ligar, nesta ordem: o Ícaro aplica só a confiança OIDC com `refs/heads/staging` (com o #411 já mergeado ou com `-target`, para não levar à produção as mudanças pendentes do `ecs.tf`); cria-se a `staging` com ruleset; o PR da #427 entra na `develop`; a 1ª promoção `develop` → `staging` passa a alimentar o release. O texto abaixo fica como registro.
+>
+> **Apply único (decisão da Nicole, 2026-11-06):** o Ícaro faz um só apply, limitado por `-target` a três itens: a variável do release (#386), a autorização da `staging` (#427) e o reinício do release com a chave de API nova (#349). Nada além disso entra, por causa do #411. Depois do apply, ele configura a Tykhe uma vez só, com a chave nova, que vai só para a Nicole, por canal privado.
+>
+> **Proteção leve (decisão da Nicole, 2026-11-06), porque a equipe é pequena:** substitui as regras de 2026-10-22 descritas abaixo.
+> - `main` e `staging`: só por PR, CI verde obrigatório (`test` e `imagem`), sem force push e sem apagar a branch, sem exigir revisão aprovada, só merge commit (confirmado pela Nicole no mesmo dia, para a promoção seguinte não entrar em conflito).
+> - `develop`: CI obrigatório, sem force push e sem apagar a branch (confirmado pela Nicole no mesmo dia).
+> - Nada além disso. Saem a aprovação e a exigência de branch atualizada em `main`.
+> - **Aplicado em 2026-11-06,** antes do apply, com a autorização da Nicole (o Ícaro não estava no computador): `staging` criada a partir da `develop` @ c42ffd7; rulesets 25667365 (`develop`), 25667366 (`main`) e 26723840 (`staging`, novo), conferidos lendo de volta. O apply da autorização na AWS não dá para fazer com o usuário da Nicole (o estado do Terraform responde 403), e o PR da #427 espera por ele.
+
 - **Decisão da Nicole: os nomes ficam como estão até depois do corte.** `develop` faz o papel de staging e alimenta o ambiente `release`, e `main` é a produção. Documentado no `CONTRIBUTING.md` e no `README.md`. **Motivo:** a equipe está testando, e o corte não aconteceu. Renomear branch ou ambiente agora confundiria qualquer problema que aparecesse. Uma branch de integração separada (`develop` → `staging` → `main`) e a troca de nomes ficam para depois do corte, junto com o ambiente novo da #286, onde estão os custos de cada caminho.
 - **Proteção aplicada em 2026-10-22 (#214), por rulesets** (25667365 em `develop`, 25667366 em `main`), sem ninguém na lista de quem contorna:
   - nas duas branches: PR obrigatório, checks `test` e `imagem` (do GitHub Actions), e force push e exclusão bloqueados;
-  - em `main`: branch atualizada antes do merge, 1 aprovação de quem não fez o último push, e só merge commit;
+  - em `main`: branch atualizada antes do merge, 1 aprovação e só merge commit. **Corrigido em 2026-10-23:** a aprovação era "de quem não fez o último push" (`require_last_push_approval`). Com duas pessoas no time, essa exigência travou o release #310: a Nicole tinha feito o último merge em `develop`, e o Ícaro abriu o PR, então nenhum dos dois podia aprovar. A exigência saiu do ruleset (pela API, a pedido da Nicole), e a aprovação continua obrigatória. Na mesma mudança saiu o descarte da aprovação a cada push novo (`dismiss_stale_reviews_on_push`). Como o PR de release tem `develop` como origem, cada merge em `develop` descartava a aprovação do release aberto. **Consequência:** uma aprovação dada a um release continua valendo se algo entrar em `develop` depois dela, então o que entrar depois chega a `main` sem nova revisão. No release #310, os merges em `develop` esperam por ele (decidido em 2026-10-23); se isso vira regra para todo release, ainda não foi decidido. As duas regras estão certas em princípio e voltam à mesa quando o time crescer. O caso está registrado na #214;
   - em `develop`: sem aprovação, sem exigir branch atualizada, e **squash ou merge commit**.
 - **A diferença em relação à proposta, e por quê:** a proposta era só squash em `develop`. As sessões do Claude do Ícaro reaproveitam a mesma branch em PR após PR (`claude/project-thread-u8h56h`: #276, #284, #289, #291 e #295), o que só funciona com merge commit. Com squash obrigatório, o PR seguinte dessa branch traria de novo commits já mergeados e entraria em conflito. O squash obrigatório volta à mesa quando cada PR tiver a própria branch.
-- **Ajustes no repositório:** o título do commit de squash passou a ser o título do PR (com `COMMIT_OR_PR_TITLE`, o squash do #287 saiu com o título da primeira versão, `7af101d`), e o rebase merge foi desligado. A exclusão automática da branch depois do merge **continua desligada**, para não apagar a branch reaproveitada do Ícaro a cada merge. **Os dois avisos (merge commit em `develop` e exclusão automática desligada) estão também no `CONTRIBUTING.md` e no nome do ruleset de `develop`, que é onde alguém olharia antes de "corrigir".**
+- **Ajustes no repositório:** o título do commit de squash passou a ser o título do PR (com `COMMIT_OR_PR_TITLE`, o squash do #287 saiu com o título da primeira versão, `7af101d`), e o rebase merge foi desligado. A exclusão automática da branch depois do merge **continua desligada**, para não apagar a branch reaproveitada do Ícaro a cada merge. **Corrigido em 2026-10-23: a exclusão automática foi religada** (Nicole). O Ícaro apagou a branch reaproveitada depois do #315, e o motivo sumiu; se uma sessão recriar a branch com o mesmo nome, nada quebra, porque `develop` aceita merge commit. O bloqueio de exclusão por ruleset para `claude/*` não foi feito: não está confirmado que a exclusão automática o respeita, e sem ele o risco é baixo. O aviso do merge commit continua. **Os dois avisos (merge commit em `develop` e exclusão automática desligada) estão também no `CONTRIBUTING.md` e no nome do ruleset de `develop`, que é onde alguém olharia antes de "corrigir".**
 - **Verificação:** as regras efetivas foram lidas pela API (`GET /repos/…/rules/branches/{develop,main}`), e os PRs abertos (#295 e #301) continuaram mergeáveis. O endpoint antigo de proteção (`/branches/{branch}/protection`) não mostra rulesets e continua respondendo "not protected". **Não foi feito** um push de teste em `develop`: se a regra falhasse, o push dispararia um deploy no release no meio do teste da equipe.
 
+## PR só com mudança de código (decidido em 2026-10-27)
+
+- **Decisão da Nicole:** não se abre pull request só para mudança de texto. A regra vale para as issues abertas e para as que vierem. Registro na [#208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6448782819); a regra é escopo da #357.
+- **O que ganha PR:** mudança de código de fato: `src/`, `tests/`, `scripts/`, `infra/`, `.github/`, `Dockerfile`, `pyproject.toml`, `uv.lock` ou configuração que muda o que roda.
+- **O que não ganha PR próprio:** documentação (inclusive `docs/migracao/`), `README.md`, `CONTRIBUTING.md`, este `MIGRACAO.md`, `CLAUDE.md`, `.claude/` (skills) e comentário ou docstring sem mudança de lógica.
+  - O texto vai junto no próximo PR com código, num commit próprio `:books: docs:`.
+  - Até lá, o registro fica na issue e no comentário da #208.
+  - Issue só de texto não ganha branch nem PR. Ela fecha com o `Closes #N` do PR de código.
+- **Mensagem que o assistido vê, em `src/`, conta como código:** muda o comportamento e segue as regras da janela das correções.
+- **Exceção:** só com decisão registrada na #208.
+- **Por quê:** das 30 últimas execuções do CI em PR (#199 a #228), 19 eram de PR com título `:books: docs:` (levantamento da #357). Cada PR a mais é mais uma rodada de CI, revisão e merge, e repete o problema de "muita branch" de 2026-10-23.
+- **Efeito na #357:** a parte de CI (filtro para PR só de `.md`) ficou em espera, para o Ícaro decidir se ainda vale como rede de segurança para as exceções.
+- **Onde está escrita:** `docs/padroes-pull-request.md` ("Quando abrir PR"), `docs/padroes-issues.md`, as skills `padroes-pull-request` e `padroes-issues` e o `CLAUDE.md`. Entrou junto com a #353 (corte de 15 candidatos no orquestrador), o primeiro PR com código depois da decisão.
+- **Sem issue, com `chore:` (decisão da Nicole, 2026-11-05):** mudança só de tipagem, lint ou formatação, sem mudar comportamento, pode ir sem issue, com o título do PR começando por `chore:`. Os testes continuam obrigatórios. O primeiro caso foi o aviso do Pylance no 409 de `chatId` de outro fluxo (branch `fix/pylance-registro-409`). Alinhar o editor e o CI na checagem de tipos é a #412. Registro no `CLAUDE.md`.
+
+## Plano de saúde: escolha direta e e-mail do assistido (decidido em 2026-11-05 e 2026-11-06)
+
+- **Escolha direta (#419, decisão do Ícaro, 2026-11-05):** quando os candidatos são só o plano de saúde e `tykhe:saude`, o orquestrador entra direto no fluxo do plano, sem pergunta. Só no release. Risco aceito: cirurgia pelo SUS que a IA deixar ambígua entra no fluxo do plano. Revisada pela Nicole em 2026-11-06.
+- **E-mail com erro no canal e-mail (#425, decisão da Nicole, 2026-11-06):** conferência do formato e dos erros comuns, sem internet; 3 tentativas; motivo `email_invalido`. **Fica para o futuro:** o Ícaro informou que a Tykhe já cuida do e-mail por enquanto, e a issue foi fechada como não planejada no mesmo dia. A implementação está numa branch local. Com a #430 (PR #432), a pergunta do canal saiu do fluxo e tudo no Rio segue por e-mail ao NUDECON. Se a #425 voltar, a pergunta do e-mail precisa de outro ponto de entrada.
+- **Troca de e-mail e telefone gravada no Verde (#426, decisão da Nicole, 2026-11-06):** só com o CPF vindo da Tykhe; recusa ou falha do Verde vai para o atendimento humano; vale para violência doméstica, pessoa presa (o familiar troca o próprio contato) e plano de saúde.
+- **Registro:** [#208](https://github.com/dgd-dprj/maria-langgraph-pp/issues/208#issuecomment-6687566660).
+
+## Multi-fluxo, fase 1a: vários assuntos, um fluxo por vez (decidido em 2026-11-06, #435)
+
+- **Decisão da Nicole (06/11):** homologar primeiro a versão menor da fase 1 da #279, depois de testar o protótipo no terminal com relatos informais e com erros de digitação. Duas escolhas, feitas por ela entre as opções:
+  - **escopo:** vários assuntos no relato, **um fluxo por vez**, sem mudar o banco. A fila completa na mesma conversa (que muda a chave da tabela `atendimentos` e do checkpoint) fica para depois;
+  - **ordem:** a Maria pergunta **"Pode ser assim?"**, como no protótipo.
+- **O que entrou (só no release; a produção não muda, conferido por teste):**
+  - a classificação por necessidades (`ia/classificar_necessidades.py`), com o prompt da fase 0;
+  - a fila (`orquestrador/fila.py`): a ordem de 28 e 29/10, os nomes simples e a leitura da resposta;
+  - três nós no grafo do orquestrador (`perguntarOrdem`, `perguntarPrimeiro`, `comecarFila`);
+  - o campo `assuntosPendentes`, que é só acréscimo no contrato (`docs/contrato-tykhe.md`).
+- **Diferenças em relação ao protótipo:**
+  - os textos não prometem "tudo aqui mesmo", porque o próximo assunto depende da Tykhe;
+  - o fluxo aberto recebe só o trecho do relato sobre o assunto dele (achado do teste de 06/11: a "Situação" do e-mail ao NUDECON levava junto a pessoa presa).
+- **Dois ajustes no prompt da fase 0, depois do teste com a IA de verdade (06/11):**
+  - os jeitos populares de dizer que alguém foi preso ("rodou", "tá na cana", "foi pra Bangu"): sem eles, "meu filho rodou ontem" ia para "outros";
+  - a cirurgia sem dizer se é pelo plano ou pelo SUS volta a ser dúvida entre as duas opções. Assim a escolha direta da #419 continua levando ao plano; sem isso, "minha mãe precisa operar o joelho" ia para a Tykhe.
+- **Teste com a IA de verdade (06/11, custo aprovado de até US$ 0,17, gasto de cerca de US$ 0,167):**
+  - **rodada completa** com o prompt de antes dos ajustes: 32 casos, 28 passaram;
+  - **4 falhas:** 2 foram corrigidas pelos ajustes acima, 1 era expectativa errada (prótese sem cirurgia é da Tykhe, pelo escopo da #386) e 1 é o risco já aceito na #419 (internação negada pelo convênio indo para o plano);
+  - **com o prompt final, foram conferidos 8 casos.**
+- **Rodada completa com o prompt final (06/11, aprovada até US$ 0,18, gasto de cerca de US$ 0,136):** 30 de 32 casos passaram, inclusive os 22 da #386. Os dois de fronteira tiveram a expectativa ajustada:
+  - "meu marido ta na cana e o convenio cortou o tratamento" contou só a saúde: a pessoa não pede nada sobre o preso, e pela regra de 28/10 a prisão é contexto;
+  - "a amil n quer pagar a protese" foi uma vez para a Tykhe e uma vez para o plano: a prótese pode ser de cirurgia, e os dois destinos valem.
+- **Custo por relato no release:** cerca de 3.330 a 3.440 tokens de entrada na classificação, contra cerca de 2.040 da classificação de antes (medido com `count_tokens`).
+- **A combinar com o Ícaro e a Tykhe:**
+  - os botões na pergunta da ordem;
+  - o uso de `assuntosPendentes` para seguir com o próximo assunto.
+
+## O relato diz quem é quem: parentesco, para quem é e quem é a vítima (decidido em 2026-11-06, #438)
+
+- **Achado do teste pela Tykhe (06/11):** quem escrevia "Meu primo foi preso e quero saber quando sai" recebia depois "Qual seu parentesco com a pessoa presa?". O relato servia só para o orquestrador escolher o fluxo. Os fluxos não o recebem, salvo o do plano de saúde, e a leitura do relato dentro do fluxo (`EXTRACAO_LIVRE_IA`) está desligada.
+- **Decisões da Nicole:**
+  - pelas palavras, sem IA (entre três opções: palavras, IA, ou palavras e depois IA);
+  - "meu filho foi preso" é sobre o filho: a Maria pergunta só se a pessoa é a mãe ou o pai;
+  - "meu avô" entra: o parentesco "Neto(a)" foi acrescentado à lista do fluxo;
+  - com dois parentes no relato, a Maria reconhece qual está preso;
+  - vale para todos os fluxos, principalmente pessoa presa.
+- **Como ficou:**
+  - `shared/parentesco.py` lê o relato (ou, com vários assuntos, o trecho do assunto, #435), e o orquestrador entrega aos fluxos o que ele diz;
+  - nunca troca o que a Tykhe já mandou em `dadosConhecidos`;
+  - na dúvida, o fluxo pergunta como antes.
+- **Pessoa presa:**
+  - o parentesco pronto: "meu tio" é Sobrinho(a); "meu avô", Neto(a); "sou a mãe dele", Mãe;
+  - ou uma pergunta curta (`perguntaParentesco` e `opcoesParentesco`): "Você é a mãe ou o pai dele?" ou, com dois presos, "Sobre qual deles é este atendimento?";
+  - quando a resposta escolhe o filho, o fluxo volta e pergunta se é a mãe ou o pai, que é a aresta nova `pedirParentesco` → `prepararPerguntaParentesco`;
+  - com dois parentes, conta o último citado antes da palavra de prisão ("minha mãe disse que meu primo foi preso" é o primo), os da enumeração com o plural ("meu primo e meu irmão foram presos") e o parente depois de "prenderam" ou "levaram".
+- **Plano de saúde:**
+  - "o plano da minha mãe" pula "O atendimento é para você?" com Não, e a Maria segue para o CPF da outra pessoa;
+  - "meu plano negou minha cirurgia" ou "preciso de uma cirurgia" pulam com Sim.
+- **Violência doméstica:**
+  - só o Sim vem do relato ("ele me bate", "fui agredida");
+  - o Não encerra o atendimento, então, quando a vítima parece ser outra pessoa, a Maria pergunta.
+- **Um campo próprio marca o que veio do relato:** `vitimaPeloRelato` e `paraSiPeloRelato`. Achado da conferência com develop: um `ehVitima` mandado pela Tykhe em `dadosConhecidos` continua sem pular a pergunta, como em develop. Os campos não vão para os metadados.
+- **Sem log novo:** os logs gravados de develop (fixtures de contrato) continuam iguais. O efeito aparece nas perguntas que o fluxo deixa de fazer.
+- **Testes:**
+  - 67 casos da leitura;
+  - 12 pela API, nos três fluxos;
+  - ajustados: a topologia da pessoa presa (aresta nova), o H4 do plano ("preciso de uma cirurgia" vai direto para as fotos), o teste da ponte do WhatsApp e o do multi-fluxo, que usavam relatos que agora preenchem a resposta.
+
+## Guardar o que a pessoa já disse e reaproveitar (decidido em 2026-11-06, #442)
+
+- **Pedido da Nicole (06/11):** o que a pessoa diz num assunto, por exemplo que é tio do preso, fica guardado, e a Maria não pergunta de novo nos próximos.
+- **Como ficou (só acréscimo no contrato):**
+  - cada item de um fluxo da Maria em `assuntosPendentes` traz `dadosConhecidos` com o que o trecho daquele assunto já diz, pela leitura da #438 (`fila.dados_do_relato`, a mesma função da rota);
+  - na resposta final do 1º assunto, entra também o CPF informado nele;
+  - a Tykhe repassa o objeto ao abrir o próximo assunto (`POST /atendimentos` com o `flowId` do item), e o fluxo pula o que já sabe;
+  - nunca vai o texto do relato.
+- **Achado durante a implementação:** a resposta à pergunta da ordem (e à desambiguação, também na produção) volta só com `{ chatId, resposta }`, e o fluxo aberto depois começava sem os `dadosConhecidos` da 1ª chamada (CPF, endereço). Agora o orquestrador guarda esses dados no estado dele (`dadosConhecidos`, só no checkpoint, nunca em log) e os usa ao abrir o fluxo; o que a Tykhe mandar de novo vale por cima. A conferência com as respostas e os logs gravados de develop continua igual.
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.

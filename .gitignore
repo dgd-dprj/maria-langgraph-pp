@@ -9,6 +9,7 @@ build/
 *.egg-info/
 .env
 *.log
+.env.rag
 
 # LangGraph API
 .langgraph_api
@@ -16,6 +17,11 @@ build/
 # Terraform
 infra/terraform/.terraform/
 infra/terraform/*.tfplan
+infra/terraform-sp/.terraform/
+infra/terraform-sp/*.tfplan
 
 # Grafo local do graphify (ferramenta de navegação; gerado, não versionado)
 graphify-out/
+
+# Catálogo copiado do release (#361): nunca versionar
+docker/catalogo/*.sql

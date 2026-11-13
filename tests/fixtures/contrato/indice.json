@@ -348,5 +348,61 @@
     "caminho": "/atendimentos/orquestrador",
     "status": 400,
     "descricao": "Fora de NODE_ENV=test, orquestrador sem chatId → 400"
+  },
+  {
+    "nome": "erro-auth-sem-header-criar-atendimento-401",
+    "metodo": "POST",
+    "caminho": "/atendimentos",
+    "status": 401,
+    "descricao": "POST /atendimentos sem Authorization"
+  },
+  {
+    "nome": "erro-auth-sem-header-respostas-401",
+    "metodo": "POST",
+    "caminho": "/atendimentos/respostas",
+    "status": 401,
+    "descricao": "POST /atendimentos/respostas sem Authorization"
+  },
+  {
+    "nome": "erro-auth-sem-header-get-atendimento-401",
+    "metodo": "GET",
+    "caminho": "/atendimentos/cap-401-1",
+    "status": 401,
+    "descricao": "GET /atendimentos/:chatId sem Authorization"
+  },
+  {
+    "nome": "erro-auth-sem-header-orquestrador-401",
+    "metodo": "POST",
+    "caminho": "/atendimentos/orquestrador",
+    "status": 401,
+    "descricao": "POST /atendimentos/orquestrador sem Authorization"
+  },
+  {
+    "nome": "erro-nao-tratado-webhook-challenge-repetido-500",
+    "metodo": "GET",
+    "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=token-verificacao-captura&hub.challenge=a&hub.challenge=b",
+    "status": 500,
+    "descricao": "Verificação do webhook com hub.challenge repetido: o challenge vira array e o send de text/plain recusa (FST_ERR_REP_INVALID_PAYLOAD_TYPE)"
+  },
+  {
+    "nome": "erro-nao-tratado-webhook-head-challenge-repetido-500",
+    "metodo": "HEAD",
+    "caminho": "/webhook/whatsapp?hub.mode=subscribe&hub.verify_token=token-verificacao-captura&hub.challenge=a&hub.challenge=b",
+    "status": 500,
+    "descricao": "HEAD da verificação com hub.challenge repetido: o mesmo 500, sem corpo"
+  },
+  {
+    "nome": "erro-nao-tratado-webhook-mensagem-null-500",
+    "metodo": "POST",
+    "caminho": "/webhook/whatsapp",
+    "status": 500,
+    "descricao": "Webhook com messages: [null]: extrairMensagemWhatsapp lê .type de null"
+  },
+  {
+    "nome": "erro-nao-tratado-webhook-texto-numero-500",
+    "metodo": "POST",
+    "caminho": "/webhook/whatsapp",
+    "status": 500,
+    "descricao": "Webhook com text.body numérico: mensagem.texto.trim não é função"
   }
 ]

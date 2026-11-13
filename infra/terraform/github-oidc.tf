@@ -40,8 +40,11 @@ data "aws_iam_policy_document" "github_actions_assume" {
       # icaroeduardo-lab (id 276099947) pra org dgd-dprj (id 337067883);
       # repo@1347683221 é o mesmo de sempre, confirmado via
       # `gh api repos/dgd-dprj/maria-langgraph-pp --jq .id` depois do transfer.
+      # #427: staging faz o deploy do release (QA). develop continua aqui porque o
+      # terraform-drift.yml roda nela.
       values = [
         "repo:dgd-dprj@337067883/maria-langgraph-pp@1347683221:ref:refs/heads/main",
+        "repo:dgd-dprj@337067883/maria-langgraph-pp@1347683221:ref:refs/heads/staging",
         "repo:dgd-dprj@337067883/maria-langgraph-pp@1347683221:ref:refs/heads/develop",
       ]
     }
@@ -108,6 +111,13 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
 # statement, terraform-drift.yml falha com AccessDenied nos 2 secrets
 # do Grafana (achado ao vivo 2026-09-21). Continua restrito aos 4
 # secrets deste projeto, nunca um wildcard pra conta toda.
+#
+# Issue #380 — o Grafana saiu: os 2 secrets dele deixaram a lista, que voltou a
+# ter só os 2 secrets de app.
+#
+# Issue #405 — os 2 secrets `email-nudecon` (release e produção) entram na lista: o
+# `terraform plan` do terraform-drift.yml lê as versões deles no refresh e falhava com
+# AccessDenied (achado ao vivo 2026-11-04, depois do merge do PR #408).
 data "aws_iam_policy_document" "github_actions_read_app_secrets" {
   statement {
     sid     = "ReadAppSecretsForTokenCheckAndTerraformRefresh"
@@ -115,8 +125,8 @@ data "aws_iam_policy_document" "github_actions_read_app_secrets" {
     resources = [
       aws_secretsmanager_secret.app.arn,
       aws_secretsmanager_secret.app_release.arn,
-      aws_secretsmanager_secret.grafana.arn,
-      aws_secretsmanager_secret.grafana_postgres_readonly.arn,
+      aws_secretsmanager_secret.email_nudecon.arn,
+      aws_secretsmanager_secret.email_nudecon_release.arn,
     ]
   }
 }

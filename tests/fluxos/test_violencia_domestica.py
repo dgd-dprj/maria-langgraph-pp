@@ -361,3 +361,31 @@ async def test_cpf_pre_preenchido_nao_pergunta_cpf_de_novo() -> None:
     r = await f.responder("false")
     assert pergunta(r) is None, "cpf já veio pronto: nem pergunta, nem confirmação"
     assert r["tipoEncaminhamento"] == "padrao"
+
+
+# ---- #236: CPF vindo da Tykhe, pelo orquestrador ---------------------------------
+# Fora da tradução de develop: decisão de 03/11, na janela das correções (#208).
+
+
+async def test_cpf_da_tykhe_via_orquestrador_conclui_sem_confirmacao_issue_236() -> None:
+    f = _fluxo()
+    await f.iniciar({"cpf": "11111111111", "viaOrquestrador": True})
+    await f.responder("true", "false")
+    r = await f.responder("true")
+    assert pergunta(r) is None, "o CPF veio da Tykhe: sem a pergunta com o nome do titular"
+    assert r["statusFinal"] == "concluido"
+    assert r["tipoEncaminhamento"] == "urgente"
+    assert r.get("confirmaAssistido") is None
+
+
+async def test_cpf_da_tykhe_nao_encontrado_cpf_digitado_continua_com_confirmacao_issue_236() -> None:
+    f = _fluxo()
+    await f.iniciar({"cpf": "00000000000", "viaOrquestrador": True})
+    await f.responder("true", "false")
+    t1 = await f.responder("true")
+    assert re.search("tentativa 1 de 3", texto(t1))
+    r_confirma = await f.responder("11111111111")
+    assert re.search("Confirma que seus dados são", texto(r_confirma)), "CPF digitado na conversa: confirmação como antes"
+    r = await f.responder("não")
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "assistido_nao_confirmado"

@@ -7,14 +7,17 @@ api e, no PR 2, o de `viaOrquestrador` (#189/#191), que responde pelo
 `POST /atendimentos/respostas`, e as conferências por `GET /atendimentos/:chatId`.
 """
 
+import re
 import uuid
 from collections.abc import AsyncIterator
 from itertools import count
+from typing import Any
 
 import httpx
 import pytest
 
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, catalogo_para_classificacao
+from maria.api.pipeline import Resposta
+from maria.fluxos import ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE, ID_VIOLENCIA_DOMESTICA, catalogo_para_classificacao
 from maria.fluxos.tipos_tykhe import TIPOS_TYKHE, TipoTykhe
 from maria.shared.fluxos_planejados_db import FluxoPlanejado, adicionar_planejado_de_teste, remover_planejado_de_teste
 from maria.shared.perguntas_db import PerguntaArvore, obter_perguntas_store
@@ -87,16 +90,20 @@ async def test_duas_categorias_planejadas_nao_misturam_estado(
     await adicionar_planejado_de_teste(b)
     monkeypatch.setenv("ORQUESTRADOR_INCLUIR_PLANEJADOS", "true")
     try:
+        chat_a = novo_chat_id()
+        chat_b = novo_chat_id()
         monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", a["id"])
-        res_a = await cliente.post(BASE, json={"chatId": novo_chat_id(), "mensagem": "relato A"}, headers=auth)
+        res_a = await cliente.post(BASE, json={"chatId": chat_a, "mensagem": "relato A"}, headers=auth)
         monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", b["id"])
-        res_b = await cliente.post(BASE, json={"chatId": novo_chat_id(), "mensagem": "relato B"}, headers=auth)
+        res_b = await cliente.post(BASE, json={"chatId": chat_b, "mensagem": "relato B"}, headers=auth)
         assert res_a.json()["flowId"] == a["id"]
         assert res_b.json()["flowId"] == b["id"]
         assert res_a.json()["status"] == "concluido"
         assert res_b.json()["status"] == "concluido"
-        get_a = await cliente.get(f"/atendimentos/{res_a.json()['_links']['self']['href'].rsplit('/', 1)[1]}", headers=auth)
-        get_b = await cliente.get(f"/atendimentos/{res_b.json()['_links']['self']['href'].rsplit('/', 1)[1]}", headers=auth)
+        # Como develop: o GET usa o chatId enviado, o que prova também que o
+        # atendimento ficou gravado nele.
+        get_a = await cliente.get(f"/atendimentos/{chat_a}", headers=auth)
+        get_b = await cliente.get(f"/atendimentos/{chat_b}", headers=auth)
         assert get_a.json()["flowId"] == a["id"], "o GET do chatId A não vaza o flowId de B"
         assert get_b.json()["flowId"] == b["id"], "o GET do chatId B não vaza o flowId de A"
     finally:
@@ -181,7 +188,12 @@ async def test_desambiguacao_com_pergunta_raiz(
         await store.inserir_pergunta(_pergunta_raiz(ID_VIOLENCIA_DOMESTICA, texto_vd))
     try:
         r = await cliente.post(BASE, json={"chatId": novo_chat_id(), "mensagem": "relato ambíguo"}, headers=auth)
-        assert esperado.lower() in r.json()["resposta"].lower()
+        if texto_vd == texto_pp:
+            # Develop: `assert.equal(resposta, "JÁ TEM PROCESSO JUDICIAL?")`, igualdade exata.
+            assert r.json()["resposta"] == esperado, "deveria usar o texto real do banco, não a pergunta genérica de IA"
+        else:
+            # Develop: `assert.match(resposta, /qual dessas opções descreve/i)`.
+            assert re.search(esperado, r.json()["resposta"], re.IGNORECASE)
     finally:
         await store.limpar_flow(ID_PESSOA_PRESA)
         await store.limpar_flow(ID_VIOLENCIA_DOMESTICA)
@@ -261,3 +273,89 @@ async def test_via_orquestrador_cpf_encontrado_pergunta_confirmacao_189_191(
     assert "Confirma que seus dados são" in r_confirma.json()["resposta"], "via orquestrador pergunta a confirmação"
     r = await responder("sim")
     assert r.json()["status"] == "concluido"
+
+
+async def test_via_orquestrador_cpf_da_tykhe_conclui_sem_confirmacao_236(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #236 (03/11): com o CPF em dadosConhecidos, a Maria não mostra o nome do titular
+    # nem pede confirmação. O contrato não muda: mesma rota, mesmos campos e status.
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", ID_VIOLENCIA_DOMESTICA)
+    monkeypatch.delenv("MOCK_CLASSIFICACAO_FLOWIDS", raising=False)
+    chat_id = novo_chat_id()
+    corpo = {"chatId": chat_id, "mensagem": "sou vítima de violência doméstica", "dadosConhecidos": {"cpf": "11111111111"}}
+    await cliente.post(BASE, json=corpo, headers=auth)
+
+    async def responder(resposta: str) -> httpx.Response:
+        return await cliente.post("/atendimentos/respostas", json={"chatId": chat_id, "resposta": resposta}, headers=auth)
+
+    await responder("true")  # é vítima
+    await responder("false")  # sem processo
+    r = await responder("true")  # tem RO; o CPF veio da Tykhe: nem pergunta, nem confirmação
+    assert "Confirma que seus dados são" not in r.json()["resposta"]
+    assert r.json()["status"] == "concluido"
+
+
+async def test_na_producao_o_plano_de_saude_nao_entra_no_catalogo_do_orquestrador() -> None:
+    # #386: o orquestrador oferece o fluxo do NUDECON, mas ele está em teste (#324) e, sem
+    # MARIA_AMBIENTE=release, fica fora do catálogo.
+    assert ID_PROBLEMAS_PLANO_SAUDE not in [c["id"] for c in await catalogo_para_classificacao()]
+
+
+async def _dados_entregues_ao_fluxo(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch, flow_id: str, corpo_extra: dict[str, Any]
+) -> dict[str, Any]:
+    """Roda a rota com `criar_atendimento` trocado e devolve o `dadosConhecidos` que chegaria ao fluxo."""
+    from maria.api import orquestrador as rota
+
+    capturado: dict[str, Any] = {}
+
+    async def falso(fluxo: Any, fluxo_id: str, chat_id: str, dados: dict[str, Any], log: Any, via_orquestrador: bool = False) -> Resposta:
+        capturado.update(dados)
+        return Resposta(200, {"status": "em_andamento"})
+
+    monkeypatch.setattr(rota, "criar_atendimento", falso)
+    # O plano de saúde está em teste (#324): só entra no catálogo do orquestrador no release.
+    monkeypatch.setenv("MARIA_AMBIENTE", "release")
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", flow_id)
+    monkeypatch.delenv("MOCK_CLASSIFICACAO_FLOWIDS", raising=False)
+    r = await cliente.post(
+        BASE, json={"chatId": novo_chat_id(), "mensagem": "meu plano negou a cirurgia do meu pai", **corpo_extra}, headers=auth
+    )
+    assert r.status_code == 200
+    return capturado
+
+
+async def test_fluxo_com_usa_relato_recebe_o_relato_no_canal_proprio_334(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # O CPF da Tykhe (CPF de teste do Verde simulado) vai para o fluxo em `dadosConhecidos`, e o fluxo não o pergunta.
+    dados = await _dados_entregues_ao_fluxo(
+        cliente, auth, monkeypatch, ID_PROBLEMAS_PLANO_SAUDE, {"dadosConhecidos": {"cpf": "11111111111"}}
+    )
+    assert dados["relato"] == "meu plano negou a cirurgia do meu pai"
+
+
+async def test_relato_em_dados_conhecidos_nao_sobrepoe_o_da_triagem_334(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dados = await _dados_entregues_ao_fluxo(
+        cliente, auth, monkeypatch, ID_PROBLEMAS_PLANO_SAUDE, {"dadosConhecidos": {"relato": "texto da Tykhe", "cpf": "00000000000"}}
+    )
+    assert dados["relato"] == "meu plano negou a cirurgia do meu pai"
+    assert dados["cpf"] == "00000000000"
+
+
+async def test_fluxo_sem_usa_relato_nao_recebe_relato_334(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    dados = await _dados_entregues_ao_fluxo(cliente, auth, monkeypatch, ID_PESSOA_PRESA, {})
+    assert "relato" not in dados
+
+
+async def test_relato_da_triagem_nao_vai_para_o_log_334(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    await _dados_entregues_ao_fluxo(cliente, auth, monkeypatch, ID_PROBLEMAS_PLANO_SAUDE, {})
+    saida = capsys.readouterr()
+    assert "negou a cirurgia" not in saida.out + saida.err

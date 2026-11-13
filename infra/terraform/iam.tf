@@ -25,7 +25,12 @@ data "aws_iam_policy_document" "exec_secrets" {
     # 2 secrets — ambiente atual (Verde homolog) + release (infra/terraform/release.tf,
     # Verde produção) — mesmo execution role compartilhado pelos 2 (ver comentário
     # grande no topo de release.tf).
-    resources = [aws_secretsmanager_secret.app.arn, aws_secretsmanager_secret.app_release.arn]
+    resources = [
+      aws_secretsmanager_secret.app.arn,
+      aws_secretsmanager_secret.app_release.arn,
+      aws_secretsmanager_secret.email_nudecon.arn,
+      aws_secretsmanager_secret.email_nudecon_release.arn,
+    ]
   }
 }
 

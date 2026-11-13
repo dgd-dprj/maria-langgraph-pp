@@ -19,10 +19,29 @@ from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
-from maria.fluxos import ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo
+from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo, fluxo_em_teste_liga
+from maria.fluxos.pessoa_presa.graph import campos_de_log_do_fim
+from maria.orquestrador.fila import (
+    AssuntoPendente,
+    com_dados_do_fim,
+    opcoes_do_fim,
+    para_a_tykhe,
+    texto_fim_da_conversa,
+    texto_fim_do_assunto,
+    texto_pendentes_no_atendimento_humano,
+    urgencia_de,
+)
+from maria.orquestrador.graph import (
+    assunto_guardado_do_chat,
+    assuntos_em_aberto,
+    assuntos_pendentes_do_chat,
+    resumo_da_conversa,
+    usuario_do_chat,
+)
 from maria.shared import _js
 from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
+from maria.shared.pendentes_db import obter_pendentes_store
 from maria.shared.respostas import normalizar_resposta, resposta_eh_nao, resposta_eh_sim
 
 # Formas naturais de responder à confirmação de TTL além de sim/não (#227), já
@@ -61,14 +80,17 @@ def _arredondar_js(valor: float) -> int:
     return math.floor(valor + 0.5)
 
 
-def destino_do_log(fluxo_id: str, status_final: Any) -> str | None:
-    """Issue #92: o `destino` do desfecho. Issue #288: também vai na resposta de atendimento encerrado."""
+def destino_do_log(fluxo_id: str, status_final: Any, valores: Mapping[str, Any] | None = None) -> str | None:
+    """Issue #92: o `destino` do desfecho. Issue #288: também vai na resposta de atendimento encerrado.
+    `valores` com `destino` (o fluxo concluído que define o próprio, como `email_enviado`) vale para `concluido`."""
     if status_final == "handoff_humano":
         return "atendimento_humano"
     if status_final == "expirado":
         return "sessao_expirada"
     if fluxo_id == ID_VIOLENCIA_DOMESTICA:
         return "agendamento"
+    if status_final == "concluido" and valores is not None and isinstance(valores.get("destino"), str):
+        return str(valores["destino"])
     return None
 
 
@@ -85,10 +107,17 @@ def extrair_interrupt(resultado: Mapping[str, Any]) -> Any:
     return pendentes[0].value if pendentes else None
 
 
-def _dados_coletados(valores: Mapping[str, Any]) -> dict[str, Any]:
-    # Decisão 2026-09-09: só cpf, e só quando é texto.
+def _dados_coletados(valores: Mapping[str, Any], concluido: bool = False, fluxo: FluxoConfig | None = None) -> dict[str, Any]:
+    # Decisão 2026-09-09: o cpf, e só quando é texto. O fluxo pode acrescentar os dele (#448).
     cpf = valores.get("cpf")
-    return {"cpf": cpf} if isinstance(cpf, str) else {}
+    dados: dict[str, Any] = {"cpf": cpf} if isinstance(cpf, str) else {}
+    if fluxo is not None and fluxo.extrair_dados_coletados is not None:
+        dados.update(fluxo.extrair_dados_coletados(valores))
+    # #398: os links das imagens (segredo) só na conclusão, para a Tykhe repassá-los à Lambda de e-mail.
+    links = valores.get("imagensLinks")
+    if concluido and isinstance(links, dict) and links:
+        dados["imagens"] = dict(links)
+    return dados
 
 
 def montar_resposta_atendimento(
@@ -96,12 +125,13 @@ def montar_resposta_atendimento(
 ) -> dict[str, Any]:
     """Mesmo corpo para criar, consultar e responder (`atendimentos.ts:194-242`)."""
     metadados = fluxo.extrair_metadados(valores)
-    dados_coletados = _dados_coletados(valores)
     if interrupt is not None:
+        dados_coletados = _dados_coletados(valores, fluxo=fluxo)
         return {
             "resposta": _js.opt(interrupt, "pergunta"),
             "tipoResposta": _js.opt(interrupt, "tipo"),
             "opcoes": _js.opt(interrupt, "opcoes"),
+            **({"tipoImagem": interrupt["tipoImagem"]} if isinstance(interrupt, Mapping) and "tipoImagem" in interrupt else {}),
             "status": "em_andamento",
             "flowId": fluxo_id,
             "metadados": metadados,
@@ -109,6 +139,7 @@ def montar_resposta_atendimento(
             "_links": montar_links(chat_id, "em_andamento"),
         }
     status = _js.coalesce(valores.get("statusFinal"), "concluido")
+    dados_coletados = _dados_coletados(valores, concluido=status == "concluido", fluxo=fluxo)
     padrao = fluxo.mensagem_concluido if status == "concluido" else fluxo.mensagem_handoff
     corpo: dict[str, Any] = {
         "resposta": _js.coalesce(valores.get("mensagemFinal"), padrao),
@@ -122,7 +153,7 @@ def montar_resposta_atendimento(
         "_links": montar_links(chat_id, status),
     }
     # #288: o "para onde vai", o mesmo valor que já vai para o log e para a tabela `atendimentos`.
-    destino = destino_do_log(fluxo_id, status)
+    destino = destino_do_log(fluxo_id, status, valores)
     if destino is not None:
         corpo["destino"] = destino
     return corpo
@@ -152,7 +183,9 @@ async def criar_atendimento(
     # Registra chatId→flowId ANTES de tocar no grafo: chatId de outro fluxo é 409.
     store = await obter_atendimentos_store()
     registro = await store.registrar(chat_id, fluxo_id)
-    if not registro["ok"]:
+    # `is False`, e não `not`: o Pylance só estreita a união RegistroOk | RegistroConflito pela
+    # comparação com o literal; com `not`, acusava `flowIdExistente` inexistente (o mypy aceita os dois).
+    if registro["ok"] is False:
         existente = registro["flowIdExistente"]
         log.warn("chatId já pertence a outro flowId", chatId=chat_id, fluxoId=fluxo_id, flowIdExistente=existente)
         return Resposta(409, {"erro": f"chatId já está em uso pelo flowId {existente}"})
@@ -196,7 +229,10 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         )
         return
     status_final = resultado.get("statusFinal")
-    destino = destino_do_log(fluxo_id, status_final)
+    destino = destino_do_log(fluxo_id, status_final, resultado)
+    # `status="concluido"` é o de develop (o atendimento terminou) e fica, porque os painéis contam por ele. #457: o
+    # `statusFinal` diz como terminou (`concluido` ou `handoff_humano`), e a pessoa presa ganha o porquê do
+    # atendimento humano, sem dado pessoal.
     log.info(
         "atendimento finalizado",
         fluxoId=fluxo_id,
@@ -206,6 +242,8 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         destino=destino,
         motivoHandoff=resultado.get("motivoHandoff"),
         tokensGastos=resultado.get("tokensGastos"),
+        statusFinal=status_final,
+        **(campos_de_log_do_fim(resultado) if fluxo_id == ID_PESSOA_PRESA else {}),
     )
     if _js.verdadeiro(status_final):
         conclusao: dict[str, Any] = {"statusFinal": status_final}
@@ -239,7 +277,8 @@ async def _fluxo_do_chat(chat_id: Any) -> tuple[FluxoConfig, str] | Resposta:
     if not _js.verdadeiro(fluxo_id):
         return Resposta(404, {"erro": "atendimento não encontrado"})
     assert fluxo_id is not None
-    fluxo = await buscar_fluxo(fluxo_id)
+    # A conversa já começou: um fluxo em teste desligado depois disso termina normalmente (#324).
+    fluxo = await buscar_fluxo(fluxo_id, conversa_em_andamento=True)
     if fluxo is None:
         return Resposta(404, {"erro": "fluxo não encontrado — ver GET /fluxos"})
     return fluxo, fluxo_id
@@ -267,6 +306,29 @@ def _expirado(
     fluxo: FluxoConfig, fluxo_id: str, chat_id: str, valores: Mapping[str, Any], mensagem: str = MENSAGEM_EXPIRADO
 ) -> dict[str, Any]:
     return montar_resposta_atendimento(fluxo, fluxo_id, chat_id, None, {**valores, "statusFinal": "expirado", "mensagemFinal": mensagem})
+
+
+async def _com_o_que_falta(chat_id: str, corpo: dict[str, Any], final: str, pendentes: list[AssuntoPendente]) -> None:
+    """#450, no fim de um assunto concluído (só no release).
+
+    - Com um urgente na vez nesta conversa (2026-11-10): "Ainda falta um assunto urgente…", e a Tykhe abre o próximo.
+      O fim da conversa fica para o fim dele.
+    - Senão, o fim da conversa (decisão da Nicole, 2026-11-11): o resumo do que foi atendido, a pergunta, o que ainda
+      está em aberto (desta conversa e guardado de outras) e os botões em `opcoesDoFim` (um por assunto em aberto, o
+      assunto novo e o encerrar). Vão também em `resumoDaConversa` e `assuntosEmAberto`."""
+    if pendentes and urgencia_de(pendentes[0]) == "urgente":
+        corpo["resposta"] = f"{final}\n\n{texto_fim_do_assunto(pendentes, await usuario_do_chat(chat_id) is not None)}"
+        return
+    resumo = await resumo_da_conversa(chat_id, str(corpo.get("status")))
+    if not resumo:
+        return  # conversa que não passou pelo orquestrador: o fim fica como era
+    abertos = await assuntos_em_aberto(chat_id)
+    guardados = any("venceEm" in a for a in abertos)
+    corpo["resposta"] = f"{final}\n\n{texto_fim_da_conversa(resumo, abertos, guardados)}"
+    corpo["resumoDaConversa"] = resumo
+    if abertos:
+        corpo["assuntosEmAberto"] = para_a_tykhe(abertos)
+    corpo["opcoesDoFim"] = opcoes_do_fim(abertos)
 
 
 async def _post_respostas(ctx: Contexto) -> Resposta:
@@ -301,7 +363,24 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
         await store.marcar_atividade(chat_id)
         interrupt = extrair_interrupt(resultado)
         await _registrar_rodada(fluxo_id, chat_id, interrupt, resultado, ctx.log)
-        return Resposta(200, montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt, resultado))
+        corpo_resposta = montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt, resultado)
+        if interrupt is None:
+            # #435 (multi-fluxo, só no release): no fim do fluxo, os outros assuntos do relato.
+            pendentes = await assuntos_pendentes_do_chat(chat_id)
+            if pendentes:
+                # #442: o CPF informado neste assunto segue para os próximos, para não ser pedido de novo.
+                corpo_resposta["assuntosPendentes"] = com_dados_do_fim(pendentes, corpo_resposta.get("dadosColetados"))
+            # #450 (só no release): o assunto guardado que este atendimento atendia fica resolvido.
+            guardado = await assunto_guardado_do_chat(chat_id)
+            if guardado is not None:
+                await (await obter_pendentes_store()).marcar(guardado, "resolvido")
+            final = corpo_resposta.get("resposta")
+            if fluxo_em_teste_liga() and corpo_resposta.get("status") == "concluido" and isinstance(final, str):
+                await _com_o_que_falta(chat_id, corpo_resposta, final, pendentes or [])
+            elif fluxo_em_teste_liga() and corpo_resposta.get("status") == "handoff_humano" and pendentes and isinstance(final, str):
+                # Decisão da Nicole (2026-11-13): no atendimento humano, só o aviso do que ficou para depois.
+                corpo_resposta["resposta"] = f"{final}\n\n{texto_pendentes_no_atendimento_humano(pendentes)}"
+        return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)
     if atividade is not None and atividade.get("statusFinal") == "expirado":
