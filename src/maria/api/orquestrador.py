@@ -33,12 +33,14 @@ from maria.orquestrador.fila import (
     AssuntoAberto,
     AssuntoGuardado,
     AssuntoPendente,
+    chat_do_assunto_pelo_id,
     chat_id_do_assunto,
     dados_do_relato,
     escolha_nos_abertos,
     id_do_assunto,
     opcoes_abertos,
     origem_do_chat,
+    para_a_tykhe,
     texto_abertos,
     texto_comecando,
     texto_proximo_assunto,
@@ -424,8 +426,9 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
     (`<chatId>-assunto-N`).
 
     - Só `chatId`: o próximo assunto pendente da conversa, na ordem.
-    - Com `assunto` (o `chatIdAssunto` de um item de `assuntosEmAberto`): esse assunto, desta conversa ou guardado de
-      outra conversa da mesma pessoa (2026-11-11).
+    - Com `assunto` (o `flowId` ou o `tipoCaso` de um item de `assuntosEmAberto`, decisão da Nicole de 2026-11-13):
+      esse assunto, desta conversa ou guardado de outra conversa da mesma pessoa (2026-11-11). O id interno do
+      assunto (`<chatId>-assunto-N`) ainda é aceito, para quem já usava.
     - Com `resposta` (a resposta da pessoa à lista dos assuntos em aberto): o assunto escolhido; "Nenhum, quero um
       assunto novo" pede o relato novo; uma resposta que a Maria não entende repete a lista.
 
@@ -456,6 +459,10 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
             if escolha is None:
                 return Resposta(200, _resposta_lista(chat_id, abertos))
             assunto = abertos[escolha]["chatIdAssunto"]
+        elif isinstance(assunto, str) and assunto:
+            # O `flowId` ou o `tipoCaso` vira o id interno do assunto em aberto. Um id que não está em aberto segue
+            # como veio: o id interno de antes abre o assunto; qualquer outro dá 404.
+            assunto = chat_do_assunto_pelo_id(assunto, await assuntos_em_aberto(chat_id)) or assunto
         if isinstance(assunto, str) and assunto:
             origem_do_alvo, posicao = origem_do_chat(assunto)
             if origem_do_alvo == origem and posicao >= 2:
@@ -468,13 +475,14 @@ _TRAVAS_PROXIMO: dict[str, asyncio.Lock] = {}
 
 
 def _resposta_lista(chat_id: str, abertos: list[AssuntoAberto]) -> dict[str, Any]:
-    """ "Qual você quer resolver agora?": a resposta da pessoa volta para a rota do próximo assunto."""
+    """ "Qual você quer resolver agora?": a resposta da pessoa volta para a rota do próximo assunto, que também entende o
+    encerrar (decisão da Nicole, 2026-11-13: quem não quer continuar com os assuntos em aberto pode encerrar)."""
     return {
-        "resposta": texto_abertos(abertos),
+        "resposta": texto_abertos(abertos, com_encerrar=True),
         "tipoResposta": "opcoes",
-        "opcoes": opcoes_abertos(abertos),
+        "opcoes": opcoes_abertos(abertos, com_encerrar=True),
         "status": "em_andamento",
-        "assuntosEmAberto": abertos,
+        "assuntosEmAberto": para_a_tykhe(abertos),
         "_links": {"self": {"href": f"/atendimentos/{chat_id}"}, "responder": {"href": "/atendimentos/proximo-assunto", "method": "POST"}},
     }
 
