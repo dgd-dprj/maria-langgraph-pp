@@ -75,10 +75,7 @@ class ArmazenamentoVetorial:
     def hashes_existentes(self) -> dict[str, str]:
         with self._pool.connection() as conexao:
             linhas = conexao.execute("SELECT id, hash_conteudo FROM rag_documentos_swagger").fetchall()
-        return {
-            str(cast(dict[str, Any], linha)["id"]): str(cast(dict[str, Any], linha)["hash_conteudo"])
-            for linha in linhas
-        }
+        return {str(cast(dict[str, Any], linha)["id"]): str(cast(dict[str, Any], linha)["hash_conteudo"]) for linha in linhas}
 
     def salvar_documentos(
         self,
@@ -106,8 +103,16 @@ class ArmazenamentoVetorial:
                         embedding = EXCLUDED.embedding,
                         atualizado_em = now()
                     """,
-                    (documento.id, documento.conteudo, documento.fonte, documento.endpoint, documento.metodo,
-                     documento.assunto, hash_conteudo, vetor),
+                    (
+                        documento.id,
+                        documento.conteudo,
+                        documento.fonte,
+                        documento.endpoint,
+                        documento.metodo,
+                        documento.assunto,
+                        hash_conteudo,
+                        vetor,
+                    ),
                 )
 
     def excluir_ids_ausentes(self, ids_validos: set[str]) -> None:
@@ -135,10 +140,7 @@ class ArmazenamentoVetorial:
     def hashes_catalogo_existentes(self) -> dict[str, str]:
         with self._pool.connection() as conexao:
             linhas = conexao.execute("SELECT id, hash_conteudo FROM rag_catalogo_orquestrador").fetchall()
-        return {
-            str(cast(dict[str, Any], linha)["id"]): str(cast(dict[str, Any], linha)["hash_conteudo"])
-            for linha in linhas
-        }
+        return {str(cast(dict[str, Any], linha)["id"]): str(cast(dict[str, Any], linha)["hash_conteudo"]) for linha in linhas}
 
     def salvar_candidatos(
         self,
@@ -191,10 +193,7 @@ class ArmazenamentoVetorial:
     def ordens_catalogo(self) -> dict[str, int]:
         with self._pool.connection() as conexao:
             linhas = conexao.execute("SELECT id, ordem FROM rag_catalogo_orquestrador").fetchall()
-        return {
-            str(cast(dict[str, Any], linha)["id"]): int(cast(dict[str, Any], linha)["ordem"])
-            for linha in linhas
-        }
+        return {str(cast(dict[str, Any], linha)["id"]): int(cast(dict[str, Any], linha)["ordem"]) for linha in linhas}
 
     def sincronizar_metadados_catalogo(self, candidatos: Sequence[CandidatoCatalogo], ordens: dict[str, int]) -> None:
         with self._pool.connection() as conexao, conexao.transaction():

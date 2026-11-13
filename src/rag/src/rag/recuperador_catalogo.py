@@ -111,4 +111,3 @@ class RecuperadorCatalogo:
             "k_rrf": K_RRF,
             "resultados": [{chave: valor for chave, valor in item.items() if chave != "_ordem"} for item in candidatos_com_score[:limite]],
         }
-

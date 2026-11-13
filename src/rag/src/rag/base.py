@@ -13,4 +13,3 @@ class Documento:
     endpoint: str = ""
     metodo: str = ""
     assunto: str = ""
-

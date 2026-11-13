@@ -32,4 +32,3 @@ def normalizar_texto(texto: str) -> str:
     """Normaliza caixa e acentos antes da busca lexical no Postgres."""
     sem_acentos = unicodedata.normalize("NFKD", texto.casefold()).encode("ascii", "ignore").decode("ascii")
     return " ".join(re.findall(r"[a-z0-9]+", sem_acentos))
-

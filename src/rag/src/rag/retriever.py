@@ -20,10 +20,7 @@ class RecuperadorVerde:
         """Gera embeddings apenas para documentos novos ou alterados."""
         documentos = carregar_documentos()
         hashes_existentes = self.armazenamento.hashes_existentes()
-        alterados = [
-            (documento, hashlib.sha256(documento.conteudo.encode("utf-8")).hexdigest())
-            for documento in documentos
-        ]
+        alterados = [(documento, hashlib.sha256(documento.conteudo.encode("utf-8")).hexdigest()) for documento in documentos]
         pendentes = [(documento, hash_atual) for documento, hash_atual in alterados if hashes_existentes.get(documento.id) != hash_atual]
 
         if pendentes:
