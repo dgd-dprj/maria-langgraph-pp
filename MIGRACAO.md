@@ -91,6 +91,20 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 - Erro que fica com o Qwen: quem é casado com o filho ou a filha da pessoa presa ("genro", "sou casado com a filha dele", "marido da filha dele") vira "Sogro(a)"; o Haiku acerta o "genro". Uma regra geral de direção no prompt ("quem escreve é [valor] da pessoa presa") não corrigiu em 3 passadas e fez a "nora" voltar a errar; ficou a versão anterior. Rodada de US$ 0,10 aprovada pela Nicole.
 - A lista de 8 valores do SIPEN (Ícaro, 2026-10-16) continua fora: muda o contrato com a Tykhe.
 
+**#212, genro e nora (decisão da Nicole, 2026-11-13): "Genro/Nora" entra na lista, e as formas comuns do parentesco são lidas pelas palavras, sem IA.**
+- **Valor novo para a Tykhe** em `metadados.parentesco`. Escolhido pela Nicole entre três opções (reconhecer e mandar "Outro"; valor novo já; a lista do SIPEN). Entra na develop agora e **só vai para a produção depois de a Tykhe confirmar que converte o valor** (pergunta na #479). Até lá, a promoção para a `main` espera, ou sai sem este commit.
+- **Frases de identificação** (`parentesco_pela_resposta`, `maria/shared/parentesco.py`): a resposta à pergunta do parentesco é lida pelas palavras quando casa inteira com uma forma conhecida, para todos os parentescos:
+  - a palavra ("genro", "mãe", "vó");
+  - "sou o X", "X dele", "X do preso";
+  - "A do B dele" ("marido da filha dele" é o genro; "mãe da esposa dele", a sogra; "filho do irmão dele", o sobrinho);
+  - "casado com a filha dele";
+  - "meu X", com a relação invertida ("meu genro" é o sogro).
+- "Outro", lido pelas palavras: parente fora da lista e quem não é parente (enteado, padrasto, madrasta, padrinho, advogado, vizinho, colega) e, por decisão da Nicole de 13/11, **namorado e namorada**.
+- O resto (frase longa, nome próprio, "meu filho") continua com a IA, como antes. O log ganha o evento `parentesco_sem_ia`, sem a resposta nem o valor.
+- "Meu sogro foi preso", no relato do orquestrador, passa a dar "Genro/Nora" sem perguntar.
+- O prompt do Qwen (`SUFIXO_PARENTESCO`) troca "genro e nora são Outro" por "quem é casado com o filho ou a filha é Genro/Nora". O do Haiku só ganha o valor novo na lista. **Ainda sem medição no Bedrock.**
+- Testes: um banco de frases por parentesco, cobrindo os 17 valores da lista, e as frases que precisam ir para a IA. Dois testes de conformidade com develop mudam, porque "amigo" passa a ser lido pelas palavras (era o "Outro" da IA simulada).
+
 **#475 (decisão da Nicole, 2026-11-12):** a pergunta do RG da pessoa presa mostra os formatos aceitos: "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9.". O que a Maria aceita não muda (#343), e o "RG não encontrado" continua com 3 tentativas. Três respostas gravadas aposentadas com registro, sem editar. O PR #437, que recusava o RG com espaços, foi fechado como superado pelo #343 e pelo #470.
 
 **#299 (decisão parcial da Nicole, 2026-11-09, [registro na #299](https://github.com/dgd-dprj/maria-langgraph-pp/issues/299#issuecomment-6749627806)):** o relato vago passa a ser conduzido com perguntas.
