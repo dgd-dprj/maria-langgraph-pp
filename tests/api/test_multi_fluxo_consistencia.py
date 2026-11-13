@@ -57,10 +57,11 @@ async def _passo(cliente: httpx.AsyncClient, auth: dict[str, str], rota: str, co
 
 
 async def _ate_o_fim_do_primeiro(cliente: httpx.AsyncClient, auth: dict[str, str], chat: str) -> list[Any]:
-    """Relato com três assuntos, "Sim" na ordem e o fluxo do plano até o fim (3 respostas sem a foto)."""
+    """Relato com três assuntos, o plano escolhido primeiro (pela ordem de 2026-11-13, a pessoa presa viria antes) e o
+    fluxo do plano até o fim (3 respostas sem a foto)."""
     passos = [
         await _passo(cliente, auth, ORQ, {"chatId": chat, "mensagem": "relato com três assuntos", "dadosConhecidos": DADOS}),
-        await _passo(cliente, auth, ORQ, {"chatId": chat, "resposta": "true"}),
+        await _passo(cliente, auth, ORQ, {"chatId": chat, "resposta": "o plano primeiro"}),
         await _passo(cliente, auth, RESPOSTAS, {"chatId": chat, "resposta": "true"}),
     ]
     for _ in range(3):
@@ -116,7 +117,7 @@ async def test_duas_conversas_intercaladas_nao_se_misturam(cliente: httpx.AsyncC
     passos_a, passos_b = [], []
     corpos = (
         (ORQ, lambda c: {"chatId": c, "mensagem": "relato com três assuntos", "dadosConhecidos": DADOS}),
-        (ORQ, lambda c: {"chatId": c, "resposta": "true"}),
+        (ORQ, lambda c: {"chatId": c, "resposta": "o plano primeiro"}),
         (RESPOSTAS, lambda c: {"chatId": c, "resposta": "true"}),
         (RESPOSTAS, lambda c: {"chatId": c, "resposta": "mandei"}),
         (RESPOSTAS, lambda c: {"chatId": c, "resposta": "mandei"}),

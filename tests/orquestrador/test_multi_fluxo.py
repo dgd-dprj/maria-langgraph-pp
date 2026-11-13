@@ -59,10 +59,11 @@ async def test_dois_assuntos_perguntam_a_ordem_com_botoes(modelo: Modelo) -> Non
     _roteiro(modelo, PP, PLANO)
     r = await Conversa().iniciar()
     assert pergunta(r) == {
+        # A ordem (decisão da Nicole, 2026-11-13): a violência doméstica, a pessoa presa e a saúde.
         "pergunta": (
-            "Entendi. Você falou de duas coisas: o plano de saúde e a pessoa presa.\n"
-            "Vou começar pelo plano de saúde, porque parece mais urgente.\n"
-            "Depois, falamos da pessoa presa.\n"
+            "Entendi. Você falou de duas coisas: a pessoa presa e o plano de saúde.\n"
+            "Vou começar pela pessoa presa.\n"
+            "Depois, falamos do plano de saúde.\n"
             "Pode ser assim?"
         ),
         "tipo": "sim_nao",
@@ -80,15 +81,9 @@ async def test_sim_segue_a_ordem_e_o_resto_fica_pendente(modelo: Modelo, respost
     await c.iniciar()
     r = await c.responder(resposta)
     assert pergunta(r) is None
-    assert (r["statusFinal"], r["flowIdEscolhido"]) == ("identificado", ID_PROBLEMAS_PLANO_SAUDE)
+    assert (r["statusFinal"], r["flowIdEscolhido"]) == ("identificado", ID_PESSOA_PRESA)
     assert r["assuntosPendentes"] == [
-        {
-            "nome": "a pessoa presa",
-            "urgente": False,
-            "urgencia": "urgente",
-            "flowId": ID_PESSOA_PRESA,
-            "dadosConhecidos": {"parentesco": "Irmão(a)"},
-        }
+        {"nome": "o plano de saúde", "urgente": True, "urgencia": "urgente", "flowId": ID_PROBLEMAS_PLANO_SAUDE}
     ]
     assert r["ordemPerguntada"] is True
 
@@ -100,9 +95,15 @@ async def test_nao_com_dois_assuntos_troca_a_ordem(modelo: Modelo, resposta: str
     c = Conversa()
     await c.iniciar()
     r = await c.responder(resposta)
-    assert r["flowIdEscolhido"] == ID_PESSOA_PRESA
+    assert r["flowIdEscolhido"] == ID_PROBLEMAS_PLANO_SAUDE
     assert r["assuntosPendentes"] == [
-        {"nome": "o plano de saúde", "urgente": True, "urgencia": "urgente", "flowId": ID_PROBLEMAS_PLANO_SAUDE}
+        {
+            "nome": "a pessoa presa",
+            "urgente": False,
+            "urgencia": "urgente",
+            "flowId": ID_PESSOA_PRESA,
+            "dadosConhecidos": {"parentesco": "Irmão(a)"},
+        }
     ]
 
 
@@ -113,13 +114,18 @@ async def test_nao_com_tres_assuntos_pergunta_qual_primeiro(modelo: Modelo) -> N
     await c.iniciar()
     r = await c.responder("Não")
     assert pergunta(r) == {
-        "pergunta": "Tudo bem. Qual você quer resolver primeiro?\n• a saúde\n• a situação que você contou\n• a pessoa presa",
-        "tipo": "texto",
+        "pergunta": (
+            "Tudo bem. Qual você quer resolver primeiro?\n\n"
+            "1. A situação que você contou\n2. A pessoa presa\n3. A saúde\n\n"
+            "Responda com o número da opção."
+        ),
+        "tipo": "opcoes",
+        "opcoes": ["1. A situação que você contou", "2. A pessoa presa", "3. A saúde"],
         "etapa": "primeiro",
     }
     r = await c.responder("a do meu filho")
     assert r["flowIdEscolhido"] == ID_PESSOA_PRESA
-    assert [p["nome"] for p in r["assuntosPendentes"]] == ["a saúde", "a situação que você contou"]
+    assert [p["nome"] for p in r["assuntosPendentes"]] == ["a situação que você contou", "a saúde"]
 
 
 @pytest.mark.usefixtures("release")
@@ -129,7 +135,7 @@ async def test_qual_primeiro_sem_entender_segue_a_ordem_proposta(modelo: Modelo)
     await c.iniciar()
     await c.responder("Não")
     r = await c.responder("tanto faz")
-    assert r["flowIdEscolhido"] == "tykhe:saude"
+    assert r["flowIdEscolhido"] == ID_VIOLENCIA_DOMESTICA
 
 
 @pytest.mark.usefixtures("release")
@@ -137,34 +143,29 @@ async def test_nome_do_assunto_na_resposta_da_ordem_passa_para_a_frente(modelo: 
     _roteiro(modelo, PP, PLANO)
     c = Conversa()
     await c.iniciar()
-    r = await c.responder("o do meu irmão primeiro")
-    assert r["flowIdEscolhido"] == ID_PESSOA_PRESA
-
-
-@pytest.mark.usefixtures("release")
-async def test_resposta_que_a_maria_nao_entende_segue_a_ordem(modelo: Modelo) -> None:
-    _roteiro(modelo, PP, PLANO)
-    c = Conversa()
-    await c.iniciar()
-    r = await c.responder("hmm")
+    r = await c.responder("o do plano primeiro")
     assert r["flowIdEscolhido"] == ID_PROBLEMAS_PLANO_SAUDE
 
 
 @pytest.mark.usefixtures("release")
+async def test_resposta_que_a_maria_nao_entende_segue_a_ordem(modelo: Modelo) -> None:
+    _roteiro(modelo, PLANO, PP)
+    c = Conversa()
+    await c.iniciar()
+    r = await c.responder("hmm")
+    assert r["flowIdEscolhido"] == ID_PESSOA_PRESA
+
+
+@pytest.mark.usefixtures("release")
 async def test_primeiro_assunto_da_tykhe_e_o_fluxo_da_maria_fica_pendente(modelo: Modelo) -> None:
-    _roteiro(modelo, PP, SAUDE)
+    # A saúde (Tykhe) e o plano (Maria) têm a mesma prioridade: vale a ordem do relato.
+    _roteiro(modelo, SAUDE, PLANO)
     c = Conversa()
     await c.iniciar()
     r = await c.responder("true")
     assert r["flowIdEscolhido"] == "tykhe:saude"
     assert r["assuntosPendentes"] == [
-        {
-            "nome": "a pessoa presa",
-            "urgente": False,
-            "urgencia": "urgente",
-            "flowId": ID_PESSOA_PRESA,
-            "dadosConhecidos": {"parentesco": "Irmão(a)"},
-        }
+        {"nome": "o plano de saúde", "urgente": True, "urgencia": "urgente", "flowId": ID_PROBLEMAS_PLANO_SAUDE}
     ]
 
 

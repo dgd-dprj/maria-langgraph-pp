@@ -46,12 +46,15 @@ def _chat() -> str:
 
 
 async def _primeiro_assunto_ate_o_fim(cliente: httpx.AsyncClient, auth: dict[str, str], chat: str) -> dict[str, Any]:
-    """Aceita a ordem e leva o fluxo do plano até o fim (3 respostas sem a foto: atendimento humano)."""
+    """Põe o plano na frente e leva o fluxo dele até o fim (3 respostas sem a foto: atendimento humano).
+
+    Pela ordem (decisão da Nicole, 2026-11-13), a pessoa presa viria antes do plano: a pessoa escolhe o plano na
+    resposta à ordem, e os outros assuntos seguem na ordem de sempre."""
     r = await cliente.post(
         ORQ, json={"chatId": chat, "mensagem": "relato com vários assuntos", "dadosConhecidos": DADOS_NO_RIO}, headers=auth
     )
     assert r.json()["tipoResposta"] == "sim_nao"
-    r = await cliente.post(ORQ, json={"chatId": chat, "resposta": "true"}, headers=auth)
+    r = await cliente.post(ORQ, json={"chatId": chat, "resposta": "o plano primeiro"}, headers=auth)
     assert r.json()["flowId"] == ID_PROBLEMAS_PLANO_SAUDE
     await cliente.post(RESPOSTAS, json={"chatId": chat, "resposta": "true"}, headers=auth)
     for _ in range(3):
