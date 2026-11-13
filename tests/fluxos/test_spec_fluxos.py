@@ -504,9 +504,11 @@ async def test_4_metadados_violencia_domestica_concluido_byte_a_byte() -> None:
 
 
 async def test_4_metadados_pessoa_presa_concluido_byte_a_byte() -> None:
+    # #212 (decisão da Nicole, 2026-11-13, janela das correções): "amigo" é lido pelas palavras, sem a IA simulada.
+    # Em develop era "Outro" (o mock da IA).
     f, _, _ = await _conversa(obter_pp(), {}, [*PP_COM, "11111111111", "Sim", "amigo"])
     assert await _metadados(f, extrair_metadados_pessoa_presa) == (
-        '{"parentesco":"Outro","temProcesso":true,"numeroProcesso":"0000088-95.2026.8.19.0010","dadosProcesso":{"id":999999,"origem":"SEEU"},'
+        '{"parentesco":"Amigo(a)","temProcesso":true,"numeroProcesso":"0000088-95.2026.8.19.0010","dadosProcesso":{"id":999999,"origem":"SEEU"},'
         '"rg":"11111111111","dadosApenado":{"idSeap":999999,"idPessoa":999999,"nome":"Pessoa de Teste (mock)","situacao":"ATIVO",'
         '"tipoPreso":"CONDENADO","regime":"SEMIABERTO"}}'
     )
@@ -784,7 +786,8 @@ def test_tipos_tykhe_busca_por_id() -> None:
 async def test_3_mock_de_parentesco_vazio_passa_como_vazio_pelo_coalesce(monkeypatch: pytest.MonkeyPatch) -> None:
     # `process.env.MOCK_CLASSIFICACAO_PARENTESCO ?? "Outro"`: "" não é nullish.
     monkeypatch.setenv("MOCK_CLASSIFICACAO_PARENTESCO", "")
-    f, _, _ = await _conversa(obter_pp(), {}, ["Não", "11111111111", "Sim", "amigo"])
+    # #212: uma resposta que vai para a IA ("amigo" é lido pelas palavras e não chega ao mock).
+    f, _, _ = await _conversa(obter_pp(), {}, ["Não", "11111111111", "Sim", "conheço ele faz tempo"])
     assert (await f.estado())["parentesco"] == ""
 
 

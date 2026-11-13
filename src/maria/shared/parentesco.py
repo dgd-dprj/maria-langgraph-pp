@@ -65,11 +65,12 @@ PARENTES: dict[str, Parente] = {
     "filho": Parente("seu filho", MAE_OU_PAI_DELE),
     "filha": Parente("sua filha", MAE_OU_PAI_DELA),
     "ex": Parente("seu ex", "Ex-esposo(a)"),
+    # #212 (decisão da Nicole, 2026-11-13): "Genro/Nora" entrou na lista; "meu sogro foi preso" é o genro ou a nora.
+    "sogro": Parente("seu sogro", "Genro/Nora"),
+    "sogra": Parente("sua sogra", "Genro/Nora"),
     # Fora da lista do fluxo: a Maria pergunta.
     "enteado": Parente("seu enteado", DUVIDA),
     "enteada": Parente("sua enteada", DUVIDA),
-    "sogro": Parente("seu sogro", DUVIDA),
-    "sogra": Parente("sua sogra", DUVIDA),
     "namorado": Parente("seu namorado", DUVIDA),
     "namorada": Parente("sua namorada", DUVIDA),
     "padrasto": Parente("seu padrasto", DUVIDA),
@@ -94,6 +95,7 @@ QUEM_FALA_E: dict[str, str] = {
     **dict.fromkeys(("neto", "neta"), "Neto(a)"),
     **dict.fromkeys(("cunhado", "cunhada"), "Cunhado(a)"),
     **dict.fromkeys(("sogro", "sogra"), "Sogro(a)"),
+    **dict.fromkeys(("genro", "nora"), "Genro/Nora"),
     **dict.fromkeys(("amigo", "amiga"), "Amigo(a)"),
 }
 
@@ -243,6 +245,94 @@ def ler_resposta_parentesco(resposta: str, opcoes: dict[str, str]) -> str | None
         return opcoes[chaves[int(palavras[0]) - 1]]
     achados = {opcoes[p] for p in palavras if p in opcoes}
     return achados.pop() if len(achados) == 1 else None
+
+
+# ── Pessoa presa: a resposta à pergunta "Qual seu parentesco com a pessoa presa?" ─────
+# #212 (decisão da Nicole, 2026-11-13): as formas comuns de dizer o parentesco são lidas pelas palavras, sem IA, para
+# todos os parentescos da lista. O Qwen lia "genro" e "sou casado com a filha dele" como "Sogro(a)" (#472). Só vale
+# quando a resposta INTEIRA casa com uma das formas abaixo; o resto continua indo para a IA, como antes.
+
+# "X", "sou o X", "X dele", "sou a X do preso": quem fala É X (a chave é a palavra sem acento).
+_QUEM_E: dict[str, str] = {
+    **QUEM_FALA_E,
+    **dict.fromkeys(("mamae", "mainha", "maezinha"), "Mãe"),
+    **dict.fromkeys(("papai", "painho"), "Pai"),
+    **dict.fromkeys(("vo", "vovo", "vovoa"), "Avô/Avó"),
+    # Parente fora da lista e quem não é parente.
+    **dict.fromkeys(
+        ("enteado", "enteada", "padrasto", "madrasta", "padrinho", "madrinha", "afilhado", "afilhada", "advogado",
+         "advogada", "vizinho", "vizinha", "colega", "conhecido", "conhecida", "outro", "outra",
+         # Decisão da Nicole (2026-11-13): namorado e namorada são "Outro" (não é "Companheiro(a)").
+         "namorado", "namorada"),
+        "Outro",
+    ),
+}  # fmt: skip
+
+# "A do/da B dele": quem fala é A de um parente B da pessoa presa ("marido da filha dele" é o genro).
+_GRUPO: dict[str, str] = {
+    **dict.fromkeys(_CONJUGES, "conjuge"),
+    **dict.fromkeys(("pai", "mae"), "pai_mae"),
+    **dict.fromkeys(("filho", "filha"), "filho"),
+    **dict.fromkeys(("irmao", "irma"), "irmao"),
+    **dict.fromkeys(("tio", "tia"), "tio"),
+}
+_COMPOSTO: dict[tuple[str, str], str] = {
+    ("conjuge", "filho"): "Genro/Nora",  # marido da filha, esposa do filho, casado com a filha
+    ("pai_mae", "conjuge"): "Sogro(a)",  # mãe da esposa
+    ("irmao", "conjuge"): "Cunhado(a)",  # irmão da esposa
+    ("conjuge", "irmao"): "Cunhado(a)",  # esposa do irmão
+    ("filho", "irmao"): "Sobrinho(a)",  # filho do irmão
+    ("filho", "filho"): "Neto(a)",  # filha do filho
+    ("filho", "tio"): "Primo(a)",  # filho do tio
+    ("irmao", "pai_mae"): "Tio(a)",  # irmã da mãe
+    ("pai_mae", "pai_mae"): "Avô/Avó",  # mãe da mãe
+}
+
+_COMECO = r"(?:(?:eu )?(?:sou|seria) )?(?:(?:o|a|um|uma) )?"
+_FIM = r"(?: (?:dele|dela|d[oa] (?:pres[oa]|detent[oa]|apenad[oa])))?"
+# "ex", "ex marido", "ex mulher": o ex-cônjuge.
+_EX = rf"ex(?: (?:{'|'.join(sorted(_CONJUGES))}))?"
+_DIRETO = re.compile(rf"{_COMECO}(?P<x>{_EX}|[a-z]+){_FIM}")
+_COMPOSICAO = re.compile(rf"{_COMECO}(?P<a>[a-z]+) d[oa]s? (?P<b>[a-z]+){_FIM}")
+_CASADO = re.compile(rf"{_COMECO}casad[oa] com (?:(?:o|a) )?(?P<b>[a-z]+){_FIM}")
+_POSSE = re.compile(rf"(?:(?:ele|ela) e )?(?:(?:o|a) )?(?:meu|minha) (?P<y>{_EX}|[a-z]+)")
+
+
+def _ex(palavras: str) -> bool:
+    return palavras.split()[0] == "ex"
+
+
+def parentesco_pela_resposta(resposta: str) -> str | None:
+    """O parentesco lido pelas palavras, ou None para a IA decidir.
+
+    Lê "genro", "sou a mãe dele", "irmã do preso", "marido da filha dele", "sou casado com a filha dele",
+    "mãe da esposa dele", "meu genro" e "ele é meu tio". Fica com a IA o que pede interpretação: frase longa,
+    nome próprio, "meu filho" (mãe ou pai?) e o que não está aqui.
+    """
+    if not isinstance(resposta, str):
+        return None
+    palavras = [p for frase in _frases(resposta) for p in frase]
+    if not palavras or len(palavras) > 8:
+        return None
+    texto = " ".join(palavras)
+
+    if direto := _DIRETO.fullmatch(texto):
+        x = direto["x"]
+        if _ex(x):
+            return "Ex-esposo(a)"
+        return _QUEM_E.get(_PLURAIS.get(x, x))
+    if casado := _CASADO.fullmatch(texto):
+        return _COMPOSTO.get(("conjuge", _GRUPO.get(casado["b"], "")))
+    if composicao := _COMPOSICAO.fullmatch(texto):
+        return _COMPOSTO.get((_GRUPO.get(composicao["a"], ""), _GRUPO.get(composicao["b"], "")))
+    if posse := _POSSE.fullmatch(texto):
+        y = posse["y"]
+        if _ex(y):
+            return "Ex-esposo(a)"
+        parente = PARENTES.get(y)
+        if parente and parente.de_quem_fala not in (MAE_OU_PAI_DELE, MAE_OU_PAI_DELA, DUVIDA):
+            return parente.de_quem_fala
+    return None
 
 
 # ── Plano de saúde: o atendimento é para a própria pessoa? ─────────────────────────
