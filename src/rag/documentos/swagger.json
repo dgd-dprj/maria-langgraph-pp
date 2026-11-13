@@ -1,0 +1,6481 @@
+{
+  "swagger": "2.0",
+  "info": {
+    "description": "Esta documentação interativa permite visualizar todos os endpoints disponíveis da API, incluindo detalhes sobre os parâmetros de requisição e os formatos de resposta.  \n\n Através desta interface é possível testar os endpoints na prática, enviando requisições diretamente e analisando as respostas retornadas pela API.  \n\n Utilize esta documentação como referência para integração e para explorar os recursos oferecidos. \n\n_Documentação gerada automaticamente pelo Swagger._",
+    "title": "Documentação da API do Cidadão Integra"
+  },
+  "basePath": "/api",
+  "tags": [
+    {
+      "name": "Feriado"
+    },
+    {
+      "name": "Bloqueio"
+    },
+    {
+      "name": "Processo"
+    },
+    {
+      "name": "Endereço"
+    },
+    {
+      "name": "Caso"
+    },
+    {
+      "name": "Via"
+    },
+    {
+      "name": "Mensagem"
+    },
+    {
+      "name": "Solução Extrajudicial"
+    },
+    {
+      "name": "Whatsapp"
+    },
+    {
+      "name": "E-mail"
+    },
+    {
+      "name": "Autenticação"
+    },
+    {
+      "name": "Usuários do Verde"
+    },
+    {
+      "name": "Notificação"
+    },
+    {
+      "name": "Apenado"
+    },
+    {
+      "name": "Órgão"
+    },
+    {
+      "name": "Pessoa"
+    },
+    {
+      "name": "Prioridade Atendimento"
+    },
+    {
+      "name": "Assunto"
+    },
+    {
+      "name": "Recesso"
+    },
+    {
+      "name": "Plantão"
+    },
+    {
+      "name": "Atendimento Online"
+    },
+    {
+      "name": "Agendamento"
+    },
+    {
+      "name": "Personagem"
+    },
+    {
+      "name": "Encaminhamento"
+    }
+  ],
+  "paths": {
+    "/integra/agendamento/agendar": {
+      "post": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Realizar um agendamento",
+        "description": "Cria um agendamento CRC na pauta do intervalo informado. O comportamento depende do campo `fluxoAtendimento`.\n\n**Formatos de data**\n- `dataVaga`: `dd/MM/aaaa HH:mm` (ex.: `15/10/2026 09:30`).\n- `dataComplemento`: `dd/MM/aaaa`.\n\n**Fluxo `PRIMEIRO_ATENDIMENTO`**\n- Campos obrigatórios: `dataVaga`, `idPessoa`, `idOrgao`, `idAssunto`, `idIntervalo`.\n- Campos opcionais: `resumoAtendimento`, `dataComplemento`, `textoComplemento`.\n- `idPessoa`, `idAssunto` e `idOrgao` devem existir. Caso contrário, retorna 422.\n- Um caso de primeiro atendimento é criado, ou um caso existente é reaproveitado.\n\n**Fluxo `PRISIONAL`**\n- Campos obrigatórios: `dataVaga`, `idPessoa`, `idIntervalo`, `idOrgao`, `idProcesso`, `idPessoaPresa`.\n- Campo opcional: `resumoAtendimento`.\n- `idPessoaPresa` deve corresponder a uma pessoa presa com pessoa física vinculada.\n- O assunto é sempre o assunto de atendimento prisional, e `idAssunto` é ignorado.\n- Um caso de atendimento prisional é criado.\n\n**Validações comuns**\n- Não pode haver agendamento duplicado para os mesmos dados (409, `AGENDAMENTO_DUPLICADO`).\n- `dataVaga` deve estar dentro do período de vigência da agenda do intervalo (422).\n- O intervalo deve ter vaga disponível na data (409, `INTERVALO_SEM_VAGA`).\n\nEm caso de sucesso, o agendamento é incluído na pauta e seu identificador é retornado.### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n",
+        "operationId": "realizarAgendamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Dados do agendamento. Os campos obrigatórios variam conforme fluxoAtendimento (PRIMEIRO_ATENDIMENTO ou PRISIONAL).",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/RealizarAgendamentoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Agendamento realizado com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/AgendamentoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Campo obrigatório não informado: fluxoAtendimento, ou um dos campos obrigatórios do fluxo (inclui idIntervalo inexistente).",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "422": {
+            "description": "Requisição não processável. Códigos possíveis:\n- PARAMETRO_NAO_PROCESSAVEL: fluxoAtendimento inválido; pessoa, assunto, órgão ou pessoa presa não encontrados; intervalo fora da pauta; ou dataVaga fora da vigência da agenda.\n- DATA_INVALIDA: dataVaga ou dataComplemento em formato inválido.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "409": {
+            "description": "Agendamento não pode ser realizado. Códigos possíveis:\n- AGENDAMENTO_DUPLICADO: já existe agendamento equivalente para o assistido.\n- INTERVALO_SEM_VAGA: o intervalo não possui vagas disponíveis na data informada.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/agendar-nucleo-digital": {
+      "post": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Requisição para agendar em Núcleo Digital.",
+        "description": "Realiza um agendamento via núcleo digital para a pessoa/assunto informados.\n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n",
+        "operationId": "agendamentoNucleoDigital",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/AgendarNucleoDigitalDTO"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Agendamento criado com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "422": {
+            "description": "Requisição não processável por idPessoa, idAssunto ou idAtendimentoHeliasta inválidos."
+          },
+          "500": {
+            "description": "Erro interno."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/confirmar-presenca": {
+      "post": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Requisição para confirmar ou não a presença do assistido em um agendamento.",
+        "description": "Realiza a confirmação de presença de um agendamento seguindo as regras:\n- O agendamento deve existir.\n- O agendamento não pode já ter confirmação registrada.\n- O agendamento deve estar ativo, não desmarcado, não reagendado e ser de pauta externa(presencial).\n- A confirmação só pode ocorrer no intervalo entre 5 dias antes e 1 dia antes do horário agendado.\n- Se telefone for informado, o sistema tentará marcar que o número possui WhatsApp.\nEm caso de falhas ou regras violadas, os códigos e mensagens adequados serão retornados. \n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n",
+        "operationId": "confirmarPresencaAgendamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/ConfirmacaoPresencaDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Telefone informado não pertence ao cadastro do assistido.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro obrigatório não informado."
+          },
+          "422": {
+            "description": "O agendamento não pode ser confirmado.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "204": {
+            "description": "Presença confirmada ou não confirmada com sucesso."
+          },
+          "404": {
+            "description": "Agendamento informado não existe.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "409": {
+            "description": "O agendamento já possui confirmação registrada.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/consultar-vagas-nuspen": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Requisição para listar vagas para atendimento de réu preso.",
+        "description": "Retorna uma lista com as vagas de atendimento para réu preso conforme órgão e preferência de atendimento selecionados.\n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n",
+        "operationId": "consultarVagasAgendamentoPrisional",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idSeap",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idOrgao",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "preferenciaAtendimento",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "Remoto",
+              "Presencial"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listagem de vagas disponíveis.",
+            "schema": {
+              "$ref": "#/definitions/VagaAgendamentoCidadaoDTO"
+            }
+          },
+          "500": {
+            "description": "Erro interno."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/consultar-vagas/{idEvento}": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Requisicão para listar vagas para reagendamento de um agendamento.",
+        "description": "Busca vagas disponíveis para reagendamento de um agendamento já realizado e ativo.\n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n",
+        "operationId": "consultarVagasAgendamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idEvento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listagem de vagas disponíveis.",
+            "schema": {
+              "type": "array",
+              "uniqueItems": true,
+              "items": {
+                "$ref": "#/definitions/VagaAgendamentoCidadaoDTO"
+              }
+            }
+          },
+          "500": {
+            "description": "Erro interno do servido.r",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "404": {
+            "description": "Parâmetro obrigatório não enviado.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/desmarcar": {
+      "post": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Requisição para desmarcar um agendamento.",
+        "description": "Realiza o cancelamento de um agendamento existente e a exclusão(se possível) do caso que o acompanha.\n\nO assistido receberá um email confirmando o cancelamento.\n\n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n### Regras Para Desmarcar\n1. **Situação do Agendamento:** Apenas agendamentos validados ou pendentes podem ser desmarcados.\n2. **Período:** Apenas agendamentos futuros podem ser desmarcados.\n3. **Exceções:** Agendamentos vinculados ao POLO DE MEDIAÇÃO E AÇÕES RESTAURATIVAS não podem ser desmarcados.\n\n",
+        "operationId": "desmarcarAgendamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/DesmarcarAgendamentoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sucesso parcial: agendamento desmarcado com sucesso e falha no envio do email."
+          },
+          "422": {
+            "description": "Agendamento não pode ser desmarcado."
+          },
+          "500": {
+            "description": "Erro interno."
+          },
+          "204": {
+            "description": "Agendamento desmarcado e email enviado com sucesso."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/listar-agendamentos-antecipaveis": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Listar agendamentos antecipáveis com indicação de whatsapp",
+        "description": "Retorna ids de agendamentos em pautas distantes que devem ser avisados sobre a disponibilidade de vagas mais próximas.",
+        "operationId": "listarAgendamentosAntecipaveis",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Agendamentos antecipáveis retornados com sucesso",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "500": {
+            "description": "Erro interno"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/listar-agendamentos-ativos-pessoa-assunto/{idPessoa}": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Consultar Agendamentos Ativos por Assistido e Assunto",
+        "description": "Retorna os agendamentos ativos marcados para a pessoa identificada por idPessoa. Permitindo o filtro também por assunto e órgão",
+        "operationId": "listarAgendamentosAtivosPessoaAssunto",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idPessoa",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idAssunto",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idOrgao",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agendamentos da pessoa retornados com sucesso",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/AgendamentoPessoaDTO"
+              }
+            }
+          },
+          "422": {
+            "description": "Agendamento/Assunto/Órgão não encontrado para o identificador informado",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "500": {
+            "description": "Erro interno"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/listar-agendamentos-confirmaveis": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Requisicao para listar os agendamentos confirmáveis para uma data.",
+        "description": "Retorna ids de agendamentos que podem ser confirmados para a data fornecida.\n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n",
+        "operationId": "listarAgendamentosConfirmaveis",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Identificadores de agendamentos habilitados para confirmação de presença retornados com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "400": {
+            "description": "Formato de data inválido."
+          },
+          "500": {
+            "description": "Erro interno."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/listar-agendamentos-dia": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Listar todos os agendamentos ativos para uma data",
+        "description": "Retorna os agendamentos ativos em pauta externa ou remota para a data informada.\n\nRegras:\n- O parâmetro `data` é obrigatório e deve estar no formato `dd/MM/aaaa`.\n- A validação da data é estrita: datas inexistentes (ex.: 31/02/2026) são rejeitadas.",
+        "operationId": "listarAgendamentosDoDia",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "query",
+            "description": "Data dos agendamentos, no formato dd/MM/aaaa.",
+            "required": true,
+            "type": "string",
+            "x-example": "15/10/2026"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Identificadores de agendamentos habilitados para confirmação de presença retornados com sucesso",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "400": {
+            "description": "Formato de data inválido"
+          },
+          "500": {
+            "description": "Erro interno"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/listar-agendamentos-pessoa/{idPessoa}": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Requisição para listar os agendamentos de uma pessoa.",
+        "description": "Retorna os agendamentos marcados para a pessoa identificada por idPessoa.\n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n",
+        "operationId": "listarAgendamentosPessoa",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idPessoa",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idOrgao",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idAssunto",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agendamentos da pessoa retornados com sucesso.",
+            "schema": {
+              "type": "array",
+              "items": {
+                "$ref": "#/definitions/AgendamentoPessoaDTO"
+              }
+            }
+          },
+          "422": {
+            "description": "Requisição não processável por idPessoa inválido.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "500": {
+            "description": "Erro interno."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/reagendar": {
+      "post": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Reagendar um agendamento",
+        "description": "Reagenda um agendamento existente para a data/hora e o intervalo de agenda informados.\n\n**Corpo da requisição**\n- `idAgendamento` (obrigatório): agendamento a ser reagendado.\n- `configuracaoIntervaloAgenda` (obrigatório): intervalo de agenda da nova vaga.\n- `dataNova` (obrigatório): nova data/hora no formato `dd/MM/aaaa HH:mm` (ex.: `15/10/2026 09:30`).\n\n**Regras para o agendamento original**\n- Deve existir e estar associado a um órgão.\n- Deve estar ativo e não pode ter sido reagendado anteriormente.\n- Sua data ainda não pode ter passado.\n- Não pode ser de órgão POLO DE MEDIAÇÃO E AÇÕES RESTAURATIVAS.\n- Não pode estar bloqueado por faltas (código `BLOQUEIO_ATIVO`).\n\n**Regras para a nova vaga**\n- `dataNova` deve estar dentro do período de vigência da agenda do intervalo (código `DATA_INVALIDA`).\n- O intervalo deve ter vaga disponível na data (código `NAO_HA_VAGA_DISPONIVEL`).\n\n**Resultado**\n- Um **novo** agendamento é criado, com novo identificador, na pauta do intervalo informado. O órgão do novo agendamento é o órgão dessa pauta, que pode ser diferente do órgão original.\n- O novo agendamento herda do original o assistido, o assunto, o caso, o processo, a pessoa presa e os textos.\n- O agendamento original é inativado e marcado como reagendado.\n- A resposta traz `idAgendamento` (identificador do novo agendamento) e `dtInicio` (`dd/MM/aaaa HH:mm`).",
+        "operationId": "reagendarAgendamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Dados do reagendamento: idAgendamento, configuracaoIntervaloAgenda e dataNova (dd/MM/aaaa HH:mm).",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/ReagendamentoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agendamento reagendado com sucesso. Retorna idAgendamento (novo agendamento) e dtInicio.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "400": {
+            "description": "configuracaoIntervaloAgenda não informado, ou dataNova em formato inválido (esperado dd/MM/aaaa HH:mm).",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "422": {
+            "description": "Reagendamento não permitido. Códigos possíveis:\n- PARAMETRO_NAO_PROCESSAVEL: agendamento inexistente, sem órgão, do POLO DE MEDIAÇÃO E AÇÕES RESTAURATIVAS, já reagendado, inativo, com data já passada ou no qual a pessoa presa está tentando ser reagendado para a mesma pessoa presa.\n- BLOQUEIO_ATIVO: agendamento bloqueado devido a faltas.\n- DATA_INVALIDA: dataNova fora da vigência da agenda do intervalo.\n- NAO_HA_VAGA_DISPONIVEL: o intervalo não possui vagas na data informada.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/verificar-duplicados": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Requisição para consultar agendamentos duplicados por pessoa e assunto.",
+        "description": "Retorna os ids e datas dos agendamentos futuros que possuem duplicidade por pessoa e assunto.\n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n",
+        "operationId": "verificarAgendamentoDuplicado",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idPessoa",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idAssunto",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listagem de ids e datas dos agendamentos duplicados.",
+            "schema": {
+              "$ref": "#/definitions/ListaAgendamentoDuplicadoResponseDTO"
+            }
+          },
+          "422": {
+            "description": "Não foi encontrado uma pessoa ou assunto com o identificador informado.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "500": {
+            "description": "Erro interno."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/{idAgendamento}/pre-atendimento/url": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Consulta de URL do pré-atendimento relacionado ao agendamento",
+        "description": "Esse endpoint consulta o pré-atendimento do agendamento informado e retorna a url para esse pré-atendimento no ambiente do VIA Atendimento.",
+        "operationId": "recuperarUrlPreAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idAgendamento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "URL consultada com sucesso",
+            "schema": {
+              "$ref": "#/definitions/UrlAtendimentoResponseDTO"
+            }
+          },
+          "404": {
+            "description": "Agendamento não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/{idEvento}": {
+      "get": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Requisição para a consulta os dados de um agendamento.",
+        "description": "Retorna as informações do agendamento identificado por idEvento.\n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório.\n\n",
+        "operationId": "consultarAgendamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idEvento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Agendamento consultado com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/AgendamentoDTO"
+            }
+          },
+          "500": {
+            "description": "Erro interno."
+          },
+          "404": {
+            "description": "Agendamento não encontrado."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/agendamento/{idEvento}/resposta-antecipacao": {
+      "put": {
+        "tags": [
+          "Agendamento"
+        ],
+        "summary": "Responder a decisão de antecipação de vagas do assistido",
+        "description": "Indica que o assistido não será notificado novamente sobre a antecipação de tal agendamento.",
+        "operationId": "indicarRespostaNotificacao",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idEvento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "500": {
+            "description": "Erro interno"
+          },
+          "204": {
+            "description": "Agendamento marcado com resposta para antecipação"
+          },
+          "404": {
+            "description": "Agendamento não encontrado"
+          },
+          "409": {
+            "description": "Já foi respondido para tal agendamento"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/apenado": {
+      "post": {
+        "tags": [
+          "Apenado"
+        ],
+        "summary": "Consulta os dados de um apenado.",
+        "description": "Deve ser passado o RG do apenado que deseja consultar. \nAo realizar a consulta, os dados do apenado são consultados e atualizados baseado no serviço do SIPEN.",
+        "operationId": "consultarEAtualizar",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/ConsultarApenadoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Se o campo dados vier vazio, o apenado não foi encontrado. Caso contrário, o apenado foi consultado e atualizado com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/ApenadoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado"
+          },
+          "401": {
+            "description": "Caso excepcional onde o usuário não tem RG de funcionário para consultar o SIPEN. Entrar em contato com a equipe para mudar o RG cadastrado do usuário."
+          },
+          "503": {
+            "description": "Serviço do SIPEN indisponível no momento."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/apenado/armazenar-contato": {
+      "post": {
+        "tags": [
+          "Apenado"
+        ],
+        "summary": "Armazena dados de uma pessoa relacionada ao apenado.",
+        "description": "Deve ser passado o id do apenado, nome da pessoa, telefones, grau de parentesco e email (opcional). \nAo realizar a requisição, os dados do apenado serão atualizados baseado no serviço do SIPEN.",
+        "operationId": "armazenarContatoPessoaPresa",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/ArmazenarContatoApenadoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "O campo retornará o idContato informando que o contato foi criado.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado"
+          },
+          "409": {
+            "description": "Caso seja informado telefones que já constem na base de dados."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/assunto/categorias": {
+      "get": {
+        "tags": [
+          "Assunto"
+        ],
+        "summary": "Listar categorias de assunto.",
+        "description": "Retorna as categorias de assunto disponíveis no Verde.",
+        "operationId": "buscarCategorias",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Listagem de categorias de assunto retornada com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/CategoriaAssuntoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/assunto/consultar-item-arvore": {
+      "get": {
+        "tags": [
+          "Assunto"
+        ],
+        "summary": "Consulta às informações de uma categoria de assunto.",
+        "description": "",
+        "operationId": "consultarItemArvoreAssuntos",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idCategoria",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idItemCategoria",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Informações da categoria de assunto retornadas com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/ItemCategoriaAssuntoDTO"
+            }
+          },
+          "400": {
+            "description": "É necessário informar ao menos um dos parâmetros de identificador de categoria ou identificador do item de categoria."
+          },
+          "422": {
+            "description": "Não é permitido enviar ambos os parâmetros de identificador de categoria e identificador de item de categoria na mesma requisição."
+          },
+          "404": {
+            "description": "Item de categoria de assunto não encontrado."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/assunto/sugerir-motivo": {
+      "post": {
+        "tags": [
+          "Assunto"
+        ],
+        "summary": "Sugere motivos para o atendimento baseado em um relato textual.",
+        "description": "Dado um relato textual codificado em base64, é feito uma consulta a uma IA de sugestão de motivo e retornado os 3 motivos com maiores probabilidades de corresponderem ao relato, para que possa identificar o assunto correto para o atendimento.",
+        "operationId": "sugerirMotivo",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/RelatoRequestDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sugestão de motivos feita com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/SugestaoMotivoResponseDTO"
+            }
+          },
+          "503": {
+            "description": "Serviço IA de sugestão de motivo indisponível no momento."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/assunto/{idAssunto}": {
+      "get": {
+        "tags": [
+          "Assunto"
+        ],
+        "summary": "Consulta aos dados de um assunto baseado em seu identificador.",
+        "description": "",
+        "operationId": "consultarAssunto",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idAssunto",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Assunto consultado com sucesso",
+            "schema": {
+              "$ref": "#/definitions/AssuntoDTO"
+            }
+          },
+          "404": {
+            "description": "Assunto não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/atendimento-online/enviar": {
+      "post": {
+        "tags": [
+          "Atendimento Online"
+        ],
+        "summary": "Requisição ao serviço de atendimento online para a inclusão de um atendimento.",
+        "description": "",
+        "operationId": "enviar",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/AtendimentoOnlineDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Informações de atendimento online enviadas com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/AtendimentoOnlineResponseDTO"
+            }
+          },
+          "422": {
+            "description": "Número de processo inválido."
+          },
+          "400": {
+            "description": "É necessário informar o diálogo para realizar o atendimento online."
+          },
+          "404": {
+            "description": "Serviço de atendimento online não encontrado."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/autenticacao/token/refresh": {
+      "post": {
+        "tags": [
+          "Autenticação"
+        ],
+        "summary": "Requisição de renovação do token de acesso à Integra API",
+        "description": "Realiza a emissão de um novo token de acesso a partir de um token existente.\n\n### Requisitos de Segurança\n- Header `Authorization: Bearer <token>` obrigatório.\n- Header `X-Client-ID` obrigatório (deve corresponder ao cliente original do token).\n\n### Regras de Renovação\n1. **Validade:** O token deve estar ativo ou ter expirado há no máximo **5 dias** (Grace Period).\n2. **Revogação:** Tokens marcados como revogados não podem ser renovados sob nenhuma circunstância.\n3. **Ciclo de Vida:** Ao renovar, o token antigo é **imediatamente invalidado**. O novo token terá validade de 30 dias.\n\n",
+        "operationId": "refresh",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "X-Client-Id",
+            "in": "header",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token renovado com sucesso",
+            "schema": {
+              "$ref": "#/definitions/TokenDTO"
+            }
+          },
+          "401": {
+            "description": "Não autorizado"
+          },
+          "403": {
+            "description": "Acesso negado"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          },
+          {
+            "X-Client-ID": []
+          }
+        ]
+      }
+    },
+    "/integra/autenticacao/token/status": {
+      "get": {
+        "tags": [
+          "Autenticação"
+        ],
+        "operationId": "consultarToken",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "Authorization",
+            "in": "header",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "X-Client-Id",
+            "in": "header",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "default": {
+            "description": "successful operation"
+          }
+        }
+      }
+    },
+    "/integra/bairro/consultar": {
+      "get": {
+        "tags": [
+          "Endereço"
+        ],
+        "summary": "Requisição de consulta de bairros do município informado",
+        "description": "Este endpoint retorna uma lista de bairros do município informado. \nO ID do município informado deve ser positivo e não nulo.",
+        "operationId": "consultarBairros",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idMunicipio",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consultado com sucesso",
+            "schema": {
+              "$ref": "#/definitions/BairroResponseDTO"
+            }
+          },
+          "400": {
+            "description": "ID não informado ou fora do formato esperado"
+          },
+          "422": {
+            "description": "Município não encontrado"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          },
+          {
+            "X-Client-ID": []
+          }
+        ]
+      }
+    },
+    "/integra/bloqueio": {
+      "get": {
+        "tags": [
+          "Bloqueio"
+        ],
+        "summary": "Consultar se existe bloqueio ativo para agendamento dado pessoa, assunto e órgão",
+        "description": "Retorna o bloqueio de agendamento ativo para a pessoa, assunto e órgão informados, caso exista.",
+        "operationId": "consultar",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idPessoa",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idAssunto",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idOrgao",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consulta realizada com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/BloqueioAgendamentoDTO"
+            }
+          },
+          "400": {
+            "description": "Requisição inválida.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "422": {
+            "description": "Pessoa / Órgão / Assunto não encontrado.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "404": {
+            "description": "BloqueioAgendamento não encontrado.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/caso/consultar-casos-pessoa/{idPessoa}": {
+      "get": {
+        "tags": [
+          "Caso"
+        ],
+        "summary": "Consulta aos casos no qual uma determinada pessoa pertence, na qual há uma gama de filtros adicionais que podem ser aplicados.",
+        "description": "",
+        "operationId": "consultarCasosPessoa",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idPessoa",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "tipoCaso",
+            "in": "query",
+            "description": "Valor do tipo de caso a ser consultado, podendo ser processual ou não processual.",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "CP",
+              "CNP"
+            ]
+          },
+          {
+            "name": "idProcesso",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idAssunto",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "urgente",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Casos da pessoa consultados com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/CasosPessoaResponseDTO"
+            }
+          },
+          "422": {
+            "description": "É necessário informar o tipo de caso quando for especificado o identificador de um assunto."
+          },
+          "404": {
+            "description": "Pessoa não encontrada"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/caso/{idCaso}/orgao/{idOrgao}/associar": {
+      "post": {
+        "tags": [
+          "Caso"
+        ],
+        "summary": "Associa o órgão ao caso informado",
+        "description": "É necessário passar os IDs do caso e do órgão que serão associados, além do ID do usuário que será o responsável pela ação. \nO caso não pode possuir sigilo. Se ele estiver fechado ou suspenso, é reaberto e o órgão é vinculado.",
+        "operationId": "associarOrgao",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idCaso",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idOrgao",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/AlteracaoCasoOrgaoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Usuário não encontrado | Caso possui sigilo"
+          },
+          "204": {
+            "description": "Órgão associado com sucesso"
+          },
+          "404": {
+            "description": "Caso não encontrado | Órgão não encontrado"
+          },
+          "409": {
+            "description": "Órgão já associado ao caso"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/caso/{idCaso}/orgao/{idOrgao}/desassociar": {
+      "post": {
+        "tags": [
+          "Caso"
+        ],
+        "summary": "Desassocia o órgão do caso informado",
+        "description": "É necessário passar os IDs do caso e do órgão que serão desassociados, além do ID do usuário que será o responsável pela ação.",
+        "operationId": "desassociarOrgao",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idCaso",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idOrgao",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/AlteracaoCasoOrgaoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Usuário não encontrado | Órgão não associado ao caso"
+          },
+          "204": {
+            "description": "Órgão desassociado com sucesso"
+          },
+          "404": {
+            "description": "Caso não encontrado | Órgão não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/cep/{codigoCep}": {
+      "get": {
+        "tags": [
+          "Endereço"
+        ],
+        "summary": "Consulta de informações de endereço conforme o CEP informado.",
+        "description": "",
+        "operationId": "consultarCEP",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "codigoCep",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Informações de endereço retornadas com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/EnderecoCepDTO"
+            }
+          },
+          "400": {
+            "description": "CEP inválido ou não encontado na base de dados dos correios. Forneça um CEP válido para prosseguir."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/email/confirmacao-atendimento": {
+      "post": {
+        "tags": [
+          "E-mail"
+        ],
+        "summary": "Requisição de envio de e-mail de confirmação de atendimento",
+        "description": "",
+        "operationId": "confirmaAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/EmailConfirmacaoAtendimentoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Atendimento não encontrado.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "422": {
+            "description": "O assistido não possui um e-mail cadastrado.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "204": {
+            "description": "E-mail de confirmação de atendimento enviado com sucesso."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/encaminhamento/consultar-encaminhamentos-assistido": {
+      "get": {
+        "tags": [
+          "Encaminhamento"
+        ],
+        "summary": "Requisição de consulta por encaminhamentos do assistido. Permitindo filtrar também por assunto e por órgão.",
+        "description": "",
+        "operationId": "consultarEncaminhamentosAssistido",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idAssistido",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idAssunto",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idAssuntoProcesso",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idOrgao",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Encaminhamentos consultados com sucesso",
+            "schema": {
+              "$ref": "#/definitions/EncaminhamentoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "É necessário definir um assunto do Verde ou um assunto processual.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/encaminhamento/encaminhar": {
+      "post": {
+        "tags": [
+          "Encaminhamento"
+        ],
+        "summary": "Realizar um encaminhamento comum ou de urgência",
+        "description": "Cria um encaminhamento CRC para o órgão de destino informado. O comportamento depende do campo `fluxoEncaminhamento`.\n\n**Campos comuns**\n- `fluxoEncaminhamento` (obrigatório): `PRIMEIRO_ATENDIMENTO`, `PRISIONAL`, `PROCESSUAL` ou `VIOLENCIA_DOMESTICA`. Diferencia maiúsculas de minúsculas.\n- `preferenciaAtendimento` (obrigatório): `Presencial` ou `Remoto`. Diferencia maiúsculas de minúsculas.\n- `urgencia`: indica encaminhamento de urgência. Ignorado no fluxo `VIOLENCIA_DOMESTICA`, que é sempre urgente.\n- `motivoUrgencia`: nome do motivo de encaminhamento.\n- `idLocalAtendimento`: local de atendimento do órgão. Se informado, deve existir (exceto no fluxo `PROCESSUAL`, onde não é validado).\n- `idCaso`: caso ao qual o encaminhamento será vinculado. Se omitido, o caso é criado ou reaproveitado automaticamente (exceto no fluxo `PROCESSUAL`).\n\n**Fluxo `PRIMEIRO_ATENDIMENTO`**\n- Obrigatórios: `idPessoa`, `idOrgao`, `idAssunto`.\n- Opcionais: `dataComplemento` (`dd/MM/aaaa`), `textoComplemento`, `usuarioResponsavel` (supervisor).\n- `idPessoa`, `idAssunto` e `idOrgao` devem existir (422).\n- A aplicação cliente deve ter um tipo de encaminhamento configurado (422).\n\n**Fluxo `PRISIONAL`**\n- Obrigatórios: `idPessoa`, `idOrgao`, `idProcesso`, `idPessoaPresa`.\n- `idPessoaPresa` deve corresponder a uma pessoa presa com pessoa física vinculada (422).\n- O assunto é o assunto CNJ do processo ou, na ausência dele, o assunto padrão de atendimento prisional. `idAssunto` é ignorado.\n\n**Fluxo `PROCESSUAL`**\n- Obrigatórios: `idPessoa`, `idOrgao`, `idProcesso`.\n- Opcionais: `observacao`, `dataComplemento` (`dd/MM/aaaa`), `textoComplemento`.\n- O assunto é o assunto CNJ do processo. Na ausência dele, é usado o assunto do caso informado ou, por último, o nome do assunto do processo como assunto livre.\n- Nenhum caso é criado automaticamente.\n\n**Fluxo `VIOLENCIA_DOMESTICA`**\n- Obrigatórios: `idPessoa`, `idOrgao`.\n- O assunto é sempre o assunto de violência doméstica, e `idAssunto` é ignorado.\n\nEm caso de sucesso, o identificador do encaminhamento criado é retornado.",
+        "operationId": "realizarEncaminamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "description": "Dados do encaminhamento. Os campos obrigatórios variam conforme fluxoEncaminhamento.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/EncaminhamentoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Encaminhamento realizado com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/EncaminhamentoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Campo obrigatório não informado: fluxoEncaminhamento, ou um dos campos obrigatórios do fluxo.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "422": {
+            "description": "Requisição não processável (código PARAMETRO_NAO_PROCESSAVEL). Motivos possíveis:\n- fluxoEncaminhamento ou preferenciaAtendimento com valor inválido.\n- Assistido, assunto ou órgão não encontrados (PRIMEIRO_ATENDIMENTO).\n- Pessoa presa não encontrada ou sem pessoa física vinculada (PRISIONAL).\n- Local de atendimento não encontrado.\n- Aplicação cliente sem tipo de encaminhamento configurado (PRIMEIRO_ATENDIMENTO).",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/feriado": {
+      "get": {
+        "tags": [
+          "Feriado"
+        ],
+        "summary": "Consulta os feriados de uma data e município especificados",
+        "description": "",
+        "operationId": "consultarFeriados",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "data",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "municipio",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Feriado consultado com sucesso",
+            "schema": {
+              "$ref": "#/definitions/FeriadoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Formato de data inválido"
+          },
+          "404": {
+            "description": "Município do nome especificado não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/mensagem/pendentes/{idCaso}": {
+      "get": {
+        "tags": [
+          "Mensagem"
+        ],
+        "summary": "Consulta as mensagens pendentes para o assistido de um caso específico",
+        "description": "Retorna as mensagens da defensoria que não foram respondidas, ou que não tem prazo e não foram lidas",
+        "operationId": "consultarMensagensCaso",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idCaso",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mensagens do caso consultadas com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/MensagemCidadaoResponseDTO"
+            }
+          },
+          "404": {
+            "description": "Caso não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/municipio/consultar": {
+      "get": {
+        "tags": [
+          "Endereço"
+        ],
+        "summary": "Requisição de consulta de municípios da UF informada",
+        "description": "Este endpoint retorna uma lista de municípios da UF informada. \nA UF informada deve ser não nula e ter exatamente duas letras.",
+        "operationId": "consultarMunicipios",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "uf",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consultado com sucesso",
+            "schema": {
+              "$ref": "#/definitions/MunicipioResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado"
+          },
+          "404": {
+            "description": "UF não encontrada"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          },
+          {
+            "X-Client-ID": []
+          }
+        ]
+      }
+    },
+    "/integra/notificacao/notificar-agendamento": {
+      "post": {
+        "tags": [
+          "Notificação"
+        ],
+        "summary": "Envio de notificação para usuário do aplicativo Cidadão",
+        "description": "Requisição para enviar os dados a serem notificados para o usuário do aplicativo",
+        "operationId": "notificarAgendamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/NotificacaoAgendamentoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "A notificação no aplicativo foi criada, mas a notificação push não pôde ser enviada para o dispositivo",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "422": {
+            "description": "Requisição não processada. Motivo descrito nas chaves mensagem e código da resposta.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "500": {
+            "description": "Erro interno no servidor.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "204": {
+            "description": "A notificação no aplicativo foi criada e a notificação push foi enviada com sucesso"
+          }
+        },
+        "security": [
+          {
+            "Authorization": []
+          },
+          {
+            "X-Client-ID": []
+          }
+        ]
+      }
+    },
+    "/integra/orgao/atendimento-processual/{idProcesso}": {
+      "get": {
+        "tags": [
+          "Órgão"
+        ],
+        "summary": "Consultar o órgão da Defensoria responsável pelo atendimento de um processo",
+        "description": "Retorna o órgão da DPGE que atende o processo informado. O órgão é identificado a partir da vara (órgão do TJ) do processo.\n\nRegras de seleção:\n- Se houver apenas um órgão da DPGE para o processo, é retornado esse órgão.\n- Se houver mais de um, é retornado o órgão que possui atribuição processual no assunto do processo.\n- Se mais de um órgão estiver apto a atender (empate), a requisição é rejeitada com 422 e o código `EMPATE_ORGAOS_ATENDIMENTO`. Nesse caso não é possível definir automaticamente o órgão responsável.\n- Se nenhum órgão atender aos critérios, nenhum órgão é retornado.\n\nPreferência de atendimento:\n- `Presencial`: o órgão é retornado com seus endereços de atendimento. Nesse caso, `urgente = true` retorna os endereços de atendimento de urgência.\n- `Remoto`: o órgão é retornado sem endereços, e o parâmetro `urgente` é ignorado.\n- A comparação do valor é feita sem diferenciar maiúsculas de minúsculas.",
+        "operationId": "consultarOrgaosAtendimentoProcessual",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idProcesso",
+            "in": "path",
+            "description": "Identificador do processo.",
+            "required": true,
+            "type": "integer",
+            "format": "int32",
+            "x-example": 123456
+          },
+          {
+            "name": "urgente",
+            "in": "query",
+            "description": "Se true, retorna os endereços de atendimento de urgência. Só tem efeito quando preferenciaAtendimento = Presencial.",
+            "required": false,
+            "type": "boolean",
+            "default": false
+          },
+          {
+            "name": "preferenciaAtendimento",
+            "in": "query",
+            "description": "Forma de atendimento desejada. Com Presencial, o órgão é retornado com seus endereços.",
+            "required": true,
+            "type": "string",
+            "x-example": "Presencial",
+            "enum": [
+              "Presencial",
+              "Remoto"
+            ]
+          },
+          {
+            "name": "idPessoa",
+            "in": "query",
+            "description": "Identificador da pessoa (assistido) para a qual o processo é validado.",
+            "required": true,
+            "type": "integer",
+            "format": "int32",
+            "x-example": 12345
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Órgãos consultados com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/OrgaoDTO"
+            }
+          },
+          "422": {
+            "description": "Requisição não processável. Códigos possíveis:\n- PARAMETRO_NAO_PROCESSAVEL: processo não encontrado para o identificador informado, ou processo sem vara associada.\n- EMPATE_ORGAOS_ATENDIMENTO: mais de um órgão está apto a atender o processo, e não é possível definir o órgão responsável.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "502": {
+            "description": "Não foi possível validar o processo (código ERRO_INTEGRACAO).",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/orgao/plantao/primeiro-atendimento": {
+      "get": {
+        "tags": [
+          "Órgão"
+        ],
+        "summary": "Consulta órgãos de plantão para primeiro atendimento",
+        "description": "Retorna os órgãos de plantão que podem atender o assistido informado durante o plantão indicado.",
+        "operationId": "consultarOrgaosPlantaoPrimeiroAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idPlantao",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idAssistido",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Sem plantão vigente para o assistido (retorna código SEM_PLANTAO_VIGENTE)"
+          },
+          "400": {
+            "description": "Assistido sem endereço cadastrado ou parâmetro inválido"
+          },
+          "500": {
+            "description": "Erro interno"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/orgao/plantao/violencia-domestica": {
+      "get": {
+        "tags": [
+          "Órgão"
+        ],
+        "summary": "Consulta os órgãos de violência doméstica que podem atender um determinado assistido durante plantões.",
+        "description": "Deve ser passado uma lista de plantões com pelo menos um plantão e o ID do assistido. \nO parâmetro 'idPlantao' pode ser repetido quantas vezes forem necessárias para passar cada ID. Exemplo: \n\n```.../violencia-domestica?idPlantao=1&idPlantao=2```\n\nSe não houver plantão vigente dentre os passados no momento da requisição, é retornado 200, porém com código e mensagem informando a ausência de plantão.",
+        "operationId": "consultarOrgaosPlantaoViolenciaDomestica",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idPlantao",
+            "in": "query",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "integer",
+              "format": "int32"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "idAssistido",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Órgãos consultados com sucesso ou não possui plantão vigente",
+            "schema": {
+              "$ref": "#/definitions/OrgaoViolenciaDomesticaResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Assistido não possui endereço cadastrado ou parâmetro não informado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/orgao/primeiro-atendimento": {
+      "get": {
+        "tags": [
+          "Órgão"
+        ],
+        "summary": "Lista órgãos que atendem primeiro atendimento",
+        "description": "Retorna os órgãos habilitados para receber o primeiro atendimento considerando o assunto, a pessoa e o complemento informado.",
+        "operationId": "listarAtendimentosOrgaosPrimeiroAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idAssunto",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idPessoa",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "complemento",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "inPrioritario",
+            "in": "query",
+            "required": false,
+            "type": "boolean"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Órgãos retornados com sucesso",
+            "schema": {
+              "$ref": "#/definitions/OrgaoDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro ausente ou fora do formato esperado"
+          },
+          "500": {
+            "description": "Erro interno"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/orgao/reu-liberto/{idSEAP}": {
+      "get": {
+        "tags": [
+          "Órgão"
+        ],
+        "summary": "Consulta aos órgãos no fluxo de réu liberto baseado nos dados da pessoa presa.",
+        "description": "",
+        "operationId": "consultarOrgaosReuLiberto",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idSEAP",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Órgãos consultados com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/OrgaoDTO"
+            }
+          },
+          "422": {
+            "description": "A pessoa presa não possui um RG cadastrado no sistema.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/orgao/reu-preso/{idSeap}": {
+      "get": {
+        "tags": [
+          "Órgão"
+        ],
+        "summary": "Listar órgãos para atendimento de réu preso.",
+        "description": "Retorna as possibilidades de atendimento para réu preso conforme preferência de atendimento.",
+        "operationId": "consultarOrgaosReuPreso",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idSeap",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "preferenciaAtendimento",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Listagem de Atendimentos Disponíveis",
+            "schema": {
+              "$ref": "#/definitions/OrgaoDTO"
+            }
+          },
+          "422": {
+            "description": "Não foi encontrado uma pessoa presa com o identificador informado.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/orgao/violencia-domestica": {
+      "get": {
+        "tags": [
+          "Órgão"
+        ],
+        "summary": "Consulta os órgãos associados à violência doméstica de um determinado bairro.",
+        "description": "Deve ser indicado se possui RO ou não, além do ID da pessoa. São consultados órgãos que atendam o endereço da pessoa informada. \nSerá retornada uma mensagem indicando para contactar a CRC, caso possua RO e não seja encontrado nenhum órgão.",
+        "operationId": "consultarOrgaosViolenciaDomestica",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "indicacaoRO",
+            "in": "query",
+            "required": true,
+            "type": "boolean"
+          },
+          {
+            "name": "idPessoa",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Órgãos consultados com sucesso",
+            "schema": {
+              "$ref": "#/definitions/OrgaoViolenciaDomesticaResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado"
+          },
+          "422": {
+            "description": "Pessoa sem informação de endereço"
+          },
+          "404": {
+            "description": "Pessoa não encontrada"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/personagem/atualiza-personagens-caso": {
+      "post": {
+        "tags": [
+          "Personagem"
+        ],
+        "summary": "Atualiza personagens do caso.",
+        "description": "Inclui personagens no caso conforme o id da pessoa e tipo de personagem especificado. Tipos de personagem permitidos: A = Autor, R = Réu, TER = Terceiro Interessado, TES = Testemunha, V = Vítima, AC = Amicus Curiae, H = Herdeiro, CA = Criança/Adolescente",
+        "operationId": "atualizaPersonagensCaso",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/AtualizarPersonagensCasoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "Caso não existe."
+          },
+          "204": {
+            "description": "Personagens do caso atualizados."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/pessoa": {
+      "get": {
+        "tags": [
+          "Pessoa"
+        ],
+        "summary": "Consulta de pessoa pelo CPF",
+        "description": "Ao passar o CPF, pode ser utilizado ele com a pontuação ou com apenas números.\nSão retornados os dados da pessoa, assim como seus representantes. Para os representantes, são retornados os seguintes dados:\n- idPessoa: Identificador único da pessoa.\n- tipoPessoa: Tipo da pessoa.\n\t- PF: Pessoa Física\n\t- PJ: Pessoa Jurídica\n- cpf: Número do CPF. Retornado apenas quando tipoPessoa for PF.\n- cnpj: Número do CNPJ. Retornado apenas quando tipoPessoa for PJ.\n- nome: Nome da pessoa física ou razão social da pessoa jurídica.\n- tipoRepresentante: Tipo de vínculo de representação.\n\t- Assistente\n\t- Representante Legal\n\t- Curador\n\t- Síndico\n\t- Tutor\n\t- Procurador\n\t- Familiar\n- temSigilo: Indica se o representante possui restrição de sigilo (true ou false).\n\n O gênero do assistido é retornado na consulta, e pode ter um valor da seguinte lista:\n- Masculino\n- Feminino\n- NaoBinarie\n- Outros",
+        "operationId": "consultar",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "cpf",
+            "in": "query",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Pessoa encontrada",
+            "schema": {
+              "$ref": "#/definitions/PessoaResponseDTO"
+            }
+          },
+          "400": {
+            "description": "CPF inválido",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "422": {
+            "description": "Mais de uma pessoa encontrada pelo CPF informado",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "404": {
+            "description": "Pessoa do CPF informado não encontrada",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Pessoa"
+        ],
+        "summary": "Cadastro de pessoa",
+        "description": "Realiza o cadastro de uma nova pessoa. O CPF deve ser válido e não pode estar cadastrado.\nÉ possível cadastrar um representante legal para a pessoa. Para isso, deve ser passado um ID de pessoa válido e um ID de tipo de representante válido.\n\nValores possíveis de tipo de representante:\n- Assistente: 1\n- Representante Legal: 2\n- Curador: 3\n- Síndico: 4\n- Tutor: 5\n- Procurador: 6\n- Familiar: 7\n\nO gênero do assistido pode ser informado, e deve ser um valor da seguinte lista:\n- Masculino\n- Feminino\n- NaoBinarie\n- Outros",
+        "operationId": "cadastrar",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "CadastrarPessoaDTO",
+            "description": "O corpo da requisição deve conter os dados segundo esse objeto para cadastro de uma pessoa.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CadastrarPessoaDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "201": {
+            "description": "Pessoa cadastrada."
+          },
+          "400": {
+            "description": "Requisição inválida."
+          },
+          "422": {
+            "description": "Pessoa já cadastrada anteriormente. | O cadastro da pessoa falhou. | Representante não encontrado. | Tipo de representante não encontrado."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      },
+      "put": {
+        "tags": [
+          "Pessoa"
+        ],
+        "summary": "Atualização dos dados de uma pessoa.",
+        "description": "Atualiza os dados de uma pessoa existente. Caso o endereço seja alterado, pode impactar agendamentos.\nÉ possível cadastrar um representante legal para a pessoa. Para isso, deve ser passado um ID de pessoa válido e um ID de tipo de representante válido.\nAlém disso, é possível modificar o tipo desse representante, se já cadastrado.\n\nValores possíveis de tipo de representante:\n- Assistente: 1\n- Representante Legal: 2\n- Curador: 3\n- Síndico: 4\n- Tutor: 5\n- Procurador: 6\n- Familiar: 7\n\nO gênero do assistido pode ser informado, e deve ser um valor da seguinte lista:\n- Masculino\n- Feminino\n- NaoBinarie\n- Outros",
+        "operationId": "atualizar",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "AtualizarPessoaDTO",
+            "description": "O corpo da requisição deve conter os dados segundo esse objeto para atualização de uma pessoa.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/AtualizarPessoaDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Atualização de endereço da pessoa alterou agendamento(s). | Atualização de endereço da pessoa NÃO alterou agendamento(s). "
+          },
+          "400": {
+            "description": "Requisição inválida."
+          },
+          "422": {
+            "description": "Pessoa não encontrada. | A atualização da pessoa falhou. | Representante não encontrado. | Tipo de representante não encontrado."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/pessoa/listar": {
+      "get": {
+        "tags": [
+          "Pessoa"
+        ],
+        "summary": "Listar pessoas por critérios de filtro e paginar resultados",
+        "description": "Retorna uma lista de pessoas físicas que correspondem aos critérios informados (atualmente apenas telefone). Os resultados são paginados de 10 em 10. Caso nenhum filtro válido seja informado, a requisição é rejeitada.",
+        "operationId": "listar",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "pagina",
+            "in": "query",
+            "description": "Número da página para navegação nos resultados.",
+            "required": false,
+            "type": "integer",
+            "default": 1,
+            "minimum": 1.0,
+            "format": "int32"
+          },
+          {
+            "name": "telefone",
+            "in": "query",
+            "description": "O telefone deve conter DDD + número. Exemplo: [identificador removido]. Pode ser enviado formatado ou apenas dígitos.",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Consulta processada com sucesso",
+            "schema": {
+              "$ref": "#/definitions/ListaPessoasResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Campo inválido (ex: telefone mal formatado) ou requisição sem filtros.",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/plantao/vigente": {
+      "get": {
+        "tags": [
+          "Plantão"
+        ],
+        "summary": "Consulta os plantões vigentes na data atual.",
+        "description": "",
+        "operationId": "consultarPlantoesVigentes",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Plantões consultados com sucesso",
+            "schema": {
+              "$ref": "#/definitions/PlantaoVigenteResponseDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/prioridade-atendimento": {
+      "get": {
+        "tags": [
+          "Prioridade Atendimento"
+        ],
+        "summary": "Consulta de perguntas de prioridade.",
+        "description": "São informadas todas as prioridades ativas além da pergunta e, se houver, complemento. A lista de prioridades retornada nesse endpoint segue a ordem na qual as prioridades devem ser apresentada aos assistidos.",
+        "operationId": "consultarPrioridades",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Prioridades de atendimento consultadas com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/PrioridadeAtendimentoDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/processo/consultar/{numeroProcesso}": {
+      "get": {
+        "tags": [
+          "Processo"
+        ],
+        "summary": "Consulta o processo judicial passado",
+        "description": "Consulta o processo nos MNIs disponíveis e importa os processos ainda não importados. \nÉ possível enviar o número com e sem pontuação. \nRetorna os dados do processo e os 3 movimentos mais recentes. \nCaso haja mais de um processo com o mesmo número, retorna o que possui data de movimento mais recente. \nEm caso de empate, retorna o processo em primeira instância. \n",
+        "operationId": "consultarProcesso",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "numeroProcesso",
+            "in": "path",
+            "required": true,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Órgãos consultados com sucesso",
+            "schema": {
+              "$ref": "#/definitions/ProcessoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do padrão"
+          },
+          "422": {
+            "description": "Número de processo inválido ou de fora do RJ"
+          },
+          "404": {
+            "description": "Processo não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/recesso/vigente": {
+      "get": {
+        "tags": [
+          "Recesso"
+        ],
+        "summary": "Consulta recesso vigente.",
+        "description": "Verifica se há recesso ativo na data atual e retorna dados do recesso, caso exista. Se não existir, é retornado o código SEM_RECESSO_VIGENTE.",
+        "operationId": "consultarRecessosVigentes",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Busca realizada com sucesso e recesso ou sem recesso com código SEM_RECESSO_VIGENTE.",
+            "schema": {
+              "$ref": "#/definitions/RecessoDTO"
+            }
+          },
+          "401": {
+            "description": "Acesso não autorizado."
+          },
+          "500": {
+            "description": "Erro interno do servidor."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/solucao-extrajudicial": {
+      "post": {
+        "tags": [
+          "Solução Extrajudicial"
+        ],
+        "summary": "Criação de solução extrajudicial",
+        "description": "Realiza a criação de uma solução extrajudicicriarSolucaoExtrajudicialDTO.setValor(\"1.500,00\");criaral.\n\nÉ possível passar o valor da causa da distribuição. O formato para o parâmetro **valor** segue o padrão monetário brasileiro, com vírgula como separador decimal (1 ou 2 casas). O ponto como separador de milhar é opcional.\nExemplos válidos: `10`, `10,5`, `10,99`, `1099,10`, `1.099,10` \n\nÉ possível informar o meio utilizado, o qual deve ser um valor da seguinte lista:\n- PRESENCIAL\n- E-MAIL\n- TELEFONE\n- VIDEOCONFERÊNCIA\n- OFÍCIO\n- CRLS\n- WHATSPP\n- OUTRO.",
+        "operationId": "criarSolucaoExtrajudicial",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "CriarSolucaoExtrajudicialDTO",
+            "description": "O corpo da requisição deve conter os dados segundo esse objeto para a criação de uma solução extrajudicial.",
+            "required": true,
+            "schema": {
+              "$ref": "#/definitions/CriarSolucaoExtrajudicialDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "successful operation",
+            "schema": {
+              "$ref": "#/definitions/ResponseCidadaoDTO"
+            }
+          },
+          "201": {
+            "description": "Solução extrajudicial criada."
+          },
+          "422": {
+            "description": "Formato inválido para o parâmetro de valor da causa."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/uf": {
+      "get": {
+        "tags": [
+          "Endereço"
+        ],
+        "summary": "Consulta às unidades federativas do Brasil",
+        "description": "",
+        "operationId": "consultarUFs",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [],
+        "responses": {
+          "200": {
+            "description": "Unidades Federativas consultadas com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/UfsDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/usuario/verde/{idUsuario}": {
+      "get": {
+        "tags": [
+          "Usuários do Verde"
+        ],
+        "summary": "Consulta aos dados de um usuário baseado em seu identificador.",
+        "description": "",
+        "operationId": "consultarUsuario",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idUsuario",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Usuário consultado com sucesso",
+            "schema": {
+              "$ref": "#/definitions/UsuarioDTO"
+            }
+          },
+          "404": {
+            "description": "Usuário não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/andamento": {
+      "post": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Criação de andamento da minuta criada pelo VIA",
+        "description": "É necessário enviar o ID do caso onde o andamento será criado, o token do usuário do Verde e o documento que será anexado ao andamento. \nO documento enviado deve ser um PDF de tamanho igual ou menor a 6MB. \nÉ retornado o id do movimento gerado.",
+        "operationId": "criacaoAndamentoMinutaVIA",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idCaso",
+            "in": "formData",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "tokenUsuario",
+            "in": "formData",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "documento",
+            "in": "formData",
+            "required": true,
+            "type": "file"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Andamento criado com sucesso",
+            "schema": {
+              "$ref": "#/definitions/CriacaoAndamentoVIAResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado | Documento inválido"
+          },
+          "422": {
+            "description": "Token inválido | Caso não encontrado"
+          },
+          "413": {
+            "description": "Documento maior que 6MB | Limite total de anexos excedido"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/atendimento/armazenar-documentos-assistido": {
+      "post": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Recuperar/Armazenar documentos do assistido vinculados ao pré-atendimento.",
+        "description": "É necessário informar o **ID** do assistido do Verde, o **ID** do órgão, pelo menos um anexo e os dados referentes a esse anexo (nome do anexo e id do tipo de documento) em um array JSON.\n\nÉ necessário informar ou o **ID** do atendimento ou o **ID** do pré-atendimento. Se passado o **ID** do atendimento, é necessário informar também o **ID** do caso.\n\nSe forem passados tipos de documento diferentes para o mesmo anexo, apenas o primeiro tipo da lista é salvo. É possível enviar mais de um anexo por tipo de documento. Todos serão salvos como anexos desse documento.\n\nCada documento deve ser um arquivo **PDF**, **JPEG**, **JPG** ou **PNG** com tamanho máximo de 6 MB. O tamanho de todos os documentos somados não deve passar de 30 MB.",
+        "operationId": "armazenarDocumentosViaAtendimento",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idAssistido",
+            "in": "formData",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "idOrgao",
+            "in": "formData",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "idAssunto",
+            "in": "formData",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "idPreAtendimento",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "idAtendimento",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "idCaso",
+            "in": "formData",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "idAgendamento",
+            "in": "formData",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "idEncaminhamento",
+            "in": "formData",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "anexos",
+            "in": "formData",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "file"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "dadosAnexos",
+            "in": "formData",
+            "description": "JSON array com informações dos anexos (nome do arquivo e id do tipo de documento)",
+            "required": true,
+            "type": "string",
+            "x-example": "[{\"nome\":\"anexo.pdf\",\"idTipoDocumento\":1}]"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Documentos criados com sucesso",
+            "schema": {
+              "$ref": "#/definitions/DocumentoSalvoAtendimentoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado | Documento inválido"
+          },
+          "422": {
+            "description": "Assistido não encontrado | Caso não está aberto | Assistido não é personagem do caso"
+          },
+          "413": {
+            "description": "Documento maior que 6MB | Limite total de anexos excedido"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ],
+        "deprecated": true
+      }
+    },
+    "/integra/via/atendimento/atualizar-documentos-assistido": {
+      "post": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Atualizar documentos do assistido vinculados ao pré-atendimento.",
+        "description": "É necessário informar o **ID** do assistido do Verde, o **ID** do órgão, pelo menos um anexo e os dados referentes a esse anexo (nome do anexo e id do tipo de documento) em um array JSON.\n\nÉ necessário informar ou o **ID** do atendimento ou o **ID** do pré-atendimento. Se passado o **ID** do atendimento, é necessário informar também o **ID** do caso.\n\nA pessoa informada deve possuir pelo menos um documento do tipo informado para ser atualizado, caso contrário, um erro é retornado.\n\nSe forem passados tipos de documento diferentes para o mesmo anexo, apenas o primeiro tipo da lista é salvo. É possível enviar mais de um anexo por tipo de documento. Todos serão salvos como anexos desse documento.\n\nCada documento deve ser um arquivo **PDF**, **JPEG**, **JPG** ou **PNG** com tamanho máximo de 6 MB. O tamanho de todos os documentos somados não deve passar de 30 MB.\n\nNo retorno da requisição, são informados os documentos salvos com sucesso. Caso algum documento não seja salvo, o erro encontrado é informado.\n\n### Retorno - 201 Created\n\nÉ retornada uma lista de objetos com os seguintes campos:\n\n- **idTipoDocumento**: Identificador do tipo de documento informado.\n- **salvo**: Indica se o documento foi salvo com sucesso (`true` ou `false`).\n- **erro**: Motivo pelo qual o documento não foi salvo. Retornado apenas quando **salvo** for `false`.\n- **arquivos**: Lista de arquivos associados ao documento salvo. Cada item contém os seguintes campos:\n   - **id**: Identificador do arquivo salvo. Retornado quando o anexo é salvo com sucesso.\n   - **nome**: Nome do arquivo.\n   - **erro**: Motivo pelo qual o arquivo não foi salvo. Retornado apenas quando o arquivo apresentar falha no salvamento.",
+        "operationId": "atualizarDocumentosViaAtendimento",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idAssistido",
+            "in": "formData",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "idPreAtendimento",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "idAtendimento",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "idCaso",
+            "in": "formData",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "anexos",
+            "in": "formData",
+            "required": true,
+            "type": "array",
+            "items": {
+              "type": "file"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "dadosAnexos",
+            "in": "formData",
+            "description": "JSON array com informações dos anexos (nome do arquivo e id do tipo de documento)",
+            "required": true,
+            "type": "string",
+            "x-example": "[{\"nome\":\"anexo.pdf\",\"idTipoDocumento\":1}]"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Documentos atualizados com sucesso",
+            "schema": {
+              "$ref": "#/definitions/DocumentoSalvoAtendimentoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado | Documento inválido"
+          },
+          "422": {
+            "description": "Assistido não encontrado | Assistido não possui documentos | Caso não está aberto | Assistido não é personagem do caso"
+          },
+          "413": {
+            "description": "Documento maior que 6MB | Limite total de anexos excedido"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ],
+        "deprecated": true
+      }
+    },
+    "/integra/via/atendimento/distribuicao": {
+      "post": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Criação de distribuição inicial a partir do atendimento do MarIA",
+        "description": "É necessário informar o **ID** do agendamento criado pelo MarIA e os dados das partes da distribuição em um array JSON.\n\nPode ser enviado o **ID** do órgão que será o órgão da distribuição, porém, é necessário que ele esteja associado ao caso onde a distribuição será gerada. Caso não seja passado nenhum, será utilizado o órgão associado ao caso, se houver apenas um, ou o órgão criador do caso.\n\nAlém da petição inicial, podem ser enviados anexos adicionais, que serão vinculados na ordem em que forem recebidos. Caso os anexos possuam descrição, esta deve ser enviada em um array JSON juntamente com o nome de cada anexo.\n\nSe forem passados dois ou mais anexos com o mesmo nome, não há como relacionar a descrição ao anexo correto, então apenas o primeiro da lista terá a descrição salva. O mesmo ocorre caso sejam passadas descrições diferentes para o mesmo anexo: apenas uma delas é salva no anexo. Nenhuma dessas ocasiões impede a criação da distribuição.\n\nCada documento deve ser um arquivo **PDF** com tamanho máximo de 6 MB. O tamanho de todos os documentos somados não deve passar de 30 MB.\n\nÉ possível passar o valor da causa da distribuição. O formato para o parâmetro **valorCausa** segue o padrão monetário brasileiro, com vírgula como separador decimal (1 ou 2 casas). O ponto como separador de milhar é opcional.\nExemplos válidos: `10`, `10,5`, `10,99`, `1099,10`, `1.099,10` \n\nA resposta deste endpoint retorna o **ID** da distribuição gerada.",
+        "operationId": "criacaoDistribuicaoViaAtendimento",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idAgendamento",
+            "in": "formData",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "idOrgao",
+            "in": "formData",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "peticao",
+            "in": "formData",
+            "required": false,
+            "type": "file"
+          },
+          {
+            "name": "anexos",
+            "in": "formData",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "file"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "dadosAnexos",
+            "in": "formData",
+            "description": "JSON array com informações dos anexos (nome do arquivo e descrição)",
+            "required": false,
+            "type": "string",
+            "x-example": "[{\"nome\":\"anexo.pdf\",\"descricao\":\"descrição anexo\"}]"
+          },
+          {
+            "name": "partes",
+            "in": "formData",
+            "description": "JSON array com informações das partes da distribuição (id da pessoa)",
+            "required": true,
+            "type": "string",
+            "x-example": "[{\"idPessoa\":0}]"
+          },
+          {
+            "name": "valorCausa",
+            "in": "formData",
+            "required": false,
+            "type": "string"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Distribuição criada com sucesso",
+            "schema": {
+              "$ref": "#/definitions/CriacaoDistribuicaoVIAResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado | Documento inválido"
+          },
+          "422": {
+            "description": "Agendamento não encontrado | Agendamento sem caso | Caso sem órgão vinculado | Órgão não encontrado | Órgão sem defensor vinculado | Órgão não vinculado ao caso"
+          },
+          "413": {
+            "description": "Documento maior que 6MB | Limite total de anexos excedido"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/atendimento/distribuicao/{idDistribuicao}": {
+      "patch": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Edição de anexos da distribuição inicial",
+        "description": "É possível substituir os anexos de uma distribuição em elaboração. Caso a distribuição esteja vinculada a uma solução extrajudicial, esta também terá seus anexos atualizados. \n\nÉ necessário passar o PDF da petição inicial. Também podem ser enviados anexos adicionais, que serão vinculados na ordem em que forem recebidos. Caso os anexos possuam descrição, esta deve ser enviada em um array JSON juntamente com o nome de cada anexo.\n\nSe forem passados dois ou mais anexos com o mesmo nome, não há como relacionar a descrição ao anexo correto, então apenas o primeiro da lista terá a descrição salva. O mesmo ocorre caso sejam passadas descrições diferentes para o mesmo anexo: apenas uma delas é salva no anexo. Nenhuma dessas ocasiões impede a edição da distribuição.\n\nCada documento deve ser um arquivo **PDF** com tamanho máximo de 6 MB. O tamanho de todos os documentos somados não deve passar de 30 MB.",
+        "operationId": "editarDistribuicaoMariaAtendimento",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idDistribuicao",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "peticao",
+            "in": "formData",
+            "required": true,
+            "type": "file"
+          },
+          {
+            "name": "anexos",
+            "in": "formData",
+            "required": false,
+            "type": "array",
+            "items": {
+              "type": "file"
+            },
+            "collectionFormat": "multi"
+          },
+          {
+            "name": "dadosAnexos",
+            "in": "formData",
+            "description": "JSON array com informações dos anexos (nome do arquivo e descrição)",
+            "required": false,
+            "type": "string",
+            "x-example": "[{\"nome\":\"anexo.pdf\",\"descricao\":\"descrição anexo\"}]"
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado | Documento inválido"
+          },
+          "422": {
+            "description": "Distribuição não está em elaboração"
+          },
+          "204": {
+            "description": "Distribuição atualizada com sucesso"
+          },
+          "413": {
+            "description": "Documento maior que 6MB | Limite total de anexos excedido"
+          },
+          "404": {
+            "description": "Distribuição não encontrada"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/autenticar-token": {
+      "post": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Autentica o token de login do usuário no sistema Verde",
+        "description": "Endpoint de validação de autenticação do sistema Verde.\n\n**Respostas de sucesso:**\n**200 OK - Token válido**\n```\n{\n   \"dados\": {\n       \"idUsuario\": 1,\n       \"email\": \"[identificador removido]\"\n   }\n}\n```\n\n**200 OK - Token inválido/expirado**\n```\n{\n   \"codigo\": \"FALHA_AUTENTICACAO\",\n   \"mensagem\": \"Token expirado.\"\n}\n```\n\n",
+        "operationId": "autenticarLoginVerde",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/ValidarTokenDTO"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Token autenticado, inválido ou expirado",
+            "schema": {
+              "$ref": "#/definitions/LoginVIAResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/documento": {
+      "get": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Consultar documentos do assistido vinculados ao pré-atendimento ou ao atendimento.",
+        "description": "É necessário informar o uuid do pré-atendimento ou do atendimento. Se passado o uuid do atendimento, deve ser informado também o identificador do caso. São retornados dados do documento de atendimento, bem como metadados dos arquivos.",
+        "operationId": "consultarDocumentosViaAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idPreAtendimento",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "idAtendimento",
+            "in": "query",
+            "required": false,
+            "type": "string"
+          },
+          {
+            "name": "idCaso",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idTipoDocumento",
+            "in": "query",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Documentos do assistido consultados com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/DocumentoAtendimentoViaDTO"
+            }
+          },
+          "400": {
+            "description": "Necessário informar atendimento ou pré-atendimento para listagem dos arquivos. | Não é permitido informar ambos os identificadores de pré-atendimento ou atendimento para a listagem de arquivos."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      },
+      "post": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Criar documento vinculado a um atendimento ou pré-atendimento",
+        "description": "Cria um novo documento associado a um atendimento ou pré-atendimento.\n\n### Regras de negócio\n- É obrigatório informar `uuidAtendimento` ou `uuidPreAtendimento`.\n\n- Se `uuidAtendimento` for informado, o campo `idCaso` torna-se obrigatório.\n\n- Os campos `idAssistido`, `idOrgao` e `idTipoDocumento` são sempre obrigatórios.\n\n- Os campos `idAssunto`, `idCaso`, `idAgendamento` e `idEncaminhamento` são opcionais.",
+        "operationId": "criarDocumentoViaAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/CriacaoDocumentoAtendimentoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Documento criado com sucesso",
+            "schema": {
+              "$ref": "#/definitions/DocumentoAtendimentoCriadoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado | Regras de negócio não satisfeitas"
+          },
+          "422": {
+            "description": "Parâmetro informado não encontrado"
+          },
+          "409": {
+            "description": "Já existe documento desse tipo para o mesmo atendimento/pré-atendimento"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/documento/{idDocumento}": {
+      "get": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Consultar documento de atendimento por identificador.",
+        "description": "É necessário informar o identificador do documento de atendimento.",
+        "operationId": "consultarDocumentoViaAtendimentoPorId",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idDocumento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Documento de atendimento consultado com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/DocumentoAtendimentoViaDTO"
+            }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      },
+      "delete": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Excluir documento de atendimento ou pré-atendimento",
+        "description": "Remove permanentemente um documento de atendimento ou pré-atendimento e todos os arquivos vinculados.",
+        "operationId": "deletarDocumentoViaAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idDocumento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "204": {
+            "description": "Arquivo removido com sucesso"
+          },
+          "404": {
+            "description": "Documento não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/documento/{idDocumento}/arquivo": {
+      "post": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Criar arquivo vinculado a um documento de atendimento ou pré-atendimento",
+        "description": "Cria um novo arquivo e o vincula a um documento de atendimento ou pré-atendimento já existente.\n\n### Regras de negócio\n- É obrigatório informar o parâmetro de rota `idDocumento`.\n\n- É obrigatório enviar o campo `arquivo` em `multipart/form-data`.\n\n### Validações do arquivo\n- O arquivo deve respeitar o limite máximo de **6MB**.\n\n- O nome do arquivo é extraído do `Content-Disposition`.\n\n### Tipos de arquivo permitidos\n- PDF: `application/pdf` (`.pdf`).\n\n- JPEG: `image/jpeg` (`.jpg`, `.jpeg`).\n\n- PNG: `image/png` (`.png`).",
+        "operationId": "criarArquivoDocumentoViaAtendimento",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idDocumento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "arquivo",
+            "in": "formData",
+            "required": true,
+            "type": "file"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Documento criado com sucesso",
+            "schema": {
+              "$ref": "#/definitions/ArquivoAtendimentoCriadoResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Identificador do documento não informado | Arquivo não informado | Tipo de arquivo não permitido"
+          },
+          "413": {
+            "description": "Arquivo maior que 6MB"
+          },
+          "404": {
+            "description": "Documento não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/documento/{idDocumento}/arquivo/{idArquivo}": {
+      "delete": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Excluir arquivo vinculado a um documento de atendimento ou pré-atendimento",
+        "description": "Remove permanentemente um arquivo vinculado a um documento de atendimento ou pré-atendimento.\n\nO endpoint valida se o documento e o arquivo informados existem e se há vínculo entre eles.",
+        "operationId": "deletarArquivoDocumentoViaAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idDocumento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idArquivo",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "O documento informado não possui o arquivo informado"
+          },
+          "204": {
+            "description": "Arquivo removido com sucesso"
+          },
+          "404": {
+            "description": "Documento não encontrado | Arquivo não encontrado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/peticao-inicial": {
+      "post": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Criação de petição inicial feita pelo VIA Minuta",
+        "description": "É necessário enviar o ID do caso onde a petição será criada, o token do usuário do Verde e o corpo do documento HTML como string.\n\nA string enviada não precisa ser necessariamente um HTML. Um texto sem tags também é lido corretamente. Porém, se for passado um texto HTML, ele precisa ser válido para a petição ser criada.",
+        "operationId": "criacaoPeticaoInicialViaMinuta",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/CriarPeticaoInicialDTO"
+            }
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Petição criada com sucesso",
+            "schema": {
+              "$ref": "#/definitions/CriacaoPeticaoInicialResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado | Documento inválido"
+          },
+          "422": {
+            "description": "Caso não encontrado | Usuário não encontrado |  Órgão do caso não encontrado | Órgão do caso sem defensor vinculado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/via/protocolizacao": {
+      "post": {
+        "tags": [
+          "Via"
+        ],
+        "summary": "Criação de andamento da minuta criada pelo VIA",
+        "description": "É necessário enviar o ID do caso onde o andamento será criado, o token do usuário do Verde e o documento que será anexado ao andamento. \nPode ser enviado o ID do órgão que será o órgão da protocolização, porém, é necessário que ele esteja associado ao caso. Caso não seja passado nenhum, será utilizado um órgão do usuário que também esteja no caso. \nO documento enviado deve ser um PDF de tamanho igual ou menor a 6MB. \nÉ retornado o id do movimento gerado.",
+        "operationId": "disponibilizaCriacaoProtocolizacaoMinuta",
+        "consumes": [
+          "multipart/form-data"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idCaso",
+            "in": "formData",
+            "required": true,
+            "type": "integer"
+          },
+          {
+            "name": "idOrgao",
+            "in": "formData",
+            "required": false,
+            "type": "integer"
+          },
+          {
+            "name": "tokenUsuario",
+            "in": "formData",
+            "required": true,
+            "type": "string"
+          },
+          {
+            "name": "documento",
+            "in": "formData",
+            "required": true,
+            "type": "file"
+          }
+        ],
+        "responses": {
+          "201": {
+            "description": "Petição intercorrente criada com sucesso",
+            "schema": {
+              "$ref": "#/definitions/ProtocolizacaoVIAResponseDTO"
+            }
+          },
+          "400": {
+            "description": "Parâmetro não informado ou fora do formato esperado | Documento inválido"
+          },
+          "422": {
+            "description": "Token inválido | Caso não encontrado | Órgão não encontrado | Órgão não associado ao caso"
+          },
+          "413": {
+            "description": "Documento maior que 6MB | Limite total de anexos excedido"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/whatsapp/confirmar-atendimento": {
+      "post": {
+        "tags": [
+          "Whatsapp"
+        ],
+        "summary": "Envia mensagem de confirmação de agendamento ou encaminhamento via WhatsApp.",
+        "description": "Deve ser indicado o id do agendamento ou encaminhamento, sendo opcional passar o id de local de atendimento selecionado pelo usuário. \nCom a mensagem sendo enviada corretamente, é retornando 204, sem conteúdo. \nSe não houver telefone com WhatsApp associado a pessoa, ou sem pessoa associada ao atendimento, é retornado erro.",
+        "operationId": "confirmarAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/ConfirmacaoWhatsappDTO"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Não foi informado necessariamente um idAgendamento ou idEncaminhamento."
+          },
+          "422": {
+            "description": "Ocorreu um desses erros: \n- REQUISICAO_INVALIDA: Não foi encontrado agendamento, encaminhamento ou local de atendimento do id informado \n- PESSOA_SEM_WHATSAPP: Pessoa associada ao atendimento não tem WhatsApp \n- ATENDIMENTO_SEM_PESSOA: Não há pessoa associada ao atendimento \n- ATENDIMENTO_NAO_ENVIA_CONFIRMACAO: Agendamento de pauta interna ou encaminhamento sem preferência de atendimento"
+          },
+          "204": {
+            "description": "Mensagem enviada com sucesso."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/whatsapp/consultar-mensagem-agendamento/{idAgendamento}": {
+      "get": {
+        "tags": [
+          "Whatsapp"
+        ],
+        "summary": "Consulta mensagem de confirmação de agendamento.",
+        "description": "Dado um agendamento, é consultado o texto do template correspondente a ele e preenchido os campos com os dados do mesmo.",
+        "operationId": "consultarMensagemAgendamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idAgendamento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "fluxoAtendimento",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "PRIMEIRO_ATENDIMENTO",
+              "PRISIONAL",
+              "PROCESSUAL",
+              "VIOLENCIA_DOMESTICA"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mensagem enviada com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/MensagemAgendamentoResponseDTO"
+            }
+          },
+          "422": {
+            "description": "Ocorreu um desses erros: \n- Pessoa associada ao atendimento não tem WhatsApp \n- Não há pessoa associada ao atendimento \n- O agendamento em questão tem um tipo pauta do qual não tem template preparado para ele"
+          },
+          "404": {
+            "description": "Não foi encontrado o agendamento do idAgendamento informado."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/whatsapp/consultar-mensagem-encaminhamento/{idEncaminhamento}": {
+      "get": {
+        "tags": [
+          "Whatsapp"
+        ],
+        "summary": "Consulta mensagem de confirmação de encaminhamento.",
+        "description": "Dado um encaminhamento, é consultado o texto do template correspondente a ele e preenchido os campos com os dados do mesmo.",
+        "operationId": "consultarMensagemEncaminhamento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idEncaminhamento",
+            "in": "path",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "fluxoAtendimento",
+            "in": "query",
+            "required": false,
+            "type": "string",
+            "enum": [
+              "PRIMEIRO_ATENDIMENTO",
+              "PRISIONAL",
+              "PROCESSUAL",
+              "VIOLENCIA_DOMESTICA"
+            ]
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "Mensagem enviada com sucesso.",
+            "schema": {
+              "$ref": "#/definitions/MensagemAtendimentoResponseDTO"
+            }
+          },
+          "422": {
+            "description": "Ocorreu um desses erros: \n- ATENDIMENTO_SEM_PESSOA: Não há pessoa associada ao atendimento \n- PESSOA_SEM_WHATSAPP: Pessoa associada ao atendimento não tem WhatsApp \n- TIPO_NAO_SUPORTADO: O encaminhamento em questão não tem preferência de atendimento ou tem preferência sem template cadastrado"
+          },
+          "404": {
+            "description": "Não foi encontrado o encaminhamento do idEncaminhamento informado."
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    }
+  },
+  "securityDefinitions": {
+    "Authorization": {
+      "type": "apiKey",
+      "name": "Authorization",
+      "in": "header"
+    },
+    "X-Client-ID": {
+      "type": "apiKey",
+      "name": "X-Client-ID",
+      "in": "header"
+    },
+    "X-API-Key": {
+      "type": "apiKey",
+      "name": "X-API-Key",
+      "in": "header"
+    }
+  },
+  "definitions": {
+    "ArmazenarContatoApenadoDTO": {
+      "type": "object",
+      "required": [
+        "noContato",
+        "telefones",
+        "tpGrauParentesco"
+      ],
+      "properties": {
+        "idSeap": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "noContato": {
+          "type": "string"
+        },
+        "telefones": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "tpGrauParentesco": {
+          "type": "string"
+        },
+        "txEmail": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+        }
+      }
+    },
+    "DocumentoAtendimentoViaDTO": {
+      "type": "object",
+      "properties": {
+        "selecionado": {
+          "type": "boolean",
+          "default": false
+        },
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nomeDocumento": {
+          "type": "string"
+        },
+        "idTipoDocumento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "tipoDocumento": {
+          "type": "string"
+        },
+        "uuidPreAtendimento": {
+          "type": "string"
+        },
+        "uuidAtendimento": {
+          "type": "string"
+        },
+        "idEvento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idEncaminhamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "dataEnvio": {
+          "type": "string"
+        },
+        "idOrgao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idCaso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nomeOrgao": {
+          "type": "string"
+        },
+        "nomeAssunto": {
+          "type": "string"
+        },
+        "arquivos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ArquivoDocumentoAtendimentoViaDTO"
+          }
+        },
+        "nomeOrigemSistema": {
+          "type": "string"
+        }
+      }
+    },
+    "UnidadePrisionalDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "noUnidade": {
+          "type": "string"
+        },
+        "sgUnidade": {
+          "type": "string"
+        }
+      }
+    },
+    "SugestaoMotivoDTO": {
+      "type": "object",
+      "properties": {
+        "idCategoriaAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "probabilidade": {
+          "type": "number",
+          "format": "double"
+        }
+      }
+    },
+    "MensagemAtendimentoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/MensagemAtendimentoDTO"
+        }
+      }
+    },
+    "MensagemAtendimentoDTO": {
+      "type": "object",
+      "properties": {
+        "mensagem": {
+          "type": "string"
+        },
+        "documentos": {
+          "type": "string"
+        }
+      }
+    },
+    "PlantaoVigenteResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/PlantaoResponseDTO"
+        }
+      }
+    },
+    "OrgaoComInformacaoResponsavelResponseDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "enderecos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EnderecoOrgaoDTO"
+          }
+        },
+        "responsavel": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "EnderecoDetalhadoDTO": {
+      "type": "object",
+      "properties": {
+        "logradouro": {
+          "type": "string"
+        },
+        "numero": {
+          "type": "string"
+        },
+        "complemento": {
+          "type": "string"
+        },
+        "bairro": {
+          "type": "string"
+        },
+        "municipio": {
+          "type": "string"
+        },
+        "uf": {
+          "type": "string"
+        },
+        "cep": {
+          "type": "string"
+        },
+        "referencia": {
+          "type": "string"
+        },
+        "dataEndereco": {
+          "type": "string"
+        }
+      }
+    },
+    "ArquivoDocumentoAtendimentoViaDTO": {
+      "type": "object",
+      "properties": {
+        "idAnexo": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nomeAnexo": {
+          "type": "string"
+        }
+      }
+    },
+    "RepresentanteLegalDTO": {
+      "type": "object",
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "tipoPessoa": {
+          "type": "string",
+          "enum": [
+            "PF",
+            "PJ",
+            "PFPJ"
+          ]
+        },
+        "cpf": {
+          "type": "string"
+        },
+        "cnpj": {
+          "type": "string"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "tipoRepresentante": {
+          "type": "string",
+          "description": "Tipos de representante",
+          "enum": [
+            "Assistente",
+            "Representante Legal",
+            "Curador",
+            "Síndico",
+            "Tutor",
+            "Procurador",
+            "Familiar"
+          ]
+        },
+        "temSigilo": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "SugestaoMotivoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/SugestaoMotivoDTO"
+        }
+      }
+    },
+    "RespostaAtendimentoOnlineDTO": {
+      "type": "object",
+      "properties": {
+        "protocolo": {
+          "type": "string"
+        }
+      }
+    },
+    "BairroResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/BairroDTO"
+        }
+      }
+    },
+    "AndamentoDTO": {
+      "type": "object",
+      "properties": {
+        "idAndamento": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "VagaAgendamentoCidadaoDTO": {
+      "type": "object",
+      "properties": {
+        "vagasDisponiveis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          }
+        }
+      }
+    },
+    "ComplementoAssuntoDTO": {
+      "type": "object",
+      "properties": {
+        "tipo": {
+          "type": "string"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "maximoDiasAteBloqueio": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "OrgaoViolenciaDomesticaResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/OrgaoResponseDTO"
+        }
+      }
+    },
+    "ListaAgendamentoDuplicadoDTO": {
+      "type": "object",
+      "properties": {
+        "agendamentos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/AgendamentoDuplicadoDTO"
+          }
+        }
+      }
+    },
+    "CriacaoDistribuicaoVIAResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/DistribuicaoDTO"
+        }
+      }
+    },
+    "AlteracaoCasoOrgaoDTO": {
+      "type": "object",
+      "required": [
+        "idUsuario"
+      ],
+      "properties": {
+        "idUsuario": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "DocumentoAtendimentoCriadoDTO": {
+      "type": "object",
+      "properties": {
+        "idDocumento": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "ProcessoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "origem": {
+          "type": "string"
+        },
+        "instancia": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nomeAssunto": {
+          "type": "string"
+        },
+        "nomeOrgaoJulgador": {
+          "type": "string"
+        },
+        "movimentos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MovimentoTJDTO"
+          }
+        }
+      }
+    },
+    "UsuarioDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "matricula": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string"
+        },
+        "orgaos": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/OrgaoDTO"
+          }
+        },
+        "defensor": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "ApenadoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/ApenadoDTO"
+        }
+      }
+    },
+    "EnderecoUrgenciaResponseDTO": {
+      "type": "object",
+      "required": [
+        "bairro",
+        "cep",
+        "logradouro",
+        "municipio",
+        "numero",
+        "uf"
+      ],
+      "properties": {
+        "logradouro": {
+          "type": "string"
+        },
+        "numero": {
+          "type": "string"
+        },
+        "complemento": {
+          "type": "string"
+        },
+        "cep": {
+          "type": "string"
+        },
+        "bairro": {
+          "type": "string"
+        },
+        "municipio": {
+          "type": "string"
+        },
+        "uf": {
+          "type": "string"
+        },
+        "idLocalAtendimento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "horariosUrgencia": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HorarioAtendimentoDTO"
+          }
+        },
+        "horariosAtendimentoFormatado": {
+          "type": "string"
+        },
+        "horariosUrgenciaFormatado": {
+          "type": "string"
+        }
+      }
+    },
+    "ResponseCidadaoDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "type": "object"
+        }
+      }
+    },
+    "UfsDTO": {
+      "type": "object",
+      "properties": {
+        "ufs": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/UfDTO"
+          }
+        }
+      }
+    },
+    "TokenDTO": {
+      "type": "object",
+      "properties": {
+        "token": {
+          "type": "string"
+        },
+        "expiraEm": {
+          "type": "string"
+        },
+        "valido": {
+          "type": "boolean",
+          "default": false
+        },
+        "expirado": {
+          "type": "boolean",
+          "default": false
+        },
+        "revogado": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "ListaPessoasResponseDTO": {
+      "type": "object",
+      "properties": {
+        "itens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ListarPessoaDTO"
+          }
+        },
+        "pagina": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "tamanho": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "temProximaPagina": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "RespostaCategoriaAssuntoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "resposta": {
+          "type": "string"
+        },
+        "atendimentoProcessual": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "CriarSolucaoExtrajudicialDTO": {
+      "type": "object",
+      "required": [
+        "homologaJudicialmente",
+        "idDistribuicao",
+        "idOrgao"
+      ],
+      "properties": {
+        "idDistribuicao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idOrgao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "homologaJudicialmente": {
+          "type": "boolean",
+          "default": false
+        },
+        "valor": {
+          "type": "string"
+        },
+        "valorPatrimonial": {
+          "type": "boolean",
+          "default": false
+        },
+        "idAssuntoPrincipal": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idsAssuntosSecundarios": {
+          "type": "array",
+          "items": {
+            "type": "integer",
+            "format": "int32"
+          }
+        },
+        "idCompetencia": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "meioUtilizado": {
+          "type": "string",
+          "description": "Valor do meio utilizado para a solução extrajudicial.",
+          "enum": [
+            "PRESENCIAL",
+            "E-MAIL",
+            "TELEFONE",
+            "VIDEOCONFERÊNCIA",
+            "OFÍCIO",
+            "CRLS",
+            "WHATSPP",
+            "OUTRO"
+          ]
+        },
+        "tituloExecutivo": {
+          "type": "boolean",
+          "default": false
+        },
+        "tituloAjustamentoConduta": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "LoginVIAResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/DadosUsuarioDTO"
+        }
+      }
+    },
+    "EncaminhamentoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAssuntoVerde": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAssuntoCNJ": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idOrgao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idCaso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "dataEncaminhamento": {
+          "type": "string"
+        },
+        "sistemaOrigem": {
+          "type": "string",
+          "description": "Sistema de origem do encaminhamento.",
+          "enum": [
+            "VERDE",
+            "APLICATIVO",
+            "MARIA CRC - SITE",
+            "MARIA CRC - WHATSAPP",
+            "CRC"
+          ]
+        },
+        "urgente": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "ProcessoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/ProcessoDTO"
+        }
+      }
+    },
+    "ApenadoDTO": {
+      "type": "object",
+      "properties": {
+        "idSeap": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "cpf": {
+          "type": "string"
+        },
+        "regime": {
+          "type": "string"
+        },
+        "situacao": {
+          "type": "string"
+        },
+        "unidadePrisional": {
+          "$ref": "#/definitions/UnidadePrisionalDTO"
+        },
+        "unidadeDeBaixa": {
+          "type": "string"
+        },
+        "tipoPreso": {
+          "type": "string"
+        },
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "ArquivoAtendimentoCriadoDTO": {
+      "type": "object",
+      "properties": {
+        "idArquivo": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "DesmarcarAgendamentoDTO": {
+      "type": "object",
+      "required": [
+        "idAgendamento",
+        "idPessoa"
+      ],
+      "properties": {
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "ListaAgendamentoDuplicadoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/ListaAgendamentoDuplicadoDTO"
+        }
+      }
+    },
+    "ReagendamentoDTO": {
+      "type": "object",
+      "required": [
+        "configuracaoIntervaloAgenda",
+        "dataNova",
+        "idAgendamento"
+      ],
+      "properties": {
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "configuracaoIntervaloAgenda": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "dataNova": {
+          "type": "string"
+        }
+      }
+    },
+    "TelefoneDTO": {
+      "type": "object",
+      "required": [
+        "numeroTelefone"
+      ],
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "numeroTelefone": {
+          "type": "string"
+        },
+        "observacao": {
+          "type": "string"
+        },
+        "inWhatsapp": {
+          "type": "boolean",
+          "default": false
+        },
+        "tipo": {
+          "type": "string"
+        },
+        "ramal": {
+          "type": "string"
+        },
+        "dataIndicacaoWhatsapp": {
+          "type": "string"
+        }
+      }
+    },
+    "FeriadoDTO": {
+      "type": "object",
+      "properties": {
+        "nome": {
+          "type": "string"
+        },
+        "tipo": {
+          "type": "string"
+        },
+        "municipio": {
+          "type": "string"
+        },
+        "recorreAnualmente": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "DocumentoAtendimentoCriadoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/DocumentoAtendimentoCriadoDTO"
+        }
+      }
+    },
+    "ListaMensagemCidadaoDTO": {
+      "type": "object",
+      "properties": {
+        "numTotalRegistros": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "mensagens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MensagemCidadaoDTO"
+          }
+        }
+      }
+    },
+    "BloqueioAgendamentoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "inAtivo": {
+          "type": "boolean",
+          "default": false
+        },
+        "dataBloqueio": {
+          "type": "string"
+        },
+        "dataDesbloqueio": {
+          "type": "string"
+        }
+      }
+    },
+    "MensagemCidadaoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/ListaMensagemCidadaoDTO"
+        }
+      }
+    },
+    "MunicipioResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/MunicipioDTO"
+        }
+      }
+    },
+    "CriacaoDocumentoAtendimentoDTO": {
+      "type": "object",
+      "required": [
+        "idAssistido",
+        "idOrgao",
+        "idTipoDocumento"
+      ],
+      "properties": {
+        "idAssistido": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idOrgao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idTipoDocumento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "uuidPreAtendimento": {
+          "type": "string"
+        },
+        "uuidAtendimento": {
+          "type": "string"
+        },
+        "idAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idCaso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idEncaminhamento": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "AgendamentoPessoaDTO": {
+      "type": "object",
+      "properties": {
+        "numeroAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "status": {
+          "type": "string"
+        },
+        "sistemaOrigem": {
+          "type": "string"
+        },
+        "dataAgendamento": {
+          "type": "string"
+        },
+        "dataRealizacaoAgendamento": {
+          "type": "string"
+        },
+        "horaAgendada": {
+          "type": "string"
+        },
+        "orgao": {
+          "$ref": "#/definitions/OrgaoDTO"
+        },
+        "assunto": {
+          "$ref": "#/definitions/AssuntoDTO"
+        },
+        "tipoPauta": {
+          "type": "string"
+        },
+        "idCaso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "bloqueioAtivo": {
+          "type": "boolean",
+          "default": false
+        },
+        "presencaConfirmada": {
+          "type": "boolean",
+          "default": false
+        },
+        "prioridade": {
+          "$ref": "#/definitions/PrioridadeDTO"
+        },
+        "assistidoComDoencaGrave": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "AgendamentoDTO": {
+      "type": "object",
+      "properties": {
+        "idEvento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAssistido": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAssuntoCNJ": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idOrgao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idCaso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "cpfAssistido": {
+          "type": "string"
+        },
+        "nomeAssistido": {
+          "type": "string"
+        },
+        "nomeSocial": {
+          "type": "string"
+        },
+        "nomeOrgao": {
+          "type": "string"
+        },
+        "idPauta": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "endereco": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string"
+        },
+        "horario": {
+          "type": "string"
+        },
+        "documentosNecessarios": {
+          "type": "string"
+        },
+        "nomeAssunto": {
+          "type": "string"
+        },
+        "telefonesAssistido": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TelefoneDTO"
+          }
+        },
+        "prioridade": {
+          "$ref": "#/definitions/PrioridadeDTO"
+        }
+      }
+    },
+    "EnderecoDTO": {
+      "type": "object",
+      "required": [
+        "bairro",
+        "cep",
+        "logradouro",
+        "municipio",
+        "numero",
+        "uf"
+      ],
+      "properties": {
+        "logradouro": {
+          "type": "string"
+        },
+        "numero": {
+          "type": "string"
+        },
+        "complemento": {
+          "type": "string"
+        },
+        "cep": {
+          "type": "string"
+        },
+        "bairro": {
+          "type": "string"
+        },
+        "municipio": {
+          "type": "string"
+        },
+        "uf": {
+          "type": "string"
+        }
+      }
+    },
+    "RealizarAgendamentoDTO": {
+      "type": "object",
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idOrgao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idIntervalo": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idPessoaPresa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idProcesso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "resumoAtendimento": {
+          "type": "string"
+        },
+        "fluxoAtendimento": {
+          "type": "string",
+          "description": "Valor de preferência de atendimento. Determina o fluxo de agendamento a ser realizado.",
+          "enum": [
+            "PRIMEIRO_ATENDIMENTO",
+            "PRISIONAL"
+          ]
+        },
+        "dataVaga": {
+          "type": "string"
+        },
+        "dataComplemento": {
+          "type": "string"
+        },
+        "textoComplemento": {
+          "type": "string"
+        },
+        "prioridadeAgendamento": {
+          "type": "string"
+        },
+        "doencasGraves": {
+          "type": "array",
+          "description": "Array de doenças graves selecionadas.",
+          "uniqueItems": true,
+          "items": {
+            "type": "string"
+          }
+        }
+      }
+    },
+    "RelatoRequestDTO": {
+      "type": "object",
+      "properties": {
+        "relato": {
+          "type": "string"
+        }
+      }
+    },
+    "ConsultarPessoaDTO": {
+      "type": "object",
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "nomeSocial": {
+          "type": "string"
+        },
+        "dataNascimento": {
+          "type": "string"
+        },
+        "nacionalidade": {
+          "type": "string"
+        },
+        "genero": {
+          "type": "string"
+        },
+        "endereco": {
+          "type": "string"
+        },
+        "enderecoDetalhado": {
+          "$ref": "#/definitions/EnderecoDetalhadoDTO"
+        },
+        "email": {
+          "type": "string"
+        },
+        "possuiContaAtivaAplicativo": {
+          "type": "boolean",
+          "default": false
+        },
+        "statusValidacao": {
+          "type": "string"
+        },
+        "statusVerificacaoEmail": {
+          "type": "string"
+        },
+        "telefonesAssistido": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TelefoneDTO"
+          }
+        },
+        "representantes": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RepresentanteLegalDTO"
+          }
+        }
+      }
+    },
+    "MensagemAgendamentoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/MensagemAtendimentoDTO"
+        }
+      }
+    },
+    "ProtocolizacaoDTO": {
+      "type": "object",
+      "properties": {
+        "idProtocolizacao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idPeticaoIntercorrente": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "AssuntoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        }
+      }
+    },
+    "PersonagemDTO": {
+      "type": "object",
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "tipo": {
+          "type": "string",
+          "description": "Tipo de personagem da pessoa no caso.",
+          "enum": [
+            "A",
+            "R",
+            "TER",
+            "TES",
+            "V",
+            "AC",
+            "H",
+            "CA"
+          ]
+        }
+      }
+    },
+    "AtendimentoOnlineDTO": {
+      "type": "object",
+      "required": [
+        "idPessoa"
+      ],
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "dialogo": {
+          "type": "string"
+        },
+        "processo": {
+          "type": "string"
+        }
+      }
+    },
+    "UrlAtendimentoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/UrlAtendimentoDTO"
+        }
+      }
+    },
+    "AgendarNucleoDigitalDTO": {
+      "type": "object",
+      "required": [
+        "idAssunto",
+        "idAtendimentoHeliasta",
+        "idPessoa"
+      ],
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAtendimentoHeliasta": {
+          "type": "string"
+        }
+      }
+    },
+    "EncaminhamentoDTO": {
+      "type": "object",
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idOrgao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idLocalAtendimento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "urgencia": {
+          "type": "boolean",
+          "default": false
+        },
+        "idAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "preferenciaAtendimento": {
+          "type": "string",
+          "description": "Valor de preferência de atendimento. Determina se o encaminhamento será remoto ou presencial.",
+          "enum": [
+            "Remoto",
+            "Presencial"
+          ]
+        },
+        "idCaso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idProcesso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idPessoaPresa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "fluxoEncaminhamento": {
+          "type": "string",
+          "description": "Valor de fluxo de atendimento. Determina o fluxo de encaminhamento a ser realizado.",
+          "enum": [
+            "PRIMEIRO_ATENDIMENTO",
+            "PRISIONAL",
+            "PROCESSUAL",
+            "VIOLENCIA_DOMESTICA"
+          ]
+        },
+        "motivoUrgencia": {
+          "type": "string"
+        },
+        "dataComplemento": {
+          "type": "string"
+        },
+        "textoComplemento": {
+          "type": "string"
+        },
+        "observacao": {
+          "type": "string"
+        }
+      }
+    },
+    "EnderecoCepDTO": {
+      "type": "object",
+      "properties": {
+        "uf": {
+          "$ref": "#/definitions/UfDTO"
+        },
+        "bairro": {
+          "$ref": "#/definitions/BairroDTO"
+        },
+        "municipio": {
+          "$ref": "#/definitions/MunicipioDTO"
+        },
+        "logradouro": {
+          "type": "string"
+        },
+        "numero": {
+          "type": "string"
+        }
+      }
+    },
+    "DocumentoSalvoAtendimentoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DocumentoSalvoAtendimentoDTO"
+          }
+        }
+      }
+    },
+    "ComplementoPrioridadeAtendimentoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        }
+      }
+    },
+    "EmailConfirmacaoAtendimentoDTO": {
+      "type": "object",
+      "properties": {
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idEncaminhamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idLocalAtendimento": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "OrgaoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "enderecos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EnderecoUrgenciaResponseDTO"
+          }
+        }
+      }
+    },
+    "UrlAtendimentoDTO": {
+      "type": "object",
+      "properties": {
+        "url": {
+          "type": "string"
+        }
+      }
+    },
+    "CadastrarRepresentanteDTO": {
+      "type": "object",
+      "required": [
+        "idPessoa",
+        "idTipo"
+      ],
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idTipo": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "AtendimentoOnlineResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/RespostaAtendimentoOnlineDTO"
+        }
+      }
+    },
+    "RecessoDTO": {
+      "type": "object",
+      "properties": {
+        "inRecessoVigente": {
+          "type": "boolean",
+          "default": false
+        },
+        "dtInicio": {
+          "type": "string"
+        },
+        "dtFim": {
+          "type": "string"
+        },
+        "txMensagemPadrao": {
+          "type": "string"
+        },
+        "txMensagemUrgencia": {
+          "type": "string"
+        },
+        "txMensagemPadraoApp": {
+          "type": "string"
+        }
+      }
+    },
+    "DadosUsuarioDTO": {
+      "type": "object",
+      "properties": {
+        "idUsuario": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "email": {
+          "type": "string"
+        }
+      }
+    },
+    "UfDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "sigla": {
+          "type": "string"
+        },
+        "nome": {
+          "type": "string"
+        }
+      }
+    },
+    "AgendamentoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "MovimentoTJDTO": {
+      "type": "object",
+      "properties": {
+        "titulo": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "descricao": {
+          "type": "string"
+        },
+        "traducao": {
+          "type": "string"
+        }
+      }
+    },
+    "NotificacaoAgendamentoDTO": {
+      "type": "object",
+      "required": [
+        "tipo"
+      ],
+      "properties": {
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "tipo": {
+          "type": "string"
+        }
+      }
+    },
+    "MensagemCidadaoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "prazoResposta": {
+          "type": "string"
+        },
+        "dataEnvio": {
+          "type": "string"
+        }
+      }
+    },
+    "CriacaoAndamentoVIAResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/AndamentoDTO"
+        }
+      }
+    },
+    "CadastrarPessoaDTO": {
+      "type": "object",
+      "required": [
+        "cpf",
+        "dtNascimento",
+        "nome"
+      ],
+      "properties": {
+        "nome": {
+          "type": "string"
+        },
+        "nomeSocial": {
+          "type": "string"
+        },
+        "cpf": {
+          "type": "string"
+        },
+        "endereco": {
+          "$ref": "#/definitions/EnderecoDTO"
+        },
+        "telefones": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TelefoneDTO"
+          }
+        },
+        "genero": {
+          "type": "string",
+          "description": "Gênero do assistido.",
+          "enum": [
+            "Masculino",
+            "Feminino",
+            "NaoBinarie",
+            "Outros"
+          ]
+        },
+        "nacionalidade": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+        },
+        "dtNascimento": {
+          "type": "string"
+        },
+        "representante": {
+          "$ref": "#/definitions/CadastrarRepresentanteDTO"
+        }
+      }
+    },
+    "DocumentoNecessarioDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nomeDocumento": {
+          "type": "string"
+        },
+        "basico": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "ConfirmacaoPresencaDTO": {
+      "type": "object",
+      "required": [
+        "idAgendamento",
+        "inConfirmar"
+      ],
+      "properties": {
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "inConfirmar": {
+          "type": "boolean",
+          "default": false
+        },
+        "nuTelefone": {
+          "type": "string"
+        }
+      }
+    },
+    "ValidarTokenDTO": {
+      "type": "object",
+      "required": [
+        "token"
+      ],
+      "properties": {
+        "token": {
+          "type": "string"
+        }
+      }
+    },
+    "MovimentoDTO": {
+      "type": "object",
+      "properties": {
+        "titulo": {
+          "type": "string"
+        },
+        "descricao": {
+          "type": "string"
+        },
+        "data": {
+          "type": "string",
+          "format": "date-time"
+        }
+      }
+    },
+    "FeriadoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/FeriadoDTO"
+        }
+      }
+    },
+    "ArquivoAtendimentoCriadoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/ArquivoAtendimentoCriadoDTO"
+        }
+      }
+    },
+    "PrioridadeDTO": {
+      "type": "object",
+      "properties": {
+        "nome": {
+          "type": "string"
+        },
+        "complemento": {
+          "type": "string"
+        }
+      }
+    },
+    "EnderecoOrgaoDTO": {
+      "type": "object",
+      "required": [
+        "bairro",
+        "cep",
+        "logradouro",
+        "municipio",
+        "numero",
+        "uf"
+      ],
+      "properties": {
+        "logradouro": {
+          "type": "string"
+        },
+        "numero": {
+          "type": "string"
+        },
+        "complemento": {
+          "type": "string"
+        },
+        "cep": {
+          "type": "string"
+        },
+        "bairro": {
+          "type": "string"
+        },
+        "municipio": {
+          "type": "string"
+        },
+        "uf": {
+          "type": "string"
+        },
+        "idLocalAtendimento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "horariosAtendimento": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HorarioAtendimentoDTO"
+          }
+        },
+        "horariosUrgencia": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HorarioAtendimentoDTO"
+          }
+        },
+        "horariosAtendimentoFormatado": {
+          "type": "string"
+        },
+        "horariosUrgenciaFormatado": {
+          "type": "string"
+        }
+      }
+    },
+    "CasosPessoaResponseDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "orgaosAssociados": {
+          "type": "array",
+          "uniqueItems": true,
+          "items": {
+            "$ref": "#/definitions/OrgaoComInformacaoResponsavelResponseDTO"
+          }
+        },
+        "dataAtualizacao": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "tipoCaso": {
+          "type": "string"
+        },
+        "assunto": {
+          "$ref": "#/definitions/AssuntoResponseDTO"
+        },
+        "idProcesso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "relacaoAssistido": {
+          "type": "string"
+        },
+        "andamentos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MovimentoDTO"
+          }
+        },
+        "numeroProcesso": {
+          "type": "string"
+        }
+      }
+    },
+    "ProtocolizacaoVIAResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/ProtocolizacaoDTO"
+        }
+      }
+    },
+    "AgendamentoDuplicadoDTO": {
+      "type": "object",
+      "properties": {
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "dataAgendamento": {
+          "type": "string"
+        }
+      }
+    },
+    "ConsultarApenadoDTO": {
+      "type": "object",
+      "required": [
+        "rg"
+      ],
+      "properties": {
+        "rg": {
+          "type": "string"
+        }
+      }
+    },
+    "OrgaoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "enderecos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EnderecoOrgaoDTO"
+          }
+        },
+        "telefones": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TelefoneDTO"
+          }
+        },
+        "emails": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/EmailDTO"
+          }
+        },
+        "horariosAtendimento": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/HorarioAtendimentoDTO"
+          }
+        },
+        "tipoAtendimento": {
+          "type": "string"
+        },
+        "atendeCRC": {
+          "type": "boolean",
+          "default": false
+        },
+        "tiposOrgao": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          }
+        },
+        "responsavel": {
+          "type": "boolean",
+          "default": false
+        },
+        "vagasDisponiveis": {
+          "$ref": "#/definitions/VagaAgendamentoCidadaoDTO"
+        }
+      }
+    },
+    "ConfirmacaoWhatsappDTO": {
+      "type": "object",
+      "properties": {
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idEncaminhamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idImovelOrgaoAtendimento": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "MunicipioDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        }
+      }
+    },
+    "DocumentoSalvoAtendimentoDTO": {
+      "type": "object",
+      "properties": {
+        "idTipoDocumento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "salvo": {
+          "type": "boolean",
+          "default": false
+        },
+        "erro": {
+          "type": "string"
+        },
+        "arquivos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ArquivoSalvoAtendimentoDTO"
+          }
+        }
+      }
+    },
+    "PlantaoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "tipo": {
+          "type": "string"
+        },
+        "orgaosAtendimento": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/OrgaoResponseDTO"
+          }
+        },
+        "municipio": {
+          "$ref": "#/definitions/MunicipioDTO"
+        }
+      }
+    },
+    "AssuntoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "nomeMateria": {
+          "type": "string"
+        },
+        "descricao": {
+          "type": "string"
+        },
+        "txDocumentosNecessarios": {
+          "type": "string"
+        },
+        "urgente": {
+          "type": "boolean",
+          "default": false
+        },
+        "plantao": {
+          "type": "boolean",
+          "default": false
+        },
+        "complemento": {
+          "$ref": "#/definitions/ComplementoAssuntoDTO"
+        },
+        "perguntaPrioridade": {
+          "type": "string"
+        },
+        "documentosNecessarios": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DocumentoNecessarioDTO"
+          }
+        }
+      }
+    },
+    "CriarPeticaoInicialDTO": {
+      "type": "object",
+      "required": [
+        "documento",
+        "idCaso",
+        "tokenUsuario"
+      ],
+      "properties": {
+        "tokenUsuario": {
+          "type": "string"
+        },
+        "documento": {
+          "type": "string"
+        },
+        "idCaso": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "PrioridadeAtendimentoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "pergunta": {
+          "type": "string"
+        },
+        "complementos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/ComplementoPrioridadeAtendimentoDTO"
+          }
+        }
+      }
+    },
+    "ItemCategoriaAssuntoDTO": {
+      "type": "object",
+      "properties": {
+        "pergunta": {
+          "type": "string"
+        },
+        "nomeAssunto": {
+          "type": "string"
+        },
+        "respostas": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/RespostaCategoriaAssuntoDTO"
+          }
+        },
+        "idAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "assuntoEncontrado": {
+          "type": "boolean",
+          "default": false
+        }
+      }
+    },
+    "PessoaResponseDTO": {
+      "type": "object",
+      "properties": {
+        "codigo": {
+          "type": "string"
+        },
+        "mensagem": {
+          "type": "string"
+        },
+        "dados": {
+          "$ref": "#/definitions/ConsultarPessoaDTO"
+        }
+      }
+    },
+    "HorarioAtendimentoDTO": {
+      "type": "object",
+      "properties": {
+        "diaDaSemana": {
+          "type": "string"
+        },
+        "horaInicio": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "horaFim": {
+          "type": "string",
+          "format": "date-time"
+        },
+        "informacaoComplementar": {
+          "type": "string"
+        }
+      }
+    },
+    "CriacaoPeticaoInicialResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/PeticaoDTO"
+        }
+      }
+    },
+    "DistribuicaoDTO": {
+      "type": "object",
+      "properties": {
+        "idDistribuicao": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "ArquivoSalvoAtendimentoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "erro": {
+          "type": "string"
+        }
+      }
+    },
+    "ListarPessoaDTO": {
+      "type": "object",
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "cpf": {
+          "type": "string"
+        },
+        "telefones": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/TelefoneDTO"
+          }
+        }
+      }
+    },
+    "AtualizarPessoaDTO": {
+      "type": "object",
+      "required": [
+        "idPessoa"
+      ],
+      "properties": {
+        "idPessoa": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "endereco": {
+          "$ref": "#/definitions/EnderecoDTO"
+        },
+        "telefone": {
+          "$ref": "#/definitions/TelefoneDTO"
+        },
+        "genero": {
+          "type": "string",
+          "description": "Gênero do assistido.",
+          "enum": [
+            "Masculino",
+            "Feminino",
+            "NaoBinarie",
+            "Outros"
+          ]
+        },
+        "nacionalidade": {
+          "type": "string"
+        },
+        "email": {
+          "type": "string",
+          "pattern": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
+        },
+        "representante": {
+          "$ref": "#/definitions/CadastrarRepresentanteDTO"
+        },
+        "dataNascimento": {
+          "type": "string"
+        }
+      }
+    },
+    "PeticaoDTO": {
+      "type": "object",
+      "properties": {
+        "idPeticao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAndamento": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
+    "EmailDTO": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "observacao": {
+          "type": "string"
+        }
+      }
+    },
+    "AtualizarPersonagensCasoDTO": {
+      "type": "object",
+      "required": [
+        "idCaso",
+        "personagens"
+      ],
+      "properties": {
+        "idCaso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "personagens": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/PersonagemDTO"
+          }
+        }
+      }
+    },
+    "BairroDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        }
+      }
+    },
+    "CategoriaAssuntoDTO": {
+      "type": "object",
+      "properties": {
+        "idCategoriaAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nome": {
+          "type": "string"
+        },
+        "descricao": {
+          "type": "string"
+        }
+      }
+    }
+  }
+}
