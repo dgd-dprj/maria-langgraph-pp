@@ -25,8 +25,10 @@ from maria.orquestrador.fila import (
     AssuntoPendente,
     com_dados_do_fim,
     opcoes_do_fim,
+    para_a_tykhe,
     texto_fim_da_conversa,
     texto_fim_do_assunto,
+    texto_pendentes_no_atendimento_humano,
     urgencia_de,
 )
 from maria.orquestrador.graph import (
@@ -325,7 +327,7 @@ async def _com_o_que_falta(chat_id: str, corpo: dict[str, Any], final: str, pend
     corpo["resposta"] = f"{final}\n\n{texto_fim_da_conversa(resumo, abertos, guardados)}"
     corpo["resumoDaConversa"] = resumo
     if abertos:
-        corpo["assuntosEmAberto"] = abertos
+        corpo["assuntosEmAberto"] = para_a_tykhe(abertos)
     corpo["opcoesDoFim"] = opcoes_do_fim(abertos)
 
 
@@ -374,8 +376,10 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
                 await (await obter_pendentes_store()).marcar(guardado, "resolvido")
             final = corpo_resposta.get("resposta")
             if fluxo_em_teste_liga() and corpo_resposta.get("status") == "concluido" and isinstance(final, str):
-                # #450: só no fim concluído. No atendimento humano, quem atende vê os pendentes.
                 await _com_o_que_falta(chat_id, corpo_resposta, final, pendentes or [])
+            elif fluxo_em_teste_liga() and corpo_resposta.get("status") == "handoff_humano" and pendentes and isinstance(final, str):
+                # Decisão da Nicole (2026-11-13): no atendimento humano, só o aviso do que ficou para depois.
+                corpo_resposta["resposta"] = f"{final}\n\n{texto_pendentes_no_atendimento_humano(pendentes)}"
         return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)

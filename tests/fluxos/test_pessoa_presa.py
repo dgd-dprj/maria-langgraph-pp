@@ -469,6 +469,29 @@ async def test_parentesco_valor_da_lista_issue_17(monkeypatch: pytest.MonkeyPatc
     assert r["parentesco"] == "Amigo(a)"
 
 
+@pytest.mark.parametrize(
+    ("resposta", "esperado"),
+    [("genro", "Genro/Nora"), ("sou casada com o filho dele", "Genro/Nora"), ("sou a mãe dele", "Mãe"), ("meu tio", "Sobrinho(a)")],
+)
+async def test_212_parentesco_pelas_palavras_sem_ia(
+    monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], resposta: str, esperado: str
+) -> None:
+    """A IA (simulada) diria "Sogro(a)"; a resposta lida pelas palavras não chega a ela e não gasta tokens."""
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_PARENTESCO", "Sogro(a)")
+    capsys.readouterr()
+    r = await _ate_parentesco(resposta)
+    assert r["parentesco"] == esperado
+    saida = capsys.readouterr().out
+    [linha] = [x for x in saida.splitlines() if '"parentesco_sem_ia"' in x]
+    assert resposta not in linha and esperado not in linha, "o log não leva a resposta nem o valor"
+
+
+async def test_212_frase_que_pede_interpretacao_continua_com_a_ia(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_PARENTESCO", "Ex-esposo(a)")
+    r = await _ate_parentesco("fui casada com ele mas a gente se separou")
+    assert r["parentesco"] == "Ex-esposo(a)"
+
+
 async def test_parentesco_sem_match_cai_em_outro_issue_17(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.delenv("MOCK_CLASSIFICACAO_PARENTESCO", raising=False)
     r = await _ate_parentesco("um relato qualquer sem relação clara")
@@ -510,7 +533,7 @@ async def test_212_parentesco_fora_da_lista_vira_outro_com_aviso_sem_o_valor(
         assert trecho not in saida, "o log não leva o valor devolvido nem a resposta"
 
 
-@pytest.mark.parametrize(("escolha", "gravado"), [("Irmão(a)", "Irmão(a)"), ("Neto(a)", "Neto(a)"), ("Outro", "Outro"), (None, "Outro")])
+@pytest.mark.parametrize(("escolha", "gravado"), [("Irmã", "Irmã"), ("Neto(a)", "Neto(a)"), ("Outro", "Outro"), (None, "Outro")])
 async def test_212_parentesco_da_lista_passa_sem_aviso(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], escolha: Any, gravado: str
 ) -> None:
@@ -550,7 +573,9 @@ def test_212_regras_do_qwen_pedem_so_valores_da_lista() -> None:
     assert '"Irmã(o)"' in SUFIXO_PARENTESCO
     assert '"minha mãe" → "Filho(a)"' in SUFIXO_PARENTESCO
     assert '"filha" → "Filho(a)"' in SUFIXO_PARENTESCO
-    assert 'nora e genro não são "Sogro(a)"' in SUFIXO_PARENTESCO
+    # #212 (2026-11-13): genro e nora têm valor próprio, e o "Sogro(a)" é o contrário.
+    assert '→ "Genro/Nora"' in SUFIXO_PARENTESCO
+    assert "nora, genro" not in SUFIXO_PARENTESCO, "genro e nora saíram dos parentes fora da lista"
 
 
 # ---- #236: CPF vindo da Tykhe, pelo orquestrador ---------------------------------

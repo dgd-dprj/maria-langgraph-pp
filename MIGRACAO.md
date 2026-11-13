@@ -64,6 +64,15 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - Se ela pede para ver os assuntos ("quero ver meus assuntos"), a Maria mostra a lista.
   - No fim de cada assunto concluído, inclusive no multi-fluxo, sem um urgente na vez, o fim da conversa: "Resumo da nossa conversa:" (cada assunto atendido, com o desfecho e um código de 6 letras e números), "Quer continuar com algum desses assuntos ou encerrar a conversa?" e "Ainda em aberto:" (urgência, "em aberto até dd/mm" e a fase). Os botões: um por assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa". A violência doméstica aparece como "a situação que você contou", com desfecho neutro. Campos novos `resumoDaConversa` e `opcoesDoFim`; `assuntosEmAberto` ganha `codigo`, `fase` e `venceEm`. A lista também vem pela rota nova `POST /atendimentos/assuntos-em-aberto`, e a escolha abre pela rota do próximo assunto.
   - Fica para depois de 13/11: retomar um assunto que ficou no meio, em andamento, em outra conversa.
+- **O assunto pelo `flowId` (decisão da Nicole, 2026-11-13).** Em `assuntosEmAberto` (no fim da conversa e na rota dos assuntos em aberto), o assunto é identificado pelo `flowId` (assunto da Maria) ou pelo `tipoCaso` (assunto da Tykhe), e não mais pelo `chatIdAssunto`, que saiu da resposta. Cada um aparece uma vez só na lista. A Tykhe manda esse valor como `assunto` na rota do próximo assunto (`"assunto": "agendamentos"`), e a Maria acha o assunto em aberto da pessoa. O id interno (`<chatId>-assunto-N`) ainda é aceito, para quem já usava; um `flowId` que não está em aberto dá 404. O `chatId` que a Maria gera para cada assunto continua na resposta que abre o assunto: é com ele que a conversa segue em `/atendimentos/respostas`. Muda o contrato com a Tykhe (só no release); `docs/contrato-tykhe.md` atualizado.
+- **A ordem dos assuntos (decisão da Nicole, 2026-11-13):** violência doméstica, pessoa presa e saúde (com o plano de saúde), nessa ordem, e depois o resto. Antes, a saúde vinha primeiro (28 e 29/10). Os testes que levavam o plano até o fim agora escolhem o plano na resposta à ordem ("o plano primeiro").
+- **Os textos do fim (decisão da Nicole, 2026-11-13).**
+  - O fim da conversa mantém a pergunta antes ("Quer continuar com algum dos assuntos em aberto ou encerrar a conversa?", ou "com o assunto em aberto" quando é um só). Depois vem "Ainda em aberto:", com os assuntos numerados e separados em "Urgente:" e "Menos urgente:", e "Outras opções:", com o assunto novo e o encerrar.
+  - Todas as listas de escolha saem numeradas, com "Responda com o número da opção.", e os botões levam o mesmo número ("1. O caso novo"). A resposta vale pelo número, pelo texto do botão ou pelo nome.
+  - "Qual você quer resolver primeiro?" passa a ter botões (`opcoes`).
+  - A lista da rota dos assuntos em aberto ganha "Encerrar a conversa".
+  - O assunto que termina no atendimento humano com outro pendente avisa: "Também ficou para depois: …". Antes, só quem atendia via os pendentes.
+  - As frases novas vão para a revisão da equipe, e o guia de teste foi atualizado.
 - Em aberto: a rota de atendimento online do Verde.
 
 **#394 (decisão da Nicole, 2026-11-12):** limite de recusas do RG pelo formato na pessoa presa.
@@ -90,6 +99,31 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 - O prompt ganhou regras (grafia exata, relação invertida só com "meu/minha", parente fora da lista é "Outro"), **só com o Qwen** (`SUFIXO_PARENTESCO`): Qwen VL 235B de 48 para 60 de 61, nas 2 passadas (8 respostas fora dos exemplos do prompt, todas certas). Com o Haiku, as mesmas regras derrubaram o acerto ("mãe" virou "Filho(a)"), e o prompt dele fica o de sempre (57,3 de 61).
 - Erro que fica com o Qwen: quem é casado com o filho ou a filha da pessoa presa ("genro", "sou casado com a filha dele", "marido da filha dele") vira "Sogro(a)"; o Haiku acerta o "genro". Uma regra geral de direção no prompt ("quem escreve é [valor] da pessoa presa") não corrigiu em 3 passadas e fez a "nora" voltar a errar; ficou a versão anterior. Rodada de US$ 0,10 aprovada pela Nicole.
 - A lista de 8 valores do SIPEN (Ícaro, 2026-10-16) continua fora: muda o contrato com a Tykhe.
+
+**#212, genro e nora (decisão da Nicole, 2026-11-13): "Genro/Nora" entra na lista, e as formas comuns do parentesco são lidas pelas palavras, sem IA.**
+- **Valor novo para a Tykhe** em `metadados.parentesco`. Escolhido pela Nicole entre três opções (reconhecer e mandar "Outro"; valor novo já; a lista do SIPEN). Entra na develop agora e **só vai para a produção depois de a Tykhe confirmar que converte o valor** (pergunta na #479). Até lá, a promoção para a `main` espera, ou sai sem este commit.
+- **Frases de identificação** (`parentesco_pela_resposta`, `maria/shared/parentesco.py`): a resposta à pergunta do parentesco é lida pelas palavras quando casa inteira com uma forma conhecida, para todos os parentescos:
+  - a palavra ("genro", "mãe", "vó");
+  - "sou o X", "X dele", "X do preso";
+  - "A do B dele" ("marido da filha dele" é o genro; "mãe da esposa dele", a sogra; "filho do irmão dele", o sobrinho);
+  - "casado com a filha dele";
+  - "meu X", com a relação invertida ("meu genro" é o sogro).
+- "Outro", lido pelas palavras: parente fora da lista e quem não é parente (enteado, padrasto, madrasta, padrinho, advogado, vizinho, colega) e, por decisão da Nicole de 13/11, **namorado e namorada**.
+- O resto (frase longa, nome próprio, "meu filho") continua com a IA, como antes. O log ganha o evento `parentesco_sem_ia`, sem a resposta nem o valor.
+- "Meu sogro foi preso", no relato do orquestrador, passa a dar "Genro/Nora" sem perguntar.
+- O prompt do Qwen (`SUFIXO_PARENTESCO`) troca "genro e nora são Outro" por "quem é casado com o filho ou a filha é Genro/Nora". O do Haiku só ganha o valor novo na lista. **Ainda sem medição no Bedrock.**
+- Testes: um banco de frases por parentesco, cobrindo os 17 valores da lista, e as frases que precisam ir para a IA. Dois testes de conformidade com develop mudam, porque "amigo" passa a ser lido pelas palavras (era o "Outro" da IA simulada).
+- **Medido no mesmo dia** (76 casos, US$ 0,37, [registro na #212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212#issuecomment-6858129514)): no caminho da produção, Haiku 71 de 76 e Qwen 74 de 76; o "Genro/Nora" na lista não piorou o Haiku nos 61 casos de antes.
+
+**#212, irmão e irmã e o sogro pela posse (decisões da Nicole, 2026-11-13, depois da medição).**
+- **"Irmão(a)" sai da lista e entram "Irmão" e "Irmã".** Valores novos para a Tykhe: entram na pergunta da #479, como o "Genro/Nora".
+- **"Meu irmão" e "minha irmã"** não dizem se quem fala é irmão ou irmã: a Maria pergunta "Você é irmão ou irmã dele?" (ou "dela"), com as opções Irmão e Irmã, como faz com "Você é a mãe ou o pai dele?". Vale no relato do orquestrador e na resposta à pergunta do parentesco. "Meu filho" e "minha filha", na resposta, também passam a ter a pergunta curta, em vez de ir para a IA. A pergunta curta sai uma vez só: se a pessoa repetir, a resposta vai para a IA.
+- **A leitura pelas palavras entende mais duas formas**, que o Haiku e o Qwen erravam na medição:
+  - "o preso é o meu sogro" → "Genro/Nora";
+  - "pai da minha esposa" → "Genro/Nora", e o mesmo para os outros parentes compostos com "meu/minha".
+- **Frase com vírgula** ("ele é o pai da minha esposa, ela pediu pra eu ver"): vale o parentesco dos trechos lidos, se todos derem o mesmo, se a frase não tiver "não" e se nenhum trecho não lido citar outro parente.
+- **Prompt do Qwen:** ganha a regra do gênero ("Irmão" e "Irmã" dizem o gênero de quem escreve; "meu irmão" → "nenhum"). **Sem medição no Bedrock.**
+- **Duas respostas gravadas aposentadas** com registro, sem editar: `pp_parentesco` e `pp_get_concluido` (conferência pr2).
 
 **#475 (decisão da Nicole, 2026-11-12):** a pergunta do RG da pessoa presa mostra os formatos aceitos: "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9.". O que a Maria aceita não muda (#343), e o "RG não encontrado" continua com 3 tentativas. Três respostas gravadas aposentadas com registro, sem editar. O PR #437, que recusava o RG com espaços, foi fechado como superado pelo #343 e pelo #470.
 

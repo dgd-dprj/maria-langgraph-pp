@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from itertools import count
+from typing import Any
 
 import httpx
 import pytest
@@ -27,12 +28,17 @@ NECESSIDADES = [
     {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": TRECHO_PLANO, "urgente": True},
 ]
 RELATO = "meu irmão está preso e o plano negou a cirurgia"
+# #212 (13/11): "meu irmão" vira a pergunta curta.
+PERGUNTA_IRMAO: dict[str, Any] = {
+    "perguntaParentesco": "Você é irmão ou irmã dele?",
+    "opcoesParentesco": {"irmao": "Irmão", "irma": "Irmã"},
+}
 PENDENTE_PP = {
     "nome": "a pessoa presa",
     "urgente": False,
     "urgencia": "urgente",
     "flowId": ID_PESSOA_PRESA,
-    "dadosConhecidos": {"parentesco": "Irmão(a)"},
+    "dadosConhecidos": PERGUNTA_IRMAO,
 }
 
 _ids = count(1)
@@ -60,10 +66,11 @@ async def test_release_dois_assuntos_ordem_fluxo_e_pendentes_ate_o_fim(
     assert r.status_code == 200
     corpo = r.json()
     assert corpo == {
+        # A ordem (decisão da Nicole, 2026-11-13): a violência doméstica, a pessoa presa e a saúde.
         "resposta": (
-            "Entendi. Você falou de duas coisas: o plano de saúde e a pessoa presa.\n"
-            "Vou começar pelo plano de saúde, porque parece mais urgente.\n"
-            "Depois, falamos da pessoa presa.\n"
+            "Entendi. Você falou de duas coisas: a pessoa presa e o plano de saúde.\n"
+            "Vou começar pela pessoa presa.\n"
+            "Depois, falamos do plano de saúde.\n"
             "Pode ser assim?"
         ),
         "tipoResposta": "sim_nao",
@@ -72,8 +79,8 @@ async def test_release_dois_assuntos_ordem_fluxo_e_pendentes_ate_o_fim(
         "_links": {"self": {"href": f"/atendimentos/{chat}"}, "responder": {"href": BASE, "method": "POST"}},
     }
 
-    # 2. "true" (o botão Sim da Tykhe): abre o fluxo do plano, com o resto pendente.
-    r = await cliente.post(BASE, json={"chatId": chat, "resposta": "true", "dadosConhecidos": DADOS_NO_RIO}, headers=auth)
+    # 2. A pessoa escolhe o plano primeiro: abre o fluxo do plano, com o resto pendente.
+    r = await cliente.post(BASE, json={"chatId": chat, "resposta": "o plano primeiro", "dadosConhecidos": DADOS_NO_RIO}, headers=auth)
     corpo = r.json()
     assert corpo["status"] == "em_andamento"
     assert corpo["flowId"] == ID_PROBLEMAS_PLANO_SAUDE
@@ -97,7 +104,7 @@ async def test_release_dois_assuntos_ordem_fluxo_e_pendentes_ate_o_fim(
         r = await cliente.post("/atendimentos/respostas", json={"chatId": chat, "resposta": "mandei"}, headers=auth)
     corpo = r.json()
     assert (corpo["status"], corpo["metadados"]["motivoHandoff"]) == ("handoff_humano", "imagens_pendentes")
-    assert corpo["assuntosPendentes"] == [{**PENDENTE_PP, "dadosConhecidos": {"cpf": CPF, "parentesco": "Irmão(a)"}}]
+    assert corpo["assuntosPendentes"] == [{**PENDENTE_PP, "dadosConhecidos": {"cpf": CPF, **PERGUNTA_IRMAO}}]
 
 
 @pytest.mark.usefixtures("multi")
@@ -106,14 +113,18 @@ async def test_release_primeiro_assunto_da_tykhe_redireciona_com_pendentes(
 ) -> None:
     monkeypatch.setenv("MARIA_AMBIENTE", "release")
     monkeypatch.setenv(
-        "MOCK_NECESSIDADES", json.dumps([{"id": ID_PESSOA_PRESA, "evidencia": "x"}, {"id": "tykhe:saude", "evidencia": "y"}])
+        # A saúde (Tykhe) e o plano (Maria) têm a mesma prioridade: vale a ordem do relato.
+        "MOCK_NECESSIDADES",
+        json.dumps([{"id": "tykhe:saude", "evidencia": "y"}, {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": "x"}]),
     )
     chat = _chat()
     await cliente.post(BASE, json={"chatId": chat, "mensagem": RELATO, "dadosConhecidos": {"cpf": CPF}}, headers=auth)
     r = await cliente.post(BASE, json={"chatId": chat, "resposta": "Sim"}, headers=auth)
     corpo = r.json()
     assert (corpo["status"], corpo["tipoCaso"]) == ("redirecionado", "saude")
-    assert corpo["assuntosPendentes"] == [{"nome": "a pessoa presa", "urgente": False, "urgencia": "urgente", "flowId": ID_PESSOA_PRESA}]
+    assert corpo["assuntosPendentes"] == [
+        {"nome": "o plano de saúde", "urgente": False, "urgencia": "urgente", "flowId": ID_PROBLEMAS_PLANO_SAUDE}
+    ]
 
 
 @pytest.mark.usefixtures("multi")
@@ -158,7 +169,8 @@ async def test_release_o_que_a_pessoa_ja_disse_segue_para_o_proximo_assunto(
     dados = {**DADOS_NO_RIO, "cpf": "11111111111"}
     relato = "o plano negou minha cirurgia e meu sobrinho foi preso"
     await cliente.post(BASE, json={"chatId": chat, "mensagem": relato, "dadosConhecidos": dados}, headers=auth)
-    corpo = (await cliente.post(BASE, json={"chatId": chat, "resposta": "true"}, headers=auth)).json()
+    # A pessoa presa viria antes; a pessoa escolhe o plano primeiro.
+    corpo = (await cliente.post(BASE, json={"chatId": chat, "resposta": "o plano primeiro"}, headers=auth)).json()
     # O plano já sabe que é para a própria pessoa ("minha cirurgia") e vai direto para a foto.
     assert corpo["tipoResposta"] == "link_imagem"
     pendente = corpo["assuntosPendentes"][0]

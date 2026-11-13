@@ -106,11 +106,13 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 3. RG da pessoa presa → o **RG de teste**.
 4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
 5. Parentesco → por exemplo, "sou a mãe". **Depois da #438, o relato do passo 1 conta:**
-   - **com o parentesco no relato** ("meu primo foi preso", "minha irmã tá presa", "meu avô foi preso", "sou a mãe dele"), a Maria **não pergunta**;
+   - **com o parentesco no relato** ("meu primo foi preso", "meu avô foi preso", "sou a mãe dele"), a Maria **não pergunta**;
    - **"meu filho foi preso":** ela pergunta só "Você é a mãe ou o pai dele?";
+   - **"meu irmão foi preso" ou "minha irmã tá presa" (13/11):** ela pergunta só "Você é irmão ou irmã dele?" (ou "dela"). "Irmão(a)" virou dois valores, "Irmão" e "Irmã";
    - **dois parentes no relato:** ela reconhece qual está preso ("minha mãe disse que meu primo foi preso" é o primo). Se forem dois presos ("meu primo e meu irmão foram presos"), pergunta "Sobre qual deles é este atendimento?";
-   - **a pergunta de sempre continua** quando não dá para saber: erro de digitação ("mu imao"), "meu sogro", "meu namorado".
-   - **Resposta à pergunta do parentesco, depois da #212:** nenhum valor fora da lista chega aos metadados (vira "Outro"). **Só com o Qwen**, a IA também lê melhor as respostas: "irmã" → "Irmão(a)"; "minha mãe" (a pessoa presa é a mãe) → "Filho(a)"; "meu filho" → "Outro" (não dá para saber se é a mãe ou o pai); "nora", "enteada", "padrasto" → "Outro". Erro que continua com o Qwen: quem é casado com o filho ou a filha da pessoa presa ("genro", "sou casado com a filha dele") vira "Sogro(a)". **Com o Haiku** (e antes da #212), "minha mãe" vira "Mãe", e antes da #212 um valor fora da lista (como "Irmã(o)") podia chegar aos metadados.
+   - **a pergunta de sempre continua** quando não dá para saber: erro de digitação ("mu imao"), "meu namorado", "meu enteado". **Depois da #212 (13/11):** "meu sogro foi preso" dá "Genro/Nora", sem perguntar.
+   - **Resposta à pergunta do parentesco, depois da #212 (13/11): as formas comuns são lidas pelas palavras, sem IA, para todos os parentescos.** Exemplos: "genro", "nora", "sou casado com a filha dele", "marido da filha dele" → "Genro/Nora" (valor novo); "sou a mãe dele", "mãe do preso" → "Mãe"; "mãe da esposa dele", "meu genro" → "Sogro(a)"; "irmão da esposa dele" → "Cunhado(a)"; "filho do irmão dele", "meu tio" → "Sobrinho(a)"; "enteado", "padrinho", "advogado" → "Outro". Também (13/11): "o preso é o meu sogro" e "pai da minha esposa" → "Genro/Nora"; "irmão" → "Irmão" e "irmã" → "Irmã"; "meu filho" e "meu irmão" levam à pergunta curta ("Você é a mãe ou o pai dele?", "Você é irmão ou irmã dele?"). Resposta longa ou com nome próprio continua com a IA.
+   - **Resposta à pergunta do parentesco, depois da #212:** nenhum valor fora da lista chega aos metadados (vira "Outro"). **Só com o Qwen**, a IA também lê melhor as respostas: "irmã" → "Irmã" (13/11: "Irmão(a)" virou "Irmão" e "Irmã"); "minha mãe" (a pessoa presa é a mãe) → "Filho(a)"; "meu filho" → "Outro" (não dá para saber se é a mãe ou o pai); "enteada", "padrasto" → "Outro". **Com o Haiku** (e antes da #212), "minha mãe" vira "Mãe", e antes da #212 um valor fora da lista (como "Irmã(o)") podia chegar aos metadados.
 
    Teste os jeitos diferentes.
 6. CPF de quem está conversando → um CPF inventado (e o cadastro, como no caso A) ou um já cadastrado.
@@ -188,7 +190,7 @@ Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada
   - "meu irmao ta preso e o plano da minha mae n quer libera a cirurgia dela";
   - "meu marido me bate qnd bebe e meu filho rodou ontem a noite";
   - "preciso de ajuda pq meu ex me ameaçou e tb ele n paga a pensao das crianças".
-- **A Maria propõe a ordem e pergunta "Pode ser assim?"** (Sim/Não). A ordem padrão é saúde, violência doméstica, pessoa presa e depois o resto, com o urgente antes.
+- **A Maria propõe a ordem e pergunta "Pode ser assim?"** (Sim/Não). A ordem padrão é violência doméstica, pessoa presa, saúde (e plano de saúde) e depois o resto, com o urgente antes. **Mudou em 13/11:** antes, a saúde vinha primeiro.
 - **Responda de jeitos diferentes:** "Sim", "pode", "Não", o nome do assunto ("o do meu irmão") ou algo que a Maria não entende ("hmm").
 
 **Esperado:**
@@ -197,7 +199,7 @@ Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada
 |---|---|
 | Sim, "pode", "blz" | começa pelo 1º assunto da ordem proposta |
 | Não, com dois assuntos | troca a ordem |
-| Não, com três assuntos | "Qual você quer resolver primeiro?", com a lista |
+| Não, com três assuntos | "Qual você quer resolver primeiro?", com a lista numerada, botões e "Responda com o número da opção." (13/11) |
 | O nome do assunto ou uma palavra do relato | começa por esse assunto |
 | Algo que a Maria não entende | segue a ordem proposta, sem perguntar de novo |
 
@@ -228,12 +230,16 @@ Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09 e 2026-11-10). **Na pr
 4. **Conversa nova, sem pergunta no começo (mudou em 2026-11-11).** Pare depois do 1º assunto e abra uma **conversa nova** com o mesmo `idUsuario`.
    - **Do mesmo assunto guardado** (por exemplo, a pessoa presa de novo): a Maria retoma, com "Você já tinha esse assunto com a gente: a pessoa presa. Vamos continuar.", sem abrir outro igual.
    - **De outro assunto:** segue direto, sem pergunta.
-   - **"Quero ver meus assuntos"** (ou "o que ficou pendente"): "Qual você quer resolver agora?", com a lista (urgentes primeiro) e "Nenhum, quero um assunto novo".
-5. **O fim da conversa (mudou em 2026-11-11).** Num assunto que termina em `concluido`, sem um urgente na vez, a mensagem final ganha, no fim:
+   - **"Quero ver meus assuntos"** (ou "o que ficou pendente"): "Qual você quer resolver agora?", com a lista numerada em "Urgente:" e "Menos urgente:", "Outras opções:" com "Nenhum, quero um assunto novo" e "Responda com o número da opção." (13/11).
+5. **O fim da conversa (mudou em 2026-11-11; texto revisto em 13/11).** Num assunto que termina em `concluido`, sem um urgente na vez, a mensagem final ganha, no fim:
    - "Resumo da nossa conversa:", um item por assunto atendido, com o que aconteceu e o código (por exemplo, "• A pessoa presa: dados confirmados e encaminhados (código YI7NXZ)");
-   - "Quer continuar com algum desses assuntos ou encerrar a conversa?";
-   - "Ainda em aberto:", um item por assunto, com "urgente" ou "menos urgente", "em aberto até dd/mm" e "ainda não começou";
-   - os botões: um por assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa".
+   - "Quer continuar com algum dos assuntos em aberto ou encerrar a conversa?" (com um só: "com o assunto em aberto");
+   - "Ainda em aberto:", com os assuntos **numerados**, separados em "Urgente:" e "Menos urgente:", cada um com os detalhes entre parênteses: "(guardado até dd/mm, ainda não começou)";
+   - "Outras opções:", numeradas em seguida: "Falar de um assunto novo" e "Encerrar a conversa";
+   - "Responda com o número da opção." (e, com o `idUsuario`, o aviso dos 30 dias);
+   - os botões com o mesmo número ("1. O caso novo"). Vale responder o número, o texto do botão ou o nome do assunto.
+   - **A lista dos assuntos em aberto** (`POST /atendimentos/assuntos-em-aberto`) também traz "Encerrar a conversa".
+   - **Assunto que termina no atendimento humano** com outro assunto pendente: a mensagem final ganha "Também ficou para depois: …" (13/11).
    - **Botão de um assunto** (`POST /atendimentos/proximo-assunto` com a `resposta`): abre o assunto com o `chatId` dele.
    - **"Encerrar a conversa":** "Combinado. … Quando quiser, é só voltar a falar com a gente.", e os guardados continuam guardados.
    - **"Falar de um assunto novo":** a conversa recomeça no orquestrador com `chatId` novo.
