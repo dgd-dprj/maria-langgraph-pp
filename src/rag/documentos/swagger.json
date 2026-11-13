@@ -7,55 +7,28 @@
   "basePath": "/api",
   "tags": [
     {
-      "name": "Feriado"
-    },
-    {
-      "name": "Bloqueio"
-    },
-    {
-      "name": "Processo"
+      "name": "Apenado"
     },
     {
       "name": "Endereço"
     },
     {
-      "name": "Caso"
+      "name": "Feriado"
     },
     {
-      "name": "Via"
+      "name": "Personagem"
     },
     {
       "name": "Mensagem"
     },
     {
-      "name": "Solução Extrajudicial"
+      "name": "Caso"
     },
     {
-      "name": "Whatsapp"
+      "name": "Pré-Atendimento"
     },
     {
       "name": "E-mail"
-    },
-    {
-      "name": "Autenticação"
-    },
-    {
-      "name": "Usuários do Verde"
-    },
-    {
-      "name": "Notificação"
-    },
-    {
-      "name": "Apenado"
-    },
-    {
-      "name": "Órgão"
-    },
-    {
-      "name": "Pessoa"
-    },
-    {
-      "name": "Prioridade Atendimento"
     },
     {
       "name": "Assunto"
@@ -64,19 +37,49 @@
       "name": "Recesso"
     },
     {
-      "name": "Plantão"
+      "name": "Encaminhamento"
     },
     {
-      "name": "Atendimento Online"
+      "name": "Bloqueio"
+    },
+    {
+      "name": "Prioridade Atendimento"
+    },
+    {
+      "name": "Whatsapp"
+    },
+    {
+      "name": "Pessoa"
     },
     {
       "name": "Agendamento"
     },
     {
-      "name": "Personagem"
+      "name": "Usuários do Verde"
     },
     {
-      "name": "Encaminhamento"
+      "name": "Notificação"
+    },
+    {
+      "name": "Plantão"
+    },
+    {
+      "name": "Processo"
+    },
+    {
+      "name": "Autenticação"
+    },
+    {
+      "name": "Solução Extrajudicial"
+    },
+    {
+      "name": "Órgão"
+    },
+    {
+      "name": "Via"
+    },
+    {
+      "name": "Atendimento Online"
     }
   ],
   "paths": {
@@ -838,7 +841,8 @@
           {
             "Authorization": []
           }
-        ]
+        ],
+        "deprecated": true
       }
     },
     "/integra/agendamento/{idEvento}": {
@@ -1474,8 +1478,8 @@
         "tags": [
           "Caso"
         ],
-        "summary": "Consulta aos casos no qual uma determinada pessoa pertence, na qual há uma gama de filtros adicionais que podem ser aplicados.",
-        "description": "",
+        "summary": "Consultar os casos de uma pessoa",
+        "description": "Retorna os casos em que a pessoa figura como personagem ou como representante legal de um personagem.\n\nRegras:\n- Se `tipoCaso` não for informado ou for processual e `idAssunto` for informado, também são incluídos os casos processuais vinculados ao assunto do Verde informado (como personagem ou representante).\n- Casos processuais do mesmo processo são deduplicados: retorna-se apenas o caso com o movimento mais recente.\n- Cada caso traz:\n  - `orgaosAssociados`: o órgão responsável vem primeiro (`responsavel = true`) e com seus endereços de atendimento. Os demais órgãos vêm sem endereços.\n  - `andamentos`: os até 3 movimentos publicáveis mais recentes.\n- Se a pessoa não possuir casos, a resposta é 200 com lista vazia.",
         "operationId": "consultarCasosPessoa",
         "consumes": [
           "application/json"
@@ -1487,6 +1491,7 @@
           {
             "name": "idPessoa",
             "in": "path",
+            "description": "Identificador da pessoa.",
             "required": true,
             "type": "integer",
             "format": "int32"
@@ -1494,7 +1499,7 @@
           {
             "name": "tipoCaso",
             "in": "query",
-            "description": "Valor do tipo de caso a ser consultado, podendo ser processual ou não processual.",
+            "description": "Tipo de caso: CP (processual) ou CNP (não processual). Se omitido, retorna ambos.",
             "required": false,
             "type": "string",
             "enum": [
@@ -1505,6 +1510,7 @@
           {
             "name": "idProcesso",
             "in": "query",
+            "description": "Filtra os casos pelo identificador do processo.",
             "required": false,
             "type": "integer",
             "format": "int32"
@@ -1512,6 +1518,15 @@
           {
             "name": "idAssunto",
             "in": "query",
+            "description": "Filtra pelo assunto do Verde do caso. Para casos processuais, também inclui os casos cujo assunto CNJ é vinculado ao assunto do Verde informado.",
+            "required": false,
+            "type": "integer",
+            "format": "int32"
+          },
+          {
+            "name": "idAssuntoProcesso",
+            "in": "query",
+            "description": "Filtra pelo assunto CNJ (processual) do caso..",
             "required": false,
             "type": "integer",
             "format": "int32"
@@ -1519,8 +1534,10 @@
           {
             "name": "urgente",
             "in": "query",
+            "description": "Se true, os endereços do órgão responsável retornados são os de atendimento de urgência.",
             "required": false,
-            "type": "boolean"
+            "type": "boolean",
+            "default": false
           }
         ],
         "responses": {
@@ -1529,9 +1546,6 @@
             "schema": {
               "$ref": "#/definitions/CasosPessoaResponseDTO"
             }
-          },
-          "422": {
-            "description": "É necessário informar o tipo de caso quando for especificado o identificador de um assunto."
           },
           "404": {
             "description": "Pessoa não encontrada"
@@ -2718,7 +2732,7 @@
           {
             "name": "telefone",
             "in": "query",
-            "description": "O telefone deve conter DDD + número. Exemplo: [identificador removido]. Pode ser enviado formatado ou apenas dígitos.",
+            "description": "O telefone deve conter DDD + número. Exemplo: 21912345678. Pode ser enviado formatado ou apenas dígitos.",
             "required": false,
             "type": "string"
           }
@@ -2768,6 +2782,98 @@
             "schema": {
               "$ref": "#/definitions/PlantaoVigenteResponseDTO"
             }
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/pre-atendimento/status": {
+      "post": {
+        "tags": [
+          "Pré-Atendimento"
+        ],
+        "summary": "Atualiza o status de um pré-atendimento de um agendamento",
+        "description": "Atualiza o status de um pré-atendimento associado a um agendamento.\n\n### Regras de negócio\n- O agendamento é identificado pelo parâmetro `idAgendamento`.\n\n- O agendamento deve existir e ser do tipo CRC.\n\n- A atualização só é permitida para agendamentos pendentes ou validados.\n\n- Agendamentos cancelados/desmarcados ou reagendados não podem ser alterados.\n\n- `statusPreAtendimento` aceita: `PENDENTE`, `INICIADO` ou `FINALIZADO`.\n\n- O status não diferencia maiúsculas de minúsculas e remove espaços nas extremidades.\n\n- `uuidPreAtendimento` identifica o pré-atendimento relacionado.\n\n",
+        "operationId": "receberStatusPreAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "in": "body",
+            "name": "body",
+            "required": false,
+            "schema": {
+              "$ref": "#/definitions/ReceberStatusPreAtendimentoDTO"
+            }
+          }
+        ],
+        "responses": {
+          "422": {
+            "description": "`statusPreAtendimento` inválido"
+          },
+          "204": {
+            "description": "Status atualizado com sucesso"
+          },
+          "404": {
+            "description": "Agendamento não encontrado"
+          },
+          "409": {
+            "description": "Agendamento cancelado ou reagendado"
+          }
+        },
+        "security": [
+          {
+            "X-Client-ID": []
+          },
+          {
+            "Authorization": []
+          }
+        ]
+      }
+    },
+    "/integra/pre-atendimento/url": {
+      "get": {
+        "tags": [
+          "Pré-Atendimento"
+        ],
+        "summary": "Consulta de URL do pré-atendimento relacionado ao agendamento",
+        "description": "Esse endpoint consulta o pré-atendimento do agendamento informado e retorna a url para esse pré-atendimento no ambiente do VIA Atendimento.",
+        "operationId": "recuperarUrlPreAtendimento",
+        "consumes": [
+          "application/json"
+        ],
+        "produces": [
+          "application/json"
+        ],
+        "parameters": [
+          {
+            "name": "idAgendamento",
+            "in": "query",
+            "required": true,
+            "type": "integer",
+            "format": "int32"
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "URL consultada com sucesso",
+            "schema": {
+              "$ref": "#/definitions/UrlAtendimentoResponseDTO"
+            }
+          },
+          "404": {
+            "description": "Agendamento não encontrado"
           }
         },
         "security": [
@@ -3457,7 +3563,7 @@
           "Via"
         ],
         "summary": "Autentica o token de login do usuário no sistema Verde",
-        "description": "Endpoint de validação de autenticação do sistema Verde.\n\n**Respostas de sucesso:**\n**200 OK - Token válido**\n```\n{\n   \"dados\": {\n       \"idUsuario\": 1,\n       \"email\": \"[identificador removido]\"\n   }\n}\n```\n\n**200 OK - Token inválido/expirado**\n```\n{\n   \"codigo\": \"FALHA_AUTENTICACAO\",\n   \"mensagem\": \"Token expirado.\"\n}\n```\n\n",
+        "description": "Endpoint de validação de autenticação do sistema Verde.\n\n**Respostas de sucesso:**\n**200 OK - Token válido**\n```\n{\n   \"dados\": {\n       \"idUsuario\": 1,\n       \"email\": \"exemplo@empresa.com\"\n   }\n}\n```\n\n**200 OK - Token inválido/expirado**\n```\n{\n   \"codigo\": \"FALHA_AUTENTICACAO\",\n   \"mensagem\": \"Token expirado.\"\n}\n```\n\n",
         "operationId": "autenticarLoginVerde",
         "consumes": [
           "application/json"
@@ -4118,6 +4224,7 @@
         },
         "txEmail": {
           "type": "string",
+          "example": "email@exemplo.com",
           "pattern": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
         }
       }
@@ -4307,18 +4414,6 @@
         }
       }
     },
-    "ArquivoDocumentoAtendimentoViaDTO": {
-      "type": "object",
-      "properties": {
-        "idAnexo": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "nomeAnexo": {
-          "type": "string"
-        }
-      }
-    },
     "RepresentanteLegalDTO": {
       "type": "object",
       "properties": {
@@ -4362,6 +4457,18 @@
         }
       }
     },
+    "ArquivoDocumentoAtendimentoViaDTO": {
+      "type": "object",
+      "properties": {
+        "idAnexo": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nomeAnexo": {
+          "type": "string"
+        }
+      }
+    },
     "SugestaoMotivoResponseDTO": {
       "type": "object",
       "properties": {
@@ -4401,20 +4508,6 @@
         }
       }
     },
-    "VagaAgendamentoCidadaoDTO": {
-      "type": "object",
-      "properties": {
-        "vagasDisponiveis": {
-          "type": "array",
-          "items": {
-            "type": "object",
-            "additionalProperties": {
-              "type": "object"
-            }
-          }
-        }
-      }
-    },
     "ComplementoAssuntoDTO": {
       "type": "object",
       "properties": {
@@ -4427,6 +4520,20 @@
         "maximoDiasAteBloqueio": {
           "type": "integer",
           "format": "int32"
+        }
+      }
+    },
+    "VagaAgendamentoCidadaoDTO": {
+      "type": "object",
+      "properties": {
+        "vagasDisponiveis": {
+          "type": "array",
+          "items": {
+            "type": "object",
+            "additionalProperties": {
+              "type": "object"
+            }
+          }
         }
       }
     },
@@ -4484,34 +4591,6 @@
         }
       }
     },
-    "ProcessoDTO": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "origem": {
-          "type": "string"
-        },
-        "instancia": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "nomeAssunto": {
-          "type": "string"
-        },
-        "nomeOrgaoJulgador": {
-          "type": "string"
-        },
-        "movimentos": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/MovimentoTJDTO"
-          }
-        }
-      }
-    },
     "UsuarioDTO": {
       "type": "object",
       "properties": {
@@ -4538,6 +4617,34 @@
         "defensor": {
           "type": "boolean",
           "default": false
+        }
+      }
+    },
+    "ProcessoDTO": {
+      "type": "object",
+      "properties": {
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "origem": {
+          "type": "string"
+        },
+        "instancia": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nomeAssunto": {
+          "type": "string"
+        },
+        "nomeOrgaoJulgador": {
+          "type": "string"
+        },
+        "movimentos": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/MovimentoTJDTO"
+          }
         }
       }
     },
@@ -4590,6 +4697,9 @@
         "idLocalAtendimento": {
           "type": "integer",
           "format": "int32"
+        },
+        "observacao": {
+          "type": "string"
         },
         "horariosUrgencia": {
           "type": "array",
@@ -5035,50 +5145,6 @@
         }
       }
     },
-    "CriacaoDocumentoAtendimentoDTO": {
-      "type": "object",
-      "required": [
-        "idAssistido",
-        "idOrgao",
-        "idTipoDocumento"
-      ],
-      "properties": {
-        "idAssistido": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "idOrgao": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "idTipoDocumento": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "uuidPreAtendimento": {
-          "type": "string"
-        },
-        "uuidAtendimento": {
-          "type": "string"
-        },
-        "idAssunto": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "idCaso": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "idAgendamento": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "idEncaminhamento": {
-          "type": "integer",
-          "format": "int32"
-        }
-      }
-    },
     "AgendamentoPessoaDTO": {
       "type": "object",
       "properties": {
@@ -5132,6 +5198,50 @@
         "assistidoComDoencaGrave": {
           "type": "boolean",
           "default": false
+        }
+      }
+    },
+    "CriacaoDocumentoAtendimentoDTO": {
+      "type": "object",
+      "required": [
+        "idAssistido",
+        "idOrgao",
+        "idTipoDocumento"
+      ],
+      "properties": {
+        "idAssistido": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idOrgao": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idTipoDocumento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "uuidPreAtendimento": {
+          "type": "string"
+        },
+        "uuidAtendimento": {
+          "type": "string"
+        },
+        "idAssunto": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idCaso": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "idEncaminhamento": {
+          "type": "integer",
+          "format": "int32"
         }
       }
     },
@@ -5320,7 +5430,8 @@
           "type": "string"
         },
         "dataNascimento": {
-          "type": "string"
+          "type": "string",
+          "example": "11/06/2026"
         },
         "nacionalidade": {
           "type": "string"
@@ -5470,6 +5581,30 @@
         }
       }
     },
+    "ReceberStatusPreAtendimentoDTO": {
+      "type": "object",
+      "required": [
+        "idAgendamento",
+        "status",
+        "uuidPreAtendimento"
+      ],
+      "properties": {
+        "idAgendamento": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "uuidPreAtendimento": {
+          "type": "string"
+        },
+        "status": {
+          "type": "string"
+        },
+        "qtdDocumentos": {
+          "type": "integer",
+          "format": "int32"
+        }
+      }
+    },
     "EncaminhamentoDTO": {
       "type": "object",
       "properties": {
@@ -5557,17 +5692,6 @@
         }
       }
     },
-    "DocumentoSalvoAtendimentoResponseDTO": {
-      "type": "object",
-      "properties": {
-        "dados": {
-          "type": "array",
-          "items": {
-            "$ref": "#/definitions/DocumentoSalvoAtendimentoDTO"
-          }
-        }
-      }
-    },
     "ComplementoPrioridadeAtendimentoDTO": {
       "type": "object",
       "properties": {
@@ -5577,6 +5701,17 @@
         },
         "nome": {
           "type": "string"
+        }
+      }
+    },
+    "DocumentoSalvoAtendimentoResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "type": "array",
+          "items": {
+            "$ref": "#/definitions/DocumentoSalvoAtendimentoDTO"
+          }
         }
       }
     },
@@ -5760,11 +5895,19 @@
         }
       }
     },
-    "CriacaoAndamentoVIAResponseDTO": {
+    "DocumentoNecessarioDTO": {
       "type": "object",
       "properties": {
-        "dados": {
-          "$ref": "#/definitions/AndamentoDTO"
+        "id": {
+          "type": "integer",
+          "format": "int32"
+        },
+        "nomeDocumento": {
+          "type": "string"
+        },
+        "basico": {
+          "type": "boolean",
+          "default": false
         }
       }
     },
@@ -5809,6 +5952,7 @@
         },
         "email": {
           "type": "string",
+          "example": "email@exemplo.com",
           "pattern": "^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\\.[A-Za-z]{2,}$"
         },
         "dtNascimento": {
@@ -5816,22 +5960,6 @@
         },
         "representante": {
           "$ref": "#/definitions/CadastrarRepresentanteDTO"
-        }
-      }
-    },
-    "DocumentoNecessarioDTO": {
-      "type": "object",
-      "properties": {
-        "id": {
-          "type": "integer",
-          "format": "int32"
-        },
-        "nomeDocumento": {
-          "type": "string"
-        },
-        "basico": {
-          "type": "boolean",
-          "default": false
         }
       }
     },
@@ -5852,6 +5980,14 @@
         },
         "nuTelefone": {
           "type": "string"
+        }
+      }
+    },
+    "CriacaoAndamentoVIAResponseDTO": {
+      "type": "object",
+      "properties": {
+        "dados": {
+          "$ref": "#/definitions/AndamentoDTO"
         }
       }
     },
@@ -5949,6 +6085,9 @@
         "idLocalAtendimento": {
           "type": "integer",
           "format": "int32"
+        },
+        "observacao": {
+          "type": "string"
         },
         "horariosAtendimento": {
           "type": "array",
@@ -6053,6 +6192,9 @@
           "format": "int32"
         },
         "nome": {
+          "type": "string"
+        },
+        "observacoesAtendimento": {
           "type": "string"
         },
         "enderecos": {
@@ -6407,6 +6549,17 @@
         }
       }
     },
+    "EmailDTO": {
+      "type": "object",
+      "properties": {
+        "email": {
+          "type": "string"
+        },
+        "observacao": {
+          "type": "string"
+        }
+      }
+    },
     "PeticaoDTO": {
       "type": "object",
       "properties": {
@@ -6417,17 +6570,6 @@
         "idAndamento": {
           "type": "integer",
           "format": "int32"
-        }
-      }
-    },
-    "EmailDTO": {
-      "type": "object",
-      "properties": {
-        "email": {
-          "type": "string"
-        },
-        "observacao": {
-          "type": "string"
         }
       }
     },
