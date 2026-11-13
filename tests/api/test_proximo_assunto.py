@@ -27,16 +27,21 @@ DADOS_NO_RIO = {"endereco": {"cep": "20000000"}, "cpf": CPF}
 PLANO = {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": "o plano negou a cirurgia", "urgente": True}
 PP = {"id": ID_PESSOA_PRESA, "evidencia": "meu irmão está preso"}
 NOVO_PROCESSO = {"id": "tykhe:novo-processo", "evidencia": "quero entrar com um processo de pensão"}
+# #212 (13/11): "meu irmão" vira a pergunta curta.
+PERGUNTA_IRMAO: dict[str, Any] = {
+    "perguntaParentesco": "Você é irmão ou irmã dele?",
+    "opcoesParentesco": {"irmao": "Irmão", "irma": "Irmã"},
+}
 PENDENTE_PP = {
     "nome": "a pessoa presa",
     "urgente": False,
     "urgencia": "urgente",
     "flowId": ID_PESSOA_PRESA,
-    "dadosConhecidos": {"parentesco": "Irmão(a)"},
+    "dadosConhecidos": PERGUNTA_IRMAO,
 }
 PENDENTE_NOVO = {"nome": "o caso novo", "urgente": False, "urgencia": "menos_urgente", "tipoCaso": "novo-processo"}
 # No fim do 1º assunto, o CPF que o fluxo recebeu segue para o próximo assunto da Maria (#442).
-PENDENTE_PP_FIM = {**PENDENTE_PP, "dadosConhecidos": {"cpf": CPF, "parentesco": "Irmão(a)"}}
+PENDENTE_PP_FIM = {**PENDENTE_PP, "dadosConhecidos": {"cpf": CPF, **PERGUNTA_IRMAO}}
 
 _ids = count(1)
 
@@ -89,7 +94,7 @@ async def test_abre_o_segundo_assunto_com_chat_id_gerado_e_o_que_a_pessoa_ja_dis
     assert "assuntosPendentes" not in corpo
     # #442: o parentesco lido do trecho do relato entrou no fluxo da pessoa presa.
     estado = await fluxos_por_id[ID_PESSOA_PRESA].obter_grafo().aget_state({"configurable": {"thread_id": f"{chat}-assunto-2"}})
-    assert estado.values["parentesco"] == "Irmão(a)"
+    assert estado.values["perguntaParentesco"] == "Você é irmão ou irmã dele?"
 
     # As respostas seguintes usam o chatId novo, pela rota de sempre.
     r = await cliente.post(RESPOSTAS, json={"chatId": f"{chat}-assunto-2", "resposta": "false"}, headers=auth)

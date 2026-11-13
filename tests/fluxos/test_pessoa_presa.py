@@ -533,7 +533,7 @@ async def test_212_parentesco_fora_da_lista_vira_outro_com_aviso_sem_o_valor(
         assert trecho not in saida, "o log não leva o valor devolvido nem a resposta"
 
 
-@pytest.mark.parametrize(("escolha", "gravado"), [("Irmão(a)", "Irmão(a)"), ("Neto(a)", "Neto(a)"), ("Outro", "Outro"), (None, "Outro")])
+@pytest.mark.parametrize(("escolha", "gravado"), [("Irmã", "Irmã"), ("Neto(a)", "Neto(a)"), ("Outro", "Outro"), (None, "Outro")])
 async def test_212_parentesco_da_lista_passa_sem_aviso(
     monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], escolha: Any, gravado: str
 ) -> None:

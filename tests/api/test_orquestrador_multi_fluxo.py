@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import json
 from itertools import count
+from typing import Any
 
 import httpx
 import pytest
@@ -27,12 +28,17 @@ NECESSIDADES = [
     {"id": ID_PROBLEMAS_PLANO_SAUDE, "evidencia": TRECHO_PLANO, "urgente": True},
 ]
 RELATO = "meu irmão está preso e o plano negou a cirurgia"
+# #212 (13/11): "meu irmão" vira a pergunta curta.
+PERGUNTA_IRMAO: dict[str, Any] = {
+    "perguntaParentesco": "Você é irmão ou irmã dele?",
+    "opcoesParentesco": {"irmao": "Irmão", "irma": "Irmã"},
+}
 PENDENTE_PP = {
     "nome": "a pessoa presa",
     "urgente": False,
     "urgencia": "urgente",
     "flowId": ID_PESSOA_PRESA,
-    "dadosConhecidos": {"parentesco": "Irmão(a)"},
+    "dadosConhecidos": PERGUNTA_IRMAO,
 }
 
 _ids = count(1)
@@ -98,7 +104,7 @@ async def test_release_dois_assuntos_ordem_fluxo_e_pendentes_ate_o_fim(
         r = await cliente.post("/atendimentos/respostas", json={"chatId": chat, "resposta": "mandei"}, headers=auth)
     corpo = r.json()
     assert (corpo["status"], corpo["metadados"]["motivoHandoff"]) == ("handoff_humano", "imagens_pendentes")
-    assert corpo["assuntosPendentes"] == [{**PENDENTE_PP, "dadosConhecidos": {"cpf": CPF, "parentesco": "Irmão(a)"}}]
+    assert corpo["assuntosPendentes"] == [{**PENDENTE_PP, "dadosConhecidos": {"cpf": CPF, **PERGUNTA_IRMAO}}]
 
 
 @pytest.mark.usefixtures("multi")

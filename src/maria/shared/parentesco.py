@@ -27,6 +27,12 @@ from typing import NamedTuple, TypedDict
 # pai), ou um parente que não está na lista do fluxo.
 MAE_OU_PAI_DELE = "mae_ou_pai:dele"
 MAE_OU_PAI_DELA = "mae_ou_pai:dela"
+# #212 (decisão da Nicole, 2026-11-13): "Irmão(a)" virou "Irmão" e "Irmã". Em "meu irmão foi preso" não dá para saber
+# se quem fala é irmão ou irmã: a Maria pergunta, como faz com a mãe e o pai.
+IRMAO_OU_IRMA_DELE = "irmao_ou_irma:dele"
+IRMAO_OU_IRMA_DELA = "irmao_ou_irma:dela"
+# Os valores que viram uma pergunta curta, e não um parentesco.
+PEDEM_PERGUNTA = frozenset({MAE_OU_PAI_DELE, MAE_OU_PAI_DELA, IRMAO_OU_IRMA_DELE, IRMAO_OU_IRMA_DELA})
 DUVIDA = "duvida"
 
 
@@ -39,8 +45,8 @@ class Parente(NamedTuple):
 PARENTES: dict[str, Parente] = {
     "primo": Parente("seu primo", "Primo(a)"),
     "prima": Parente("sua prima", "Primo(a)"),
-    "irmao": Parente("seu irmão", "Irmão(a)"),
-    "irma": Parente("sua irmã", "Irmão(a)"),
+    "irmao": Parente("seu irmão", IRMAO_OU_IRMA_DELE),
+    "irma": Parente("sua irmã", IRMAO_OU_IRMA_DELA),
     "marido": Parente("seu marido", "Esposo(a)"),
     "esposo": Parente("seu esposo", "Esposo(a)"),
     "esposa": Parente("sua esposa", "Esposo(a)"),
@@ -84,7 +90,8 @@ _CONJUGES = frozenset({"marido", "esposo", "esposa", "mulher", "companheiro", "c
 QUEM_FALA_E: dict[str, str] = {
     "mae": "Mãe",
     "pai": "Pai",
-    **dict.fromkeys(("irmao", "irma"), "Irmão(a)"),
+    "irmao": "Irmão",
+    "irma": "Irmã",
     **dict.fromkeys(("esposa", "esposo", "mulher", "marido"), "Esposo(a)"),
     **dict.fromkeys(("companheira", "companheiro"), "Companheiro(a)"),
     **dict.fromkeys(("filho", "filha"), "Filho(a)"),
@@ -178,7 +185,7 @@ class AnaliseParentesco(TypedDict, total=False):
 
     parentesco: str
     perguntaParentesco: str
-    opcoesParentesco: dict[str, str]  # palavra (sem acento) -> parentesco ou MAE_OU_PAI_*
+    opcoesParentesco: dict[str, str]  # palavra (sem acento) -> parentesco ou um valor de PEDEM_PERGUNTA
 
 
 def texto_mae_ou_pai(valor: str) -> str:
@@ -186,6 +193,15 @@ def texto_mae_ou_pai(valor: str) -> str:
 
 
 OPCOES_MAE_PAI = {"mae": "Mãe", "pai": "Pai"}
+OPCOES_IRMAO_IRMA = {"irmao": "Irmão", "irma": "Irmã"}
+
+
+def pergunta_curta(valor: str) -> AnaliseParentesco:
+    """A pergunta curta de um valor de PEDEM_PERGUNTA: "Você é a mãe ou o pai dele?", "Você é irmão ou irmã dela?"."""
+    if valor in (MAE_OU_PAI_DELE, MAE_OU_PAI_DELA):
+        return {"perguntaParentesco": texto_mae_ou_pai(valor), "opcoesParentesco": dict(OPCOES_MAE_PAI)}
+    de_quem = "dela" if valor == IRMAO_OU_IRMA_DELA else "dele"
+    return {"perguntaParentesco": f"Você é irmão ou irmã {de_quem}?", "opcoesParentesco": dict(OPCOES_IRMAO_IRMA)}
 
 
 def _juntar(nomes: list[str]) -> str:
@@ -226,8 +242,8 @@ def quem_esta_preso(relato: str) -> AnaliseParentesco:
         valor = valores.pop()
         if valor == DUVIDA:
             return {}
-        if valor in (MAE_OU_PAI_DELE, MAE_OU_PAI_DELA):
-            return {"perguntaParentesco": texto_mae_ou_pai(valor), "opcoesParentesco": dict(OPCOES_MAE_PAI)}
+        if valor in PEDEM_PERGUNTA:
+            return pergunta_curta(valor)
         return {"parentesco": valor}
     # Dois presos (ou dois parentes sem saber qual): pergunta qual deles.
     nomes = [PARENTES[p].nome for p in candidatos]
@@ -288,14 +304,33 @@ _COMPOSTO: dict[tuple[str, str], str] = {
     ("pai_mae", "pai_mae"): "Avô/Avó",  # mãe da mãe
 }
 
+# "A do/da meu/minha B": a pessoa presa é A de um parente B de quem fala ("pai da minha esposa": quem fala é o genro).
+# Medido em 2026-11-13 (#212): o Haiku e o Qwen liam "o pai da minha esposa" e "o preso é o meu sogro" como "Sogro(a)".
+_COMPOSTO_INVERSO: dict[tuple[str, str], str] = {
+    ("pai_mae", "conjuge"): "Genro/Nora",  # pai da minha esposa
+    ("conjuge", "filho"): "Sogro(a)",  # marido da minha filha
+    ("irmao", "conjuge"): "Cunhado(a)",  # irmão da minha esposa
+    ("conjuge", "irmao"): "Cunhado(a)",  # esposa do meu irmão
+    ("filho", "irmao"): "Tio(a)",  # filho do meu irmão
+    ("filho", "filho"): "Avô/Avó",  # filho do meu filho
+    ("filho", "tio"): "Primo(a)",  # filho do meu tio
+    ("irmao", "pai_mae"): "Sobrinho(a)",  # irmão da minha mãe
+    ("pai_mae", "pai_mae"): "Neto(a)",  # mãe do meu pai
+}
+
 _COMECO = r"(?:(?:eu )?(?:sou|seria) )?(?:(?:o|a|um|uma) )?"
 _FIM = r"(?: (?:dele|dela|d[oa] (?:pres[oa]|detent[oa]|apenad[oa])))?"
+# "ele é", "o preso é": quem é a pessoa presa, antes do "meu X".
+_SUJEITO = r"(?:(?:o |a )?(?:ele|ela|pres[oa]|detent[oa]|apenad[oa]) e )?"
 # "ex", "ex marido", "ex mulher": o ex-cônjuge.
 _EX = rf"ex(?: (?:{'|'.join(sorted(_CONJUGES))}))?"
 _DIRETO = re.compile(rf"{_COMECO}(?P<x>{_EX}|[a-z]+){_FIM}")
 _COMPOSICAO = re.compile(rf"{_COMECO}(?P<a>[a-z]+) d[oa]s? (?P<b>[a-z]+){_FIM}")
 _CASADO = re.compile(rf"{_COMECO}casad[oa] com (?:(?:o|a) )?(?P<b>[a-z]+){_FIM}")
-_POSSE = re.compile(rf"(?:(?:ele|ela) e )?(?:(?:o|a) )?(?:meu|minha) (?P<y>{_EX}|[a-z]+)")
+_POSSE = re.compile(rf"{_SUJEITO}(?:(?:o|a) )?(?:meu|minha) (?P<y>{_EX}|[a-z]+)")
+_POSSE_COMPOSTA = re.compile(rf"{_SUJEITO}(?:(?:o|a) )?(?P<a>[a-z]+) d[oa]s? (?:meus|minhas|meu|minha) (?P<b>[a-z]+)")
+# Palavras de parentesco: num trecho que a leitura não entendeu, elas mandam a resposta inteira para a IA.
+_PALAVRAS_DE_PARENTESCO = frozenset(QUEM_FALA_E) | frozenset(PARENTES) | {"mamae", "papai", "vo", "vovo"}
 
 
 def _ex(palavras: str) -> bool:
@@ -306,16 +341,37 @@ def parentesco_pela_resposta(resposta: str) -> str | None:
     """O parentesco lido pelas palavras, ou None para a IA decidir.
 
     Lê "genro", "sou a mãe dele", "irmã do preso", "marido da filha dele", "sou casado com a filha dele",
-    "mãe da esposa dele", "meu genro" e "ele é meu tio". Fica com a IA o que pede interpretação: frase longa,
-    nome próprio, "meu filho" (mãe ou pai?) e o que não está aqui.
+    "mãe da esposa dele", "meu genro", "ele é meu tio", "o preso é o meu sogro" e "pai da minha esposa". "Meu filho"
+    e "meu irmão" voltam como um valor de PEDEM_PERGUNTA (mãe ou pai? irmão ou irmã?). Fica com a IA o que pede
+    interpretação: frase longa, nome próprio e o que não está aqui.
+
+    Resposta com vírgula ("ele é o pai da minha esposa, ela pediu pra eu ver"): vale o parentesco dos trechos lidos,
+    se todos derem o mesmo, se a resposta não tiver "não" e se nenhum trecho não lido falar de outro parente.
     """
     if not isinstance(resposta, str):
         return None
     palavras = [p for frase in _frases(resposta) for p in frase]
-    if not palavras or len(palavras) > 8:
+    if not palavras:
         return None
-    texto = " ".join(palavras)
+    if len(palavras) <= 8 and (lido := _ler_trecho(" ".join(palavras))):
+        return lido
+    if "nao" in palavras or "," not in resposta:
+        return None
+    lidos: set[str] = set()
+    for trecho in resposta.split(","):
+        termos = [p for frase in _frases(trecho) for p in frase]
+        if not termos:
+            continue
+        valor = _ler_trecho(" ".join(termos)) if len(termos) <= 8 else None
+        if valor:
+            lidos.add(valor)
+        elif _PALAVRAS_DE_PARENTESCO & set(termos):
+            return None  # "sogra, mas na verdade sou a mãe": a IA decide
+    return lidos.pop() if len(lidos) == 1 else None
 
+
+def _ler_trecho(texto: str) -> str | None:
+    """Um trecho (sem vírgula, até 8 palavras sem acento) lido pelas formas conhecidas, ou None."""
     if direto := _DIRETO.fullmatch(texto):
         x = direto["x"]
         if _ex(x):
@@ -325,12 +381,15 @@ def parentesco_pela_resposta(resposta: str) -> str | None:
         return _COMPOSTO.get(("conjuge", _GRUPO.get(casado["b"], "")))
     if composicao := _COMPOSICAO.fullmatch(texto):
         return _COMPOSTO.get((_GRUPO.get(composicao["a"], ""), _GRUPO.get(composicao["b"], "")))
+    if inversa := _POSSE_COMPOSTA.fullmatch(texto):
+        return _COMPOSTO_INVERSO.get((_GRUPO.get(inversa["a"], ""), _GRUPO.get(inversa["b"], "")))
     if posse := _POSSE.fullmatch(texto):
         y = posse["y"]
         if _ex(y):
             return "Ex-esposo(a)"
         parente = PARENTES.get(y)
-        if parente and parente.de_quem_fala not in (MAE_OU_PAI_DELE, MAE_OU_PAI_DELA, DUVIDA):
+        # "meu filho" e "meu irmão" voltam como um valor de PEDEM_PERGUNTA: o fluxo faz a pergunta curta.
+        if parente and parente.de_quem_fala != DUVIDA:
             return parente.de_quem_fala
     return None
 

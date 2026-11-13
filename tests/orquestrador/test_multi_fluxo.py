@@ -102,7 +102,7 @@ async def test_nao_com_dois_assuntos_troca_a_ordem(modelo: Modelo, resposta: str
             "urgente": False,
             "urgencia": "urgente",
             "flowId": ID_PESSOA_PRESA,
-            "dadosConhecidos": {"parentesco": "Irmão(a)"},
+            "dadosConhecidos": {"perguntaParentesco": "Você é irmão ou irmã dele?", "opcoesParentesco": {"irmao": "Irmão", "irma": "Irmã"}},
         }
     ]
 

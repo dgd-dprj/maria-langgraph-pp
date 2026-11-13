@@ -39,10 +39,12 @@ Na pergunta, cite as opções em dúvida pelo que as separa, de forma neutra e n
 # "sou casado com a filha dele") vira "Sogro(a)". Uma regra geral de direção ("quem escreve é [valor] da pessoa
 # presa") não corrigiu e fez a "nora" voltar a errar (3 passadas, 2026-11-12): ficou esta versão.
 # 2026-11-13 (decisão da Nicole): "Genro/Nora" entrou na lista, e as formas comuns são lidas pelas palavras antes da
-# IA (`parentesco_pela_resposta`). A regra abaixo cobre o que chega à IA; ainda sem medição no Bedrock.
+# IA (`parentesco_pela_resposta`). Medido no mesmo dia: 74 de 76 no caminho da produção (#212). Depois, "Irmão(a)"
+# virou "Irmão" e "Irmã" (decisão da Nicole): a regra do gênero, abaixo, ainda sem medição no Bedrock.
 SUFIXO_PARENTESCO = """
 Regras a mais:
-- Responda só com um dos parentescos possíveis, escrito exatamente como na lista (por exemplo, "Irmão(a)", e não "Irmã" nem "Irmã(o)"), ou com "nenhum". Nunca invente outro valor.
+- Responda só com um dos parentescos possíveis, escrito exatamente como na lista (por exemplo, "Irmã", e não "Irmã(o)" nem "Irmão(a)"), ou com "nenhum". Nunca invente outro valor.
+- "Irmão" e "Irmã" dizem o gênero de quem escreve ("irmã dele" → "Irmã"). Se não dá para saber se quem escreve é irmão ou irmã ("meu irmão"), responda "nenhum".
 - O parentesco é o de quem escreve em relação à pessoa presa. Uma palavra só, ou "X dele/dela", diz quem a pessoa que escreve é, sem inverter: "filha" → "Filho(a)", "neta" → "Neto(a)", "mamãe" → "Mãe", "vó dele" → "Avô/Avó". Quem vive junto sem casar no papel → "Companheiro(a)".
 - Só inverta quando a pessoa usa "meu" ou "minha" para dizer quem a pessoa presa é para ela: "minha mãe" → "Filho(a)", "meu marido" → "Esposo(a)", "meu neto" → "Avô/Avó". Se a inversão deixa dúvida entre dois parentescos ("meu filho" pode ser "Mãe" ou "Pai"), responda "nenhum".
 - Quem é casado com o filho ou a filha da pessoa presa ("genro", "nora", "sou casado com a filha dele", "marido da filha dele") → "Genro/Nora". "Sogro(a)" é o contrário: quem é pai ou mãe do marido ou da esposa da pessoa presa ("sogra", "mãe da esposa dele").

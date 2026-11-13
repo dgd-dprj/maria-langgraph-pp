@@ -72,6 +72,7 @@ _NOME_MASCARADO = CasoAposentado(
 # `MIGRACAO.md`). As gravações não foram editadas.
 # #475 (decisão da Nicole, 2026-11-12): a pergunta do RG mostra os formatos aceitos.
 _PERGUNTA_DO_RG = CasoAposentado(issue=475, motivo="a pergunta do RG mostra os formatos aceitos", teste="tests/fluxos/test_pessoa_presa.py")
+_IRMAO_E_IRMA = CasoAposentado(issue=212, motivo="o parentesco Irmão(a) virou Irmão e Irmã", teste="tests/shared/test_parentesco.py")
 
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
     "contrato": {
@@ -89,6 +90,9 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
         ),
         "pp_sem_processo": _PERGUNTA_DO_RG,
         "orq_identifica_responde": _PERGUNTA_DO_RG,
+        # #212 (decisão da Nicole, 2026-11-13): "Irmão(a)" virou "Irmão" e "Irmã"; a resposta "irmão" grava "Irmão".
+        "pp_parentesco": _IRMAO_E_IRMA,
+        "pp_get_concluido": _IRMAO_E_IRMA,
     },
 }
 
