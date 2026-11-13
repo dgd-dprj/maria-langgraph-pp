@@ -188,7 +188,7 @@ Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada
   - "meu irmao ta preso e o plano da minha mae n quer libera a cirurgia dela";
   - "meu marido me bate qnd bebe e meu filho rodou ontem a noite";
   - "preciso de ajuda pq meu ex me ameaçou e tb ele n paga a pensao das crianças".
-- **A Maria propõe a ordem e pergunta "Pode ser assim?"** (Sim/Não). A ordem padrão é saúde, violência doméstica, pessoa presa e depois o resto, com o urgente antes.
+- **A Maria propõe a ordem e pergunta "Pode ser assim?"** (Sim/Não). A ordem padrão é violência doméstica, pessoa presa, saúde (e plano de saúde) e depois o resto, com o urgente antes. **Mudou em 13/11:** antes, a saúde vinha primeiro.
 - **Responda de jeitos diferentes:** "Sim", "pode", "Não", o nome do assunto ("o do meu irmão") ou algo que a Maria não entende ("hmm").
 
 **Esperado:**
@@ -197,7 +197,7 @@ Fase 1a do multi-fluxo (decisão da Nicole de 2026-11-06). **Na produção, nada
 |---|---|
 | Sim, "pode", "blz" | começa pelo 1º assunto da ordem proposta |
 | Não, com dois assuntos | troca a ordem |
-| Não, com três assuntos | "Qual você quer resolver primeiro?", com a lista |
+| Não, com três assuntos | "Qual você quer resolver primeiro?", com a lista numerada, botões e "Responda com o número da opção." (13/11) |
 | O nome do assunto ou uma palavra do relato | começa por esse assunto |
 | Algo que a Maria não entende | segue a ordem proposta, sem perguntar de novo |
 
@@ -228,12 +228,16 @@ Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09 e 2026-11-10). **Na pr
 4. **Conversa nova, sem pergunta no começo (mudou em 2026-11-11).** Pare depois do 1º assunto e abra uma **conversa nova** com o mesmo `idUsuario`.
    - **Do mesmo assunto guardado** (por exemplo, a pessoa presa de novo): a Maria retoma, com "Você já tinha esse assunto com a gente: a pessoa presa. Vamos continuar.", sem abrir outro igual.
    - **De outro assunto:** segue direto, sem pergunta.
-   - **"Quero ver meus assuntos"** (ou "o que ficou pendente"): "Qual você quer resolver agora?", com a lista (urgentes primeiro) e "Nenhum, quero um assunto novo".
-5. **O fim da conversa (mudou em 2026-11-11).** Num assunto que termina em `concluido`, sem um urgente na vez, a mensagem final ganha, no fim:
+   - **"Quero ver meus assuntos"** (ou "o que ficou pendente"): "Qual você quer resolver agora?", com a lista numerada em "Urgente:" e "Menos urgente:", "Outras opções:" com "Nenhum, quero um assunto novo" e "Responda com o número da opção." (13/11).
+5. **O fim da conversa (mudou em 2026-11-11; texto revisto em 13/11).** Num assunto que termina em `concluido`, sem um urgente na vez, a mensagem final ganha, no fim:
    - "Resumo da nossa conversa:", um item por assunto atendido, com o que aconteceu e o código (por exemplo, "• A pessoa presa: dados confirmados e encaminhados (código YI7NXZ)");
-   - "Quer continuar com algum desses assuntos ou encerrar a conversa?";
-   - "Ainda em aberto:", um item por assunto, com "urgente" ou "menos urgente", "em aberto até dd/mm" e "ainda não começou";
-   - os botões: um por assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa".
+   - "Quer continuar com algum dos assuntos em aberto ou encerrar a conversa?" (com um só: "com o assunto em aberto");
+   - "Ainda em aberto:", com os assuntos **numerados**, separados em "Urgente:" e "Menos urgente:", cada um com os detalhes entre parênteses: "(guardado até dd/mm, ainda não começou)";
+   - "Outras opções:", numeradas em seguida: "Falar de um assunto novo" e "Encerrar a conversa";
+   - "Responda com o número da opção." (e, com o `idUsuario`, o aviso dos 30 dias);
+   - os botões com o mesmo número ("1. O caso novo"). Vale responder o número, o texto do botão ou o nome do assunto.
+   - **A lista dos assuntos em aberto** (`POST /atendimentos/assuntos-em-aberto`) também traz "Encerrar a conversa".
+   - **Assunto que termina no atendimento humano** com outro assunto pendente: a mensagem final ganha "Também ficou para depois: …" (13/11).
    - **Botão de um assunto** (`POST /atendimentos/proximo-assunto` com a `resposta`): abre o assunto com o `chatId` dele.
    - **"Encerrar a conversa":** "Combinado. … Quando quiser, é só voltar a falar com a gente.", e os guardados continuam guardados.
    - **"Falar de um assunto novo":** a conversa recomeça no orquestrador com `chatId` novo.
