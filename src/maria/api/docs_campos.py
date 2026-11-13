@@ -126,6 +126,28 @@ CORPOS: dict[tuple[str, str], CamposCorpo] = {
         },
         exemplo={"chatId": "conversa-0001", "resposta": "true"},
     ),
+    # #450 (decisão da Nicole, 2026-11-13): o assunto pelos mesmos campos de `assuntosEmAberto`, com exemplo de verdade.
+    ("POST", "/atendimentos/proximo-assunto"): CamposCorpo(
+        obrigatorios=("chatId",),
+        descricoes={
+            "chatId": "Obrigatório. O `chatId` da conversa (não o do assunto).",
+            "flowId": (
+                "Opcional. Assunto da Maria a abrir: o `flowId` de um item de `assuntosEmAberto` (os ids estão em "
+                "`GET /fluxos`). Sem `flowId`, `tipoCaso` e `resposta`, abre o próximo assunto da conversa, na ordem."
+            ),
+            "tipoCaso": "Opcional. Assunto da Tykhe a abrir: o `tipoCaso` de um item de `assuntosEmAberto` (por exemplo, `agendamentos`).",
+            "resposta": (
+                "Opcional. A resposta da pessoa à lista dos assuntos em aberto: o número da opção, o texto do botão ou o nome do assunto."
+            ),
+            "assunto": "Antigo: o mesmo que `flowId` ou `tipoCaso`. Ainda aceito; prefira os campos acima.",
+        },
+        exemplo={"chatId": "conversa-0001", "flowId": "3df874f2-675a-4c43-9ec7-480f7c702f50"},
+    ),
+    ("POST", "/atendimentos/assuntos-em-aberto"): CamposCorpo(
+        obrigatorios=("chatId",),
+        descricoes={"chatId": "Obrigatório. O `chatId` da conversa."},
+        exemplo={"chatId": "conversa-0001"},
+    ),
 }
 
 

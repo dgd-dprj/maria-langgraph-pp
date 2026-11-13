@@ -426,9 +426,10 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
     (`<chatId>-assunto-N`).
 
     - Só `chatId`: o próximo assunto pendente da conversa, na ordem.
-    - Com `assunto` (o `flowId` ou o `tipoCaso` de um item de `assuntosEmAberto`, decisão da Nicole de 2026-11-13):
-      esse assunto, desta conversa ou guardado de outra conversa da mesma pessoa (2026-11-11). O id interno do
-      assunto (`<chatId>-assunto-N`) ainda é aceito, para quem já usava.
+    - Com `flowId` (assunto da Maria) ou `tipoCaso` (assunto da Tykhe), os mesmos campos de um item de
+      `assuntosEmAberto` (decisão da Nicole de 2026-11-13): esse assunto, desta conversa ou guardado de outra conversa
+      da mesma pessoa (2026-11-11). O campo `assunto`, com um desses valores ou com o id interno (`<chatId>-assunto-N`),
+      ainda é aceito, para quem já usava.
     - Com `resposta` (a resposta da pessoa à lista dos assuntos em aberto): o assunto escolhido; "Nenhum, quero um
       assunto novo" pede o relato novo; uma resposta que a Maria não entende repete a lista.
 
@@ -440,7 +441,10 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
     if not fluxo_em_teste_liga():
         return Resposta(404, {"erro": "rota disponível só no ambiente de teste (release)"})
     origem, _ = origem_do_chat(chat_id)
-    assunto = ctx.corpo.get("assunto")
+    # O assunto pelos campos da lista (`flowId` ou `tipoCaso`, 13/11) ou pelo campo `assunto`, de antes.
+    assunto = next(
+        (valor for valor in (ctx.corpo.get(c) for c in ("flowId", "tipoCaso", "assunto")) if isinstance(valor, str) and valor), None
+    )
     resposta = ctx.corpo.get("resposta")
     # Duas chamadas ao mesmo tempo para a mesma conversa (um retry da Tykhe) esperam a vez: sem a trava, a
     # 2ª via o atendimento já registrado, mas ainda sem conversa, e devolvia a mensagem de sucesso do fluxo
