@@ -664,7 +664,10 @@ ROTAS: tuple[Rota, ...] = (
             404: esquemas.ERRO_ORQUESTRADOR,
             409: esquemas.ERRO_ORQUESTRADOR,
         },
-        resumo="Abre o próximo assunto pendente da conversa, com o chatId gerado pela Maria (multi-fluxo, só no release)",
+        resumo=(
+            "Abre um assunto da conversa: o próximo da fila ou o escolhido pelo flowId (Maria) ou pelo tipoCaso (Tykhe) "
+            "(multi-fluxo, só no release)"
+        ),
         tags=("atendimentos",),
     ),
     Rota(
