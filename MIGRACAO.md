@@ -113,6 +113,17 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 - "Meu sogro foi preso", no relato do orquestrador, passa a dar "Genro/Nora" sem perguntar.
 - O prompt do Qwen (`SUFIXO_PARENTESCO`) troca "genro e nora são Outro" por "quem é casado com o filho ou a filha é Genro/Nora". O do Haiku só ganha o valor novo na lista. **Ainda sem medição no Bedrock.**
 - Testes: um banco de frases por parentesco, cobrindo os 17 valores da lista, e as frases que precisam ir para a IA. Dois testes de conformidade com develop mudam, porque "amigo" passa a ser lido pelas palavras (era o "Outro" da IA simulada).
+- **Medido no mesmo dia** (76 casos, US$ 0,37, [registro na #212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212#issuecomment-6858129514)): no caminho da produção, Haiku 71 de 76 e Qwen 74 de 76; o "Genro/Nora" na lista não piorou o Haiku nos 61 casos de antes.
+
+**#212, irmão e irmã e o sogro pela posse (decisões da Nicole, 2026-11-13, depois da medição).**
+- **"Irmão(a)" sai da lista e entram "Irmão" e "Irmã".** Valores novos para a Tykhe: entram na pergunta da #479, como o "Genro/Nora".
+- **"Meu irmão" e "minha irmã"** não dizem se quem fala é irmão ou irmã: a Maria pergunta "Você é irmão ou irmã dele?" (ou "dela"), com as opções Irmão e Irmã, como faz com "Você é a mãe ou o pai dele?". Vale no relato do orquestrador e na resposta à pergunta do parentesco. "Meu filho" e "minha filha", na resposta, também passam a ter a pergunta curta, em vez de ir para a IA. A pergunta curta sai uma vez só: se a pessoa repetir, a resposta vai para a IA.
+- **A leitura pelas palavras entende mais duas formas**, que o Haiku e o Qwen erravam na medição:
+  - "o preso é o meu sogro" → "Genro/Nora";
+  - "pai da minha esposa" → "Genro/Nora", e o mesmo para os outros parentes compostos com "meu/minha".
+- **Frase com vírgula** ("ele é o pai da minha esposa, ela pediu pra eu ver"): vale o parentesco dos trechos lidos, se todos derem o mesmo, se a frase não tiver "não" e se nenhum trecho não lido citar outro parente.
+- **Prompt do Qwen:** ganha a regra do gênero ("Irmão" e "Irmã" dizem o gênero de quem escreve; "meu irmão" → "nenhum"). **Sem medição no Bedrock.**
+- **Duas respostas gravadas aposentadas** com registro, sem editar: `pp_parentesco` e `pp_get_concluido` (conferência pr2).
 
 **#475 (decisão da Nicole, 2026-11-12):** a pergunta do RG da pessoa presa mostra os formatos aceitos: "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9.". O que a Maria aceita não muda (#343), e o "RG não encontrado" continua com 3 tentativas. Três respostas gravadas aposentadas com registro, sem editar. O PR #437, que recusava o RG com espaços, foi fechado como superado pelo #343 e pelo #470.
 

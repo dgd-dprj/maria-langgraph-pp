@@ -121,7 +121,7 @@ async def test_parentesco_issue_17(relato: str, esperado: str) -> None:
     ("relato", "esperado"),
     [
         # #212: as leituras erradas da comparação da #472.
-        ("Irmã", "Irmão(a)"),  # o Haiku escreveu "Irmã(o)", fora da lista
+        ("Irmã", "Irmã"),  # o Haiku escreveu "Irmã(o)", fora da lista
         ("minha mãe", "Filho(a)"),  # relação invertida
         ("filha", "Filho(a)"),  # palavra só: sem inverter
         ("enteada", "Outro"),  # o Qwen dizia "Filho(a)"
