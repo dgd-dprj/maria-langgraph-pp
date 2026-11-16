@@ -37,6 +37,10 @@ def test_1_topologia_identificar_assistido() -> None:
         ("__start__", "prepararPerguntaCpf"),
         ("prepararPerguntaCpf", "pedirCpf"),
         ("pedirCpf", "consultarPessoa"),
+        ("pedirCpf", "recusarCpf"),  # #497
+        ("recusarCpf", "prepararPerguntaCpf"),
+        ("recusarCpf", "__end__"),
+        ("perguntaTentarNovamenteCpf", "recusarCpf"),
         ("consultarPessoa", "prepararPerguntaConfirmaAssistido"),
         ("consultarPessoa", "__end__"),
         ("consultarPessoa", "prepararPerguntaTentarNovamenteCpf"),
@@ -93,8 +97,8 @@ def test_1_topologia_coletar_endereco_linear() -> None:
 
 async def test_2_interrupts_de_texto_sem_opcoes_e_sim_nao_com_opcoes() -> None:
     c = await Conversa(envelope(IdentificarAssistidoState, identificar_assistido)).iniciar({"viaOrquestrador": True})
-    await c.responder("00000000000")  # não encontrado: pergunta de tentar de novo
-    await c.responder("12345678901")  # CPF digitado direto: encontrado, confirmação
+    await c.responder("00000000191")  # não encontrado: pergunta de tentar de novo (#497: a sentinela que fecha a conta)
+    await c.responder("12345678909")  # CPF digitado direto: encontrado, confirmação
     cpf, tentar, confirma = c.perguntas
     assert cpf == {"pergunta": "Qual o seu CPF? Informe apenas os números.", "tipo": "texto"}
     assert "opcoes" not in cpf
@@ -221,7 +225,7 @@ async def test_10_cpf_conhecido_pula_a_pergunta() -> None:
 
 async def test_10_tres_tentativas_e_esgotado() -> None:
     c = await _identificar().iniciar({})
-    await c.responder("00000000000", "sim", "00000000000", "sim", "00000000000")
+    await c.responder("00000000191", "sim", "00000000191", "sim", "00000000191")
     estado = await c.estado()
     assert c.pendente is None
     assert estado["tentativasCpf"] == 3
@@ -230,7 +234,7 @@ async def test_10_tres_tentativas_e_esgotado() -> None:
 
 
 async def test_10_nao_ao_retry_na_primeira_tentativa_esgota() -> None:
-    c = await (await _identificar().iniciar({})).responder("00000000000", "não")
+    c = await (await _identificar().iniciar({})).responder("00000000191", "não")
     estado = await c.estado()
     assert c.pendente is None
     assert estado["tentativasCpf"] == 1
@@ -238,20 +242,92 @@ async def test_10_nao_ao_retry_na_primeira_tentativa_esgota() -> None:
 
 
 async def test_10_cpf_digitado_direto_no_retry_consulta_e_grava_pontuado() -> None:
-    c = await (await _identificar().iniciar({})).responder("00000000000", "123.456.789-01")
+    c = await (await _identificar().iniciar({})).responder("00000000191", "123.456.789-09")
     estado = await c.estado()
     assert len(c.perguntas) == 2  # não pergunta o CPF de novo
-    assert estado["cpf"] == "123.456.789-01"
+    assert estado["cpf"] == "123.456.789-09"
     assert estado["tentativasCpf"] == 2
     assert estado["digitouCpfDireto"] is True
     assert estado["dadosPessoa"]["encontrado"] is True
 
 
 async def test_10_falha_de_infra_esgota_sem_retry() -> None:
-    c = await (await _identificar().iniciar({})).responder("66666666666")
+    c = await (await _identificar().iniciar({})).responder("66666666070")
     estado = await c.estado()
     assert c.pendente is None
     assert estado["dadosPessoa"] == {"encontrado": False, "falhaInfra": True}
+
+
+# ---- #497: o CPF digitado passa pela conta dos dígitos verificadores ---------------
+# Decisão da Nicole (2026-11-16): sem IA. O CPF com a conta errada não vai ao Verde e conta na mesma tentativa; o CPF
+# que veio da Tykhe não passa pela conta. Cobre os casos aposentados da pr2 vd_cpf, vd_get_concluido, vd_409_concluido,
+# rota_get_query e rota_get_escape_invalido_query (tests/api/casos_aposentados.py). CPFs fictícios.
+
+TEXTO_CPF_INVALIDO = "Esse CPF não está certo. Confira os 11 números e escreva de novo."
+
+
+def _contar_consultas(monkeypatch: pytest.MonkeyPatch) -> list[str]:
+    """Os CPFs que chegaram à consulta do Verde (o mock de sempre responde)."""
+    from maria.integracoes.verde import consultar_pessoa_por_cpf as original
+    from maria.subgrafos.identificar_assistido import graph
+
+    consultados: list[str] = []
+
+    async def consultar(cpf: str, *, completo: bool = False) -> DadosPessoa:
+        consultados.append(cpf)
+        return await original(cpf, completo=completo)
+
+    monkeypatch.setattr(graph, "consultar_pessoa_por_cpf", consultar)
+    return consultados
+
+
+async def test_497_cpf_com_a_conta_errada_nao_consulta_e_pede_de_novo(monkeypatch: pytest.MonkeyPatch) -> None:
+    consultados = _contar_consultas(monkeypatch)
+    c = await (await _identificar().iniciar({})).responder("123.456.789-00")
+    assert textos(c.perguntas) == ["Qual o seu CPF? Informe apenas os números.", TEXTO_CPF_INVALIDO]
+    assert consultados == [], "não deveria ter consultado o Verde"
+
+
+async def test_497_tres_respostas_que_nao_sao_cpf_esgotam_sem_consultar() -> None:
+    c = await (await _identificar().iniciar({})).responder("11111111111", "123", "não sei")
+    estado = await c.estado()
+    assert c.pendente is None
+    assert estado["tentativasCpf"] == 3
+    assert "dadosPessoa" not in estado
+
+
+async def test_497_cpf_errado_e_depois_certo_consulta() -> None:
+    c = await (await _identificar().iniciar({})).responder("12345678900", "12345678909")
+    estado = await c.estado()
+    assert estado["dadosPessoa"]["encontrado"] is True
+    assert estado["tentativasCpf"] == 2
+
+
+async def test_497_cpf_errado_digitado_direto_no_quer_tentar_de_novo_nao_consulta(monkeypatch: pytest.MonkeyPatch) -> None:
+    consultados = _contar_consultas(monkeypatch)
+    c = await (await _identificar().iniciar({})).responder("00000000191", "12345678900")
+    assert c.perguntas[-1]["pergunta"] == TEXTO_CPF_INVALIDO
+    assert consultados == ["00000000191"], "só a primeira consulta"
+    # A recusa conta como a 2ª tentativa: mais uma resposta errada e acabou.
+    await c.responder("123")
+    assert c.pendente is None
+    assert (await c.estado())["tentativasCpf"] == 3
+
+
+async def test_497_cpf_da_tykhe_nao_passa_pela_conta() -> None:
+    c = await _identificar().iniciar({"cpf": "11111111111", "viaOrquestrador": False})
+    assert c.perguntas == []
+    assert (await c.estado())["dadosPessoa"]["encontrado"] is True
+
+
+async def test_497_evento_cpf_digito_invalido_sem_o_numero(capsys: pytest.CaptureFixture[str]) -> None:
+    c = await _identificar().iniciar({})
+    capsys.readouterr()
+    await c.responder("123.456.789-00")
+    saida = capsys.readouterr().out
+    [linha] = [x for x in saida.splitlines() if '"cpf_digito_invalido"' in x]
+    assert '"tentativa":1' in linha.replace(" ", "")
+    assert "123.456.789-00" not in saida and "12345678900" not in saida
 
 
 # ---- teste 11: cadastro ----------------------------------------------------------
@@ -296,7 +372,7 @@ def test_12_confirmacao_sem_nome_diz_voce() -> None:
 async def test_12_confirmacao_com_nome_e_resposta() -> None:
     # CPF digitado na conversa: a confirmação continua (#189, #191). Até a #236,
     # este teste partia do CPF já preenchido, que agora é o caso sem confirmação.
-    c = await (await _identificar().iniciar({"viaOrquestrador": True})).responder("12345678901", "Sim")
+    c = await (await _identificar().iniciar({"viaOrquestrador": True})).responder("12345678909", "Sim")
     # #393: o nome do mock ("Pessoa de Teste (mock)") sai mascarado.
     assert c.perguntas[1]["pergunta"] == "Confirma que seus dados são: Pessoa T.?"
     assert (await c.estado())["confirmaAssistido"] is True
@@ -327,7 +403,7 @@ async def test_236_marca_da_origem_do_cpf_nao_chega_ao_pai() -> None:
 
 async def test_236_cpf_da_tykhe_nao_encontrado_e_cpf_digitado_no_retry_pede_confirmacao() -> None:
     c = await _identificar().iniciar({"cpf": "00000000000", "viaOrquestrador": True})
-    await c.responder("12345678901")  # digitado direto na pergunta de tentar de novo
+    await c.responder("12345678909")  # digitado direto na pergunta de tentar de novo
     assert c.perguntas[-1]["pergunta"] == "Confirma que seus dados são: Pessoa T.?"
     await c.responder("Não")
     assert (await c.estado())["confirmaAssistido"] is False
@@ -335,7 +411,7 @@ async def test_236_cpf_da_tykhe_nao_encontrado_e_cpf_digitado_no_retry_pede_conf
 
 async def test_236_cpf_da_tykhe_nao_encontrado_e_cpf_digitado_depois_do_sim_pede_confirmacao() -> None:
     c = await _identificar().iniciar({"cpf": "00000000000", "viaOrquestrador": True})
-    await c.responder("Sim", "12345678901")
+    await c.responder("Sim", "12345678909")
     assert textos(c.perguntas) == [
         "Não encontrei ninguém com esse CPF (tentativa 1 de 3). Quer tentar de novo?",
         "Qual o seu CPF? Informe apenas os números.",
@@ -375,7 +451,7 @@ def test_393_confirmacao_prefere_o_nome_social() -> None:
 
 
 async def test_393_cpf_digitado_nunca_mostra_o_nome_completo() -> None:
-    c = await (await _identificar().iniciar({"viaOrquestrador": True})).responder("12345678901")
+    c = await (await _identificar().iniciar({"viaOrquestrador": True})).responder("12345678909")
     pergunta = c.perguntas[-1]["pergunta"]
     assert pergunta.startswith("Confirma que seus dados são:")
     assert "de Teste" not in pergunta and "(mock)" not in pergunta
