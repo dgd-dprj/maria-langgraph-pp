@@ -23,6 +23,11 @@ env:
   IMAGE_TAG: latest # bate com variable.image_tag no Terraform
   ECS_CLUSTER: maria-langgraph-pp
   ECS_SERVICE: api
+  # #509, fase 1: até o corte, a mesma imagem também vai para São Paulo. A produção continua na Virgínia.
+  AWS_REGION_SP: sa-east-1
+  ECR_REPO_SP: 185327115563.dkr.ecr.sa-east-1.amazonaws.com/maria-langgraph-pp
+  ECS_CLUSTER_SP: maria-langgraph-pp-sp
+  ECS_SERVICE_SP: api-prod-sp
 
 jobs:
   test:
@@ -80,6 +85,41 @@ jobs:
             --secret-id "maria-langgraph-pp-${AMBIENTE}/app" --region "$AWS_REGION" \
             --query SecretString --output text > "$SEGREDO"
           python3 scripts/conferir_token_verde.py --ambiente "$AMBIENTE" --segredo "$SEGREDO"
+
+      # #509, fase 1 (antes do corte): publica a mesma imagem no ECR de São Paulo e, só se o service de produção de lá
+      # já tiver tasks, redeploya. `continue-on-error`: a produção é a da Virgínia, e uma falha em São Paulo não pode
+      # derrubar nem atrasar o deploy dela; vira aviso. O corte (outro PR) troca isso por São Paulo como destino.
+      - name: Publicar a imagem também no ECR de São Paulo
+        id: ecr_sp
+        continue-on-error: true
+        run: |
+          aws ecr get-login-password --region "$AWS_REGION_SP" \
+            | docker login --username AWS --password-stdin "${ECR_REPO_SP%%/*}"
+          docker tag "$ECR_REPO:$IMAGE_TAG" "$ECR_REPO_SP:$IMAGE_TAG"
+          docker push "$ECR_REPO_SP:$IMAGE_TAG"
+
+      - name: Redeployar a produção de São Paulo (só com desiredCount maior que 0)
+        if: steps.ecr_sp.outcome == 'success'
+        continue-on-error: true
+        run: |
+          DESEJADO=$(aws ecs describe-services \
+            --cluster "$ECS_CLUSTER_SP" \
+            --services "$ECS_SERVICE_SP" \
+            --region "$AWS_REGION_SP" \
+            --query 'services[0].desiredCount' --output text)
+          if [ "$DESEJADO" -gt 0 ]; then
+            aws ecs update-service \
+              --cluster "$ECS_CLUSTER_SP" \
+              --service "$ECS_SERVICE_SP" \
+              --force-new-deployment \
+              --region "$AWS_REGION_SP"
+          else
+            echo "::notice::$ECS_SERVICE_SP com desiredCount 0: imagem publicada, sem deployment"
+          fi
+
+      - name: Avisar se São Paulo ficou para trás
+        if: steps.ecr_sp.outcome == 'failure'
+        run: echo "::warning::Não foi possível publicar a imagem no ECR de São Paulo (a produção da Virgínia foi implantada normalmente)."
 
   # Issue #145 — só roda depois do deploy ter sucesso; não bloqueia nem
   # atrasa o deploy em si (job separado, sem "needs" na direção contrária).
