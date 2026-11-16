@@ -325,7 +325,7 @@ def test_release_publica_e_redeploya_so_em_sao_paulo() -> None:
     # #463: a Virgínia saiu na #500; o release roda no cluster e no service de São Paulo.
     env = _carregar("deploy-release.yml")["env"]
     assert env["AWS_REGION"] == "sa-east-1"
-    assert ".ecr.sa-east-1.amazonaws.com/" in env["ECR_REPO"]
+    assert env["ECR_REPO"] == "185327115563.dkr.ecr.sa-east-1.amazonaws.com/maria-langgraph-pp"
     assert (env["ECS_CLUSTER"], env["ECS_SERVICE"]) == ("maria-langgraph-pp-sp", "api-release-sp")
     texto = (WORKFLOWS / "deploy-release.yml").read_text(encoding="utf-8")
     assert "us-east-1" not in texto.replace("Virgínia", "")
