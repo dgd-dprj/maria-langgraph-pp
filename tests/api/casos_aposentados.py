@@ -80,13 +80,32 @@ _CPF_PELA_CONTA = CasoAposentado(
     issue=497, motivo="o CPF da gravação não fecha a conta dos dígitos verificadores", teste="tests/subgrafos/test_subgrafos.py"
 )
 
+# #296: `dadosConhecidos.cpf` numérico vira texto de 11 dígitos e outro tipo é 400 com motivo; na gravação, o 200 sumia com o campo.
+_CPF_NUMERICO = CasoAposentado(
+    issue=296, motivo="cpf de dadosConhecidos que não é texto: número vira texto, outro tipo é 400", teste="tests/api/test_cpf_conhecido.py"
+)
+_CASOS_CPF_NUMERICO = (
+    "dados_cpf_zero",
+    "dados_cpf_sete",
+    "dados_cpf_true",
+    "dados_cpf_false",
+    "dados_cpf_objeto",
+    "dados_cpf_lista",
+    "dados_cpf_lista1",
+    "dados_cpf_lista2",
+    "dados_cpf_float_pequeno",
+    "dados_cpf_inteiro_grande",
+    "dados_cpf_float",
+    "dados_cpf_objeto_cheio",
+)
+
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
     "contrato": {
         "pessoa-presa-resposta-rg-200": _NOME_MASCARADO,
         "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
         "pessoa-presa-resposta-texto-sem-opcoes-200": _PERGUNTA_DO_RG,
     },
-    "pr1": {},
+    "pr1": {nome: _CPF_NUMERICO for nome in _CASOS_CPF_NUMERICO},
     "pr2": {
         "pp_rg": _NOME_MASCARADO,
         "pp_get_confirma_nome": _NOME_MASCARADO,

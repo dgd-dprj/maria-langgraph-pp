@@ -86,7 +86,8 @@ class CamposCorpo:
 
 _DADOS_CONHECIDOS = (
     "Opcional. O que a Tykhe já sabe, para a Maria não perguntar de novo. Hoje só `cpf`. "
-    "Vale na criação do atendimento; no orquestrador, é repassado ao fluxo identificado."
+    "Vale na criação do atendimento; no orquestrador, é repassado ao fluxo identificado. "
+    "`cpf` é texto; número inteiro vira texto de 11 dígitos (com zeros à esquerda) e qualquer outro tipo é 400 (#296)."
 )
 
 CORPOS: dict[tuple[str, str], CamposCorpo] = {

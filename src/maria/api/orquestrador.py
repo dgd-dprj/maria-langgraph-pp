@@ -20,7 +20,7 @@ from typing import Any, cast
 from langgraph.types import Command
 
 from maria.api import esquemas
-from maria.api.atendimentos import criar_atendimento, extrair_interrupt
+from maria.api.atendimentos import criar_atendimento, extrair_interrupt, normalizar_cpf_conhecido
 from maria.api.pipeline import Contexto, Resposta, Rota
 from maria.fluxos import buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.tipos_tykhe import TipoCasoTykhe, TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
@@ -121,6 +121,9 @@ async def _retomar(grafo: Any, resposta: str, config: Any) -> dict[str, Any]:
 
 async def _post_orquestrador(ctx: Contexto) -> Resposta:
     corpo: dict[str, Any] = ctx.corpo
+    recusa = normalizar_cpf_conhecido(corpo, ctx.log)
+    if recusa is not None:
+        return recusa
     mensagem = corpo.get("mensagem", AUSENTE)
     resposta = corpo.get("resposta", AUSENTE)
     # #185: resposta "" barrada ANTES do "algum dos dois", senão chegaria a Command(resume="").
