@@ -52,6 +52,7 @@ from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.email_nudecon import enviar_email_nudecon, protocolo_do_atendimento
 from maria.integracoes.verde import consultar_pessoa_por_cpf
 from maria.shared.contexto import contexto_atual
+from maria.shared.cpf import cpf_valido
 from maria.shared.logger import logger
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.coletar_endereco.graph import grafo as subgrafo_coletar_endereco
@@ -67,6 +68,8 @@ RENDA_MAXIMA = 10_000_000
 TEXTO_PARA_QUEM = "O atendimento é para você? Responda não se for para outra pessoa."
 TEXTO_CPF_OUTRA = "Qual o CPF da pessoa que será atendida?"
 TEXTO_CPF_OUTRA_INVALIDO = "Não entendi esse CPF. Envie os 11 números do CPF da pessoa que será atendida."
+# #497: os 11 números vieram, mas a conta dos dígitos verificadores não fecha. Não vai ao Verde.
+TEXTO_CPF_OUTRA_DIGITO = "Esse CPF não está certo. Confira os 11 números do CPF da pessoa que será atendida e escreva de novo."
 # Lista provisória de documentos: a definitiva é da #335.
 TEXTO_IMAGEM = {
     "carteirinha_frente": "Envie a foto da frente da carteirinha do plano de saúde.",
@@ -123,7 +126,10 @@ def _so_digitos(texto: str) -> str:
 
 
 def texto_cpf_outra(state: PlanoSaudeState) -> str:
-    return TEXTO_CPF_OUTRA_INVALIDO if state.get("erroCpfOutra") == "invalido" else TEXTO_CPF_OUTRA
+    erro = state.get("erroCpfOutra")
+    if erro == "digito":
+        return TEXTO_CPF_OUTRA_DIGITO
+    return TEXTO_CPF_OUTRA_INVALIDO if erro == "invalido" else TEXTO_CPF_OUTRA
 
 
 async def preparar_pergunta_cpf_outra(state: PlanoSaudeState) -> Atualizacao:
@@ -133,9 +139,14 @@ async def preparar_pergunta_cpf_outra(state: PlanoSaudeState) -> Atualizacao:
 async def pedir_cpf_outra(state: PlanoSaudeState) -> Atualizacao:
     resposta: str = interrupt({"pergunta": state.get("perguntaAtualTexto") or texto_cpf_outra(state), "tipo": "texto"})
     cpf = _so_digitos(resposta)
-    if len(cpf) == 11:
+    if cpf_valido(cpf):
         return {"cpfOutraPessoa": cpf, "erroCpfOutra": None}
-    return {"cpfOutraPessoa": None, "erroCpfOutra": "invalido", "tentativasCpfOutra": (state.get("tentativasCpfOutra") or 0) + 1}
+    tentativa = (state.get("tentativasCpfOutra") or 0) + 1
+    if len(cpf) == 11:
+        # #497: a conta dos dígitos verificadores não fecha. O evento não leva o número.
+        logger.info("CPF recusado pelos dígitos verificadores", **contexto_atual(), evento="cpf_digito_invalido", tentativa=tentativa)
+        return {"cpfOutraPessoa": None, "erroCpfOutra": "digito", "tentativasCpfOutra": tentativa}
+    return {"cpfOutraPessoa": None, "erroCpfOutra": "invalido", "tentativasCpfOutra": tentativa}
 
 
 def depois_do_cpf_outra(state: PlanoSaudeState) -> str:

@@ -26,11 +26,17 @@ from langgraph.types import interrupt
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.verde import consultar_pessoa_por_cpf
 from maria.shared import _js
+from maria.shared.contexto import contexto_atual
+from maria.shared.cpf import cpf_valido
+from maria.shared.logger import logger
 from maria.shared.nomes import nome_mascarado
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.identificar_assistido.state import IdentificarAssistidoState
 
 TEXTO_CPF = "Qual o seu CPF? Informe apenas os números."
+# #497 (decisão da Nicole, 2026-11-16): o CPF com a conta dos dígitos verificadores errada não vai ao Verde. O mesmo
+# texto vai para a Tykhe usar no fluxo dela.
+TEXTO_CPF_INVALIDO = "Esse CPF não está certo. Confira os 11 números e escreva de novo."
 
 Atualizacao = dict[str, Any]
 
@@ -41,6 +47,15 @@ _NAO_DIGITO_ASCII = re.compile(r"[^0-9]")
 
 def cpf_formato_valido(valor: str) -> bool:
     return len(_NAO_DIGITO_ASCII.sub("", valor)) == 11
+
+
+def cpf_digitado_invalido(state: IdentificarAssistidoState) -> bool:
+    """#497: o CPF digitado na conversa não fecha a conta dos dígitos verificadores. Vale só para o que a pessoa
+    digitou: o CPF que veio da Tykhe (`dadosConhecidos`) segue para o Verde como antes, sem mudar o contrato."""
+    cpf = state.get("cpf")
+    if state.get("cpfDaTykhe") or not isinstance(cpf, str):
+        return False
+    return not cpf_valido(_NAO_DIGITO_ASCII.sub("", cpf))
 
 
 def _tentativas(state: IdentificarAssistidoState) -> int:
@@ -83,15 +98,31 @@ def _dados_pessoa(state: IdentificarAssistidoState, chave: str) -> Any:
 async def preparar_pergunta_cpf(state: IdentificarAssistidoState) -> Atualizacao:
     if cpf_veio_de_dados_conhecidos(state):
         return {}
-    return dict(await preparar_pergunta("cpf", TEXTO_CPF))
+    # #497: depois de um CPF recusado pela conta, a pergunta diz o que houve.
+    return dict(await preparar_pergunta("cpf", TEXTO_CPF_INVALIDO if cpf_digitado_invalido(state) else TEXTO_CPF))
 
 
 async def pedir_cpf(state: IdentificarAssistidoState) -> Atualizacao:
     if cpf_veio_de_dados_conhecidos(state):
         return {"cpfDaTykhe": True}
-    # Sem validação de formato: o valor é gravado como veio (achado A5).
+    # O valor é gravado como veio (achado A5); desde a #497, a conta dos dígitos verificadores decide se vai ao Verde.
     resposta: str = interrupt({"pergunta": _js.coalesce(state.get("perguntaAtualTexto"), TEXTO_CPF), "tipo": "texto"})
     return {"cpf": resposta, "cpfDaTykhe": False}
+
+
+def depois_de_pedir_cpf(state: IdentificarAssistidoState) -> str:
+    return "invalido" if cpf_digitado_invalido(state) else "consultar"
+
+
+async def recusar_cpf(state: IdentificarAssistidoState) -> Atualizacao:
+    """#497: conta a tentativa sem consultar o Verde e registra o evento, sem o número."""
+    tentativa = _tentativas(state) + 1
+    logger.info("CPF recusado pelos dígitos verificadores", **contexto_atual(), evento="cpf_digito_invalido", tentativa=tentativa)
+    return {"tentativasCpf": tentativa}
+
+
+def depois_de_recusar_cpf(state: IdentificarAssistidoState) -> str:
+    return "esgotado" if _tentativas(state) >= 3 else "pedirCpf"
 
 
 async def consultar_pessoa(state: IdentificarAssistidoState) -> Atualizacao:
@@ -129,7 +160,10 @@ async def pergunta_tentar_novamente_cpf(state: IdentificarAssistidoState) -> Atu
 def depois_de_pergunta_tentar_cpf(state: IdentificarAssistidoState) -> str:
     if not _js.verdadeiro(state.get("querTentarNovamenteCpf", _js.AUSENTE)):
         return "esgotado"
-    return "consultarPessoa" if _js.verdadeiro(state.get("digitouCpfDireto", _js.AUSENTE)) else "pedirCpf"
+    if not _js.verdadeiro(state.get("digitouCpfDireto", _js.AUSENTE)):
+        return "pedirCpf"
+    # #497: os 11 dígitos digitados direto passam pela mesma conta.
+    return "recusarCpf" if cpf_digitado_invalido(state) else "consultarPessoa"
 
 
 def pergunta_confirma_assistido(state: IdentificarAssistidoState) -> bool:
@@ -162,6 +196,7 @@ async def pedir_confirma_assistido(state: IdentificarAssistidoState) -> Atualiza
 _construtor = StateGraph(IdentificarAssistidoState)
 _construtor.add_node("prepararPerguntaCpf", preparar_pergunta_cpf)
 _construtor.add_node("pedirCpf", pedir_cpf)
+_construtor.add_node("recusarCpf", recusar_cpf)
 _construtor.add_node("consultarPessoa", consultar_pessoa)
 _construtor.add_node("prepararPerguntaTentarNovamenteCpf", preparar_pergunta_tentar_novamente_cpf)
 _construtor.add_node("perguntaTentarNovamenteCpf", pergunta_tentar_novamente_cpf)
@@ -169,7 +204,8 @@ _construtor.add_node("prepararPerguntaConfirmaAssistido", preparar_pergunta_conf
 _construtor.add_node("pedirConfirmaAssistido", pedir_confirma_assistido)
 _construtor.add_edge(START, "prepararPerguntaCpf")
 _construtor.add_edge("prepararPerguntaCpf", "pedirCpf")
-_construtor.add_edge("pedirCpf", "consultarPessoa")
+_construtor.add_conditional_edges("pedirCpf", depois_de_pedir_cpf, {"consultar": "consultarPessoa", "invalido": "recusarCpf"})
+_construtor.add_conditional_edges("recusarCpf", depois_de_recusar_cpf, {"pedirCpf": "prepararPerguntaCpf", "esgotado": END})
 _construtor.add_conditional_edges(
     "consultarPessoa",
     depois_de_consultar_pessoa,
@@ -179,7 +215,7 @@ _construtor.add_edge("prepararPerguntaTentarNovamenteCpf", "perguntaTentarNovame
 _construtor.add_conditional_edges(
     "perguntaTentarNovamenteCpf",
     depois_de_pergunta_tentar_cpf,
-    {"pedirCpf": "prepararPerguntaCpf", "esgotado": END, "consultarPessoa": "consultarPessoa"},
+    {"pedirCpf": "prepararPerguntaCpf", "esgotado": END, "consultarPessoa": "consultarPessoa", "recusarCpf": "recusarCpf"},
 )
 _construtor.add_edge("prepararPerguntaConfirmaAssistido", "pedirConfirmaAssistido")
 _construtor.add_edge("pedirConfirmaAssistido", END)

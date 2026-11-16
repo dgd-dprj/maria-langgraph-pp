@@ -150,7 +150,7 @@ async def test_tem_ro_cpf_valido_conclui_urgente_com_orgao_do_mock() -> None:
     f = _fluxo()
     await f.iniciar()
     await f.responder("true", "false", "true")
-    r = await f.responder("11111111111")
+    r = await f.responder("12345678909")
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
     assert r["tipoEncaminhamento"] == "urgente"
@@ -160,7 +160,7 @@ async def test_tem_ro_cpf_valido_conclui_urgente_com_orgao_do_mock() -> None:
 async def test_tem_ro_cpf_valido_nao_confirma_dados_assistido_nao_confirmado_issue_189() -> None:
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
-    await f.responder("true", "false", "true", "11111111111")
+    await f.responder("true", "false", "true", "12345678909")
     r = await f.responder("não")
     assert pergunta(r) is None
     assert r["statusFinal"] == "handoff_humano"
@@ -170,7 +170,7 @@ async def test_tem_ro_cpf_valido_nao_confirma_dados_assistido_nao_confirmado_iss
 async def test_tem_ro_cadastra_mas_nao_confirma_dados_assistido_nao_confirmado_issue_189() -> None:
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
-    await f.responder("true", "false", "true", "00000000000", "Não", "Maria de Teste", "01/01/1990")
+    await f.responder("true", "false", "true", "00000000191", "Não", "Maria de Teste", "01/01/1990")
     await _preencher_endereco(f)
     r = await f.responder("não")
     assert pergunta(r) is None
@@ -185,10 +185,10 @@ async def test_sem_via_orquestrador_cpf_pre_preenchido_esgota_tentativas_cpf_nao
     t1 = await f.responder("true")
     assert re.search("tentativa 1 de 3", texto(t1))
     await f.responder("Sim")
-    t2 = await f.responder("00000000000")
+    t2 = await f.responder("00000000191")
     assert re.search("tentativa 2 de 3", texto(t2))
     await f.responder("Sim")
-    r = await f.responder("00000000000")
+    r = await f.responder("00000000191")
     assert pergunta(r) is None, "nunca deveria entrar em cadastro"
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "cpf_nao_encontrado"
@@ -199,7 +199,7 @@ async def test_tem_ro_cpf_nao_encontrado_pergunta_se_quer_tentar_de_novo_issue_7
     f = _fluxo()
     await f.iniciar()
     await f.responder("true", "false", "true")
-    r = await f.responder("00000000000")
+    r = await f.responder("00000000191")
     assert re.search(r"Não encontrei ninguém com esse CPF \(tentativa 1 de 3\)", texto(r))
     p = pergunta(r)
     assert p is not None and p["tipo"] == "sim_nao"
@@ -208,8 +208,8 @@ async def test_tem_ro_cpf_nao_encontrado_pergunta_se_quer_tentar_de_novo_issue_7
 async def test_tem_ro_cpf_errado_depois_acerta_conclui_issue_72() -> None:
     f = _fluxo()
     await f.iniciar()
-    await f.responder("true", "false", "true", "00000000000", "Sim")
-    r = await f.responder("11111111111")
+    await f.responder("true", "false", "true", "00000000191", "Sim")
+    r = await f.responder("12345678909")
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
     assert r["tipoEncaminhamento"] == "urgente"
@@ -218,7 +218,7 @@ async def test_tem_ro_cpf_errado_depois_acerta_conclui_issue_72() -> None:
 async def test_tem_ro_cpf_errado_nao_quer_tentar_entra_em_cadastro_e_conclui_issue_171() -> None:
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
-    await f.responder("true", "false", "true", "00000000000")
+    await f.responder("true", "false", "true", "00000000191")
     r1 = await f.responder("Não")
     assert re.search("qual o seu nome completo", texto(r1))
     r2 = await f.responder("Maria de Teste")
@@ -237,7 +237,7 @@ async def test_tem_ro_cpf_com_falha_de_infra_handoff_direto_issue_172() -> None:
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
     await f.responder("true", "false", "true")
-    r = await f.responder("66666666666")
+    r = await f.responder("66666666070")
     assert pergunta(r) is None, "nem retry de negócio, nem cadastro"
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "falha_infra_verde"
@@ -248,13 +248,13 @@ async def test_tem_ro_esgota_cpf_cadastro_falha_falha_cadastro_issue_171(monkeyp
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
     await f.responder("true", "false", "true")
-    t1 = await f.responder("00000000000")
+    t1 = await f.responder("00000000191")
     assert re.search("tentativa 1 de 3", texto(t1))
     await f.responder("Sim")
-    t2 = await f.responder("00000000000")
+    t2 = await f.responder("00000000191")
     assert re.search("tentativa 2 de 3", texto(t2))
     await f.responder("Sim")
-    t3 = await f.responder("00000000000")
+    t3 = await f.responder("00000000191")
     assert re.search("qual o seu nome completo", texto(t3)), "esgotou as 3 tentativas de CPF: deveria entrar em cadastro"
     await f.responder("Maria de Teste", "01/01/1990")
     r = await _preencher_endereco(f)
@@ -267,8 +267,8 @@ async def test_tem_ro_esgota_cpf_cadastro_falha_falha_cadastro_issue_171(monkeyp
 async def test_tem_ro_cpf_errado_digita_cpf_novo_direto_no_retry_issue_77() -> None:
     f = _fluxo()
     await f.iniciar()
-    await f.responder("true", "false", "true", "00000000000")
-    r = await f.responder("11111111111")
+    await f.responder("true", "false", "true", "00000000191")
+    r = await f.responder("12345678909")
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
 
@@ -277,7 +277,7 @@ async def test_cpf_valido_endereco_detalhado_ganha_id_uf_via_consultar_cep_issue
     f = _fluxo()
     await f.iniciar()
     await f.responder("true", "false", "false")
-    r = await f.responder("11111111111")
+    r = await f.responder("12345678909")
     endereco = r["dadosPessoa"]["enderecoDetalhado"]
     assert endereco["idUf"] == 19
     assert "bairro" not in endereco
@@ -288,7 +288,7 @@ async def test_sem_ro_cpf_valido_conclui_padrao_com_orgao_do_mock() -> None:
     f = _fluxo()
     await f.iniciar()
     await f.responder("true", "false", "false")
-    r = await f.responder("11111111111")
+    r = await f.responder("12345678909")
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
     assert r["tipoEncaminhamento"] == "padrao"
@@ -299,7 +299,7 @@ async def test_sem_ro_cpf_nao_encontrado_entra_em_cadastro_e_acha_orgao() -> Non
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
     await f.responder("true", "false", "false")
-    t1 = await f.responder("00000000000")
+    t1 = await f.responder("00000000191")
     await f.responder("Não", "Maria de Teste", "01/01/1990")
     await _preencher_endereco(f)
     r = await _confirmar_assistido(f)
@@ -312,7 +312,7 @@ async def test_concluido_inclui_encaminhamento_id() -> None:
     f = _fluxo()
     await f.iniciar()
     await f.responder("true", "false", "false")
-    r = await f.responder("11111111111")
+    r = await f.responder("12345678909")
     assert r["encaminhamentoId"] == 999999
     assert re.search("Protocolo: 999999", r["mensagemFinal"])
 
@@ -322,7 +322,7 @@ async def test_falha_ao_criar_encaminhamento_falha_encaminhamento(monkeypatch: p
     f = _fluxo()
     await f.iniciar()
     await f.responder("true", "false", "false")
-    r = await f.responder("11111111111")
+    r = await f.responder("12345678909")
     assert pergunta(r) is None
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "falha_encaminhamento"
@@ -334,7 +334,7 @@ async def test_plantao_vigente_usa_orgao_de_plantao(monkeypatch: pytest.MonkeyPa
     f = _fluxo()
     await f.iniciar()
     await f.responder("true", "false", "false")
-    r = await f.responder("11111111111")
+    r = await f.responder("12345678909")
     assert r["statusFinal"] == "concluido"
     assert re.search("Plantão", r["orgaosViolenciaDomestica"]["orgaos"][0]["nome"])
 
@@ -344,10 +344,10 @@ async def test_plantao_vigente_cpf_nao_encontrado_tenta_de_novo_e_conclui(monkey
     f = _fluxo()
     await f.iniciar()
     await f.responder("true", "false", "false")
-    r_tentativa = await f.responder("00000000000")
+    r_tentativa = await f.responder("00000000191")
     assert re.search(r"Não encontrei ninguém com esse CPF \(tentativa 1 de 3\)", texto(r_tentativa))
     await f.responder("Sim")
-    r = await f.responder("11111111111")
+    r = await f.responder("12345678909")
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
     assert re.search("Plantão", r["orgaosViolenciaDomestica"]["orgaos"][0]["nome"])
@@ -384,7 +384,7 @@ async def test_cpf_da_tykhe_nao_encontrado_cpf_digitado_continua_com_confirmacao
     await f.responder("true", "false")
     t1 = await f.responder("true")
     assert re.search("tentativa 1 de 3", texto(t1))
-    r_confirma = await f.responder("11111111111")
+    r_confirma = await f.responder("12345678909")
     assert re.search("Confirma que seus dados são", texto(r_confirma)), "CPF digitado na conversa: confirmação como antes"
     r = await f.responder("não")
     assert r["statusFinal"] == "handoff_humano"

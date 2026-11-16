@@ -230,22 +230,35 @@ async def test_cpf_invalido_no_verde_400_repete_e_no_terceiro_vai_a_equipe_sem_c
     consultas = _verde_pessoa(monkeypatch, CPF_INVALIDO)
     f = _fluxo()
     await f.iniciar(COM_CEP)
-    r = await f.responder("false", "11111111111")
+    r = await f.responder("false", "12345678909")
     assert pergunta(r) is not None and "Não entendi esse CPF" in texto(r)
-    r = await f.responder("11111111111")
+    r = await f.responder("12345678909")
     assert pergunta(r) is not None
-    r = await f.responder("11111111111")
+    r = await f.responder("12345678909")
     assert pergunta(r) is None
     assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "cpf_outra_pessoa_invalido")
     assert r["mensagemFinal"] == MENSAGEM_CPF_OUTRA_INVALIDO
     assert len(consultas) == 3 and "dadosOutraPessoa" not in await f.estado()
 
 
+async def test_497_cpf_da_outra_pessoa_com_a_conta_errada_nao_consulta(monkeypatch: pytest.MonkeyPatch) -> None:
+    # #497 (decisão da Nicole, 2026-11-16): 11 números com a conta dos dígitos verificadores errada não vão ao Verde.
+    consultas = _verde_pessoa(monkeypatch, SEM_CADASTRO)
+    f = _fluxo()
+    await f.iniciar(COM_CEP)
+    r = await f.responder("false", "123.456.789-00")
+    assert texto(r) == "Esse CPF não está certo. Confira os 11 números do CPF da pessoa que será atendida e escreva de novo."
+    r = await f.responder("12345678900", "11111111111")
+    assert pergunta(r) is None
+    assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "cpf_outra_pessoa_invalido")
+    assert consultas == [], "nenhuma consulta ao Verde"
+
+
 async def test_cpf_invalido_e_depois_valido_sem_cadastro_coleta(monkeypatch: pytest.MonkeyPatch) -> None:
     _verde_pessoa(monkeypatch, CPF_INVALIDO, SEM_CADASTRO)
     f = _fluxo()
     await f.iniciar(COM_CEP)
-    await f.responder("false", "11111111111")
+    await f.responder("false", "12345678909")
     r = await f.responder(CPF_OUTRA)
     assert "nome completo" in texto(r)
 
