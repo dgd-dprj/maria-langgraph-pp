@@ -29,10 +29,16 @@ jobs:
       fail-fast: false # 1 ambiente com token vencendo não deve esconder o outro
       matrix:
         include:
+          # #463: o release roda em São Paulo (a Virgínia saiu na #500); o segredo de cada
+          # ambiente fica na região dele (Secrets Manager é regional).
           - ambiente: prod
             ecs_service: api
+            ecs_cluster: maria-langgraph-pp
+            aws_region: us-east-1
           - ambiente: release
-            ecs_service: api-release
+            ecs_service: api-release-sp
+            ecs_cluster: maria-langgraph-pp-sp
+            aws_region: sa-east-1
     steps:
       # Issue #298 — a consulta de status vem de scripts/conferir_token_verde.py,
       # o mesmo código que o deploy usa para conferir o token (só leitura).
@@ -41,14 +47,14 @@ jobs:
       - uses: aws-actions/configure-aws-credentials@v4
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
-          aws-region: us-east-1
+          aws-region: ${{ matrix.aws_region }}
 
       - name: Checar e renovar VERDE_JWT_TOKEN se necessário
         env:
           AMBIENTE: ${{ matrix.ambiente }}
-          ECS_CLUSTER: maria-langgraph-pp
+          ECS_CLUSTER: ${{ matrix.ecs_cluster }}
           ECS_SERVICE: ${{ matrix.ecs_service }}
-          AWS_REGION: us-east-1
+          AWS_REGION: ${{ matrix.aws_region }}
         run: |
           SECRET_ID="maria-langgraph-pp-${AMBIENTE}/app"
           aws secretsmanager get-secret-value \
