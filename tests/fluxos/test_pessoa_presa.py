@@ -141,13 +141,13 @@ async def test_esgota_cpf_do_assistido_entra_em_cadastro_e_conclui_issue_183() -
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
     await f.responder("true", "0000088-95.2026.8.19.0010", "11111111111", "true", "amigo")
-    t1 = await f.responder("00000000000")
+    t1 = await f.responder("00000000191")
     assert re.search("tentativa 1 de 3", texto(t1))
     await f.responder("Sim")
-    t2 = await f.responder("00000000000")
+    t2 = await f.responder("00000000191")
     assert re.search("tentativa 2 de 3", texto(t2))
     await f.responder("Sim")
-    t3 = await f.responder("00000000000")
+    t3 = await f.responder("00000000191")
     assert re.search("qual o seu nome completo", texto(t3))
     await f.responder("Maria de Teste")
     r_data_nasc = await f.responder("01/01/1990")
@@ -164,7 +164,7 @@ async def test_cpf_do_assistido_com_falha_de_infra_handoff_direto_issue_172() ->
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
     await f.responder("false", "11111111111", "true", "amigo")
-    r_final = await f.responder("66666666666")
+    r_final = await f.responder("66666666070")
     assert pergunta(r_final) is None, "nem retry de negócio, nem cadastro"
     assert r_final["statusFinal"] == "handoff_humano"
     assert r_final["motivoHandoff"] == "falha_infra_verde"
@@ -175,7 +175,7 @@ async def test_esgota_cpf_do_assistido_cadastro_falha_falha_cadastro_issue_183(m
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
     await f.responder("false", "11111111111", "true", "amigo")
-    await f.responder("00000000000", "Sim", "00000000000", "Sim", "00000000000")
+    await f.responder("00000000191", "Sim", "00000000191", "Sim", "00000000191")
     r_final = await f.responder("Maria de Teste", "01/01/1990", "20000-000", "123", "não")
     assert pergunta(r_final) is None
     assert r_final["statusFinal"] == "handoff_humano"
@@ -186,7 +186,7 @@ async def test_esgota_cpf_do_assistido_cadastro_falha_falha_cadastro_issue_183(m
 async def test_cpf_do_assistido_valido_mas_nao_confirma_issue_189() -> None:
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
-    await f.responder("false", "11111111111", "true", "amigo", "11111111111")
+    await f.responder("false", "11111111111", "true", "amigo", "12345678909")
     r = await f.responder("não")
     assert pergunta(r) is None
     assert r["statusFinal"] == "handoff_humano"
@@ -196,7 +196,7 @@ async def test_cpf_do_assistido_valido_mas_nao_confirma_issue_189() -> None:
 async def test_cadastra_assistido_novo_mas_nao_confirma_issue_189() -> None:
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
-    await f.responder("false", "11111111111", "true", "amigo", "00000000000", "Não")
+    await f.responder("false", "11111111111", "true", "amigo", "00000000191", "Não")
     await f.responder("Maria de Teste", "01/01/1990", "20000-000", "123", "não")
     r = await f.responder("não")
     assert pergunta(r) is None
@@ -381,6 +381,78 @@ async def test_394_evento_da_recusa_sem_o_que_foi_digitado(capsys: pytest.Captur
     assert '"digitos":3' in linha.replace(" ", "")
     assert '"temLetra":true' in linha.replace(" ", "")
     assert "ab12c3" not in saida
+
+
+# ---- #497: um CPF no lugar do RG não vai ao Verde ----------------------------------
+# Decisão da Nicole (2026-11-16): conferido pelos dígitos verificadores, sem IA. Conta como recusa pelo formato
+# (limite de 3, `rg_formato_invalido`) e não gasta tentativa do Verde. CPFs fictícios.
+
+TEXTO_RG_PARECE_CPF_1 = (
+    "Esse número parece um CPF. Preciso do RG da pessoa presa: o número da identidade dela (tentativa 1 de 3). "
+    "Pode escrever só os números ou com pontos e traço."
+)
+
+
+async def test_497_cpf_na_pergunta_do_rg_pede_o_rg_sem_consultar_o_verde() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "123.456.789-09")
+    assert texto(r) == TEXTO_RG_PARECE_CPF_1
+    assert r.get("dadosApenado") is None, "não deveria ter consultado o Verde"
+    assert r.get("tentativasRg") is None, "o CPF não gasta tentativa do Verde"
+
+
+async def test_497_tres_cpfs_vao_para_o_atendimento_humano_como_rg_formato_invalido() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "12345678909", "52998224725", "123.456.789-09")
+    assert pergunta(r) is None
+    assert (r["statusFinal"], r["motivoHandoff"]) == ("handoff_humano", "rg_formato_invalido")
+    assert r.get("dadosApenado") is None, "nenhuma consulta ao Verde"
+    assert r.get("rg") is None
+
+
+async def test_497_cpf_e_letras_contam_juntos_no_limite() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "abc", "12345678909")
+    assert texto(r).startswith("Esse número parece um CPF.")
+    assert "(tentativa 2 de 3)" in texto(r)
+
+
+async def test_497_cpf_e_depois_o_rg_segue_normal() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "12345678909", "123456789")
+    assert re.search("Confirma que a pessoa presa é", texto(r))
+
+
+@pytest.mark.parametrize("rg", ["12345678900", "11111111111", "11.111.111-111"])
+async def test_497_rg_de_11_digitos_que_nao_e_cpf_segue_para_o_verde(rg: str) -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", rg)
+    assert re.search("Confirma que a pessoa presa é", texto(r)), rg
+
+
+async def test_497_cpf_digitado_direto_no_quer_tentar_de_novo_nao_consulta() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "000000000", "123.456.789-09")
+    assert texto(r) == TEXTO_RG_PARECE_CPF_1
+    assert r["tentativasRg"] == 1, "só a consulta do RG não encontrado"
+
+
+async def test_497_evento_rg_parece_cpf_sem_o_numero(capsys: pytest.CaptureFixture[str]) -> None:
+    f = _fluxo()
+    await f.iniciar()
+    capsys.readouterr()
+    await f.responder("false", "123.456.789-09")
+    saida = capsys.readouterr().out
+    [linha] = [x for x in saida.splitlines() if '"rg_parece_cpf"' in x]
+    assert '"recusa":1' in linha.replace(" ", "")
+    assert '"rg_recusado_formato"' not in saida
+    assert "123.456.789-09" not in saida and "12345678909" not in saida
 
 
 # ---- #393: o nome da pessoa presa sai mascarado ------------------------------------
@@ -595,7 +667,7 @@ async def test_cpf_da_tykhe_via_orquestrador_conclui_sem_confirmacao_issue_236()
 async def test_cpf_digitado_via_orquestrador_continua_com_confirmacao_issue_236() -> None:
     f = _fluxo()
     await f.iniciar({"viaOrquestrador": True})
-    r_confirma = await f.responder("true", "0000088-95.2026.8.19.0010", "11111111111", "true", "amigo", "11111111111")
+    r_confirma = await f.responder("true", "0000088-95.2026.8.19.0010", "11111111111", "true", "amigo", "12345678909")
     assert re.search("Confirma que seus dados são", texto(r_confirma)), "CPF digitado na conversa: confirmação como antes"
     r = await f.responder("sim")
     assert pergunta(r) is None

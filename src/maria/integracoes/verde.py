@@ -57,6 +57,9 @@ TIMEOUT_VERDE_S = 30.0
 TENTATIVAS_RETRY_VERDE = 3
 
 MENSAGEM_MOCK = "[verde] VERDE_JWT_TOKEN ausente — modo mock (dev local)"
+# #497: sentinelas do mock da pessoa pelo CPF que fecham a conta dos dígitos verificadores.
+CPF_MOCK_NAO_ENCONTRADO = "00000000191"
+CPF_MOCK_FALHA_INFRA = "66666666070"
 MENSAGEM_CRC_MOCK = (
     "Para dar continuidade ao seu atendimento, favor entrar em contato com a Central de Relacionamento com o Cidadão ligando 129"
 )
@@ -333,9 +336,12 @@ CHAVES_PESSOA_COMPLETA = (*CHAVES_PESSOA, "dataNascimento", "email", "telefonesA
 async def consultar_pessoa_por_cpf(cpf: str, *, completo: bool = False) -> DadosPessoa:
     if not VERDE_JWT_TOKEN:
         logger.warn(MENSAGEM_MOCK, **contexto_atual())
-        if cpf == "00000000000":
+        # #497: o CPF digitado na conversa só chega aqui se fechar a conta dos dígitos verificadores, e as sentinelas
+        # antigas (dígitos iguais) não fecham. Cada uma ganhou uma equivalente que fecha; as antigas continuam valendo para o
+        # CPF que vem da Tykhe, que não passa pela conta.
+        if cpf in ("00000000000", CPF_MOCK_NAO_ENCONTRADO):
             return {"encontrado": False}
-        if cpf == "66666666666":
+        if cpf in ("66666666666", CPF_MOCK_FALHA_INFRA):
             return {"encontrado": False, "falhaInfra": True}
         mock: DadosPessoa = {
             "encontrado": True,

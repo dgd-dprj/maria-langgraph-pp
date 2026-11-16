@@ -73,6 +73,12 @@ _NOME_MASCARADO = CasoAposentado(
 # #475 (decisão da Nicole, 2026-11-12): a pergunta do RG mostra os formatos aceitos.
 _PERGUNTA_DO_RG = CasoAposentado(issue=475, motivo="a pergunta do RG mostra os formatos aceitos", teste="tests/fluxos/test_pessoa_presa.py")
 _IRMAO_E_IRMA = CasoAposentado(issue=212, motivo="o parentesco Irmão(a) virou Irmão e Irmã", teste="tests/shared/test_parentesco.py")
+# #497 (decisão da Nicole, 2026-11-16): o CPF digitado na conversa passa pela conta dos dígitos verificadores antes do
+# Verde. O CPF da gravação ("11111111111") não fecha a conta: a conversa pede o CPF de novo e não conclui, e as consultas
+# seguintes à mesma conversa mudam junto.
+_CPF_PELA_CONTA = CasoAposentado(
+    issue=497, motivo="o CPF da gravação não fecha a conta dos dígitos verificadores", teste="tests/subgrafos/test_subgrafos.py"
+)
 
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
     "contrato": {
@@ -93,6 +99,11 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
         # #212 (decisão da Nicole, 2026-11-13): "Irmão(a)" virou "Irmão" e "Irmã"; a resposta "irmão" grava "Irmão".
         "pp_parentesco": _IRMAO_E_IRMA,
         "pp_get_concluido": _IRMAO_E_IRMA,
+        "vd_cpf": _CPF_PELA_CONTA,
+        "vd_get_concluido": _CPF_PELA_CONTA,
+        "vd_409_concluido": _CPF_PELA_CONTA,
+        "rota_get_query": _CPF_PELA_CONTA,
+        "rota_get_escape_invalido_query": _CPF_PELA_CONTA,
     },
 }
 

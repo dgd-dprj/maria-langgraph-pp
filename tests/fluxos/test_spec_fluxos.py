@@ -212,6 +212,8 @@ ARESTAS_PP = {
     ("perguntaTentarNovamente", "consultarApenado"),
     ("perguntaTentarNovamente", "naoConfirmado"),
     ("perguntaTentarNovamente", "prepararPerguntaRg"),
+    # #497: um CPF digitado direto no "quer tentar de novo?" vira recusa pelo formato, sem consultar o Verde.
+    ("perguntaTentarNovamente", "recusarRg"),
     ("prepararPerguntaConfirmaNome", "pedirConfirmaNome"),
     ("prepararPerguntaLivre", "pedirLivre"),
     ("prepararPerguntaNumeroProcesso", "pedirNumeroProcesso"),
@@ -299,7 +301,7 @@ PERGUNTAS_PP_LIVRE_E_RG_INVALIDO = [
 
 
 async def test_2_interrupts_violencia_domestica_com_cadastro() -> None:
-    _, perguntas, _ = await _conversa(obter_vd(), {"viaOrquestrador": True}, [*VD_ATE_CPF_COM_RO, "00000000000", "Não", *CADASTRO])
+    _, perguntas, _ = await _conversa(obter_vd(), {"viaOrquestrador": True}, [*VD_ATE_CPF_COM_RO, "00000000191", "Não", *CADASTRO])
     assert json_stringify(perguntas) == json_stringify(PERGUNTAS_VD_CADASTRO)
 
 
@@ -371,14 +373,14 @@ async def test_3_encaminhamento_id_null_vai_para_falha_divergencia_aceita(verde_
     # Conflito (spec 05, decisão 1): develop conclui com "Protocolo: null.".
     # O Python vai para falha, para não mostrar protocolo inválido (#238).
     _verde(verde_real, _rotas_vd(encaminhar=(200, {"dados": {"id": None}})))
-    f, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678901"])
+    f, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678909"])
     assert r["motivoHandoff"] == "falha_encaminhamento"
     assert "encaminhamentoId" not in json.loads(await _metadados(f, extrair_metadados_violencia_domestica))
 
 
 async def test_3_encaminhamento_sem_id_vai_para_falha_como_em_develop_238(verde_real: TransporteFalso) -> None:
     _verde(verde_real, _rotas_vd(encaminhar=(200, {"dados": {}})))
-    _, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678901"])
+    _, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678909"])
     assert r["motivoHandoff"] == "falha_encaminhamento"
 
 
@@ -391,7 +393,7 @@ async def test_3_pergunta_atual_texto_e_reescrito_a_cada_pergunta() -> None:
 
 async def test_3_id_pessoa_null_do_verde_fica_null_e_vira_zero_nas_consultas(verde_real: TransporteFalso) -> None:
     _verde(verde_real, _rotas_vd(pessoa=(200, {"dados": {**PESSOA, "idPessoa": None}})))
-    _, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678901"])
+    _, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678909"])
     assert r["dadosPessoa"]["idPessoa"] is None
     assert _enviados(verde_real, "/orgao/violencia-domestica") == ["/orgao/violencia-domestica?indicacaoRO=false&idPessoa=0"]
     assert _enviados(verde_real, "/encaminhamento")[0].startswith('/encaminhamento/encaminhar {"idPessoa":0,')
@@ -400,7 +402,7 @@ async def test_3_id_pessoa_null_do_verde_fica_null_e_vira_zero_nas_consultas(ver
 async def test_3_endereco_detalhado_remove_ids_que_o_cep_nao_trouxe(verde_real: TransporteFalso) -> None:
     pessoa = {**PESSOA, "enderecoDetalhado": {"cep": "20000000", "idUf": 1, "idBairro": 2, "idMunicipio": 3, "logradouro": "Rua Y"}}
     _verde(verde_real, _rotas_vd(pessoa=(200, {"dados": pessoa}), cep=(200, {"dados": {"uf": {"id": 19, "sigla": "RJ"}}})))
-    f, _, _ = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678901"])
+    f, _, _ = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678909"])
     metadados = await _metadados(f, extrair_metadados_violencia_domestica)
     assert '"enderecoDetalhado":{"cep":"20000000","idUf":19,"logradouro":"Rua Y"}' in metadados
 
@@ -409,7 +411,7 @@ async def test_3_endereco_detalhado_mantem_a_posicao_das_chaves(verde_real: Tran
     # O spread de develop sobrescreve no lugar; chave nova vai para o fim.
     pessoa = {**PESSOA, "enderecoDetalhado": {"idMunicipio": 3, "cep": "20000000", "idUf": 1, "logradouro": "Rua Y"}}
     _verde(verde_real, _rotas_vd(pessoa=(200, {"dados": pessoa})))
-    f, _, _ = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678901"])
+    f, _, _ = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678909"])
     metadados = await _metadados(f, extrair_metadados_violencia_domestica)
     assert '"enderecoDetalhado":{"idMunicipio":3643,"cep":"20000000","idUf":19,"logradouro":"Rua Y","idBairro":9948}' in metadados
 
@@ -440,7 +442,7 @@ async def test_3_endereco_detalhado_mantem_a_posicao_das_chaves(verde_real: Tran
 )
 async def test_3_id_local_atendimento(verde_real: TransporteFalso, orgaos: list[Any], corpo_esperado: str, mensagem: str) -> None:
     _verde(verde_real, _rotas_vd(orgaos=(200, {"dados": orgaos})))
-    _, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678901"])
+    _, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "12345678909"])
     assert _enviados(verde_real, "/encaminhamento") == [f"/encaminhamento/encaminhar {corpo_esperado}"]
     assert r["mensagemFinal"] == mensagem
 
@@ -448,7 +450,7 @@ async def test_3_id_local_atendimento(verde_real: TransporteFalso, orgaos: list[
 async def test_3_terminal_sem_mensagem_deixa_a_chave_ausente() -> None:
     # A rota usa `values.mensagemFinal ?? mensagemHandoff`: a chave não pode
     # existir com None depois de falhaInfraVerde.
-    f, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "66666666666"])
+    f, _, r = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_SEM_RO, "66666666070"])
     assert r["motivoHandoff"] == "falha_infra_verde"
     assert "mensagemFinal" not in await f.estado()
 
@@ -462,7 +464,7 @@ async def test_3_mensagem_final_null_da_tykhe_fica_null_no_canal() -> None:
 async def test_3_cadastro_erro_null_da_tykhe_vai_para_falha_sem_confirmacao() -> None:
     # Presença da chave, no fluxo e no subgrafo (corrigido em código mergeado).
     _, perguntas, r = await _conversa(
-        obter_vd(), {"viaOrquestrador": True, "cadastroErro": None}, [*VD_ATE_CPF_COM_RO, "00000000000", "Não", *CADASTRO]
+        obter_vd(), {"viaOrquestrador": True, "cadastroErro": None}, [*VD_ATE_CPF_COM_RO, "00000000191", "Não", *CADASTRO]
     )
     assert pergunta(r) is None
     assert perguntas[-1]["pergunta"].startswith("Tem complemento")
@@ -493,7 +495,7 @@ async def test_4_metadados_pessoa_presa_iguais_a_fixture_parciais() -> None:
 
 
 async def test_4_metadados_violencia_domestica_concluido_byte_a_byte() -> None:
-    f, _, _ = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_COM_RO, "11111111111"])
+    f, _, _ = await _conversa(obter_vd(), {}, [*VD_ATE_CPF_COM_RO, "12345678909"])
     assert await _metadados(f, extrair_metadados_violencia_domestica) == (
         '{"ehVitima":true,"temProcesso":false,"temRegistroOcorrencia":true,"dadosPessoa":{"encontrado":true,"idPessoa":999999,'
         '"nome":"Pessoa de Teste (mock)","genero":"Feminino","endereco":"Rua de Teste, 123 (mock)","enderecoDetalhado":{"cep":"20000-000",'
@@ -655,7 +657,7 @@ PESSOA_SEM_NOME = {"idPessoa": 4242, "genero": "F", "enderecoDetalhado": {"cep":
 async def test_7_violencia_domestica_verde_sem_nome(verde_real: TransporteFalso, resposta: str, status: str, motivo: str | None) -> None:
     # Conferido contra develop: "você" no lugar do nome (#236), e o desfecho segue a resposta.
     _verde(verde_real, _rotas_vd(pessoa=(200, {"dados": PESSOA_SEM_NOME})))
-    _, perguntas, r = await _conversa(obter_vd(), {"viaOrquestrador": True}, [*VD_ATE_CPF_SEM_RO, "12345678901", resposta])
+    _, perguntas, r = await _conversa(obter_vd(), {"viaOrquestrador": True}, [*VD_ATE_CPF_SEM_RO, "12345678909", resposta])
     assert perguntas[-1] == {"pergunta": "Confirma que seus dados são: você?", "tipo": "sim_nao", "opcoes": SIM_NAO}
     assert r["statusFinal"] == status
     assert r.get("motivoHandoff") == motivo
@@ -666,7 +668,7 @@ async def test_7_violencia_domestica_verde_sem_nome(verde_real: TransporteFalso,
 )
 async def test_7_pessoa_presa_verde_sem_nome(verde_real: TransporteFalso, resposta: str, status: str, motivo: str | None) -> None:
     _verde(verde_real, _rotas_pp(pessoa=PESSOA_SEM_NOME))
-    _, perguntas, r = await _conversa(obter_pp(), {"viaOrquestrador": True}, [*PP_COM, "123456", "Sim", "amigo", "12345678901", resposta])
+    _, perguntas, r = await _conversa(obter_pp(), {"viaOrquestrador": True}, [*PP_COM, "123456", "Sim", "amigo", "12345678909", resposta])
     assert perguntas[-1] == {"pergunta": "Confirma que seus dados são: você?", "tipo": "sim_nao", "opcoes": SIM_NAO}
     assert r["statusFinal"] == status
     assert r.get("motivoHandoff") == motivo
@@ -676,16 +678,16 @@ async def test_7_pessoa_presa_verde_sem_nome(verde_real: TransporteFalso, respos
 
 
 async def test_8_tokens_violencia_domestica_encontrado_dobra_a_semente() -> None:
-    _, _, r = await _conversa(obter_vd(), {"viaOrquestrador": True, "tokensGastos": SEMENTE}, [*VD_ATE_CPF_COM_RO, "11111111111", "sim"])
+    _, _, r = await _conversa(obter_vd(), {"viaOrquestrador": True, "tokensGastos": SEMENTE}, [*VD_ATE_CPF_COM_RO, "12345678909", "sim"])
     assert r["tokensGastos"] == {"input": 200, "output": 100, "total": 300}
 
 
 @pytest.mark.parametrize("fluxo", ["vd", "pp"])
 async def test_8_tokens_com_cadastro_sextuplica_a_semente_como_em_develop(fluxo: str) -> None:
     respostas = (
-        [*VD_ATE_CPF_COM_RO, "00000000000", "Não", *CADASTRO, "sim"]
+        [*VD_ATE_CPF_COM_RO, "00000000191", "Não", *CADASTRO, "sim"]
         if fluxo == "vd"
-        else [*PP_COM, "11111111111", "Sim", "amigo", "00000000000", "Não", *CADASTRO, "sim"]
+        else [*PP_COM, "11111111111", "Sim", "amigo", "00000000191", "Não", *CADASTRO, "sim"]
     )
     grafo = obter_vd() if fluxo == "vd" else obter_pp()
     _, _, r = await _conversa(grafo, {"viaOrquestrador": True, "tokensGastos": SEMENTE}, respostas)

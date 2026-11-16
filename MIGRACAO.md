@@ -76,6 +76,18 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - As frases novas vão para a revisão da equipe, e o guia de teste foi atualizado.
 - Em aberto: a rota de atendimento online do Verde.
 
+**#497 (decisão da Nicole, 2026-11-16): o CPF é conferido pelos dígitos verificadores, sem IA, antes de consultar o Verde.**
+- **Por quê:** desde a `v1.2.0` (13/11), 7 das 17 conversas que terminaram em `rg_nao_encontrado` tinham 11 dígitos, o tamanho do CPF. Uma consulta ao Verde e uma tentativa eram gastas à toa. A conta é exata, não custa nada e é imediata; a IA custaria uma chamada a cada número e poderia errar.
+- **A regra** (`maria/shared/cpf.py`): sem ponto, traço e espaços, 11 dígitos, não todos iguais, e os dois últimos são os dígitos verificadores dos nove primeiros.
+- **Pergunta do RG da pessoa presa:** um CPF não vai ao Verde. A Maria responde "Esse número parece um CPF. Preciso do RG da pessoa presa: o número da identidade dela (tentativa N de 3). Pode escrever só os números ou com pontos e traço." Conta como recusa pelo formato (#394): a 3ª termina em `rg_formato_invalido`. O mesmo vale para o CPF digitado direto no "quer tentar de novo?". Um RG de 11 dígitos que não fecha a conta segue para o Verde.
+- **Perguntas do CPF** (identificar o assistido, o CPF no "quer tentar de novo?" e o CPF da outra pessoa no plano de saúde): o CPF digitado com a conta errada não vai ao Verde. A Maria responde "Esse CPF não está certo. Confira os 11 números e escreva de novo." e conta uma das 3 tentativas, com os desfechos de antes. Antes, a pergunta do CPF do assistido não conferia nada (achado A5).
+- **O CPF de `dadosConhecidos` não passa pela conta:** o contrato com a Tykhe não muda (mesmos campos e `motivoHandoff`, só o texto).
+- **Log sem o número:** `rg_parece_cpf` (com `recusa`, `digitos` e `temLetra`) e `cpf_digito_invalido` (com `tentativa`).
+- **Mock do Verde:** as sentinelas da pessoa pelo CPF (`00000000000`, `66666666666`) não fecham a conta. Ganharam equivalentes que fecham (`00000000191` e `66666666070`), e as antigas continuam valendo para o CPF que vem da Tykhe. Os testes que digitavam CPFs fictícios sem a conta passaram a digitar CPFs que fecham.
+- **Cinco respostas gravadas aposentadas** com registro, sem editar (conferência pr2): `vd_cpf` e, porque dependem da mesma conversa, `vd_get_concluido`, `vd_409_concluido`, `rota_get_query` e `rota_get_escape_invalido_query`.
+- **A Tykhe** faz a mesma conferência no fluxo próprio do CPF e do RG, com os identificadores da #497.
+- Muda o que a pessoa vê: o guia de teste foi atualizado, e o merge espera o horário combinado com a equipe.
+
 **#394 (decisão da Nicole, 2026-11-12):** limite de recusas do RG pelo formato na pessoa presa.
 - A recusa diz a tentativa e dá um exemplo fictício: "Não consegui ler esse RG (tentativa N de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.".
 - Na 3ª recusa, `handoff_humano` com o **motivo novo** `rg_formato_invalido` (mudança de contrato aceita: a Tykhe encaminha pelo `destino`, como mostrou o teste de 04/11), sem consultar o Verde e sem guardar o texto recusado.
