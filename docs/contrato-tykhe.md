@@ -139,7 +139,7 @@ Mesma informação do `GET /docs`. "Obrigatório" vale para a Tykhe; a API respo
 | `POST /atendimentos/orquestrador` | `chatId` | sim (dispensado só com `APP_ENV=test`) | Mesmo valor em todas as rodadas |
 | | `mensagem` | um dos dois | Relato livre, na 1ª chamada |
 | | `resposta` | um dos dois | Resposta à desambiguação; não pode ser vazia |
-| | `dadosConhecidos` | não | Objeto com o que a Tykhe já sabe (hoje só `cpf`); repassado ao fluxo identificado |
+| | `dadosConhecidos` | não | Objeto com o que a Tykhe já sabe (hoje só `cpf`); repassado ao fluxo identificado. **`cpf` é texto** (#296): número inteiro (`"cpf": 12345678901` sem aspas) é convertido em texto de 11 dígitos, com os zeros à esquerda, e o log registra a conversão sem o valor; decimal, booleano, lista, objeto ou número fora de 11 dígitos dá 400 com `dadosConhecidos.cpf deve ser texto (ou número inteiro de até 11 dígitos)`. Texto e vazio ficam como estão |
 | | `idUsuario` | não (só no release) | O id da pessoa na Tykhe, na 1ª chamada; a chave dos assuntos guardados (#450). Nunca o CPF nem o telefone |
 | `POST /atendimentos` | `flowId` | sim | Id do fluxo (`GET /fluxos`) |
 | | `chatId` | sim (dispensado só com `APP_ENV=test`) | |

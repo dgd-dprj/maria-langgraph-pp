@@ -258,8 +258,40 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         await store.concluir(chat_id, ConclusaoAtendimento(**conclusao))  # type: ignore[typeddict-item]
 
 
+def _tipo_json(valor: Any) -> str:
+    if isinstance(valor, bool):
+        return "boolean"
+    if isinstance(valor, int | float):
+        return "number"
+    if isinstance(valor, list):
+        return "array"
+    return "object" if isinstance(valor, dict) else type(valor).__name__
+
+
+def normalizar_cpf_conhecido(corpo: dict[str, Any], log: LogRequisicao) -> Resposta | None:
+    """#296: `dadosConhecidos.cpf` é texto. Número inteiro (a Tykhe mandou `"cpf": {{CPF}}` sem aspas) vira
+    texto de 11 dígitos, com os zeros à esquerda que o número perdeu, e o log diz que houve conversão (sem o
+    valor). Qualquer outro tipo (decimal, booleano, lista, objeto, número fora de 11 dígitos) é 400 com o motivo.
+    Texto, vazio e ausente ficam como estão. Muda `corpo` no lugar."""
+    conhecidos = corpo.get("dadosConhecidos")
+    if not isinstance(conhecidos, dict) or "cpf" not in conhecidos:
+        return None
+    cpf = conhecidos["cpf"]
+    if cpf is None or isinstance(cpf, str):
+        return None
+    if isinstance(cpf, int) and not isinstance(cpf, bool) and 0 <= cpf <= 99_999_999_999:
+        conhecidos["cpf"] = str(cpf).zfill(11)
+        log.warn("dadosConhecidos.cpf veio como número; convertido em texto", campo="dadosConhecidos.cpf", tipoRecebido="number")
+        return None
+    log.warn("dadosConhecidos.cpf com tipo inválido", campo="dadosConhecidos.cpf", tipoRecebido=_tipo_json(cpf))
+    return Resposta(400, {"erro": "dadosConhecidos.cpf deve ser texto (ou número inteiro de até 11 dígitos)"})
+
+
 async def _post_atendimentos(ctx: Contexto) -> Resposta:
     corpo: dict[str, Any] = ctx.corpo
+    recusa = normalizar_cpf_conhecido(corpo, ctx.log)
+    if recusa is not None:
+        return recusa
     fluxo_id = corpo.get("flowId", AUSENTE)
     if not _js.verdadeiro(fluxo_id):
         return Resposta(400, {"erro": "flowId obrigatório"})
