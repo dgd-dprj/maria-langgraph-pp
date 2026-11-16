@@ -55,8 +55,8 @@ ASSUNTOS_PENDENTES: Schema = {
 
 # #450 (2026-11-11, só no release): os assuntos em aberto da pessoa, desta conversa e guardados de outras, os urgentes
 # primeiro. Decisão da Nicole (2026-11-13): o assunto é identificado pelo `flowId` (fluxo da Maria) ou pelo `tipoCaso`
-# (assunto da Tykhe), que aparecem uma vez só na lista; a Tykhe manda esse valor em `POST /atendimentos/proximo-assunto`
-# como `assunto`. O `chatIdAssunto` saiu da resposta.
+# (assunto da Tykhe), que aparecem uma vez só na lista; a Tykhe manda o mesmo campo em `POST /atendimentos/proximo-assunto`
+# (`flowId` ou `tipoCaso`). O `chatIdAssunto` saiu da resposta.
 ASSUNTOS_EM_ABERTO: Schema = {
     "type": "array",
     "items": {
@@ -68,8 +68,14 @@ ASSUNTOS_EM_ABERTO: Schema = {
             "codigo": {"type": "string", "description": "Código curto do assunto, para a pessoa citar à equipe"},
             "fase": {"type": "string", "enum": ["nao_iniciado", "em_andamento"]},
             "venceEm": {"type": "string"},
-            "flowId": {"type": "string", "description": "Assunto da Maria: o id do assunto, para mandar como `assunto`"},
-            "tipoCaso": {"type": "string", "description": "Assunto da Tykhe: o id do assunto, para mandar como `assunto`"},
+            "flowId": {
+                "type": "string",
+                "description": "Assunto da Maria: o id do assunto. Para abrir, mande em `flowId` na rota do próximo assunto",
+            },
+            "tipoCaso": {
+                "type": "string",
+                "description": "Assunto da Tykhe: o id do assunto. Para abrir, mande em `tipoCaso` na rota do próximo assunto",
+            },
         },
     },
 }
@@ -143,9 +149,11 @@ RESPOSTA_ATENDIMENTO: Schema = {
 CORPO_PROXIMO_ASSUNTO: Schema = {
     "type": "object",
     "properties": {
-        "chatId": {"type": "string", "description": "O chatId da conversa"},
-        "assunto": {"type": "string", "description": "Opcional: o flowId (ou o tipoCaso) de um item de assuntosEmAberto"},
-        "resposta": {"type": "string", "description": "Opcional: a resposta da pessoa à lista dos assuntos em aberto"},
+        "chatId": {"type": "string"},
+        "flowId": {"type": "string"},
+        "tipoCaso": {"type": "string"},
+        "resposta": {"type": "string"},
+        "assunto": {"type": "string", "deprecated": True},
     },
 }
 # #450 (2026-11-11, só no release): POST /atendimentos/assuntos-em-aberto.

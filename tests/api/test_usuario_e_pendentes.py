@@ -528,7 +528,7 @@ async def test_guardado_abre_pelo_flow_id(cliente: httpx.AsyncClient, auth: dict
     release.setenv("MOCK_NECESSIDADES", json.dumps([NOVO_PROCESSO]))
     chat = _chat()
     await _comecar(cliente, auth, chat, "quero entrar com um processo de pensão")
-    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "assunto": ID_PESSOA_PRESA}, headers=auth)).json()
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "flowId": ID_PESSOA_PRESA}, headers=auth)).json()
     assert (corpo["flowId"], corpo["chatId"]) == (ID_PESSOA_PRESA, f"{antiga}-assunto-2")
     assert corpo["resposta"].startswith("Agora vamos falar da pessoa presa.\n\n")
 
@@ -538,8 +538,28 @@ async def test_guardado_da_tykhe_abre_pelo_tipo_caso(cliente: httpx.AsyncClient,
     release.setenv("MOCK_NECESSIDADES", json.dumps([PP]))
     chat = _chat()
     await _comecar(cliente, auth, chat, "meu irmão está preso")
-    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "assunto": "novo-processo"}, headers=auth)).json()
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "tipoCaso": "novo-processo"}, headers=auth)).json()
     assert (corpo["status"], corpo["tipoCaso"], corpo["chatId"]) == ("redirecionado", "novo-processo", f"{antiga}-assunto-2")
+
+
+async def test_campo_assunto_antigo_continua_aceito(cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch) -> None:
+    """Para quem já usava: `assunto` com o flowId abre como o campo `flowId` (2026-11-13)."""
+    antiga = await _conversa_com_pendente(cliente, auth, release, VD, PP)
+    release.setenv("MOCK_NECESSIDADES", json.dumps([NOVO_PROCESSO]))
+    chat = _chat()
+    await _comecar(cliente, auth, chat, "quero entrar com um processo de pensão")
+    corpo = (await cliente.post(PROXIMO, json={"chatId": chat, "assunto": ID_PESSOA_PRESA}, headers=auth)).json()
+    assert (corpo["flowId"], corpo["chatId"]) == (ID_PESSOA_PRESA, f"{antiga}-assunto-2")
+
+
+async def test_documentacao_do_proximo_assunto_mostra_flow_id(cliente: httpx.AsyncClient) -> None:
+    """O exemplo do `/docs` traz o `flowId` de verdade, e não "string" (pedido da Nicole, 2026-11-13)."""
+    docs = (await cliente.get("/docs/json")).json()
+    corpo = docs["paths"]["/atendimentos/proximo-assunto"]["post"]["requestBody"]["content"]["application/json"]["schema"]
+    assert corpo["example"] == {"chatId": "conversa-0001", "flowId": ID_PESSOA_PRESA}
+    assert set(corpo["properties"]) >= {"chatId", "flowId", "tipoCaso", "resposta"}
+    assert corpo["properties"]["assunto"]["deprecated"] is True
+    assert corpo["required"] == ["chatId"]
 
 
 async def test_flow_id_que_nao_esta_em_aberto_nao_abre(
@@ -549,7 +569,7 @@ async def test_flow_id_que_nao_esta_em_aberto_nao_abre(
     release.setenv("MOCK_NECESSIDADES", json.dumps([NOVO_PROCESSO]))
     chat = _chat()
     await _comecar(cliente, auth, chat, "quero entrar com um processo", id_usuario="outra-pessoa")
-    r = await cliente.post(PROXIMO, json={"chatId": chat, "assunto": ID_PESSOA_PRESA}, headers=auth)
+    r = await cliente.post(PROXIMO, json={"chatId": chat, "flowId": ID_PESSOA_PRESA}, headers=auth)
     assert (r.status_code, r.json()) == (404, {"erro": "assunto não encontrado para esta pessoa"})
 
 
