@@ -57,9 +57,9 @@ resource "aws_iam_role" "github_actions" {
 }
 
 # Só o necessário pro pipeline: build+push de imagem no ECR deste projeto e
-# forçar novo deployment nos 2 services ECS (api / api-release). NÃO inclui
-# permissão de Terraform/infra — mudança de infra continua manual (ver
-# comentário grande em release.tf sobre a mesma decisão pro banco/secret).
+# forçar novo deployment no service ECS `api`. NÃO inclui permissão de
+# Terraform/infra — mudança de infra continua manual. O service `api-release`
+# da Virgínia saiu na #500 (o release roda em São Paulo, #458 e #463).
 data "aws_iam_policy_document" "github_actions_deploy" {
   statement {
     sid       = "EcrAuth"
@@ -87,7 +87,6 @@ data "aws_iam_policy_document" "github_actions_deploy" {
     ]
     resources = [
       aws_ecs_service.api.id,
-      aws_ecs_service.api_release.id,
     ]
   }
 }
@@ -115,7 +114,7 @@ resource "aws_iam_role_policy" "github_actions_deploy" {
 # Issue #380 — o Grafana saiu: os 2 secrets dele deixaram a lista, que voltou a
 # ter só os 2 secrets de app.
 #
-# Issue #405 — os 2 secrets `email-nudecon` (release e produção) entram na lista: o
+# Issue #405 — o secret `email-nudecon` entra na lista: o
 # `terraform plan` do terraform-drift.yml lê as versões deles no refresh e falhava com
 # AccessDenied (achado ao vivo 2026-11-04, depois do merge do PR #408).
 data "aws_iam_policy_document" "github_actions_read_app_secrets" {
@@ -124,9 +123,7 @@ data "aws_iam_policy_document" "github_actions_read_app_secrets" {
     actions = ["secretsmanager:GetSecretValue"]
     resources = [
       aws_secretsmanager_secret.app.arn,
-      aws_secretsmanager_secret.app_release.arn,
       aws_secretsmanager_secret.email_nudecon.arn,
-      aws_secretsmanager_secret.email_nudecon_release.arn,
     ]
   }
 }
@@ -139,7 +136,7 @@ resource "aws_iam_role_policy" "github_actions_read_app_secrets" {
 
 # Issue #187 — verificar-token-verde.yml passou de só ALERTAR pra também
 # RENOVAR o VERDE_JWT_TOKEN de verdade (POST /autenticacao/token/refresh na
-# Verde, grava o token novo aqui). Restrito aos 2 secrets de app (nunca
+# Verde, grava o token novo aqui). Restrito ao secret de app (nunca
 # Grafana/outros) — mesmo racional de least-privilege do statement de
 # leitura acima, escopo mínimo só pro que esse workflow específico precisa
 # escrever.
@@ -149,7 +146,6 @@ data "aws_iam_policy_document" "github_actions_write_verde_token" {
     actions = ["secretsmanager:PutSecretValue"]
     resources = [
       aws_secretsmanager_secret.app.arn,
-      aws_secretsmanager_secret.app_release.arn,
     ]
   }
 }

@@ -1,6 +1,5 @@
 # CloudFront própria do release em São Paulo (HTTPS na frente do ALB de SP, que só aceita entrada vinda do CloudFront).
-# É uma distribuição NOVA, só para testar a aplicação de SP de ponta a ponta com URL HTTPS. A distribuição do release da
-# Virgínia (infra/terraform/release.tf) continua apontando para o ALB de lá; o corte é trocar a origem dela, à parte.
+# Desde 2026-11-16 é a URL do release na Tykhe, e fica (a distribuição antiga da Virgínia saiu do código na #500).
 resource "aws_cloudfront_distribution" "api_release_sp" {
   enabled     = true
   comment     = "HTTPS pro maria-langgraph-pp, release em Sao Paulo (green, antes do corte)"
