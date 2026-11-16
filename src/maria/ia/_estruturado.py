@@ -73,7 +73,8 @@ class _ClienteTardio:
 
     def _criar(self) -> Any:
         modelo = self._modelo
-        assert modelo is not None
+        # Só estreita o tipo para o mypy: `_criar` só é chamado depois de o modelo ser guardado.
+        assert modelo is not None  # noqa: S101
         with cota_como_sdk_js():
             return create_aws_client(
                 service_name=self._servico,

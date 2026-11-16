@@ -95,6 +95,33 @@ def test_ci_constroi_a_imagem_e_confere_o_health() -> None:
     assert "/health" in comandos
 
 
+def test_ponta_a_ponta_nunca_sai_do_simulado() -> None:
+    # #502: o job conversa com a Maria inteira, mas nunca com o Verde de homologação
+    # (cópia de dados reais) nem com o Bedrock: sem credencial da AWS e sem token do Verde.
+    job = _carregar("ci.yml")["jobs"]["ponta_a_ponta"]
+    texto = json.dumps(job)
+    assert "configure-aws-credentials" not in texto
+    assert "secrets." not in texto
+    assert job["defaults"]["run"]["shell"] == "bash", "sem o bash explícito, a falha do roteiro some no `| tee`"
+    comandos = "\n".join(passo.get("run", "") for passo in job["steps"])
+    assert "fluxos_ponta_a_ponta.py --grupo falha-encaminhamento" in comandos
+    assert "modo mock" in comandos
+
+    raiz = WORKFLOWS.parent.parent
+    base = yaml.safe_load((raiz / "docker-compose.yml").read_text(encoding="utf-8"))
+    override = yaml.safe_load((raiz / "docker-compose.ponta-a-ponta.yml").read_text(encoding="utf-8"))
+    ambiente = {**base["services"]["app"]["environment"], **override["services"]["app"]["environment"]}
+    assert ambiente["APP_ENV"].endswith("test}"), "APP_ENV=test liga a IA e o e-mail simulados"
+    assert not [nome for nome in ambiente if nome.startswith(("VERDE_", "AWS_", "EMAIL_NUDECON_"))]
+    assert "volumes" not in override["services"]["app"], "nenhuma credencial montada no container"
+
+
+def test_codeql_analisa_python_e_os_workflows() -> None:
+    job = _carregar("codeql.yml")["jobs"]["analisar"]
+    assert set(job["strategy"]["matrix"]["linguagem"]) == {"python", "actions"}
+    assert job["permissions"]["security-events"] == "write"
+
+
 def test_nenhum_workflow_usa_node_para_a_aplicacao() -> None:
     for nome in ("ci.yml", "deploy-prod.yml", "deploy-release.yml"):
         texto = (WORKFLOWS / nome).read_text(encoding="utf-8")

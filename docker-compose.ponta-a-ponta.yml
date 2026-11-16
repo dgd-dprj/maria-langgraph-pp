@@ -1,0 +1,18 @@
+# Override do QA de ponta a ponta (#502): a Maria inteira (imagem, uvicorn, Postgres e
+# checkpoint), com o Verde, a IA e o e-mail simulados. Nunca chama o Verde de homologação
+# nem o Bedrock: sem VERDE_JWT_TOKEN, o cliente do Verde cai no mock; com APP_ENV=test,
+# a IA e o e-mail também.
+#
+#   docker compose -f docker-compose.yml -f docker-compose.ponta-a-ponta.yml up -d --build --wait
+#   uv run python scripts/qa/fluxos_ponta_a_ponta.py
+#
+# Para o grupo de falhas do encaminhamento, suba de novo com MOCK_ENCAMINHAMENTO_FALHA=true
+# e rode o roteiro com `--grupo falha-encaminhamento`.
+services:
+  app:
+    environment:
+      # Liga os fluxos em teste (plano de saúde, #324), como no release.
+      MARIA_AMBIENTE: release
+      # O parentesco da pessoa presa vem do mock da IA.
+      MOCK_CLASSIFICACAO_PARENTESCO: "Amigo(a)"
+      MOCK_ENCAMINHAMENTO_FALHA: ${MOCK_ENCAMINHAMENTO_FALHA:-false}
