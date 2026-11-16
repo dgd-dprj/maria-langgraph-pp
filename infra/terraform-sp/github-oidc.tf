@@ -1,4 +1,4 @@
-# Permissões da role do GitHub Actions (OIDC) para o release em São Paulo (#463). A role é a mesma
+# Permissões da role do GitHub Actions (OIDC) para o release e a produção em São Paulo (#463, #509). A role é a mesma
 # da Virgínia (IAM é global, `infra/terraform/github-oidc.tf`); aqui só entra uma política própria,
 # por referência ao nome, para não depender de nenhum recurso do state da Virgínia. Aplicar por
 # `-target=aws_iam_role_policy.github_actions_deploy_sp`, com OK escrito.
@@ -28,18 +28,18 @@ data "aws_iam_policy_document" "github_actions_deploy_sp" {
   statement {
     sid       = "EcsDeploySp"
     actions   = ["ecs:UpdateService", "ecs:DescribeServices"]
-    resources = [aws_ecs_service.api.id]
+    resources = [aws_ecs_service.api.id, aws_ecs_service.api_prod.id]
   }
   # deploy-release.yml confere o token do Verde (leitura) e verificar-token-verde.yml o renova (escrita).
   statement {
     sid       = "LerSegredoDoVerdeSp"
     actions   = ["secretsmanager:GetSecretValue"]
-    resources = [aws_secretsmanager_secret.app.arn]
+    resources = [aws_secretsmanager_secret.app.arn, aws_secretsmanager_secret.app_prod.arn]
   }
   statement {
     sid       = "GravarTokenDoVerdeSp"
     actions   = ["secretsmanager:PutSecretValue"]
-    resources = [aws_secretsmanager_secret.app.arn]
+    resources = [aws_secretsmanager_secret.app.arn, aws_secretsmanager_secret.app_prod.arn]
   }
 }
 
