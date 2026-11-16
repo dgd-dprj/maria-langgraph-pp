@@ -308,7 +308,8 @@ async def _fluxo_do_chat(chat_id: Any) -> tuple[FluxoConfig, str] | Resposta:
     fluxo_id = await store.buscar_flow_id(chat_id)
     if not _js.verdadeiro(fluxo_id):
         return Resposta(404, {"erro": "atendimento não encontrado"})
-    assert fluxo_id is not None
+    # Só estreita o tipo para o mypy: o `if` acima já devolveu 404 sem fluxo.
+    assert fluxo_id is not None  # noqa: S101
     # A conversa já começou: um fluxo em teste desligado depois disso termina normalmente (#324).
     fluxo = await buscar_fluxo(fluxo_id, conversa_em_andamento=True)
     if fluxo is None:

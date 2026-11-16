@@ -134,7 +134,8 @@ async def _post_webhook(ctx: Contexto) -> Resposta:
 
 
 async def _processar(ctx: Contexto, de: str, texto: str) -> None:
-    assert ctx.injetar is not None
+    # Só estreita o tipo para o mypy: o contexto do webhook sempre chega com `injetar`.
+    assert ctx.injetar is not None  # noqa: S101
     if not isinstance(texto, str):
         # `text.body` que não é texto (número, por exemplo): o `.trim()` de develop lança.
         raise TypeError("mensagem.texto.trim is not a function")

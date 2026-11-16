@@ -30,7 +30,8 @@ def main() -> None:
     uvicorn.run(
         "maria.app:criar_app",
         factory=True,
-        host="0.0.0.0",
+        # No container, a porta precisa escutar em todas as interfaces; quem expõe é o ALB.
+        host="0.0.0.0",  # noqa: S104
         port=3001,
         workers=1,
         log_config=None,
