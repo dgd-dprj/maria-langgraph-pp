@@ -31,6 +31,12 @@ Como decidir (vale para qualquer assunto):
 SUFIXO_DESAMBIGUAR = """
 Na pergunta, cite as opções em dúvida pelo que as separa, de forma neutra e na mesma pergunta (por exemplo: "pelo plano de saúde ou pelo SUS?", "você já tem um processo ou quer abrir um novo?"). Não pergunte só sobre uma das opções."""  # noqa: E501
 
+# #508 (decisões da Nicole, 2026-11-16): o Qwen vai ser a IA de frente e deve ser simpático com a pessoa atendida.
+# Por enquanto, só na pergunta de desambiguação. Emoji permitido, nunca nos temas sensíveis; além da regra, o
+# código tira o emoji da pergunta quando uma das opções é violência doméstica ou pessoa presa (desambiguar.py).
+SUFIXO_TOM_DESAMBIGUAR = """
+Tom: acolhedor, simples e gentil, como quem atende bem no balcão da Defensoria. Frases curtas, palavras do dia a dia, trate a pessoa por "você", sem termo jurídico. Pode usar um emoji discreto, menos quando uma das opções for violência doméstica ou pessoa presa: nesses casos, nenhum emoji."""  # noqa: E501
+
 # #212 (decisão da Nicole, 2026-11-12): o parentesco só da lista, sem inventar. Medido na comparação da #472, com 53
 # respostas no formato das da produção (1 a 4 palavras): o VL 235B foi de 48 para 60 de 61 (8 delas fora dos exemplos
 # do prompt), igual em 2 passadas. No Haiku, as mesmas regras derrubaram o acerto (52 de 61, contra 57,3 com o prompt
