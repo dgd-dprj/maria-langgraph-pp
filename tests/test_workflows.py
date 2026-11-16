@@ -340,7 +340,12 @@ def test_release_nao_redeploya_com_desired_count_zero() -> None:
 def test_verificar_token_usa_a_regiao_de_cada_ambiente() -> None:
     job = _carregar("verificar-token-verde.yml")["jobs"]["verificar"]
     por_ambiente = {m["ambiente"]: m for m in job["strategy"]["matrix"]["include"]}
-    assert por_ambiente["prod"]["aws_region"] == "us-east-1"
+    assert por_ambiente["prod"] == {
+        "ambiente": "prod",
+        "ecs_service": "api-prod-sp",
+        "ecs_cluster": "maria-langgraph-pp-sp",
+        "aws_region": "sa-east-1",
+    }
     assert por_ambiente["release"] == {
         "ambiente": "release",
         "ecs_service": "api-release-sp",
@@ -350,16 +355,17 @@ def test_verificar_token_usa_a_regiao_de_cada_ambiente() -> None:
     assert "${{ matrix.aws_region }}" in str(job["steps"])
 
 
-def test_producao_publica_tambem_em_sao_paulo_sem_derrubar_a_da_virginia() -> None:
-    # #509, fase 1: a produção segue na Virgínia; São Paulo recebe a mesma imagem e uma falha lá não derruba o deploy.
+def test_producao_publica_e_redeploya_so_em_sao_paulo() -> None:
+    # #509: depois do corte a produção roda no cluster e no service de São Paulo; a Virgínia saiu.
     env = _carregar("deploy-prod.yml")["env"]
-    assert (env["AWS_REGION"], env["ECS_SERVICE"]) == ("us-east-1", "api")
-    assert (env["AWS_REGION_SP"], env["ECS_CLUSTER_SP"], env["ECS_SERVICE_SP"]) == ("sa-east-1", "maria-langgraph-pp-sp", "api-prod-sp")
+    assert env["AWS_REGION"] == "sa-east-1"
+    assert ".ecr.sa-east-1.amazonaws.com/" in env["ECR_REPO"]
+    assert (env["ECS_CLUSTER"], env["ECS_SERVICE"]) == ("maria-langgraph-pp-sp", "api-prod-sp")
+    texto = (WORKFLOWS / "deploy-prod.yml").read_text(encoding="utf-8")
+    assert "us-east-1" not in texto.replace("Virgínia", "")
+
+
+def test_producao_nao_redeploya_com_desired_count_zero() -> None:
     passos = _passos("deploy-prod.yml", "deploy")
-    espera = next(i for i, p in enumerate(passos) if "services-stable" in p.get("run", ""))
-    depois = passos[espera + 2 :]  # o passo seguinte é a conferência do Verde
-    sp = [p for p in depois if "_SP" in p.get("run", "")]
-    assert len(sp) == 2
-    assert all(p.get("continue-on-error") is True for p in sp)
-    redeploy = next(p for p in sp if "update-service" in p["run"])
-    assert "desiredCount" in redeploy["run"] and "-gt 0" in redeploy["run"]
+    forcar = next(p for p in passos if "Forçar novo deployment" in p.get("name", ""))["run"]
+    assert "desiredCount" in forcar and "-gt 0" in forcar
