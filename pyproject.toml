@@ -60,7 +60,8 @@ line-length = 140
 src = ["src", "tests", "scripts"]
 
 [tool.ruff.lint]
-select = ["E", "F", "W", "I", "UP", "B", "ASYNC", "RUF"]
+# "S": regras de segurança do bandit (#502), valendo para `src/`.
+select = ["E", "F", "W", "I", "UP", "B", "ASYNC", "RUF", "S"]
 # Mensagens e comentários do domínio são em português, com acentos e travessão.
 ignore = ["RUF001", "RUF002", "RUF003"]
 
@@ -68,6 +69,13 @@ ignore = ["RUF001", "RUF002", "RUF003"]
 # O SQL das stores é copiado de develop sem alteração de texto (spec do módulo
 # persistencia); quebrar as linhas longas mudaria o texto.
 "src/maria/shared/{atendimentos_db,perguntas_db,fluxos_planejados_db,embeddings_fluxos}.py" = ["E501"]
+# #502: no SQL dos assuntos pendentes, só `_COLUNAS` (constante do módulo) entra no texto;
+# os valores vão sempre como parâmetro (%s).
+"src/maria/shared/pendentes_db.py" = ["S608"]
+# As regras de segurança (S) valem para `src/`. Os testes usam `assert`, e os scripts
+# são ferramentas de quem opera (subprocess do gh, URLs fixas, chaves de exemplo).
+"tests/**" = ["S"]
+"scripts/**" = ["S"]
 
 [tool.mypy]
 python_version = "3.12"

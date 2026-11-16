@@ -9,7 +9,7 @@ Três branches permanentes, no estilo do GitLab Flow (#427, decisão da Nicole d
 | Branch | Papel | Ambiente | O que dispara o deploy |
 |---|---|---|---|
 | `develop` | **dev**: integração de tudo que é feito | nenhum: só o CI e os testes locais | nada |
-| `staging` | **QA**: validação antes da produção | o release (serviço `api-release`), que é o ambiente de QA | todo merge em `staging` (`deploy-release.yml`) |
+| `staging` | **QA**: validação antes da produção | o release (serviço `api-release-sp`, em São Paulo), que é o ambiente de QA | todo merge em `staging` (`deploy-release.yml`) |
 | `main` | **produção** | produção (serviço `api`) | todo merge em `main` (`deploy-prod.yml`) |
 
 - **Promover para QA:** PR de `develop` para `staging`, quando um conjunto de mudanças estiver pronto para validar. O CI recusa PR para `staging` que não venha da `develop`.

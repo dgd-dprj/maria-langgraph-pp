@@ -95,6 +95,33 @@ def test_ci_constroi_a_imagem_e_confere_o_health() -> None:
     assert "/health" in comandos
 
 
+def test_ponta_a_ponta_nunca_sai_do_simulado() -> None:
+    # #502: o job conversa com a Maria inteira, mas nunca com o Verde de homologação
+    # (cópia de dados reais) nem com o Bedrock: sem credencial da AWS e sem token do Verde.
+    job = _carregar("ci.yml")["jobs"]["ponta_a_ponta"]
+    texto = json.dumps(job)
+    assert "configure-aws-credentials" not in texto
+    assert "secrets." not in texto
+    assert job["defaults"]["run"]["shell"] == "bash", "sem o bash explícito, a falha do roteiro some no `| tee`"
+    comandos = "\n".join(passo.get("run", "") for passo in job["steps"])
+    assert "fluxos_ponta_a_ponta.py --grupo falha-encaminhamento" in comandos
+    assert "modo mock" in comandos
+
+    raiz = WORKFLOWS.parent.parent
+    base = yaml.safe_load((raiz / "docker-compose.yml").read_text(encoding="utf-8"))
+    override = yaml.safe_load((raiz / "docker-compose.ponta-a-ponta.yml").read_text(encoding="utf-8"))
+    ambiente = {**base["services"]["app"]["environment"], **override["services"]["app"]["environment"]}
+    assert ambiente["APP_ENV"].endswith("test}"), "APP_ENV=test liga a IA e o e-mail simulados"
+    assert not [nome for nome in ambiente if nome.startswith(("VERDE_", "AWS_", "EMAIL_NUDECON_"))]
+    assert "volumes" not in override["services"]["app"], "nenhuma credencial montada no container"
+
+
+def test_codeql_analisa_python_e_os_workflows() -> None:
+    job = _carregar("codeql.yml")["jobs"]["analisar"]
+    assert set(job["strategy"]["matrix"]["linguagem"]) == {"python", "actions"}
+    assert job["permissions"]["security-events"] == "write"
+
+
 def test_nenhum_workflow_usa_node_para_a_aplicacao() -> None:
     for nome in ("ci.yml", "deploy-prod.yml", "deploy-release.yml"):
         texto = (WORKFLOWS / nome).read_text(encoding="utf-8")
@@ -292,3 +319,53 @@ def test_verificar_token_verde_usa_o_mesmo_script_da_conferencia() -> None:
     renovacao = next(p for p in passos if "Checar e renovar" in p.get("name", ""))["run"]
     assert "from conferir_token_verde import" in renovacao
     assert '"/autenticacao/token/status"' not in renovacao  # a consulta de status saiu do corpo inline
+
+
+def test_release_publica_e_redeploya_so_em_sao_paulo() -> None:
+    # #463: a Virgínia saiu na #500; o release roda no cluster e no service de São Paulo.
+    env = _carregar("deploy-release.yml")["env"]
+    assert env["AWS_REGION"] == "sa-east-1"
+    assert env["ECR_REPO"] == "185327115563.dkr.ecr.sa-east-1.amazonaws.com/maria-langgraph-pp"
+    assert (env["ECS_CLUSTER"], env["ECS_SERVICE"]) == ("maria-langgraph-pp-sp", "api-release-sp")
+    texto = (WORKFLOWS / "deploy-release.yml").read_text(encoding="utf-8")
+    assert "us-east-1" not in texto.replace("Virgínia", "")
+
+
+def test_release_nao_redeploya_com_desired_count_zero() -> None:
+    passos = _passos("deploy-release.yml", "deploy")
+    forcar = next(p for p in passos if "Forçar novo deployment" in p.get("name", ""))["run"]
+    assert "desiredCount" in forcar and "-gt 0" in forcar
+
+
+def test_verificar_token_usa_a_regiao_de_cada_ambiente() -> None:
+    job = _carregar("verificar-token-verde.yml")["jobs"]["verificar"]
+    por_ambiente = {m["ambiente"]: m for m in job["strategy"]["matrix"]["include"]}
+    assert por_ambiente["prod"] == {
+        "ambiente": "prod",
+        "ecs_service": "api-prod-sp",
+        "ecs_cluster": "maria-langgraph-pp-sp",
+        "aws_region": "sa-east-1",
+    }
+    assert por_ambiente["release"] == {
+        "ambiente": "release",
+        "ecs_service": "api-release-sp",
+        "ecs_cluster": "maria-langgraph-pp-sp",
+        "aws_region": "sa-east-1",
+    }
+    assert "${{ matrix.aws_region }}" in str(job["steps"])
+
+
+def test_producao_publica_e_redeploya_so_em_sao_paulo() -> None:
+    # #509: depois do corte a produção roda no cluster e no service de São Paulo; a Virgínia saiu.
+    env = _carregar("deploy-prod.yml")["env"]
+    assert env["AWS_REGION"] == "sa-east-1"
+    assert env["ECR_REPO"] == "185327115563.dkr.ecr.sa-east-1.amazonaws.com/maria-langgraph-pp"
+    assert (env["ECS_CLUSTER"], env["ECS_SERVICE"]) == ("maria-langgraph-pp-sp", "api-prod-sp")
+    texto = (WORKFLOWS / "deploy-prod.yml").read_text(encoding="utf-8")
+    assert "us-east-1" not in texto.replace("Virgínia", "")
+
+
+def test_producao_nao_redeploya_com_desired_count_zero() -> None:
+    passos = _passos("deploy-prod.yml", "deploy")
+    forcar = next(p for p in passos if "Forçar novo deployment" in p.get("name", ""))["run"]
+    assert "desiredCount" in forcar and "-gt 0" in forcar

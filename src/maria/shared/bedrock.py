@@ -104,7 +104,8 @@ def espera_do_p_retry(tentativa: int) -> float:
     p-retry com `randomize: true`, `factor` 2, `minTimeout` 1 s e sem teto
     (p-retry/index.js:29-33): de 63 a 126 s somando as 6 esperas.
     """
-    return round((random.random() + 1) * 1000 * (1 << (tentativa - 1))) / 1000
+    # Sorteio da espera entre tentativas, não criptografia.
+    return round((random.random() + 1) * 1000 * (1 << (tentativa - 1))) / 1000  # noqa: S311
 
 
 async def chamar_como_async_caller[T](

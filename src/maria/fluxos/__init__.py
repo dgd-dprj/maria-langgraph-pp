@@ -59,7 +59,7 @@ class FluxoConfig:
 
 
 # Única variável que liga um fluxo em teste, declarada no Terraform de cada
-# ambiente (ecs.tf: "producao"; release.tf: "release"). Na dúvida, desligado:
+# ambiente (ecs.tf: "producao"; terraform-sp/ecs.tf: "release"). Na dúvida, desligado:
 # ausente, vazia ou qualquer valor diferente de exatamente "release" conta como
 # produção, então uma variável esquecida ou copiada errada nunca liga um fluxo
 # em teste. Não é a APP_ENV, que liga os simulados dos testes.

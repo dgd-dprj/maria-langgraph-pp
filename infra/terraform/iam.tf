@@ -22,14 +22,11 @@ resource "aws_iam_role_policy_attachment" "execution" {
 data "aws_iam_policy_document" "exec_secrets" {
   statement {
     actions = ["secretsmanager:GetSecretValue"]
-    # 2 secrets — ambiente atual (Verde homolog) + release (infra/terraform/release.tf,
-    # Verde produção) — mesmo execution role compartilhado pelos 2 (ver comentário
-    # grande no topo de release.tf).
+    # Só os segredos deste ambiente. O release roda em São Paulo (infra/terraform-sp/),
+    # com role e segredos próprios; o da Virgínia saiu na #500.
     resources = [
       aws_secretsmanager_secret.app.arn,
-      aws_secretsmanager_secret.app_release.arn,
       aws_secretsmanager_secret.email_nudecon.arn,
-      aws_secretsmanager_secret.email_nudecon_release.arn,
     ]
   }
 }

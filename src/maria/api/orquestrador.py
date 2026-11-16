@@ -20,7 +20,7 @@ from typing import Any, cast
 from langgraph.types import Command
 
 from maria.api import esquemas
-from maria.api.atendimentos import criar_atendimento, extrair_interrupt
+from maria.api.atendimentos import criar_atendimento, extrair_interrupt, normalizar_cpf_conhecido
 from maria.api.pipeline import Contexto, Resposta, Rota
 from maria.fluxos import buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.tipos_tykhe import TipoCasoTykhe, TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
@@ -121,10 +121,14 @@ async def _retomar(grafo: Any, resposta: str, config: Any) -> dict[str, Any]:
 
 async def _post_orquestrador(ctx: Contexto) -> Resposta:
     corpo: dict[str, Any] = ctx.corpo
+    recusa = normalizar_cpf_conhecido(corpo, ctx.log)
+    if recusa is not None:
+        return recusa
     mensagem = corpo.get("mensagem", AUSENTE)
     resposta = corpo.get("resposta", AUSENTE)
     # #185: resposta "" barrada ANTES do "algum dos dois", senão chegaria a Command(resume="").
-    if resposta is not AUSENTE and resposta == "":
+    # #303: a resposta só de espaços também é barrada, como a vazia.
+    if isinstance(resposta, str) and not resposta.strip():
         return Resposta(400, {"erro": "resposta não pode ser vazia"})
     if mensagem is AUSENTE and resposta is AUSENTE:
         return Resposta(400, {"erro": "mensagem (1ª chamada) ou resposta (continuação de desambiguação) obrigatório"})
@@ -133,6 +137,19 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     if not _js.verdadeiro(chat_id_corpo) and os.environ.get("APP_ENV") != "test":
         return Resposta(400, {"erro": "chatId obrigatório"})
     chat_id: str = chat_id_corpo if _js.verdadeiro(chat_id_corpo) else str(uuid.uuid4())
+
+    # #303 (opção B): mensagem vazia, nula ou só de espaços vai para "outros" sem chamar a IA (0 token).
+    if resposta is AUSENTE and (mensagem is None or (isinstance(mensagem, str) and not mensagem.strip())):
+        ctx.log.info(
+            "orquestrador: mensagem em branco, redirecionado para a Tykhe (outros) sem chamar a IA",
+            chatId=chat_id,
+            evento="orquestrador_finalizado_sem_fluxo",
+            status="concluido",
+            destino="tykhe",
+            tipoCaso="outros",
+            tokensGastosTotal=0,
+        )
+        return Resposta(200, _resposta_redirecionada(chat_id, tipo_tykhe_por_caso("outros"), None))
 
     config: Any = {"configurable": {"thread_id": f"orquestrador:{chat_id}"}}
     grafo = obter_grafo()
