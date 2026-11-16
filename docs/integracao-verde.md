@@ -22,7 +22,7 @@ Foi o incidente de 2026-10-22 e 23 (#308): a renovação rodou, o redeploy travo
 
 **Depois de trocar o token à mão** no segredo `maria-langgraph-pp-<ambiente>/app`:
 
-1. Reinicie o serviço (`api` para produção, `api-release` para o release):
+1. Reinicie o serviço (`api` para produção; o release roda em São Paulo: cluster `maria-langgraph-pp-sp`, serviço `api-release-sp`, `--region sa-east-1`):
    ```
    aws ecs update-service --cluster maria-langgraph-pp --service <servico> --force-new-deployment --region us-east-1
    ```
