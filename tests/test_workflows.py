@@ -359,7 +359,7 @@ def test_producao_publica_e_redeploya_so_em_sao_paulo() -> None:
     # #509: depois do corte a produção roda no cluster e no service de São Paulo; a Virgínia saiu.
     env = _carregar("deploy-prod.yml")["env"]
     assert env["AWS_REGION"] == "sa-east-1"
-    assert env["ECR_REPO"].startswith("185327115563.dkr.ecr.sa-east-1.amazonaws.com/")
+    assert env["ECR_REPO"] == "185327115563.dkr.ecr.sa-east-1.amazonaws.com/maria-langgraph-pp"
     assert (env["ECS_CLUSTER"], env["ECS_SERVICE"]) == ("maria-langgraph-pp-sp", "api-prod-sp")
     texto = (WORKFLOWS / "deploy-prod.yml").read_text(encoding="utf-8")
     assert "us-east-1" not in texto.replace("Virgínia", "")
