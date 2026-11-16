@@ -222,3 +222,53 @@ output "secret_email_nudecon_prod_arn" {
   value       = aws_secretsmanager_secret.email_nudecon_prod.arn
   description = "Segredo do e-mail do NUDECON (produção, São Paulo)."
 }
+
+# ── CloudFront da produção (#509) ────────────────────────────────────────────────────────────────────────────────────
+# Distribuição NOVA, só da produção em São Paulo (a do release, em cloudfront.tf, não muda). A origem é o ALB de São Paulo e
+# manda `X-Maria-Env: prod`, que a regra de prioridade 10 do ALB usa para chegar ao target group de produção. O corte é
+# trocar, na Tykhe, a URL da produção da Virgínia por a desta distribuição (`api_https_url_prod_sp`); nada na Virgínia muda.
+resource "aws_cloudfront_distribution" "api_prod_sp" {
+  enabled     = true
+  comment     = "HTTPS pro maria-langgraph-pp, producao em Sao Paulo (Tykhe)"
+  price_class = "PriceClass_100"
+
+  origin {
+    domain_name = aws_lb.main.dns_name
+    origin_id   = "alb-api-prod-sp"
+    custom_origin_config {
+      http_port              = 80
+      https_port             = 443
+      origin_protocol_policy = "http-only"
+      origin_ssl_protocols   = ["TLSv1.2"]
+    }
+    custom_header {
+      name  = "X-Maria-Env"
+      value = "prod"
+    }
+  }
+
+  default_cache_behavior {
+    target_origin_id         = "alb-api-prod-sp"
+    viewer_protocol_policy   = "redirect-to-https"
+    allowed_methods          = ["GET", "HEAD", "OPTIONS", "PUT", "POST", "PATCH", "DELETE"]
+    cached_methods           = ["GET", "HEAD"]
+    compress                 = true
+    cache_policy_id          = "4135ea2d-6df8-44a3-9df3-4b5a84be39ad" # CachingDisabled
+    origin_request_policy_id = "216adef6-5c7f-47e4-b989-5492eafa07d3" # AllViewer
+  }
+
+  restrictions {
+    geo_restriction {
+      restriction_type = "none"
+    }
+  }
+
+  viewer_certificate {
+    cloudfront_default_certificate = true
+  }
+}
+
+output "api_https_url_prod_sp" {
+  value       = "https://${aws_cloudfront_distribution.api_prod_sp.domain_name}"
+  description = "URL HTTPS da produção em São Paulo: é a que vai na Tykhe no corte."
+}
