@@ -43,6 +43,10 @@ DIVERGENCIAS = {
     # Além do desfecho já registrado, develop devolve metadados.encaminhamentoId: null
     # e o Python omite a chave.
     "dados_encaminhamentoId_null": "colapso null/undefined em encaminhamentoId (fluxos, decisão 1)",
+    # #303 (opção B, 2026-11-16): mensagem vazia, nula ou só de espaços vai para "outros" sem chamar a IA. Develop
+    # mandava o texto em branco ao classificador. As fixtures ficam intactas.
+    "orq_mensagem_null": "mensagem nula vai para outros sem IA (#303)",
+    "orq_mensagem_vazio": "mensagem vazia vai para outros sem IA (#303)",
 }
 # dadosConhecidos.tokensGastos fora do formato {input, output, total} numéricos:
 # develop aceita e zera ou corrompe a contagem em silêncio (o NaN da soma vira null

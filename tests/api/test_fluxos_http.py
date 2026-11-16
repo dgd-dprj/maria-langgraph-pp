@@ -92,14 +92,14 @@ async def test_vd_completo_sem_ro_pergunta_cpf_e_conclui_padrao(cliente: httpx.A
     await _responder(cliente, auth, chat_id, "false")
     r_cpf = await _responder(cliente, auth, chat_id, "false")  # sem RO: pergunta o CPF
     assert "Qual o seu CPF" in r_cpf.json()["resposta"]
-    r = await _responder(cliente, auth, chat_id, "11111111111")
+    r = await _responder(cliente, auth, chat_id, "12345678909")
     corpo = r.json()
     assert r.status_code == 200
     assert corpo["status"] == "concluido"
     assert corpo["metadados"]["tipoEncaminhamento"] == "padrao"
     assert corpo["metadados"]["dadosPessoa"]["encontrado"] is True
     assert "Coordenação de Defesa" in corpo["resposta"]
-    assert corpo["dadosColetados"]["cpf"] == "11111111111", "o cpf coletado no fluxo aparece em dadosColetados"
+    assert corpo["dadosColetados"]["cpf"] == "12345678909", "o cpf coletado no fluxo aparece em dadosColetados"
 
 
 async def test_vd_cpf_em_dados_conhecidos_aparece_desde_a_primeira_resposta(cliente: httpx.AsyncClient, auth: dict[str, str]) -> None:

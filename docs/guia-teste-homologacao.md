@@ -87,7 +87,7 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 2. "Você é a vítima de violência doméstica?" → **Sim**. **Depois da #438:** se o relato já disser que a violência é contra quem escreve ("meu marido **me** bate", "fui agredida"), a Maria pula esta pergunta. Se a vítima parecer ser outra pessoa ("o ex da minha filha ameaça ela"), ela pergunta, porque o Não encerra o atendimento.
 3. Processo → responda **Não** (ou informe um número de teste).
 4. Boletim de ocorrência → **Sim** em uma rodada e **Não** em outra.
-5. CPF → um **CPF inventado** (não existe na homologação). A Maria pede de novo; depois de 3 tentativas, ela começa o **cadastro**: nome, data de nascimento, CEP, número e complemento.
+5. CPF → um **CPF inventado** (não existe na homologação). A Maria pede de novo; depois de 3 tentativas, ela começa o **cadastro**: nome, data de nascimento, CEP, número e complemento. **Desde a #497,** o CPF inventado precisa fechar a conta dos dígitos verificadores (por exemplo, `123.456.789-09`). Com a conta errada, a Maria responde "Esse CPF não está certo. Confira os 11 números e escreva de novo." sem consultar o Verde, e a tentativa conta do mesmo jeito.
 6. "Confirma que seus dados são…?" → **Sim**.
 
 **Esperado:** uma mensagem de encaminhamento com o **nome de um órgão** e um **número de protocolo**.
@@ -263,6 +263,8 @@ Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09 e 2026-11-10). **Na pr
 | Pessoa presa, RG com ponto e traço, do jeito que aparece no documento (ex.: o RG de teste escrito como `12.345.678-9`) | **Depois da #343:** a Maria aceita e segue para "Confirma que é <nome>?", a mesma pessoa de quando o RG vai só com números. **Antes da #343:** "O RG deve conter apenas números…", repetido a cada tentativa |
 | Pessoa presa, a pergunta do RG (#475) | **Desde a #475:** "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9." Os dois formatos do exemplo são aceitos |
 | Pessoa presa, RG com letra (ex.: `12a`) | **Desde a #394:** "Não consegui ler esse RG (tentativa 1 de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.", depois "tentativa 2 de 3"; na 3ª recusa, a conversa vai para o atendimento humano (`motivoHandoff: rg_formato_invalido`), sem consultar o Verde |
+| Pessoa presa, um CPF na pergunta do RG (ex.: `123.456.789-09`, fictício) | **Desde a #497:** "Esse número parece um CPF. Preciso do RG da pessoa presa: o número da identidade dela (tentativa 1 de 3). Pode escrever só os números ou com pontos e traço.", sem consultar o Verde. Conta junto com as recusas da #394: na 3ª, `rg_formato_invalido`. Um RG de 11 dígitos que não fecha a conta do CPF (ex.: `11111111111`) segue para o Verde como antes |
+| CPF com a conta dos dígitos verificadores errada (ex.: `123.456.789-00`) | **Desde a #497:** "Esse CPF não está certo. Confira os 11 números e escreva de novo." (no plano de saúde, para outra pessoa: "…do CPF da pessoa que será atendida…"), sem consultar o Verde. Conta como uma das 3 tentativas. O CPF que a Tykhe manda em `dadosConhecidos` não passa pela conta |
 
 ## 4. Como reconhecer uma falha do ambiente
 

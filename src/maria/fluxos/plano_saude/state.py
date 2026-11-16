@@ -54,7 +54,8 @@ class PlanoSaudeState(TypedDict, total=False):
     # Outra pessoa (#433): o CPF dela e o que o Verde trouxe são dado de terceiro, sensível: nunca em log nem em `metadados`.
     cpfOutraPessoa: str | None
     tentativasCpfOutra: int | None
-    erroCpfOutra: Literal["invalido"] | None
+    # #497: "digito" quando vieram 11 números, mas a conta dos dígitos verificadores não fecha.
+    erroCpfOutra: Literal["invalido", "digito"] | None
     # Do Verde (200) ou, sem cadastro (404), informados na conversa (#446): `origem` "informado" e a etapa em `etapaDadosOutra`.
     dadosOutraPessoa: dict[str, Any] | None
     tentativasDadosOutra: int | None

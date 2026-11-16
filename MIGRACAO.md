@@ -65,6 +65,7 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - No fim de cada assunto concluído, inclusive no multi-fluxo, sem um urgente na vez, o fim da conversa: "Resumo da nossa conversa:" (cada assunto atendido, com o desfecho e um código de 6 letras e números), "Quer continuar com algum desses assuntos ou encerrar a conversa?" e "Ainda em aberto:" (urgência, "em aberto até dd/mm" e a fase). Os botões: um por assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa". A violência doméstica aparece como "a situação que você contou", com desfecho neutro. Campos novos `resumoDaConversa` e `opcoesDoFim`; `assuntosEmAberto` ganha `codigo`, `fase` e `venceEm`. A lista também vem pela rota nova `POST /atendimentos/assuntos-em-aberto`, e a escolha abre pela rota do próximo assunto.
   - Fica para depois de 13/11: retomar um assunto que ficou no meio, em andamento, em outra conversa.
 - **O assunto pelo `flowId` (decisão da Nicole, 2026-11-13).** Em `assuntosEmAberto` (no fim da conversa e na rota dos assuntos em aberto), o assunto é identificado pelo `flowId` (assunto da Maria) ou pelo `tipoCaso` (assunto da Tykhe), e não mais pelo `chatIdAssunto`, que saiu da resposta. Cada um aparece uma vez só na lista. A Tykhe manda esse valor como `assunto` na rota do próximo assunto (`"assunto": "agendamentos"`), e a Maria acha o assunto em aberto da pessoa. O id interno (`<chatId>-assunto-N`) ainda é aceito, para quem já usava; um `flowId` que não está em aberto dá 404. O `chatId` que a Maria gera para cada assunto continua na resposta que abre o assunto: é com ele que a conversa segue em `/atendimentos/respostas`. Muda o contrato com a Tykhe (só no release); `docs/contrato-tykhe.md` atualizado.
+  - **Depois, no mesmo dia (pedido da Nicole):** a rota do próximo assunto passa a receber o assunto pelos **mesmos campos** da lista: `flowId` (assunto da Maria) ou `tipoCaso` (assunto da Tykhe), por exemplo `{"chatId": "<conversa>", "flowId": "3df874f2-…"}`. O `/docs` ganha a descrição de cada campo e um exemplo de verdade, no lugar de `"string"`; a rota dos assuntos em aberto também. O campo `assunto` continua aceito e aparece no `/docs` como antigo (`deprecated`).
 - **A ordem dos assuntos (decisão da Nicole, 2026-11-13):** violência doméstica, pessoa presa e saúde (com o plano de saúde), nessa ordem, e depois o resto. Antes, a saúde vinha primeiro (28 e 29/10). Os testes que levavam o plano até o fim agora escolhem o plano na resposta à ordem ("o plano primeiro").
 - **Os textos do fim (decisão da Nicole, 2026-11-13).**
   - O fim da conversa mantém a pergunta antes ("Quer continuar com algum dos assuntos em aberto ou encerrar a conversa?", ou "com o assunto em aberto" quando é um só). Depois vem "Ainda em aberto:", com os assuntos numerados e separados em "Urgente:" e "Menos urgente:", e "Outras opções:", com o assunto novo e o encerrar.
@@ -74,6 +75,30 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - O assunto que termina no atendimento humano com outro pendente avisa: "Também ficou para depois: …". Antes, só quem atendia via os pendentes.
   - As frases novas vão para a revisão da equipe, e o guia de teste foi atualizado.
 - Em aberto: a rota de atendimento online do Verde.
+
+**#502 e #503 (decisão da Nicole, 2026-11-16): depuração em 6 fases (detectar, reproduzir, isolar, achar a causa, corrigir e prevenir), conferida no Visor.**
+- **#502, sem IA e sem custo:**
+  - o job `ponta_a_ponta` do CI testa os fluxos do Verde até o fim, com o Verde, a IA e o e-mail simulados. É o que o QA da staging não confere, porque o Verde de homologação tem cópia de dados reais;
+  - as regras de segurança `S` do ruff passam a valer em `src/`;
+  - o CodeQL roda em todo PR, na `develop` e toda semana.
+- **QA da staging no Actions (#502, depois da #463):** contra o release de São Paulo, com teto de US$ 0,10 por rodada. Se passar, o QA para e avisa a Nicole e o Ícaro, para os dois decidirem se vale passar o valor naquela verificação.
+- **#503:** a rotina com IA percorre as 6 fases, também com teto de US$ 0,10 por investigação e o mesmo aviso. O patch fica como artefato, sem PR automático, e a issue pública nunca leva conteúdo de log. O custo é medido com `count_tokens` antes de ligar.
+- **Achados de 16/11 (comentados na #463):**
+  - o release da Virgínia já foi apagado, mas o `deploy-release.yml` ainda publica lá;
+  - o release de São Paulo, o que a Tykhe usa, roda o código de 11/11, sem a #495 e a #497.
+- **Visor:** a tela Depuração (visor-maria#10) e a leitura do release de São Paulo (visor-maria#11).
+
+**#497 (decisão da Nicole, 2026-11-16): o CPF é conferido pelos dígitos verificadores, sem IA, antes de consultar o Verde.**
+- **Por quê:** desde a `v1.2.0` (13/11), 7 das 17 conversas que terminaram em `rg_nao_encontrado` tinham 11 dígitos, o tamanho do CPF. Uma consulta ao Verde e uma tentativa eram gastas à toa. A conta é exata, não custa nada e é imediata; a IA custaria uma chamada a cada número e poderia errar.
+- **A regra** (`maria/shared/cpf.py`): sem ponto, traço e espaços, 11 dígitos, não todos iguais, e os dois últimos são os dígitos verificadores dos nove primeiros.
+- **Pergunta do RG da pessoa presa:** um CPF não vai ao Verde. A Maria responde "Esse número parece um CPF. Preciso do RG da pessoa presa: o número da identidade dela (tentativa N de 3). Pode escrever só os números ou com pontos e traço." Conta como recusa pelo formato (#394): a 3ª termina em `rg_formato_invalido`. O mesmo vale para o CPF digitado direto no "quer tentar de novo?". Um RG de 11 dígitos que não fecha a conta segue para o Verde.
+- **Perguntas do CPF** (identificar o assistido, o CPF no "quer tentar de novo?" e o CPF da outra pessoa no plano de saúde): o CPF digitado com a conta errada não vai ao Verde. A Maria responde "Esse CPF não está certo. Confira os 11 números e escreva de novo." e conta uma das 3 tentativas, com os desfechos de antes. Antes, a pergunta do CPF do assistido não conferia nada (achado A5).
+- **O CPF de `dadosConhecidos` não passa pela conta:** o contrato com a Tykhe não muda (mesmos campos e `motivoHandoff`, só o texto).
+- **Log sem o número:** `rg_parece_cpf` (com `recusa`, `digitos` e `temLetra`) e `cpf_digito_invalido` (com `tentativa`).
+- **Mock do Verde:** as sentinelas da pessoa pelo CPF (`00000000000`, `66666666666`) não fecham a conta. Ganharam equivalentes que fecham (`00000000191` e `66666666070`), e as antigas continuam valendo para o CPF que vem da Tykhe. Os testes que digitavam CPFs fictícios sem a conta passaram a digitar CPFs que fecham.
+- **Cinco respostas gravadas aposentadas** com registro, sem editar (conferência pr2): `vd_cpf` e, porque dependem da mesma conversa, `vd_get_concluido`, `vd_409_concluido`, `rota_get_query` e `rota_get_escape_invalido_query`.
+- **A Tykhe** faz a mesma conferência no fluxo próprio do CPF e do RG, com os identificadores da #497.
+- Muda o que a pessoa vê: o guia de teste foi atualizado, e o merge espera o horário combinado com a equipe.
 
 **#394 (decisão da Nicole, 2026-11-12):** limite de recusas do RG pelo formato na pessoa presa.
 - A recusa diz a tentativa e dá um exemplo fictício: "Não consegui ler esse RG (tentativa N de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.".

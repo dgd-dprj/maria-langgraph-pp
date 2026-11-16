@@ -104,7 +104,7 @@ Um fluxo novo entra com `em_teste=True` no `FluxoConfig`. Assim a equipe testa n
     ),
 ```
 
-- **Ligado só no release.** O fluxo em teste só liga onde `MARIA_AMBIENTE` é exatamente `release`. A variável é declarada no Terraform de cada ambiente: `producao` no `ecs.tf` e `release` no `release.tf`, e um teste do CI confere os dois valores.
+- **Ligado só no release.** O fluxo em teste só liga onde `MARIA_AMBIENTE` é exatamente `release`. A variável é declarada no Terraform de cada ambiente: `producao` no `ecs.tf` e `release` no `ecs.tf` de `infra/terraform-sp/`, e um teste do CI confere os dois valores.
 - **Na dúvida, desligado.** Variável ausente, vazia, `producao`, `Release` ou qualquer outro valor contam como produção. Uma variável esquecida ou copiada errada nunca liga um fluxo em teste.
 - **Desligado,** o fluxo não aparece em `GET /fluxos` nem no catálogo do orquestrador, e `POST /atendimentos` com o id dele responde como a um id desconhecido (404). Uma conversa que já começou nele termina normalmente; só conversas novas ficam bloqueadas.
 - **Na sua máquina,** ponha `MARIA_AMBIENTE=release` no `.env` para ver o fluxo em teste.

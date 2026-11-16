@@ -36,6 +36,7 @@ EM_TESTE = replace(fluxos_por_id[ID_PESSOA_PRESA], nome="fluxo-em-teste", descri
 # Valores que NÃO ligam: ausente (None), vazio, produção e os quase iguais.
 NAO_LIGAM = [None, "", "producao", "Release", "RELEASE", "release ", " release", "homologacao"]
 TERRAFORM = Path("infra/terraform")
+TERRAFORM_SP = Path("infra/terraform-sp")
 # A resposta de hoje a um flowId desconhecido (`api/atendimentos.py`, `_post_atendimentos`).
 RESPOSTA_ID_DESCONHECIDO = (404, '{"erro":"fluxo não encontrado — ver GET /fluxos"}'.encode())
 
@@ -186,8 +187,8 @@ async def test_a_subida_registra_o_ambiente_e_os_fluxos_ligados(
     )
 
 
-def _ambiente_no_terraform(arquivo: str) -> list[str]:
-    texto = (TERRAFORM / arquivo).read_text(encoding="utf-8")
+def _ambiente_no_terraform(arquivo: str, pasta: Path = TERRAFORM) -> list[str]:
+    texto = (pasta / arquivo).read_text(encoding="utf-8")
     return re.findall(r'\{\s*name\s*=\s*"MARIA_AMBIENTE"\s*,\s*value\s*=\s*"([^"]*)"\s*\}', texto)
 
 
@@ -197,7 +198,9 @@ def test_o_terraform_declara_producao_em_producao() -> None:
 
 
 def test_o_terraform_declara_release_no_release() -> None:
-    assert _ambiente_no_terraform("release.tf") == ["release"]
+    """O release roda em São Paulo desde a #500 (o `release.tf` da Virgínia saiu)."""
+    assert not (TERRAFORM / "release.tf").exists()
+    assert _ambiente_no_terraform("ecs.tf", TERRAFORM_SP) == ["release"]
 
 
 def test_as_conferencias_rodam_com_o_ambiente_da_producao() -> None:
