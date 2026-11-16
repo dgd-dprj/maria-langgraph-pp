@@ -76,6 +76,18 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - As frases novas vão para a revisão da equipe, e o guia de teste foi atualizado.
 - Em aberto: a rota de atendimento online do Verde.
 
+**#502 e #503 (decisão da Nicole, 2026-11-16): depuração em 6 fases (detectar, reproduzir, isolar, achar a causa, corrigir e prevenir), conferida no Visor.**
+- **#502, sem IA e sem custo:**
+  - o job `ponta_a_ponta` do CI testa os fluxos do Verde até o fim, com o Verde, a IA e o e-mail simulados. É o que o QA da staging não confere, porque o Verde de homologação tem cópia de dados reais;
+  - as regras de segurança `S` do ruff passam a valer em `src/`;
+  - o CodeQL roda em todo PR, na `develop` e toda semana.
+- **QA da staging no Actions (#502, depois da #463):** contra o release de São Paulo, com teto de US$ 0,10 por rodada. Se passar, o QA para e avisa a Nicole e o Ícaro, para os dois decidirem se vale passar o valor naquela verificação.
+- **#503:** a rotina com IA percorre as 6 fases, também com teto de US$ 0,10 por investigação e o mesmo aviso. O patch fica como artefato, sem PR automático, e a issue pública nunca leva conteúdo de log. O custo é medido com `count_tokens` antes de ligar.
+- **Achados de 16/11 (comentados na #463):**
+  - o release da Virgínia já foi apagado, mas o `deploy-release.yml` ainda publica lá;
+  - o release de São Paulo, o que a Tykhe usa, roda o código de 11/11, sem a #495 e a #497.
+- **Visor:** a tela Depuração (visor-maria#10) e a leitura do release de São Paulo (visor-maria#11).
+
 **#497 (decisão da Nicole, 2026-11-16): o CPF é conferido pelos dígitos verificadores, sem IA, antes de consultar o Verde.**
 - **Por quê:** desde a `v1.2.0` (13/11), 7 das 17 conversas que terminaram em `rg_nao_encontrado` tinham 11 dígitos, o tamanho do CPF. Uma consulta ao Verde e uma tentativa eram gastas à toa. A conta é exata, não custa nada e é imediata; a IA custaria uma chamada a cada número e poderia errar.
 - **A regra** (`maria/shared/cpf.py`): sem ponto, traço e espaços, 11 dígitos, não todos iguais, e os dois últimos são os dígitos verificadores dos nove primeiros.

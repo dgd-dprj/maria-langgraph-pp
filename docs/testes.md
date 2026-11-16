@@ -29,6 +29,7 @@ Os testes espelham `src/maria/` (`tests/<pasta>/test_*.py`).
 | Sem TypeScript | `tests/test_sem_typescript.py` | Nenhum arquivo `.ts`/`.js`, `package.json`, lockfile ou `tsconfig` fora da lista `MANTER` (os hooks do Claude Code e as fixtures de evidência). Protege contra um merge que traga arquivos de volta sem conflito. |
 | Documentação | `tests/test_documentacao.py` | Links e caminhos dos documentos, referências à versão TypeScript só em registro histórico, e as variáveis de ambiente do código contra a tabela do README. |
 | Integração real com IA | `tests/integracao/ia/` | Chama o Bedrock de verdade — não roda na suíte padrão nem no CI, só sob demanda (custa tempo e dinheiro real). |
+| Ponta a ponta (#502) | `scripts/qa/fluxos_ponta_a_ponta.py`, job `ponta_a_ponta` do CI | A Maria inteira no Docker (imagem, uvicorn, Postgres e checkpoint), com o Verde, a IA e o e-mail simulados. Conversa pela API, como a Tykhe, até o fim da pessoa presa, da violência doméstica e do plano de saúde, mais os caminhos de falha (CPF não encontrado, falha do Verde, CPF no lugar do RG, CPF com a conta errada, falha do encaminhamento). É o que o QA da staging não confere, porque o Verde de homologação tem cópia de dados reais. |
 
 ## Modo mock — por que os testes não tocam infra real
 
@@ -45,8 +46,18 @@ Os testes espelham `src/maria/` (`tests/<pasta>/test_*.py`).
 
 ## CI
 
-O `.github/workflows/ci.yml` tem dois jobs:
-- **`test`:** `ruff check`, `ruff format --check`, `mypy`, a suíte padrão e, numa segunda etapa, a suíte `postgres` contra um Postgres 16 com pgvector (serviço do próprio job);
-- **`imagem`:** constrói a imagem Docker e confere que ela sobe e responde `/health`.
+O `.github/workflows/ci.yml` tem três jobs:
+- **`test`:** `ruff check` (com as regras de segurança `S` em `src/`, #502), `ruff format --check`, `mypy`, a suíte padrão e, numa segunda etapa, a suíte `postgres` contra um Postgres 16 com pgvector (serviço do próprio job);
+- **`imagem`:** constrói a imagem Docker e confere que ela sobe e responde `/health`;
+- **`ponta_a_ponta` (#502):** sobe a Maria com `docker-compose.yml` mais `docker-compose.ponta-a-ponta.yml` e roda o roteiro de ponta a ponta nos dois grupos (`normal` e `falha-encaminhamento`). No fim, confere no log que o Verde ficou no mock e que não houve erro de nível 50. Não usa credencial da AWS nem segredo. O resumo aparece na página da execução.
+
+O `.github/workflows/codeql.yml` (#502) roda o CodeQL (Python e os próprios workflows, consultas `security-extended`) em todo PR, em todo push na `develop` e toda segunda-feira. Os alertas ficam em Security → Code scanning.
+
+**Rodar o ponta a ponta na sua máquina** (Docker; nada sai dela):
+
+```sh
+docker compose -f docker-compose.yml -f docker-compose.ponta-a-ponta.yml up -d --build --wait
+uv run python scripts/qa/fluxos_ponta_a_ponta.py
+```
 
 Os deploys (`deploy-release.yml` e `deploy-prod.yml`) rodam os testes de novo antes de publicar — falha em qualquer etapa bloqueia o merge ou o deploy. Durante a migração, o `ci.yml` roda só em PR para a branch `migration`; os gatilhos de `develop` e `main` voltam no corte (#208).
