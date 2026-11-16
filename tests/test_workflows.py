@@ -348,3 +348,18 @@ def test_verificar_token_usa_a_regiao_de_cada_ambiente() -> None:
         "aws_region": "sa-east-1",
     }
     assert "${{ matrix.aws_region }}" in str(job["steps"])
+
+
+def test_producao_publica_tambem_em_sao_paulo_sem_derrubar_a_da_virginia() -> None:
+    # #509, fase 1: a produção segue na Virgínia; São Paulo recebe a mesma imagem e uma falha lá não derruba o deploy.
+    env = _carregar("deploy-prod.yml")["env"]
+    assert (env["AWS_REGION"], env["ECS_SERVICE"]) == ("us-east-1", "api")
+    assert (env["AWS_REGION_SP"], env["ECS_CLUSTER_SP"], env["ECS_SERVICE_SP"]) == ("sa-east-1", "maria-langgraph-pp-sp", "api-prod-sp")
+    passos = _passos("deploy-prod.yml", "deploy")
+    espera = next(i for i, p in enumerate(passos) if "services-stable" in p.get("run", ""))
+    depois = passos[espera + 2 :]  # o passo seguinte é a conferência do Verde
+    sp = [p for p in depois if "_SP" in p.get("run", "")]
+    assert len(sp) == 2
+    assert all(p.get("continue-on-error") is True for p in sp)
+    redeploy = next(p for p in sp if "update-service" in p["run"])
+    assert "desiredCount" in redeploy["run"] and "-gt 0" in redeploy["run"]
