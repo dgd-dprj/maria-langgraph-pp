@@ -113,3 +113,6 @@ Ordem (cada passo só com OK escrito do Ícaro, por `-target`):
 5. Corte, em janela: parar escrita na Virgínia, dump e restore do banco `maria_langgraph_pp` no RDS de São Paulo (o snapshot de 2026-11-11 está desatualizado), e trocar a **origem** do CloudFront de produção da Virgínia para o ALB de São Paulo, mandando `X-Maria-Env: prod`. Reversão: voltar a origem (o que foi escrito em São Paulo depois do corte não volta sozinho).
 
 Pontos abertos: o Verde de produção aceitar o IP de saída 18.228.145.80; o apply pendente do prod na Virgínia (#324/#405) mexe na trust da role do GitHub, que São Paulo também usa; qualquer chamada direta ao ALB com o cabeçalho cai na produção (como já era na Virgínia: o ALB só aceita o CloudFront, mas não distingue qual).
+
+### Esteira da produção em São Paulo (#509, só mesclar no corte)
+O `deploy-prod.yml` publica `latest` no ECR de `sa-east-1` e redeploya `api-prod-sp` (só se `desiredCount > 0`), e o `verificar-token-verde.yml` renova o token do prod no segredo de São Paulo. **Mesclar só no corte** (banco migrado e origem do CloudFront trocada): enquanto a Tykhe estiver na Virgínia, um push em `main` não atualizaria a produção de lá. Antes de ir para `main`, conferir `desired_count` do `api-prod-sp` maior que 0 e os segredos de prod preenchidos.

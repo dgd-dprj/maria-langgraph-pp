@@ -29,12 +29,12 @@ jobs:
       fail-fast: false # 1 ambiente com token vencendo não deve esconder o outro
       matrix:
         include:
-          # #463: o release roda em São Paulo (a Virgínia saiu na #500); o segredo de cada
+          # #463 e #509: o release e a produção rodam em São Paulo (o release da Virgínia saiu na #500); o segredo de cada
           # ambiente fica na região dele (Secrets Manager é regional).
           - ambiente: prod
-            ecs_service: api
-            ecs_cluster: maria-langgraph-pp
-            aws_region: us-east-1
+            ecs_service: api-prod-sp
+            ecs_cluster: maria-langgraph-pp-sp
+            aws_region: sa-east-1
           - ambiente: release
             ecs_service: api-release-sp
             ecs_cluster: maria-langgraph-pp-sp
