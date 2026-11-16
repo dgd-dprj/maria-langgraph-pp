@@ -61,3 +61,16 @@ def test_a_esteira_pode_redeployar_e_ler_o_segredo_da_producao_em_sp() -> None:
     oidc = _texto(SP / "github-oidc.tf")
     assert "aws_ecs_service.api_prod.id" in oidc
     assert oidc.count("aws_secretsmanager_secret.app_prod.arn") == 2
+
+
+def test_a_producao_tem_cloudfront_proprio_que_manda_o_cabecalho_da_regra_do_alb() -> None:
+    """O release e a produção não dividem distribuição: a da produção manda `X-Maria-Env: prod` à origem."""
+    prod = _texto(SP / "prod.tf")
+    bloco = re.search(r'resource "aws_cloudfront_distribution" "api_prod_sp" \{(.*?)\n\}\n', prod, re.S)
+    assert bloco is not None
+    assert re.search(r'custom_header\s*\{\s*name\s*=\s*"X-Maria-Env"\s*value\s*=\s*"prod"\s*\}', bloco.group(1))
+    regra = re.search(r'http_header_name\s*=\s*"([^"]+)"\s*values\s*=\s*\["([^"]+)"\]', prod)
+    assert regra is not None
+    assert regra.groups() == ("X-Maria-Env", "prod")
+    # A distribuição do release (cloudfront.tf) não manda cabeçalho: cai no padrão do ALB.
+    assert "custom_header" not in _texto(SP / "cloudfront.tf")
