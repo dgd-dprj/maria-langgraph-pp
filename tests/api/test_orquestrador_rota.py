@@ -53,6 +53,29 @@ async def test_resposta_vazia_400_e_nao_500(cliente: httpx.AsyncClient, auth: di
     assert r.status_code == 400
 
 
+@pytest.mark.parametrize("mensagem", ["", None, "   ", "\n\t "])
+async def test_mensagem_em_branco_vai_para_outros_sem_ia_303(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch, mensagem: str | None
+) -> None:
+    # #303 (opção B): vazia, nula ou só de espaços tem o mesmo resultado e não chama o grafo (0 token).
+    def grafo_proibido() -> Any:
+        raise AssertionError("mensagem em branco não pode chamar o grafo nem a IA")
+
+    monkeypatch.setattr("maria.api.orquestrador.obter_grafo", grafo_proibido)
+    r = await cliente.post(BASE, json={"chatId": novo_chat_id(), "mensagem": mensagem}, headers=auth)
+    corpo = r.json()
+    assert r.status_code == 200
+    assert corpo["status"] == "redirecionado"
+    assert corpo["tipoCaso"] == "outros"
+    assert corpo["tokensGastos"] == {"input": 0, "output": 0, "total": 0}
+
+
+@pytest.mark.parametrize("resposta", ["", "   ", "\n"])
+async def test_resposta_em_branco_400_303(cliente: httpx.AsyncClient, auth: dict[str, str], resposta: str) -> None:
+    r = await cliente.post(BASE, json={"chatId": novo_chat_id(), "resposta": resposta}, headers=auth)
+    assert r.status_code == 400
+
+
 async def test_sem_authorization_401(cliente: httpx.AsyncClient) -> None:
     r = await cliente.post(BASE, json={"mensagem": "qualquer coisa"})
     assert r.status_code == 401
