@@ -76,6 +76,14 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - As frases novas vão para a revisão da equipe, e o guia de teste foi atualizado.
 - Em aberto: a rota de atendimento online do Verde.
 
+**#508 (decisões da Nicole, 2026-11-16 e 17): o Qwen simpático na pergunta de desambiguação, com o tom medido na produção.**
+- **Por quê:** o Qwen vai ser a IA de frente, no lugar do Haiku, e respondia de forma literal ("ok", no teste do Actions).
+- **Onde:** só na pergunta de desambiguação, e só com o Qwen. A reescrita das perguntas segue desligada desde 31/08. Com o Haiku, o prompt fica idêntico.
+- **Emoji:** permitido, nunca em violência doméstica nem pessoa presa. Além da regra no prompt, o código tira o emoji nesses casos.
+- **Comparação** (aprovada, US$ 0,1922; 30 relatos inventados × 3 versões × 2 passadas): acolhimento em 59 de 60 no Qwen com o tom, contra 51 do Haiku e 54 do Qwen sem o tom, com 18,8 palavras em média.
+- **Tom de verdade, só em números (17/11):** "não faz sentido o painel com tudo fictício". A Maria registra o evento `desambiguacao_tom` com as regras de cada pergunta, nunca o texto nem o relato, e o Visor mostra (visor-maria#12).
+- Muda o que a pessoa vê no release: o guia de teste foi atualizado, e o merge espera o horário combinado. Deve entrar antes do corte para São Paulo (#509), para o Qwen chegar à produção já com o tom.
+
 **#502 e #503 (decisão da Nicole, 2026-11-16): depuração em 6 fases (detectar, reproduzir, isolar, achar a causa, corrigir e prevenir), conferida no Visor.**
 - **#502, sem IA e sem custo:**
   - o job `ponta_a_ponta` do CI testa os fluxos do Verde até o fim, com o Verde, a IA e o e-mail simulados. É o que o QA da staging não confere, porque o Verde de homologação tem cópia de dados reais;
