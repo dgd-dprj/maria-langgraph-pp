@@ -4,6 +4,7 @@ Decisões da Nicole (2026-11-16): o tom só para o Qwen (a produção, com o Hai
 sensíveis (violência doméstica e pessoa presa), nenhum emoji, com trava no código além da regra no prompt.
 """
 
+import json
 from typing import Any
 
 import pytest
@@ -11,6 +12,7 @@ import pytest
 from maria.ia import desambiguar
 from maria.ia.ajuste_qwen import SUFIXO_DESAMBIGUAR, SUFIXO_TOM_DESAMBIGUAR
 from maria.ia.desambiguar import CandidatoParaDesambiguar, montar_sistema, sem_emoji, tem_tema_sensivel
+from maria.ia.tom import medir_tom
 
 PRESA: CandidatoParaDesambiguar = {
     "id": "1",
@@ -84,3 +86,38 @@ async def test_no_tema_sensivel_a_pergunta_sai_sem_emoji(monkeypatch: pytest.Mon
 async def test_fora_do_tema_sensivel_o_emoji_fica(monkeypatch: pytest.MonkeyPatch) -> None:
     r = await _gerar(monkeypatch, "É para remarcar ou para ver um processo? 😊", [AGENDA, EMPRESA])
     assert r["pergunta"].endswith("😊")
+
+
+# ── O tom medido na produção, só em números (decisão da Nicole, 2026-11-17) ──
+
+
+def test_medir_tom_conta_as_regras() -> None:
+    m = medir_tom("Você quer ajuda com o exame ou com a cirurgia? 😊", sensivel=False)
+    assert m == {
+        "palavras": 10,
+        "ateLimiteDePalavras": True,
+        "terminaEmPergunta": True,  # o emoji depois do "?" não conta
+        "semTermoTecnico": True,
+        "ofereceAlternativas": True,
+        "temAcolhimento": True,
+        "comEmoji": True,
+        "temaSensivel": False,
+        "semEmojiNoTemaSensivel": True,
+    }
+    sensivel = medir_tom("É sobre pessoa-presa? 🙏", sensivel=True)
+    assert not sensivel["semTermoTecnico"] and not sensivel["semEmojiNoTemaSensivel"]
+    assert medir_tom("Você precisa proteger-se agora ou abrir um processo?", sensivel=True)["semTermoTecnico"]
+
+
+async def test_o_log_do_tom_tem_os_numeros_e_nunca_o_texto(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    monkeypatch.setenv("BEDROCK_MODEL_ID", "qwen.qwen3-vl-235b-a22b")
+    pergunta = "É sobre a pessoa presa ou sobre o seu agendamento? 😊"
+    await _gerar(monkeypatch, pergunta, [PRESA, AGENDA])
+    linhas = [json.loads(linha) for linha in capsys.readouterr().out.splitlines() if linha.strip()]
+    [tom] = [linha for linha in linhas if linha.get("evento") == "desambiguacao_tom"]
+    assert tom["modelo"] == "qwen.qwen3-vl-235b-a22b"
+    assert tom["temaSensivel"] is True and tom["emojiTirado"] is True and tom["comEmoji"] is False
+    assert tom["palavras"] == 10 and tom["terminaEmPergunta"] is True
+    linha_inteira = json.dumps(tom, ensure_ascii=False)
+    assert "pessoa presa" not in linha_inteira and "agendamento" not in linha_inteira, "o texto da pergunta nunca vai ao log"
+    assert "relato inventado" not in linha_inteira, "o relato nunca vai ao log"

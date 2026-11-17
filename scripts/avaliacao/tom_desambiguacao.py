@@ -25,7 +25,6 @@ import argparse
 import asyncio
 import json
 import os
-import re
 import sys
 import threading
 from concurrent.futures import ThreadPoolExecutor
@@ -38,6 +37,7 @@ import boto3  # type: ignore[import-untyped]  # sem stubs no projeto; a Maria ch
 
 from maria.ia.ajuste_qwen import SUFIXO_DESAMBIGUAR
 from maria.ia.desambiguar import ESQUEMA_PERGUNTA, CandidatoParaDesambiguar, montar_sistema, sem_emoji, tem_tema_sensivel
+from maria.ia.tom import TEM_EMOJI, medir_tom
 
 HAIKU = ("us.anthropic.claude-haiku-4-5-20251001-v1:0", "us-east-1")
 QWEN = ("qwen.qwen3-vl-235b-a22b", "sa-east-1")
@@ -91,27 +91,6 @@ RELATOS: list[tuple[str, tuple[str, str]]] = [
     ("Quero cancelar o atendimento de amanhã e saber se meu processo andou.", ("ver-meus-agendamentos", "ver-andamento-do-processo")),
 ]
 
-# Os nomes internos do catálogo (com hífen) e as palavras do sistema. Hífen de pronome ("proteger-se") não conta.
-NOMES_DO_CATALOGO = (
-    "pessoa-presa",
-    "violencia-domestica",
-    "problemas-plano-de-saude",
-    "questoes-de-saude",
-    "iniciar-novo-processo",
-    "ver-andamento-do-processo",
-    "ver-meus-agendamentos",
-    "ajuda-app-defensoria-rj",
-    "outros-assuntos",
-)
-TERMOS_TECNICOS = re.compile(
-    "|".join(re.escape(n) for n in NOMES_DO_CATALOGO) + r"|\btykhe\b|\bfluxo\b|\bcat[aá]logo\b|\bop[cç][aã]o \d", re.IGNORECASE
-)
-ACOLHIMENTO = re.compile(
-    r"\b(você|vc|pode|por favor|pra te ajudar|para te ajudar|me conta|me conte|entendi|certo|claro|vamos|ajudar|tudo bem|obrigad[ao])\b",
-    re.IGNORECASE,
-)
-TEM_EMOJI = re.compile("[\U0001f000-\U0001faff☀-➿⬀-⯿]")
-
 
 @dataclass
 class Resultado:
@@ -131,14 +110,15 @@ class Resultado:
 
 
 def regras(pergunta: str, sensivel: bool) -> dict[str, bool]:
+    """As mesmas regras que a Maria mede na produção (`maria.ia.tom`), com os nomes do JSON da comparação."""
+    m = medir_tom(pergunta, sensivel)
     return {
-        # O emoji depois do "?" ("…ou com a cirurgia? 😊") não tira a pergunta do fim.
-        "termina_em_pergunta": sem_emoji(pergunta).endswith("?"),
-        "ate_25_palavras": len(pergunta.split()) <= 25,
-        "sem_termo_tecnico": TERMOS_TECNICOS.search(pergunta) is None,
-        "oferece_as_alternativas": " ou " in f" {pergunta.lower()} ",
-        "sem_emoji_no_tema_sensivel": not (sensivel and TEM_EMOJI.search(pergunta)),
-        "tem_acolhimento": ACOLHIMENTO.search(pergunta) is not None,
+        "termina_em_pergunta": bool(m["terminaEmPergunta"]),
+        "ate_25_palavras": bool(m["ateLimiteDePalavras"]),
+        "sem_termo_tecnico": bool(m["semTermoTecnico"]),
+        "oferece_as_alternativas": bool(m["ofereceAlternativas"]),
+        "sem_emoji_no_tema_sensivel": bool(m["semEmojiNoTemaSensivel"]),
+        "tem_acolhimento": bool(m["temAcolhimento"]),
     }
 
 

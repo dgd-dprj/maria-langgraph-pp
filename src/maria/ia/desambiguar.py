@@ -13,6 +13,7 @@ from typing import Any, NotRequired, TypedDict, cast
 
 from maria.ia._estruturado import criar_modelo, definir_tokens, erro_para_log, esquema_objeto, invocar_estruturado
 from maria.ia.ajuste_qwen import SUFIXO_DESAMBIGUAR, SUFIXO_TOM_DESAMBIGUAR, com_ajuste_qwen
+from maria.ia.tom import medir_tom
 from maria.shared import _js
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
@@ -90,9 +91,23 @@ async def gerar_pergunta_desambiguacao(relato: str, candidatos: list[CandidatoPa
         resultado = await invocar_estruturado(modelo, ESQUEMA_PERGUNTA, montar_sistema(candidatos), relato)
         saida: dict[str, Any] = {}
         pergunta = _js.prop(resultado["parsed"], "pergunta")
+        sensivel = tem_tema_sensivel(candidatos)
         # #508: nos temas sensíveis, a pergunta sai sem emoji, mesmo que o modelo ponha um.
-        if isinstance(pergunta, str) and tem_tema_sensivel(candidatos):
-            pergunta = sem_emoji(pergunta)
+        emoji_tirado = False
+        if isinstance(pergunta, str) and sensivel:
+            limpa = sem_emoji(pergunta)
+            emoji_tirado = limpa != pergunta
+            pergunta = limpa
+        if isinstance(pergunta, str):
+            # #508 (2026-11-17): o tom da pergunta que a pessoa recebe, só em números, para o Visor. Sem o texto.
+            logger.info(
+                "[desambiguar] tom da pergunta",
+                **contexto_atual(),
+                evento="desambiguacao_tom",
+                modelo=os.environ.get("BEDROCK_MODEL_ID", ""),
+                emojiTirado=emoji_tirado,
+                **medir_tom(pergunta, sensivel),
+            )
         _js.definir(saida, "pergunta", pergunta)
         saida["viaIA"] = True
         definir_tokens(saida, resultado["raw"])
