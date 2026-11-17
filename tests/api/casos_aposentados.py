@@ -137,6 +137,12 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
         # #212 (decisão da Nicole, 2026-11-13): "Irmão(a)" virou "Irmão" e "Irmã"; a resposta "irmão" grava "Irmão".
         "pp_parentesco": _IRMAO_E_IRMA,
         "pp_get_concluido": _IRMAO_E_IRMA,
+        # #393, item 3 (decisão da Nicole, 2026-11-17): o município do órgão saiu da mensagem final da violência doméstica.
+        "vd_via_orq_3": CasoAposentado(
+            issue=393,
+            motivo="o município do órgão saiu da mensagem final da violência doméstica",
+            teste="tests/fluxos/test_mensagem_sem_municipio.py",
+        ),
         "vd_cpf": _CPF_PELA_CONTA,
         "vd_get_concluido": _CPF_PELA_CONTA,
         "vd_409_concluido": _CPF_PELA_CONTA,

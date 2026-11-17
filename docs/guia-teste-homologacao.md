@@ -91,6 +91,8 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 6. "Confirma que seus dados são…?" → **Sim**.
 
 **Esperado:** uma mensagem de encaminhamento com o **nome de um órgão** e um **número de protocolo**.
+- **Depois da #393 (item 3, 2026-11-17):** a mensagem **não mostra mais o município** do órgão, só o nome dele (por exemplo, "Vou encaminhar seu caso para <órgão>. Protocolo: …").
+- **Antes:** o município aparecia entre parênteses depois do nome do órgão.
 
 Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro. Isso vale para o CPF digitado na conversa; se a Tykhe já mandou o CPF, não há confirmação (#236).
 - **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Confirma que seus dados são: Maria S. S.?"). Se o cadastro tiver nome social, é ele que aparece, também mascarado.
