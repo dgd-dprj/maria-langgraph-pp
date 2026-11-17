@@ -9,10 +9,7 @@ uv run python scripts/coletar_arvore_perguntas_verde.py
 uv run python scripts/seed_fluxos_planejados.py
 ```
 
-> **Efeito ao iniciar, herdado de develop (#255).** Esses dois scripts inicializam o checkpointer do LangGraph antes de qualquer outra coisa, como a importação dos fluxos fazia em develop:
-> - sem `DATABASE_URL`, a primeira linha da saída é um aviso em JSON (`[checkpoint] DATABASE_URL ausente — usando MemorySaver`);
-> - com `DATABASE_URL`, o script **cria as tabelas de checkpoint** (no schema `checkpoint_py`) no banco de destino;
-> - com o banco inalcançável, o script morre com a pilha do psycopg, **sem** a mensagem `seed falhou:`/`crawl falhou:`. No Windows, o libpq não percebe a conexão recusada e pode ficar esperando sem limite: confira o `DATABASE_URL` antes.
+> **Sem checkpointer (#255, decisão da Nicole, 2026-11-17).** Os dois scripts não inicializam mais o checkpointer do LangGraph, como a importação dos fluxos fazia em develop: não criam tabelas de checkpoint, a saída não tem o aviso do MemorySaver, e qualquer falha (inclusive o banco inalcançável) sai com a mensagem seed falhou: ou crawl falhou: e código 1. No Windows, o libpq não percebe a conexão recusada e pode ficar esperando sem limite: confira o DATABASE_URL antes.
 
 ## `coletar_arvore_perguntas_verde.py` (issue #20)
 

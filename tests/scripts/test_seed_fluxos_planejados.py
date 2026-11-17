@@ -4,8 +4,8 @@ Develop não tem teste deste script. O `validar()` é provocado com cópias alte
 o arquivo de dados real não muda.
 """
 
+import asyncio
 import copy
-import json
 import os
 import subprocess
 import sys
@@ -89,63 +89,79 @@ def test_ordem_das_checagens_dentro_do_registro(dados: list[FluxoPlanejado]) -> 
     assert "repetido dentro do próprio seed" in _mensagem(dados)
 
 
+# #255 (decisão da Nicole, 2026-11-17): o seed não inicializa mais o checkpointer do LangGraph. Em develop, a importação
+# dos fluxos criava as tabelas de checkpoint e, com o banco fora, matava o processo antes do "seed falhou:" (B5).
+
+
+def _checkpointer_proibido(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Qualquer chamada ao checkpointer quebra o teste: o seed não deve tocar nele."""
+
+    async def proibido() -> None:
+        raise AssertionError("o seed não pode inicializar o checkpointer (#255)")
+
+    from maria.shared import checkpointer
+
+    monkeypatch.setattr(checkpointer, "inicializar_checkpointer", proibido)
+    monkeypatch.setattr(checkpointer, "fechar_checkpointer", proibido)
+
+
 def test_sem_database_url(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    _checkpointer_proibido(monkeypatch)
     monkeypatch.setenv("DATABASE_URL", "")  # definida e vazia: o load_dotenv não a substitui
     assert seed_mod.main() == 1
     captura = capsys.readouterr()
-    # B5: como em develop, o checkpointer nasce antes da guarda do seed e loga o aviso do MemorySaver.
-    (linha,) = captura.out.splitlines()
-    assert json.loads(linha)["level"] == 40
-    assert json.loads(linha)["msg"] == "[checkpoint] DATABASE_URL ausente — usando MemorySaver (não persiste)"
+    # Sem a linha do MemorySaver no stdout: o checkpointer não nasce mais.
+    assert captura.out == ""
     assert captura.err.splitlines()[0] == "seed falhou: Error: DATABASE_URL obrigatório pra rodar o seed"
 
 
-def _checkpointer_falso(monkeypatch: pytest.MonkeyPatch, ordem: list[str], erro: Exception | None = None) -> None:
-    async def inicializar() -> None:
-        ordem.append("checkpointer")
-        if erro is not None:
-            raise erro
-
-    async def fechar() -> None:
-        ordem.append("fechar checkpointer")
-
-    monkeypatch.setattr(seed_mod, "inicializar_checkpointer", inicializar)
-    monkeypatch.setattr(seed_mod, "fechar_checkpointer", fechar)
-
-
 def test_valida_antes_de_conectar(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str], dados: list[FluxoPlanejado]) -> None:
-    # Ordem de develop: checkpointer (na importação dos fluxos), validar(), e só então a conexão do seed.
-    ordem: list[str] = []
-    _checkpointer_falso(monkeypatch, ordem)
+    # validar() vem antes da conexão do seed, e nada do checkpointer acontece.
+    _checkpointer_proibido(monkeypatch)
     monkeypatch.setenv("DATABASE_URL", "postgresql://ninguem@127.0.0.1:1/nada")
     monkeypatch.setattr(seed_mod, "carregar_dados", lambda: dados[:73])
     assert seed_mod.main() == 1
-    assert ordem == ["checkpointer", "fechar checkpointer"]
     assert capsys.readouterr().err.splitlines()[0] == (
         "seed falhou: Error: esperava 74 registros no seed, achou 73 — dado mudou? confirmar antes de seguir"
     )
 
 
-def test_falha_do_checkpointer_escapa_sem_o_prefixo(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    # B5: em develop, a falha vem do top-level await da importação, fora do `.catch` do seed.
-    ordem: list[str] = []
-    _checkpointer_falso(monkeypatch, ordem, ConnectionRefusedError("connect ECONNREFUSED 127.0.0.1:1"))
+def test_banco_inalcancavel_sai_com_o_prefixo_do_seed(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    # A falha da conexão passa pelo "seed falhou:" e dá código 1 (antes, escapava sem o prefixo).
+    _checkpointer_proibido(monkeypatch)
+
+    async def recusa(*_: object, **__: object) -> None:
+        raise ConnectionRefusedError("connect ECONNREFUSED 127.0.0.1:1")
+
+    monkeypatch.setattr(psycopg.AsyncConnection, "connect", recusa)
     monkeypatch.setenv("DATABASE_URL", "postgresql://ninguem@127.0.0.1:1/nada")
-    with pytest.raises(ConnectionRefusedError):
-        seed_mod.main()
-    assert ordem == ["checkpointer"]
-    assert "seed falhou" not in capsys.readouterr().err
+    assert seed_mod.main() == 1
+    assert capsys.readouterr().err.splitlines()[0] == "seed falhou: ConnectionRefusedError: connect ECONNREFUSED 127.0.0.1:1"
 
 
 @pytest.mark.skipif(sys.platform == "win32", reason="o libpq do Windows não percebe a conexão recusada sem connect_timeout")
-def test_banco_inalcancavel_morre_na_hora_sem_o_prefixo() -> None:
-    # B5 de ponta a ponta, com o processo de verdade, como o `node scripts/seedFluxosPlanejados.ts` de develop.
+def test_banco_inalcancavel_com_o_processo_de_verdade() -> None:
     env = {**os.environ, "DATABASE_URL": "postgresql://ninguem@127.0.0.1:1/nada"}
     script = Path(seed_mod.__file__)
     r = subprocess.run([sys.executable, str(script)], env=env, capture_output=True, text=True, timeout=60, check=False)
     assert r.returncode == 1
-    assert "seed falhou" not in r.stderr
-    assert "OperationalError" in r.stderr
+    assert r.stderr.startswith("seed falhou: OperationalError")
+    assert "MemorySaver" not in r.stdout
+
+
+@pytest.mark.postgres
+async def test_seed_nao_cria_tabela_de_checkpoint(
+    banco_de_negocio: psycopg.AsyncConnection[TupleRow], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #255: rodar o seed de ponta a ponta (main) não cria o schema nem as tabelas de checkpoint do LangGraph.
+    await banco_de_negocio.execute("DROP SCHEMA IF EXISTS checkpoint_py CASCADE")
+    monkeypatch.setattr(seed_mod, "load_dotenv", lambda: None)
+    assert await asyncio.to_thread(seed_mod.main) == 0
+    cursor = await banco_de_negocio.execute(
+        "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'checkpoint_py' OR table_name LIKE 'checkpoint%'"
+    )
+    linha = await cursor.fetchone()
+    assert linha is not None and linha[0] == 0
 
 
 @pytest.mark.postgres

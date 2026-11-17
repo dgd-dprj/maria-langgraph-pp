@@ -38,7 +38,6 @@ from maria.shared._js import (
     trim_js,
     verdadeiro,
 )
-from maria.shared.checkpointer import fechar_checkpointer, inicializar_checkpointer
 from maria.shared.fluxos_planejados_db import fechar_fluxos_planejados_store, listar_fluxos_planejados
 from maria.shared.perguntas_db import AssuntoVerde, PerguntaArvore, fechar_perguntas_store, obter_perguntas_store
 
@@ -276,11 +275,9 @@ async def principal() -> None:
 
 
 async def _executar() -> int:
-    # Em develop, importar src/fluxos/index.js já cria o checkpointer (top-level await nos
-    # grafos), antes de qualquer guarda do script: loga o aviso do MemorySaver, ou conecta o
-    # PostgresSaver e cria as tabelas de checkpoint. Uma falha aqui não passa pelo
-    # "crawl falhou:": o processo morre com a pilha e código 1 (spec 08, achado B5).
-    await inicializar_checkpointer()
+    # #255 (decisão da Nicole, 2026-11-17): a coleta não inicializa mais o checkpointer do LangGraph. Em develop
+    # (TypeScript), importar os fluxos já criava as tabelas de checkpoint e, com o banco fora, matava o processo
+    # antes do "crawl falhou:"; a tradução reproduzia isso de propósito. Agora qualquer falha passa pelo prefixo.
     try:
         await principal()
     except Exception as erro:
@@ -290,8 +287,6 @@ async def _executar() -> int:
         print(f"crawl falhou: {nome}: {erro}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         return 1
-    finally:
-        await fechar_checkpointer()
     return 0
 
 

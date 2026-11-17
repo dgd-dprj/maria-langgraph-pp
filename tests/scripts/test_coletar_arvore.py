@@ -394,26 +394,28 @@ def _categoria_b_boa() -> dict[str, Resposta]:
     }
 
 
-def _checkpointer_falso(monkeypatch: pytest.MonkeyPatch, ordem: list[str], erro: Exception | None = None) -> None:
-    async def inicializar() -> None:
-        ordem.append("checkpointer")
-        if erro is not None:
-            raise erro
+# #255 (decisão da Nicole, 2026-11-17): a coleta não inicializa mais o checkpointer do LangGraph. Em develop, a importação
+# dos fluxos criava as tabelas de checkpoint antes das guardas do script e, com o banco fora, matava o processo sem o
+# "crawl falhou:" (B5).
 
-    async def fechar() -> None:
-        ordem.append("fechar checkpointer")
 
-    monkeypatch.setattr(crawler, "inicializar_checkpointer", inicializar)
-    monkeypatch.setattr(crawler, "fechar_checkpointer", fechar)
+def _checkpointer_proibido(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Qualquer chamada ao checkpointer quebra o teste: a coleta não deve tocar nele."""
+
+    async def proibido() -> None:
+        raise AssertionError("a coleta não pode inicializar o checkpointer (#255)")
+
+    from maria.shared import checkpointer
+
+    monkeypatch.setattr(checkpointer, "inicializar_checkpointer", proibido)
+    monkeypatch.setattr(checkpointer, "fechar_checkpointer", proibido)
 
 
 def test_sem_token(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    ordem: list[str] = []
-    _checkpointer_falso(monkeypatch, ordem)
+    _checkpointer_proibido(monkeypatch)
     monkeypatch.setenv("VERDE_JWT_TOKEN", "")
     monkeypatch.setenv("DATABASE_URL", "postgresql://ninguem@127.0.0.1:1/nada")
     assert crawler.main() == 1
-    assert ordem == ["checkpointer", "fechar checkpointer"]
     captura = capsys.readouterr()
     assert captura.out == ""
     assert captura.err.splitlines()[0] == (
@@ -422,27 +424,16 @@ def test_sem_token(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixtur
 
 
 def test_sem_database_url(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    _checkpointer_proibido(monkeypatch)
     monkeypatch.setenv("VERDE_JWT_TOKEN", "t")
     monkeypatch.setenv("DATABASE_URL", "")
     assert crawler.main() == 1
     captura = capsys.readouterr()
-    # B5: o checkpointer nasce antes das guardas do script e loga o aviso do MemorySaver.
-    (linha,) = captura.out.splitlines()
-    assert json.loads(linha)["msg"] == "[checkpoint] DATABASE_URL ausente — usando MemorySaver (não persiste)"
+    # Sem a linha do MemorySaver no stdout: o checkpointer não nasce mais.
+    assert captura.out == ""
     assert captura.err.splitlines()[0] == (
         "crawl falhou: Error: DATABASE_URL obrigatório — sem isso o resultado do crawl não fica salvo em lugar nenhum"
     )
-
-
-def test_falha_do_checkpointer_vem_antes_da_guarda_do_token(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    # B5: em develop, a importação dos fluxos falha antes de o main() checar o token.
-    ordem: list[str] = []
-    _checkpointer_falso(monkeypatch, ordem, ConnectionRefusedError("connect ECONNREFUSED 127.0.0.1:1"))
-    monkeypatch.setenv("VERDE_JWT_TOKEN", "")
-    with pytest.raises(ConnectionRefusedError):
-        crawler.main()
-    assert ordem == ["checkpointer"]
-    assert "crawl falhou" not in capsys.readouterr().err
 
 
 def test_fluxo_de_violencia_domestica_tem_categoria() -> None:
