@@ -19,8 +19,10 @@ from langgraph.checkpoint.memory import InMemorySaver
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
 
+import maria.ia.classificar as modulo_classificar
 from maria.fluxos import FluxoConfig
 from maria.fluxos._fabrica import FabricaGrafo
+from maria.ia import _estruturado
 from maria.ia.classificar import classificar_entre_opcoes
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.verde import consultar_pessoa_por_cpf
@@ -122,8 +124,13 @@ def montar(defeito: str | None = None) -> FluxoSobConferencia:
         resposta: str = interrupt({"pergunta": _js.coalesce(state.get("perguntaAtualTexto"), TEXTO_RELATO), "tipo": "texto"})
         if os.environ.get("APP_ENV") == "test":
             return {"relato": resposta, "categoria": "outro"}
+        if defeito == "IA sem conferir a lista":
+            # O defeito: chamar a IA crua, sem a validação do `classificar` (#212), e usar o valor sem conferir.
+            esquema = _estruturado.esquema_objeto({"escolhaId": {"type": "string", "enum": ["nenhum", *CATEGORIAS]}}, ["escolhaId"])
+            cru = await _estruturado.invocar_estruturado(modulo_classificar.modelo, esquema, "Classifique o relato.", resposta)
+            return {"relato": resposta, "categoria": _js.prop(cru["parsed"], "escolhaId")}
         escolha = (await classificar_entre_opcoes(resposta, "Classifique o relato.", CATEGORIAS)).get("escolhaId")
-        if defeito != "IA sem conferir a lista" and escolha not in CATEGORIAS:
+        if escolha not in CATEGORIAS:
             escolha = "outro"
         return {"relato": resposta, "categoria": escolha}
 
