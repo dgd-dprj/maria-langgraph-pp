@@ -16,7 +16,7 @@ do filtro. O nome de cada campo descartado vai para o log, nunca o valor.
 
 from __future__ import annotations
 
-from typing import Any, Protocol
+from typing import Any
 
 # Desfechos, resultados de consulta, confirmações e marcas internas: nunca vêm de fora.
 CAMPOS_INTERNOS = frozenset(
@@ -50,18 +50,14 @@ CAMPOS_INTERNOS = frozenset(
 PREFIXOS_INTERNOS = ("tentativas", "recusas", "querTentarNovamente", "digitou", "perguntaAtual")
 
 
-class _Log(Protocol):
-    def warn(self, mensagem: str, **campos: Any) -> None: ...
-
-
 def eh_interno(campo: str) -> bool:
     return campo in CAMPOS_INTERNOS or campo.startswith(PREFIXOS_INTERNOS)
 
 
-def sem_campos_internos(dados: Any, log: _Log, origem: str) -> Any:
+def sem_campos_internos(dados: Any, log: Any, origem: str) -> Any:
     """`dadosConhecidos` sem os campos internos dos fluxos. O que não é dicionário volta igual (a rota
     trata como hoje). Cada campo descartado vai para o log pelo nome, para a Tykhe saber que mandou algo
-    fora do contrato."""
+    fora do contrato. `log` é o logger da requisição (`LogRequisicao`); só o `warn` é usado."""
     if not isinstance(dados, dict):
         return dados
     descartados = sorted(campo for campo in dados if isinstance(campo, str) and eh_interno(campo))
