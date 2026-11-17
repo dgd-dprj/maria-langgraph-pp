@@ -62,6 +62,10 @@ def test_tema_sensivel(candidatos: list[CandidatoParaDesambiguar], sensivel: boo
         ("Certo 🙏, você já tem um processo?", "Certo, você já tem um processo?"),
         ("Tudo bem ❤️ Me conta: é sobre a agenda?", "Tudo bem Me conta: é sobre a agenda?"),
         ("Sem emoji nenhum?", "Sem emoji nenhum?"),
+        # Tom de pele e junção (família): continuam saindo depois da expressão reescrita para o CodeQL (#502).
+        ("Oi 👋🏽, é sobre a visita?", "Oi, é sobre a visita?"),
+        ("Família 👨‍👩‍👧 presa? Não: é sobre o processo?", "Família presa? Não: é sobre o processo?"),
+        ("Estrela ⭐ e sol ☀️ saem.", "Estrela e sol saem."),
     ],
 )
 def test_sem_emoji(texto: str, esperado: str) -> None:
