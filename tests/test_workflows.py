@@ -325,7 +325,7 @@ def test_release_publica_e_redeploya_so_em_sao_paulo() -> None:
     # #463: a Virgínia saiu na #500; o release roda no cluster e no service de São Paulo.
     env = _carregar("deploy-release.yml")["env"]
     assert env["AWS_REGION"] == "sa-east-1"
-    assert ".ecr.sa-east-1.amazonaws.com/" in env["ECR_REPO"]
+    assert env["ECR_REPO"] == "185327115563.dkr.ecr.sa-east-1.amazonaws.com/maria-langgraph-pp"
     assert (env["ECS_CLUSTER"], env["ECS_SERVICE"]) == ("maria-langgraph-pp-sp", "api-release-sp")
     texto = (WORKFLOWS / "deploy-release.yml").read_text(encoding="utf-8")
     assert "us-east-1" not in texto.replace("Virgínia", "")
@@ -340,7 +340,12 @@ def test_release_nao_redeploya_com_desired_count_zero() -> None:
 def test_verificar_token_usa_a_regiao_de_cada_ambiente() -> None:
     job = _carregar("verificar-token-verde.yml")["jobs"]["verificar"]
     por_ambiente = {m["ambiente"]: m for m in job["strategy"]["matrix"]["include"]}
-    assert por_ambiente["prod"]["aws_region"] == "us-east-1"
+    assert por_ambiente["prod"] == {
+        "ambiente": "prod",
+        "ecs_service": "api-prod-sp",
+        "ecs_cluster": "maria-langgraph-pp-sp",
+        "aws_region": "sa-east-1",
+    }
     assert por_ambiente["release"] == {
         "ambiente": "release",
         "ecs_service": "api-release-sp",
@@ -348,3 +353,19 @@ def test_verificar_token_usa_a_regiao_de_cada_ambiente() -> None:
         "aws_region": "sa-east-1",
     }
     assert "${{ matrix.aws_region }}" in str(job["steps"])
+
+
+def test_producao_publica_e_redeploya_so_em_sao_paulo() -> None:
+    # #509: depois do corte a produção roda no cluster e no service de São Paulo; a Virgínia saiu.
+    env = _carregar("deploy-prod.yml")["env"]
+    assert env["AWS_REGION"] == "sa-east-1"
+    assert env["ECR_REPO"] == "185327115563.dkr.ecr.sa-east-1.amazonaws.com/maria-langgraph-pp"
+    assert (env["ECS_CLUSTER"], env["ECS_SERVICE"]) == ("maria-langgraph-pp-sp", "api-prod-sp")
+    texto = (WORKFLOWS / "deploy-prod.yml").read_text(encoding="utf-8")
+    assert "us-east-1" not in texto.replace("Virgínia", "")
+
+
+def test_producao_nao_redeploya_com_desired_count_zero() -> None:
+    passos = _passos("deploy-prod.yml", "deploy")
+    forcar = next(p for p in passos if "Forçar novo deployment" in p.get("name", ""))["run"]
+    assert "desiredCount" in forcar and "-gt 0" in forcar

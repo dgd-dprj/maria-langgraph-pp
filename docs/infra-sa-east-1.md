@@ -100,3 +100,20 @@ Fora do escopo desta etapa: produção, Lambda `maria-email-nudecon`, DynamoDB d
 
 ### Esteira do release em São Paulo (#463)
 O `deploy-release.yml` publica a tag `release` no ECR de `sa-east-1`, redeploya o service `api-release-sp` (só se `desiredCount > 0`) e confere o token do Verde no segredo de São Paulo. O `verificar-token-verde.yml` renova o token de cada ambiente na região dele (o release em `sa-east-1`). A role do GitHub (OIDC, a mesma da Virgínia, IAM é global) ganha a política `deploy-sp` em `infra/terraform-sp/github-oidc.tf`: aplicar por `-target=aws_iam_role_policy.github_actions_deploy_sp`, com OK escrito. **Sem esse apply, o deploy e a verificação do release falham com `AccessDenied`.**
+
+## Produção em São Paulo (#509): código pronto, nada aplicado
+
+`infra/terraform-sp/prod.tf` cria, ao lado do release e sem trocar tráfego: service `api-prod-sp` (`prod_desired_count` = 0), task definition com `MARIA_AMBIENTE=producao` fixo (o stack tem `environment = release`, e a produção nunca herda isso), target group, regra de prioridade 10 no ALB (só quem manda `X-Maria-Env: prod`; o padrão continua o release), segredos `maria-langgraph-pp-prod/app` e `/email-nudecon` (mesmas chaves da produção da Virgínia, sem WhatsApp) e roles `maria-langgraph-pp-prod-sp-ecs-execution` e `-task`. A política `deploy-sp` da role do GitHub passa a cobrir também o service e o segredo de produção.
+
+Ordem (cada passo só com OK escrito do Ícaro, por `-target`):
+1. Segredos e roles de produção; o Ícaro preenche os segredos por `put-secret-value` (o `DATABASE_URL` aponta para o Proxy de São Paulo, banco `maria_langgraph_pp`).
+2. Log group, task definition, target group, regra do ALB e service (0 tasks); depois `-target=aws_iam_role_policy.github_actions_deploy_sp`.
+3. Esteira da produção publicando nos dois ECRs (PR à parte); imagem `latest` no ECR de São Paulo.
+4. Subir 1 task, testar pelo ALB com o cabeçalho (`/health` e plano de saúde, incluindo falha do Verde caindo no humano).
+5. CloudFront novo da produção (`aws_cloudfront_distribution.api_prod_sp`, em `prod.tf`, #509): origem no ALB de São Paulo, mandando `X-Maria-Env: prod`. A URL dele (`api_https_url_prod_sp`) é a que vai na Tykhe; o CloudFront da produção da Virgínia não muda. Aplicar por `-target=aws_cloudfront_distribution.api_prod_sp`, com OK escrito.
+6. Corte, em janela: parar a escrita na Virgínia, dump e restore do banco `maria_langgraph_pp` no RDS de São Paulo (o snapshot de 2026-11-11 está desatualizado), subir as tasks de produção (`desired_count` > 0) e o Ícaro trocar a URL na Tykhe. Reversão: voltar a URL antiga na Tykhe (o que foi escrito em São Paulo depois do corte não volta sozinho).
+
+Pontos abertos: o Verde de produção aceitar o IP de saída 18.228.145.80; o apply pendente do prod na Virgínia (#324/#405) mexe na trust da role do GitHub, que São Paulo também usa; qualquer chamada direta ao ALB com o cabeçalho cai na produção (como já era na Virgínia: o ALB só aceita o CloudFront, mas não distingue qual).
+
+### Esteira da produção em São Paulo (#509, só mesclar no corte)
+O `deploy-prod.yml` publica `latest` no ECR de `sa-east-1` e redeploya `api-prod-sp` (só se `desiredCount > 0`), e o `verificar-token-verde.yml` renova o token do prod no segredo de São Paulo. **Mesclar só no corte** (banco migrado e origem do CloudFront trocada): enquanto a Tykhe estiver na Virgínia, um push em `main` não atualizaria a produção de lá. Antes de ir para `main`, conferir `desired_count` do `api-prod-sp` maior que 0 e os segredos de prod preenchidos.

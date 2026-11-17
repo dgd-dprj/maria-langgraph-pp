@@ -18,18 +18,19 @@ permissions:
   contents: read
 
 env:
-  AWS_REGION: us-east-1
-  ECR_REPO: 185327115563.dkr.ecr.us-east-1.amazonaws.com/maria-langgraph-pp
-  IMAGE_TAG: latest # bate com variable.image_tag no Terraform
-  ECS_CLUSTER: maria-langgraph-pp
-  ECS_SERVICE: api
+  # #509: a produção roda em São Paulo (sa-east-1) desde o corte; a da Virgínia foi desligada.
+  AWS_REGION: sa-east-1
+  ECR_REPO: 185327115563.dkr.ecr.sa-east-1.amazonaws.com/maria-langgraph-pp
+  IMAGE_TAG: latest # bate com prod_image_tag no Terraform de São Paulo
+  ECS_CLUSTER: maria-langgraph-pp-sp
+  ECS_SERVICE: api-prod-sp
 
 jobs:
   test:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: astral-sh/setup-uv@v6
+      - uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
       # Python 3.12, de .python-version (mesma versão do pyproject.toml e do Dockerfile).
       - run: uv sync --frozen
       - run: uv run ruff check
@@ -42,25 +43,36 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: aws-actions/configure-aws-credentials@v4
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
         with:
           role-to-assume: ${{ vars.AWS_ROLE_ARN }}
           aws-region: ${{ env.AWS_REGION }}
 
-      - uses: aws-actions/amazon-ecr-login@v2
+      - uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
 
       - name: Build e push da imagem
         run: |
           docker build -t "$ECR_REPO:$IMAGE_TAG" .
           docker push "$ECR_REPO:$IMAGE_TAG"
 
+      # Com desiredCount 0 (service criado antes da imagem existir) não há task para trocar: publica
+      # a imagem e segue, sem forçar deployment.
       - name: Forçar novo deployment no ECS
         run: |
-          aws ecs update-service \
+          DESEJADO=$(aws ecs describe-services \
             --cluster "$ECS_CLUSTER" \
-            --service "$ECS_SERVICE" \
-            --force-new-deployment \
-            --region "$AWS_REGION"
+            --services "$ECS_SERVICE" \
+            --region "$AWS_REGION" \
+            --query 'services[0].desiredCount' --output text)
+          if [ "$DESEJADO" -gt 0 ]; then
+            aws ecs update-service \
+              --cluster "$ECS_CLUSTER" \
+              --service "$ECS_SERVICE" \
+              --force-new-deployment \
+              --region "$AWS_REGION"
+          else
+            echo "::notice::$ECS_SERVICE com desiredCount 0: imagem publicada, sem deployment"
+          fi
 
       - name: Esperar o serviço estabilizar
         run: |
