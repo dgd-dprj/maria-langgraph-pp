@@ -42,10 +42,12 @@ CAMPOS_INTERNOS = frozenset(
         "dadosApenado",
         "dadosPessoa",
         "dadosOutraPessoa",
-        "perguntaParentesco",
-        "opcoesParentesco",
     }
 )
+# Ficam fora da lista, de propósito, os campos que o próprio orquestrador manda em `assuntosPendentes[].dadosConhecidos`
+# para a Tykhe repassar ao abrir o próximo assunto (#442, #438, #489): `parentesco`, `perguntaParentesco` e
+# `opcoesParentesco` (pessoa presa), `ehVitima` e `vitimaPeloRelato` (violência doméstica), `paraSi` e `paraSiPeloRelato`
+# (plano de saúde).
 # Contadores de tentativa, respostas de "tentar de novo", marcas de "digitou direto" e a pergunta atual.
 PREFIXOS_INTERNOS = ("tentativas", "recusas", "querTentarNovamente", "digitou", "perguntaAtual")
 

@@ -50,6 +50,24 @@ def test_dado_da_pessoa_passa(campo: str) -> None:
     assert not eh_interno(campo)
 
 
+@pytest.mark.parametrize("campo", ["perguntaParentesco", "opcoesParentesco", "ehVitima", "vitimaPeloRelato", "paraSi", "paraSiPeloRelato"])
+def test_o_que_o_orquestrador_manda_para_o_proximo_assunto_passa(campo: str) -> None:
+    """O orquestrador põe estes campos em `assuntosPendentes[].dadosConhecidos`, e a Tykhe os repassa ao abrir o
+    próximo assunto (#442, #489): descartá-los quebraria a pergunta curta do irmão e o "para quem é"."""
+    assert not eh_interno(campo)
+
+
+def test_dados_de_cada_assunto_pendente_passam_pelo_filtro() -> None:
+    from maria.fluxos import ID_PESSOA_PRESA
+    from maria.orquestrador.fila import dados_do_relato
+
+    log = _LogFalso()
+    dados = dados_do_relato(ID_PESSOA_PRESA, "meu irmão foi preso", {})
+    assert dados, "o relato devia trazer a pergunta curta do irmão"
+    assert sem_campos_internos(dados, log, "atendimentos") == dados
+    assert log.avisos == []
+
+
 def test_log_traz_so_os_nomes_e_nunca_os_valores() -> None:
     log = _LogFalso()
     saida = sem_campos_internos({"cpf": "52998224725", "encaminhamentoId": 424242, "statusFinal": "concluido"}, log, "atendimentos")
