@@ -25,6 +25,14 @@ Neste guia, "WhatsApp" é o número de teste da Maria, e "Tykhe" é o fluxo da T
 
 **O foco do teste é o ambiente, e não a tradução.** Leia a seção 1 antes de começar: ela diz o que já foi conferido e onde vale olhar.
 
+> **O que o QA automático já confere (desde 2026-11-17, #502).** Depois de cada publicação do release a partir da `staging`, o QA da staging roda sozinho no GitHub Actions e comenta o resumo no último PR que entrou na `staging`:
+> - a publicação é do commit atual da `staging`, e o release responde (`/health` e `/docs`);
+> - o orquestrador com vários assuntos, a ordem, os assuntos em aberto e o encerrar;
+> - o CPF recusado antes do Verde (#497);
+> - nenhum erro no log do release durante o teste.
+>
+> **Continua com a equipe:** os fluxos que consultam pessoa no Verde (pessoa presa até o fim, violência doméstica e plano de saúde) e o fim da conversa depois deles. O QA nunca procura RG nem CPF no Verde de homologação, porque ele tem cópia de dados reais. Se o comentário do QA disser que algo falhou, a subida para a `main` espera a correção.
+
 ## 1. O que já foi conferido e o que falta
 
 ### Já conferido: a lógica dos dois fluxos
