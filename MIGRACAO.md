@@ -83,6 +83,13 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - o CodeQL roda em todo PR, na `develop` e toda semana.
 - **QA da staging no Actions (#502, depois da #463):** contra o release de São Paulo, com teto de US$ 0,10 por rodada. Se passar, o QA para e avisa a Nicole e o Ícaro, para os dois decidirem se vale passar o valor naquela verificação.
 - **#503:** a rotina com IA percorre as 6 fases, também com teto de US$ 0,10 por investigação e o mesmo aviso. O patch fica como artefato, sem PR automático, e a issue pública nunca leva conteúdo de log. O custo é medido com `count_tokens` antes de ligar.
+  - **17/11, custo medido** (aprovado, US$ 0,0541): o `count_tokens` não aceita o Qwen, e a medida veio do `usage` de uma investigação de teste. Por investigação, de US$ 0,011 a 0,015 só com o trecho alterado, e de US$ 0,025 a 0,058 com os arquivos inteiros, no preço do Haiku.
+  - **17/11, decisões da Nicole:** o Qwen3 Coder 30B (achou a causa e o patch em cerca de 1 s por fase); na hipótese, só o trecho alterado; teto de US$ 0,10.
+  - **17/11, implementada** (`scripts/depuracao/investigar.py`, `.github/workflows/depuracao.yml`):
+    - o gatilho é o CI de um PR **do próprio repositório** que falhou (nunca fork), pelo papel `nicole-github-actions`;
+    - o bisect, a reprodução e a conferência dos patches rodam sem IA.
+  - **Validada** (duas rodadas aprovadas, US$ 0,0128 e US$ 0,0113, mais uma repetição gratuita com as respostas salvas): as 6 fases até "correção pronta", com o culpado certo. As rodadas acharam e corrigiram três defeitos da própria rotina: o id de teste com parâmetro, o patch sem contexto depois com o CRLF no Windows, e a frase nova do bisect.
+  - **Decisão da Nicole:** fica na `develop` e só sobe para a `staging` quando ela chamar.
 - **Achados de 16/11 (comentados na #463):**
   - o release da Virgínia já foi apagado, mas o `deploy-release.yml` ainda publica lá;
   - o release de São Paulo, o que a Tykhe usa, roda o código de 11/11, sem a #495 e a #497.
