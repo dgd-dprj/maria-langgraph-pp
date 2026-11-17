@@ -24,7 +24,6 @@ import argparse
 import json
 import os
 import re
-import shlex
 import shutil
 import subprocess
 import sys
@@ -166,17 +165,17 @@ def isolar(pasta: Path, base: str, head: str, testes: list[str]) -> str | None:
     """O commit culpado pelo `git bisect run`, entre a base (boa) e o head (ruim)."""
     if not testes or not base or base == head:
         return None
-    script = pasta / ".bisect-depuracao.sh"
-    script.write_text("#!/bin/sh\n" + shlex.join(comando_dos_testes(testes)) + " >/dev/null 2>&1\n", encoding="utf-8")
-    script.chmod(0o755)
     try:
         rodar(["git", "bisect", "start", head, base], pasta)
-        saida = rodar(["git", "bisect", "run", str(script)], pasta, tempo=1800).stdout
-        achou = re.search(r"^([0-9a-f]{7,40}) is the first bad commit", saida, re.MULTILINE)
-        return achou.group(1)[:7] if achou else None
+        # O pytest direto, sem script de shell: funciona igual no Linux e no Windows (validação de 17/11).
+        if rodar(["git", "bisect", "run", *comando_dos_testes(testes)], pasta, tempo=1800).returncode != 0:
+            return None
+        # A referência que o bisect grava, e não a frase da saída: o git novo escreve "the first 'bad' commit",
+        # com aspas, e a frase pode vir traduzida (validação de 17/11).
+        culpado = rodar(["git", "rev-parse", "--short=7", "refs/bisect/bad"], pasta).stdout.strip()
+        return culpado or None
     finally:
         rodar(["git", "bisect", "reset"], pasta)
-        script.unlink(missing_ok=True)
 
 
 def diff_do_commit(pasta: Path, commit: str) -> str:
@@ -192,13 +191,17 @@ def aplicar(pasta: Path, arquivo: Path) -> bool:
     """O `git apply`, e, se a IA errou o número das linhas, o `patch` com folga no contexto."""
     if rodar(["git", "apply", "--recount", "--whitespace=nowarn", str(arquivo)], pasta).returncode == 0:
         return True
+    # A IA às vezes manda o trecho só com o contexto de antes da linha alterada; sem contexto depois, o git
+    # exige que a mudança esteja no fim do arquivo. `--unidiff-zero` tira essa exigência (validação de 17/11).
+    if rodar(["git", "apply", "--recount", "--unidiff-zero", "--whitespace=nowarn", str(arquivo)], pasta).returncode == 0:
+        return True
     return bool(shutil.which("patch")) and rodar(["patch", "-p1", "--forward", "--fuzz=3", "-i", str(arquivo)], pasta).returncode == 0
 
 
 def conferir_patch(pasta: Path, patch: str, testes: list[str]) -> tuple[bool, bool]:
     """Aplica o patch na cópia de trabalho, roda os testes que falhavam e desfaz. (aplicou, testes passaram)."""
     arquivo = pasta / ".patch-depuracao.diff"
-    arquivo.write_text(patch, encoding="utf-8")
+    arquivo.write_text(patch, encoding="utf-8", newline="\n")
     try:
         if not aplicar(pasta, arquivo):
             return False, False
@@ -300,7 +303,7 @@ def investigar(pasta: Path, falha: Falha, base: str, head: str, execucao: str, i
             inv.parou = f"{HIPOTESES} hipóteses falharam: precisa de pessoa"
             return inv
         arquivo = pasta / ".patch-depuracao.diff"
-        arquivo.write_text(inv.patch, encoding="utf-8")
+        arquivo.write_text(inv.patch, encoding="utf-8", newline="\n")
         try:
             aplicar(pasta, arquivo)
             inv.suite_passou = rodar(["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider"], pasta, tempo=1800).returncode == 0
@@ -444,7 +447,7 @@ def main() -> int:
     destino = Path(opcoes.saida)
     destino.mkdir(parents=True, exist_ok=True)
     if inv.patch:
-        (destino / "patch.diff").write_text(inv.patch, encoding="utf-8")
+        (destino / "patch.diff").write_text(inv.patch, encoding="utf-8", newline="\n")
     (destino / "investigacao.json").write_text(
         json.dumps(asdict(inv) | {"chamadas": ia.orcamento.chamadas}, ensure_ascii=False, indent=1), encoding="utf-8"
     )
