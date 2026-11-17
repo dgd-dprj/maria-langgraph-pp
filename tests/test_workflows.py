@@ -137,6 +137,26 @@ def test_depuracao_so_roda_em_falha_de_pr_do_proprio_repositorio() -> None:
     assert "secrets." not in texto
 
 
+def test_qa_da_staging_roda_depois_da_publicacao_e_so_le_a_aws() -> None:
+    # #502, parte C: depois do "Deploy — release (homolog)" da staging, com sucesso; a chave do release vem do
+    # segredo RELEASE_API_KEY, que só vai para o passo do QA e nunca é impressa.
+    workflow = _carregar("qa-staging.yml")
+    assert _gatilhos(workflow)["workflow_run"] == {
+        "workflows": ["Deploy — release (homolog)"],
+        "types": ["completed"],
+        "branches": ["staging"],
+    }
+    job = workflow["jobs"]["qa"]
+    assert "github.event.workflow_run.conclusion == 'success'" in job["if"]
+    assert job["permissions"] == {"contents": "read", "actions": "read", "pull-requests": "write", "id-token": "write"}
+    passos = {p.get("name") or p.get("uses", ""): p for p in job["steps"]}
+    assert passos["QA do release"]["env"]["RELEASE_API_KEY"] == "${{ secrets.RELEASE_API_KEY }}"
+    assert sum("secrets." in json.dumps(p) for p in job["steps"]) == 1, "o segredo vai só para o passo do QA"
+    texto = json.dumps(job)
+    assert "vars.AWS_ROLE_ARN }}" in texto and "sa-east-1" in texto
+    assert (WORKFLOWS.parent.parent / "scripts" / "qa" / "qa_staging.py").is_file()
+
+
 def test_nenhum_workflow_usa_node_para_a_aplicacao() -> None:
     for nome in ("ci.yml", "deploy-prod.yml", "deploy-release.yml"):
         texto = (WORKFLOWS / nome).read_text(encoding="utf-8")
