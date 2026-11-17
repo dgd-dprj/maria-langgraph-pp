@@ -179,6 +179,56 @@ async def test_relato_ambiguo_pergunta_e_resposta_resolve(
     assert c2["status"] == "em_andamento", "agora é o fluxo real perguntando"
 
 
+async def test_dados_conhecidos_da_1a_chamada_chegam_ao_fluxo_depois_da_desambiguacao_297(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #297: o CPF vai só na 1ª chamada; a resposta da desambiguação volta com `{ chatId, resposta }` e o fluxo
+    # identificado ali ainda recebe o CPF (guardado no checkpoint do orquestrador, #442), sem a Tykhe reenviá-lo.
+    from maria.api import orquestrador as rota
+
+    recebidos: list[dict[str, Any]] = []
+
+    async def falso(fluxo: Any, fluxo_id: str, chat_id: str, dados: dict[str, Any], log: Any, via_orquestrador: bool = False) -> Resposta:
+        recebidos.append(dict(dados))
+        return Resposta(200, {"status": "em_andamento"})
+
+    monkeypatch.setattr(rota, "criar_atendimento", falso)
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWIDS", f"{ID_PESSOA_PRESA},{ID_VIOLENCIA_DOMESTICA}")
+    chat_id = novo_chat_id()
+    r1 = await cliente.post(
+        BASE,
+        json={"chatId": chat_id, "mensagem": "relato que bate com 2 fluxos", "dadosConhecidos": {"cpf": "11111111111"}},
+        headers=auth,
+    )
+    assert "flowId" not in r1.json(), "ainda desambiguando: o fluxo não abriu"
+    assert recebidos == []
+
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWIDS", ID_PESSOA_PRESA)
+    r2 = await cliente.post(BASE, json={"chatId": chat_id, "resposta": "pessoa-presa"}, headers=auth)
+    assert r2.status_code == 200
+    assert [d.get("cpf") for d in recebidos] == ["11111111111"]
+
+
+async def test_sem_dados_conhecidos_a_desambiguacao_nao_inventa_cpf_297(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from maria.api import orquestrador as rota
+
+    recebidos: list[dict[str, Any]] = []
+
+    async def falso(fluxo: Any, fluxo_id: str, chat_id: str, dados: dict[str, Any], log: Any, via_orquestrador: bool = False) -> Resposta:
+        recebidos.append(dict(dados))
+        return Resposta(200, {"status": "em_andamento"})
+
+    monkeypatch.setattr(rota, "criar_atendimento", falso)
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWIDS", f"{ID_PESSOA_PRESA},{ID_VIOLENCIA_DOMESTICA}")
+    chat_id = novo_chat_id()
+    await cliente.post(BASE, json={"chatId": chat_id, "mensagem": "relato que bate com 2 fluxos"}, headers=auth)
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWIDS", ID_PESSOA_PRESA)
+    await cliente.post(BASE, json={"chatId": chat_id, "resposta": "pessoa-presa"}, headers=auth)
+    assert len(recebidos) == 1 and "cpf" not in recebidos[0]
+
+
 def _pergunta_raiz(flow_id: str, texto: str) -> PerguntaArvore:
     return {
         "id": str(uuid.uuid4()),
