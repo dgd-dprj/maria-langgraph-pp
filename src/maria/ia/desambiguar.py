@@ -100,13 +100,14 @@ async def gerar_pergunta_desambiguacao(relato: str, candidatos: list[CandidatoPa
             pergunta = limpa
         if isinstance(pergunta, str):
             # #508 (2026-11-17): o tom da pergunta que a pessoa recebe, só em números, para o Visor. Sem o texto.
+            # Sim e não vão como 1 e 0: o Logs Insights do Visor soma os campos direto (`sum(temAcolhimento)`).
             logger.info(
                 "[desambiguar] tom da pergunta",
                 **contexto_atual(),
                 evento="desambiguacao_tom",
                 modelo=os.environ.get("BEDROCK_MODEL_ID", ""),
-                emojiTirado=emoji_tirado,
-                **medir_tom(pergunta, sensivel),
+                emojiTirado=int(emoji_tirado),
+                **{campo: int(valor) for campo, valor in medir_tom(pergunta, sensivel).items()},
             )
         _js.definir(saida, "pergunta", pergunta)
         saida["viaIA"] = True

@@ -116,8 +116,9 @@ async def test_o_log_do_tom_tem_os_numeros_e_nunca_o_texto(monkeypatch: pytest.M
     linhas = [json.loads(linha) for linha in capsys.readouterr().out.splitlines() if linha.strip()]
     [tom] = [linha for linha in linhas if linha.get("evento") == "desambiguacao_tom"]
     assert tom["modelo"] == "qwen.qwen3-vl-235b-a22b"
-    assert tom["temaSensivel"] is True and tom["emojiTirado"] is True and tom["comEmoji"] is False
-    assert tom["palavras"] == 10 and tom["terminaEmPergunta"] is True
+    # Sim e não vão como 1 e 0, para o Visor somar.
+    assert (tom["temaSensivel"], tom["emojiTirado"], tom["comEmoji"]) == (1, 1, 0)
+    assert tom["palavras"] == 10 and tom["terminaEmPergunta"] == 1
     linha_inteira = json.dumps(tom, ensure_ascii=False)
     assert "pessoa presa" not in linha_inteira and "agendamento" not in linha_inteira, "o texto da pergunta nunca vai ao log"
     assert "relato inventado" not in linha_inteira, "o relato nunca vai ao log"
