@@ -122,6 +122,21 @@ def test_codeql_analisa_python_e_os_workflows() -> None:
     assert job["permissions"]["security-events"] == "write"
 
 
+def test_depuracao_so_roda_em_falha_de_pr_do_proprio_repositorio() -> None:
+    # #503: o workflow_run tem acesso à AWS e roda o código do PR; nunca para fork, nunca abre PR.
+    workflow = _carregar("depuracao.yml")
+    assert _gatilhos(workflow)["workflow_run"] == {"workflows": ["CI"], "types": ["completed"]}
+    job = workflow["jobs"]["investigar"]
+    condicao = " ".join(job["if"].split())
+    assert "github.event.workflow_run.conclusion == 'failure'" in condicao
+    assert "github.event.workflow_run.head_repository.full_name == github.repository" in condicao
+    assert job["permissions"] == {"contents": "read", "actions": "read", "issues": "write", "id-token": "write"}
+    assert "pull-requests" not in job["permissions"], "a rotina não abre PR"
+    texto = json.dumps(job)
+    assert "AWS_ROLE_ARN_NICOLE" in texto and "sa-east-1" in texto
+    assert "secrets." not in texto
+
+
 def test_nenhum_workflow_usa_node_para_a_aplicacao() -> None:
     for nome in ("ci.yml", "deploy-prod.yml", "deploy-release.yml"):
         texto = (WORKFLOWS / nome).read_text(encoding="utf-8")
