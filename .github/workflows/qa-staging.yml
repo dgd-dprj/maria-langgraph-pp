@@ -1,0 +1,80 @@
+name: QA da staging
+
+# #502, parte C: depois de cada publicação do release a partir da `staging`, o QA confere o release de São Paulo
+# (scripts/qa/qa_staging.py) e comenta o resumo no último PR que entrou na `staging`. Teto de IA de US$ 0,10 por
+# rodada (decisão da Nicole, 2026-11-16): se passar, o roteiro para e o comentário menciona a Nicole e o Ícaro.
+#
+# Precisa do segredo RELEASE_API_KEY (a chave da API do release de São Paulo), guardado no repositório pela Nicole.
+# A AWS só é lida: o log do release, pelo papel do repositório (ReadOnlyAccess). Nada é publicado nem alterado.
+on:
+  workflow_run:
+    workflows: ["Deploy — release (homolog)"]
+    types: [completed]
+    branches: [staging]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: qa-staging
+  cancel-in-progress: false
+
+jobs:
+  qa:
+    if: github.event_name == 'workflow_dispatch' || github.event.workflow_run.conclusion == 'success'
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    permissions:
+      contents: read
+      actions: read
+      pull-requests: write
+      id-token: write # OIDC para a AWS (leitura do log do release em sa-east-1)
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+
+      - name: Instalar Python (versão de .python-version) e dependências
+        run: uv sync --frozen
+
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN }}
+          aws-region: sa-east-1
+
+      - name: QA do release
+        id: qa
+        env:
+          GH_TOKEN: ${{ github.token }}
+          RELEASE_API_KEY: ${{ secrets.RELEASE_API_KEY }}
+        run: |
+          if [ -z "$RELEASE_API_KEY" ]; then
+            echo "Falta o segredo RELEASE_API_KEY no repositório (#502)." | tee resumo.md
+            echo "codigo=1" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          set +e
+          uv run python -X utf8 scripts/qa/qa_staging.py --saida resumo.md
+          echo "codigo=$?" >> "$GITHUB_OUTPUT"
+
+      - name: Resumo na execução e no PR
+        if: always()
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          [ -f resumo.md ] || echo "O QA não gerou resumo; veja o log desta execução." > resumo.md
+          cat resumo.md >> "$GITHUB_STEP_SUMMARY"
+          PR=$(gh pr list -R "$GITHUB_REPOSITORY" --base staging --state merged --limit 1 --json number --jq '.[0].number')
+          if [ -n "$PR" ]; then
+            { cat resumo.md; echo; echo "_Execução: $GITHUB_SERVER_URL/$GITHUB_REPOSITORY/actions/runs/$GITHUB_RUN_ID_"; } > comentario.md
+            gh pr comment "$PR" -R "$GITHUB_REPOSITORY" --body-file comentario.md
+          fi
+
+      - name: Falhar se o QA falhou
+        if: steps.qa.outputs.codigo != '0'
+        run: exit 1

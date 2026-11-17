@@ -89,46 +89,76 @@ async def test_1b_tool_choice_por_nome_com_o_modelo_de_producao(bedrock: Bedrock
     assert corpo["toolConfig"]["toolChoice"] == {"tool": {"name": "extract"}}
 
 
-# ---- 2, 2b, 2c e 3: saída sem validação (ponto 4 da #208) -----------------------
-
-# A ausência de validação é DELIBERADA e TEMPORÁRIA: reproduz develop @ 4e695f2,
-# onde o z.enum só descrevia a saída no prompt e nada era barrado na volta.
-# Hoje um id inventado é aceito, e no parentesco chega à Tykhe.
-# Defeito registrado em https://github.com/dgd-dprj/maria-langgraph-pp/issues/212
-# Não "corrija" validando aqui: isso muda desfecho de atendimento sem ninguém notar.
-# A correção é feita naquela issue, que substitui este teste.
+# ---- 2, 2b, 2c e 3: a saída validada nas funções ligadas na produção (#212) ------
+#
+# Develop @ 4e695f2 não validava: o z.enum só descrevia a saída no prompt, e um id inventado chegava
+# à Tykhe (no parentesco). Desde a #212 (decisão da Nicole, 2026-11-17), a escolha única, a múltipla e
+# a pergunta da desambiguação são conferidas; o que não bate segue o caminho de falha que já existe,
+# com o aviso `ia_saida_invalida` no log, sem o valor, e os tokens continuam contados.
 
 
-async def test_2_id_fora_da_lista_passa_como_em_develop(bedrock: BedrockFalso) -> None:
-    # Ver o comentário acima: defeito de develop reproduzido, #212.
+def _avisos(saida: str) -> list[dict[str, Any]]:
+    return [json.loads(x) for x in saida.splitlines() if '"ia_saida_invalida"' in x]
+
+
+async def test_2_id_fora_da_lista_vira_nenhum(bedrock: BedrockFalso, capsys: pytest.CaptureFixture[str]) -> None:
+    capsys.readouterr()
     bedrock.roteirizar(ferramenta({"escolhaId": "inventado"}))
-    assert await classificar_entre_opcoes("msg", SIS, ["a", "b"]) == {"escolhaId": "inventado", "viaIA": True, **TOKENS}
+    assert await classificar_entre_opcoes("msg", SIS, ["a", "b"]) == {"escolhaId": None, "viaIA": True, **TOKENS}
+    saida = capsys.readouterr().out
+    [aviso] = _avisos(saida)
+    assert (aviso["funcao"], aviso["motivo"]) == ("classificar_entre_opcoes", "fora_da_lista")
+    assert "inventado" not in saida
 
 
-async def test_2_tipo_errado_passa_como_em_develop(bedrock: BedrockFalso) -> None:
-    # #212: caso 04.
+async def test_2_tipo_errado_vira_nenhum(bedrock: BedrockFalso, capsys: pytest.CaptureFixture[str]) -> None:
+    capsys.readouterr()
     bedrock.roteirizar(ferramenta({"escolhaId": 7}))
-    assert await classificar_entre_opcoes("msg", SIS, ["a", "b"]) == {"escolhaId": 7, "viaIA": True, **TOKENS}
+    assert await classificar_entre_opcoes("msg", SIS, ["a", "b"]) == {"escolhaId": None, "viaIA": True, **TOKENS}
+    assert [a["motivo"] for a in _avisos(capsys.readouterr().out)] == ["tipo_errado"]
 
 
-async def test_2b_multipla_sem_validacao(bedrock: BedrockFalso) -> None:
-    # #212: casos 06 e 07. Com string, devolve a string (o orquestrador lança
-    # TypeError em develop ao fazer ids.map; isso é do módulo orquestrador).
+async def test_2b_multipla_tira_so_os_de_fora(bedrock: BedrockFalso, capsys: pytest.CaptureFixture[str]) -> None:
+    capsys.readouterr()
+    # A escolha válida segue: o id inventado junto não derruba a lista toda.
     bedrock.roteirizar(ferramenta({"idsPlausiveis": ["a", "inventado"]}))
-    assert await classificar_multiplo_entre_opcoes("msg", SIS, ["a", "b"]) == {"ids": ["a", "inventado"], "viaIA": True, **TOKENS}
+    assert await classificar_multiplo_entre_opcoes("msg", SIS, ["a", "b"]) == {"ids": ["a"], "viaIA": True, **TOKENS}
+    # O que não é lista vira nenhum candidato (antes, o orquestrador lançava TypeError e a rota dava 500).
     bedrock.roteirizar(ferramenta({"idsPlausiveis": "a"}))
-    assert await classificar_multiplo_entre_opcoes("msg", SIS, ["a", "b"]) == {"ids": "a", "viaIA": True, **TOKENS}
+    assert await classificar_multiplo_entre_opcoes("msg", SIS, ["a", "b"]) == {"ids": [], "viaIA": True, **TOKENS}
+    saida = capsys.readouterr().out
+    assert [(a["motivo"], a.get("idsDentro"), a.get("idsFora")) for a in _avisos(saida)] == [
+        ("fora_da_lista", 1, 1),
+        ("tipo_errado", None, None),
+    ]
+    assert "inventado" not in saida
 
 
-async def test_2c_nenhum_e_chave_ausente(bedrock: BedrockFalso) -> None:
+async def test_2c_nenhum_e_chave_ausente(bedrock: BedrockFalso, capsys: pytest.CaptureFixture[str]) -> None:
+    capsys.readouterr()
     bedrock.roteirizar(ferramenta({"escolhaId": "nenhum"}))
     assert await classificar_entre_opcoes("msg", SIS, ["a", "b"]) == {"escolhaId": None, "viaIA": True, **TOKENS}
+    assert _avisos(capsys.readouterr().out) == []
     bedrock.roteirizar(ferramenta({}))
-    assert await classificar_entre_opcoes("msg", SIS, ["a", "b"]) == {"viaIA": True, **TOKENS}
+    assert await classificar_entre_opcoes("msg", SIS, ["a", "b"]) == {"escolhaId": None, "viaIA": True, **TOKENS}
+    assert [a["motivo"] for a in _avisos(capsys.readouterr().out)] == ["chave_ausente"]
+    bedrock.roteirizar(ferramenta({"escolhaId": "b"}))
+    assert await classificar_entre_opcoes("msg", SIS, ["a", "b"]) == {"escolhaId": "b", "viaIA": True, **TOKENS}
+
+
+async def test_3_desambiguacao_que_nao_e_texto_usa_o_texto_generico(bedrock: BedrockFalso, capsys: pytest.CaptureFixture[str]) -> None:
+    capsys.readouterr()
+    bedrock.roteirizar(ferramenta({"pergunta": ["a", "b"]}))
+    candidatos: list[desambiguar.CandidatoParaDesambiguar] = [
+        {"id": "a", "nome": "A", "descricao": "da"},
+        {"id": "b", "nome": "B", "descricao": "db"},
+    ]
+    assert await gerar_pergunta_desambiguacao("relato", candidatos) == {"pergunta": desambiguar.TEXTO_FALLBACK, "viaIA": True, **TOKENS}
+    assert [(a["funcao"], a["motivo"]) for a in _avisos(capsys.readouterr().out)] == [("gerar_pergunta_desambiguacao", "tipo_errado")]
 
 
 async def test_3_outros_esquemas_sem_validacao(bedrock: BedrockFalso) -> None:
-    # #212: casos 12, 13 e 14.
+    # #212: o reescrever e o extrair estão desligados na produção e continuam sem validação (casos 12 e 13).
     bedrock.roteirizar(ferramenta({}))
     assert await reescrever_pergunta("rg", "Qual o RG?") == {"viaIA": True, **TOKENS}  # sem `texto`, e não o original
     bedrock.roteirizar(ferramenta({"temProcesso": "sim", "rg": 123456, "extra": "x"}))
@@ -139,12 +169,6 @@ async def test_3_outros_esquemas_sem_validacao(bedrock: BedrockFalso) -> None:
         "viaIA": True,
         **TOKENS,
     }
-    bedrock.roteirizar(ferramenta({"pergunta": ["a", "b"]}))
-    candidatos: list[desambiguar.CandidatoParaDesambiguar] = [
-        {"id": "a", "nome": "A", "descricao": "da"},
-        {"id": "b", "nome": "B", "descricao": "db"},
-    ]
-    assert await gerar_pergunta_desambiguacao("relato", candidatos) == {"pergunta": ["a", "b"], "viaIA": True, **TOKENS}
 
 
 async def test_3_extrair_espalha_args_e_sobrescreve_com_os_proprios_campos(bedrock: BedrockFalso) -> None:
@@ -335,7 +359,23 @@ async def test_14_log_sem_prompt_nem_resposta(bedrock: BedrockFalso, capsys: pyt
     linhas = [json.loads(linha) for linha in saida.out.splitlines() if linha.strip()]
     assert linhas
     for linha in linhas:
-        assert set(linha) <= {"level", "time", "pid", "hostname", "msg", "err", "chatId", "fluxoId", "campo"}
+        # #212: o aviso da saída fora do esquema traz a função, o motivo e as contagens, nunca o valor.
+        assert set(linha) <= {
+            "level",
+            "time",
+            "pid",
+            "hostname",
+            "msg",
+            "err",
+            "chatId",
+            "fluxoId",
+            "campo",
+            "evento",
+            "funcao",
+            "motivo",
+            "idsDentro",
+            "idsFora",
+        }
     assert linhas[-1]["campo"] == "rg"
 
 

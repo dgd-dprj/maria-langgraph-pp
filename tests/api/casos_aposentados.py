@@ -99,13 +99,32 @@ _CASOS_CPF_NUMERICO = (
     "dados_cpf_objeto_cheio",
 )
 
+# #240 (decisão da Nicole, 2026-11-17): campo interno dos fluxos em `dadosConhecidos` é descartado. A gravação provocava
+# o erro não tratado com `dadosConhecidos.tokensGastos: null`; agora o campo sai, e a criação segue com 200. O formato do
+# 500 continua conferido pelos três casos `erro-nao-tratado-webhook-*`.
+_CAMPO_INTERNO = CasoAposentado(
+    issue=240,
+    motivo="tokensGastos de fora é campo interno e é descartado; a criação não quebra mais",
+    teste="tests/api/test_dados_conhecidos_internos.py",
+)
+
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
     "contrato": {
+        "erro-nao-tratado-500": _CAMPO_INTERNO,
         "pessoa-presa-resposta-rg-200": _NOME_MASCARADO,
         "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
         "pessoa-presa-resposta-texto-sem-opcoes-200": _PERGUNTA_DO_RG,
     },
-    "pr1": {nome: _CPF_NUMERICO for nome in _CASOS_CPF_NUMERICO},
+    "pr1": {
+        **{nome: _CPF_NUMERICO for nome in _CASOS_CPF_NUMERICO},
+        # #240: develop devolvia em `metadados` o `encaminhamentoId` pré-preenchido; agora ele é descartado na entrada.
+        # O `null` fica fora: a gravação já não o mostrava, e a resposta continua igual.
+        **{
+            nome: _CAMPO_INTERNO
+            for nome in nomes_dos_casos("pr1")
+            if nome.startswith("dados_encaminhamentoId_") and nome != "dados_encaminhamentoId_null"
+        },
+    },
     "pr2": {
         "pp_rg": _NOME_MASCARADO,
         "pp_get_confirma_nome": _NOME_MASCARADO,
@@ -118,6 +137,12 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
         # #212 (decisão da Nicole, 2026-11-13): "Irmão(a)" virou "Irmão" e "Irmã"; a resposta "irmão" grava "Irmão".
         "pp_parentesco": _IRMAO_E_IRMA,
         "pp_get_concluido": _IRMAO_E_IRMA,
+        # #393, item 3 (decisão da Nicole, 2026-11-17): o município do órgão saiu da mensagem final da violência doméstica.
+        "vd_via_orq_3": CasoAposentado(
+            issue=393,
+            motivo="o município do órgão saiu da mensagem final da violência doméstica",
+            teste="tests/fluxos/test_mensagem_sem_municipio.py",
+        ),
         "vd_cpf": _CPF_PELA_CONTA,
         "vd_get_concluido": _CPF_PELA_CONTA,
         "vd_409_concluido": _CPF_PELA_CONTA,

@@ -21,6 +21,7 @@ from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.atendimentos import criar_atendimento, extrair_interrupt, normalizar_cpf_conhecido
+from maria.api.dados_conhecidos import sem_campos_internos
 from maria.api.pipeline import Contexto, Resposta, Rota
 from maria.fluxos import buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.tipos_tykhe import TipoCasoTykhe, TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
@@ -124,6 +125,10 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     recusa = normalizar_cpf_conhecido(corpo, ctx.log)
     if recusa is not None:
         return recusa
+    # #240: campo interno dos fluxos em `dadosConhecidos` é descartado aqui, uma vez, para as duas leituras
+    # do corpo nesta requisição (a da 1ª chamada, guardada, e a do fluxo aberto).
+    if "dadosConhecidos" in corpo:
+        corpo["dadosConhecidos"] = sem_campos_internos(corpo["dadosConhecidos"], ctx.log, "orquestrador")
     mensagem = corpo.get("mensagem", AUSENTE)
     resposta = corpo.get("resposta", AUSENTE)
     # #185: resposta "" barrada ANTES do "algum dos dois", senão chegaria a Command(resume="").

@@ -423,7 +423,8 @@ async def test_3_endereco_detalhado_mantem_a_posicao_das_chaves(verde_real: Tran
             [{"id": 7, "nome": "X", "enderecos": [{"idLocalAtendimento": None, "municipio": "Niterói"}]}],
             '{"idPessoa":4242,"idOrgao":7,"idLocalAtendimento":null,"urgencia":false,'
             '"preferenciaAtendimento":"Remoto","fluxoEncaminhamento":"VIOLENCIA_DOMESTICA"}',
-            "Vou encaminhar seu caso para X (Niterói). Protocolo: 31337.",
+            # #393, item 3: o município do órgão saiu da mensagem; o nome continua.
+            "Vou encaminhar seu caso para X. Protocolo: 31337.",
             id="null-vai-como-null",
         ),
         pytest.param(

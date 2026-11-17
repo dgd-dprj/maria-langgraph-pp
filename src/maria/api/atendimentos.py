@@ -18,6 +18,7 @@ from typing import Any, ClassVar
 from langgraph.types import Command
 
 from maria.api import esquemas
+from maria.api.dados_conhecidos import sem_campos_internos
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
 from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.pessoa_presa.graph import campos_de_log_do_fim
@@ -298,8 +299,10 @@ async def _post_atendimentos(ctx: Contexto) -> Resposta:
     fluxo = await buscar_fluxo(fluxo_id)
     if fluxo is None:
         return Resposta(404, {"erro": "fluxo não encontrado — ver GET /fluxos"})
+    # #240: campo interno dos fluxos em `dadosConhecidos` não entra no estado; o nome vai para o log.
+    conhecidos = sem_campos_internos(corpo.get("dadosConhecidos", AUSENTE), ctx.log, "atendimentos")
     # 200, e não 201: a Tykhe só reconhece 200 como sucesso (pedido explícito).
-    return await criar_atendimento(fluxo, fluxo_id, corpo.get("chatId", AUSENTE), corpo.get("dadosConhecidos", AUSENTE), ctx.log)
+    return await criar_atendimento(fluxo, fluxo_id, corpo.get("chatId", AUSENTE), conhecidos, ctx.log)
 
 
 async def _fluxo_do_chat(chat_id: Any) -> tuple[FluxoConfig, str] | Resposta:
