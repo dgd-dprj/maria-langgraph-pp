@@ -12,7 +12,18 @@ from typing import Any
 import pytest
 
 from depuracao import investigar as rotina
-from depuracao.investigar import IA, EstourouTeto, Falha, Investigacao, Orcamento, corpo_da_issue, ler_falhas, titulo_da_issue
+from depuracao.investigar import (
+    IA,
+    EstourouTeto,
+    Falha,
+    Investigacao,
+    Orcamento,
+    arquivos_dos_testes,
+    corpo_da_issue,
+    ler_falhas,
+    so_a_hipotese,
+    titulo_da_issue,
+)
 
 LOG = """2026-11-17T10:00:01.1Z ..F.
 2026-11-17T10:00:01.2Z FAILED tests/shared/test_cpf.py::test_cpf_valido_com_resto_1 - AssertionError: assert False
@@ -31,6 +42,24 @@ def test_ler_falhas_traz_os_testes_e_os_cenarios_sem_repetir() -> None:
     ]
     assert falha.cenarios == ["Violência doméstica: CPF com a conta errada não vai ao Verde (#497)"]
     assert "2026-11-17T" not in falha.trecho, "a hora das linhas sai do trecho"
+
+
+def test_id_com_parametro_e_lido_inteiro_e_a_rotina_roda_o_arquivo() -> None:
+    # Validação de 17/11: "test_x[123.456.789-09]" e o parâmetro com espaço saíam cortados, e o pytest não achava o teste.
+    log = (
+        "FAILED tests/shared/test_cpf.py::test_cpf_que_fecha_a_conta[123.456.789-09] - assert False\n"
+        "FAILED tests/shared/test_cpf.py::test_cpf_que_fecha_a_conta[123 456 789 09] - assert False\n"
+        "FAILED tests/fluxos/test_pessoa_presa.py::test_497_x\n"
+    )
+    falha = ler_falhas(log)
+    assert falha.testes[0] == "tests/shared/test_cpf.py::test_cpf_que_fecha_a_conta[123.456.789-09]"
+    assert falha.testes[1] == "tests/shared/test_cpf.py::test_cpf_que_fecha_a_conta[123 456 789 09]"
+    assert arquivos_dos_testes(falha.testes) == ["tests/fluxos/test_pessoa_presa.py", "tests/shared/test_cpf.py"]
+
+
+def test_so_a_hipotese_tira_o_anuncio_do_patch() -> None:
+    resposta = "**Hipótese testável:**\nO resto 1 virou dígito 10.\n\n**Patch (diff):**\n```diff\n-a\n+b\n```"
+    assert so_a_hipotese(resposta) == "O resto 1 virou dígito 10."
 
 
 def _modelo(respostas: list[str], tokens: tuple[int, int] = (1000, 100)) -> Any:
@@ -66,9 +95,9 @@ def sem_git(monkeypatch: pytest.MonkeyPatch) -> dict[str, Any]:
 
         return Resultado()
 
-    def conferir(_pasta: Path, _patch: str, _testes: list[str]) -> bool:
+    def conferir(_pasta: Path, _patch: str, _testes: list[str]) -> tuple[bool, bool]:
         estado["aplicados"] += 1
-        return bool(estado["aplicados"] in estado["patches_que_passam"])
+        return True, bool(estado["aplicados"] in estado["patches_que_passam"])
 
     monkeypatch.setattr(rotina, "rodar", rodar)
     monkeypatch.setattr(rotina, "reproduzir", lambda *_: estado["consistente"])
@@ -114,7 +143,10 @@ def test_o_teto_vira_parada_registrada(sem_git: dict[str, Any], tmp_path: Path) 
 def test_a_issue_leva_as_fases_e_os_dados_do_visor_mas_nunca_o_log() -> None:
     inv = Investigacao("42", "head111", "base000", ["tests/shared/test_cpf.py::test_x"], [], tipo="função", resumo="RESUMO COM SAÍDA DO CI")
     inv.consistente, inv.commit_culpado, inv.fase, inv.custo = True, "abc1234", "correção pronta", 0.0123
-    inv.hipoteses = [{"tentativa": 1, "hipotese": "o resto 1 virou dígito 10", "testes_passaram": True}]
+    inv.hipoteses = [
+        {"tentativa": 1, "hipotese": "o patch veio com as linhas erradas", "aplicou": False, "testes_passaram": False},
+        {"tentativa": 2, "hipotese": "o resto 1 virou dígito 10", "aplicou": True, "testes_passaram": True},
+    ]
     corpo = corpo_da_issue(inv, "https://github.com/x/y/actions/runs/42")
     assert "RESUMO COM SAÍDA DO CI" not in corpo, "a issue pública não leva o resumo da saída do CI"
     assert corpo.count("- [x]") == 6 and "`abc1234`" in corpo and "US$ 0.0123" in corpo

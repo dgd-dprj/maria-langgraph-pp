@@ -24,6 +24,7 @@ import argparse
 import json
 import os
 import re
+import shlex
 import shutil
 import subprocess
 import sys
@@ -50,7 +51,8 @@ SISTEMA = (
 )
 
 HORA_DA_LINHA = re.compile(r"^\S+Z ")
-TESTE_QUE_FALHOU = re.compile(r"^FAILED (\S+?::\S+)")
+# O id do pytest pode ter espaço e travessão no parâmetro ("test_x[123 456]"): vai até o " - " da mensagem.
+TESTE_QUE_FALHOU = re.compile(r"^FAILED (\S+?::.+?)(?: - .*)?$")
 CENARIO_QUE_FALHOU = re.compile(r"^\| (.+?) \| \*\*FALHOU\*\* \| (.*?) \|\s*$")
 TAMANHO_DO_TRECHO = 4000
 TAMANHO_DO_DIFF = 12000
@@ -140,8 +142,14 @@ def rodar(comando: list[str], pasta: Path, tempo: int = 600) -> subprocess.Compl
     return subprocess.run(comando, cwd=pasta, capture_output=True, text=True, encoding="utf-8", errors="replace", timeout=tempo)
 
 
+def arquivos_dos_testes(testes: list[str]) -> list[str]:
+    """Os arquivos dos testes que falharam. A rotina roda o arquivo inteiro, e não o id: o id com parâmetro
+    ("test_x[123.456.789-09]") se quebra no shell e no log, e o pytest acusa "não encontrado" (validação de 17/11)."""
+    return sorted({t.split("::", 1)[0] for t in testes if "::" in t})
+
+
 def comando_dos_testes(testes: list[str]) -> list[str]:
-    return ["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider", *testes]
+    return ["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider", *arquivos_dos_testes(testes)]
 
 
 def reproduzir(pasta: Path, testes: list[str], vezes: int = REPETICOES) -> bool | None:
@@ -159,7 +167,7 @@ def isolar(pasta: Path, base: str, head: str, testes: list[str]) -> str | None:
     if not testes or not base or base == head:
         return None
     script = pasta / ".bisect-depuracao.sh"
-    script.write_text("#!/bin/sh\n" + " ".join(comando_dos_testes(testes)) + " >/dev/null 2>&1\n", encoding="utf-8")
+    script.write_text("#!/bin/sh\n" + shlex.join(comando_dos_testes(testes)) + " >/dev/null 2>&1\n", encoding="utf-8")
     script.chmod(0o755)
     try:
         rodar(["git", "bisect", "start", head, base], pasta)
@@ -180,17 +188,34 @@ def tirar_bloco_de_codigo(texto: str) -> str:
     return (achou.group(1) if achou else texto).strip() + "\n"
 
 
-def conferir_patch(pasta: Path, patch: str, testes: list[str]) -> bool:
-    """Aplica o patch numa cópia de trabalho, roda os testes que falhavam e desfaz. True se passaram."""
+def aplicar(pasta: Path, arquivo: Path) -> bool:
+    """O `git apply`, e, se a IA errou o número das linhas, o `patch` com folga no contexto."""
+    if rodar(["git", "apply", "--recount", "--whitespace=nowarn", str(arquivo)], pasta).returncode == 0:
+        return True
+    return bool(shutil.which("patch")) and rodar(["patch", "-p1", "--forward", "--fuzz=3", "-i", str(arquivo)], pasta).returncode == 0
+
+
+def conferir_patch(pasta: Path, patch: str, testes: list[str]) -> tuple[bool, bool]:
+    """Aplica o patch na cópia de trabalho, roda os testes que falhavam e desfaz. (aplicou, testes passaram)."""
     arquivo = pasta / ".patch-depuracao.diff"
     arquivo.write_text(patch, encoding="utf-8")
     try:
-        if rodar(["git", "apply", "--recount", str(arquivo)], pasta).returncode != 0:
-            return False
-        return rodar(comando_dos_testes(testes), pasta).returncode == 0
+        if not aplicar(pasta, arquivo):
+            return False, False
+        return True, rodar(comando_dos_testes(testes), pasta).returncode == 0
     finally:
         rodar(["git", "checkout", "--", "."], pasta)
         arquivo.unlink(missing_ok=True)
+
+
+def so_a_hipotese(resposta: str) -> str:
+    """O texto da hipótese, sem o patch e sem a linha que o anuncia ("**Patch:**")."""
+    linhas = []
+    for linha in resposta.split("```")[0].strip().splitlines():
+        if "patch" in linha.lower() and len(linha) < 40:
+            break
+        linhas.append(linha)
+    return "\n".join(linhas).replace("**Hipótese testável:**", "").strip()[:600]
 
 
 # ── As fases ──────────────────────────────────────────────────────────────
@@ -209,6 +234,8 @@ class Investigacao:
     commit_culpado: str | None = None
     hipoteses: list[dict[str, Any]] = field(default_factory=list)
     patch: str = ""
+    # Os patches de cada hipótese: vão para o artefato da execução, não para a issue.
+    patches_tentados: list[str] = field(default_factory=list)
     suite_passou: bool | None = None
     fase: str = "detectado"
     parou: str = ""
@@ -259,9 +286,11 @@ def investigar(pasta: Path, falha: Falha, base: str, head: str, execucao: str, i
                 900,
             )
             patch = tirar_bloco_de_codigo(resposta)
-            passou = conferir_patch(pasta, patch, falha.testes)
-            hipotese = resposta.split("```")[0].strip()[:600]
-            inv.hipoteses.append({"tentativa": tentativa, "hipotese": hipotese, "testes_passaram": passou})
+            aplicou, passou = conferir_patch(pasta, patch, falha.testes)
+            inv.hipoteses.append(
+                {"tentativa": tentativa, "hipotese": so_a_hipotese(resposta), "aplicou": aplicou, "testes_passaram": passou}
+            )
+            inv.patches_tentados.append(patch)
             if passou:
                 inv.patch = patch
                 inv.fase = "causa achada"
@@ -273,7 +302,7 @@ def investigar(pasta: Path, falha: Falha, base: str, head: str, execucao: str, i
         arquivo = pasta / ".patch-depuracao.diff"
         arquivo.write_text(inv.patch, encoding="utf-8")
         try:
-            rodar(["git", "apply", "--recount", str(arquivo)], pasta)
+            aplicar(pasta, arquivo)
             inv.suite_passou = rodar(["uv", "run", "--frozen", "pytest", "-q", "-p", "no:cacheprovider"], pasta, tempo=1800).returncode == 0
         finally:
             rodar(["git", "checkout", "--", "."], pasta)
@@ -290,6 +319,19 @@ def investigar(pasta: Path, falha: Falha, base: str, head: str, execucao: str, i
 
 
 # ── Registro ──────────────────────────────────────────────────────────────
+
+
+def _lista_de_testes(testes: list[str], quantos: int = 6) -> str:
+    if not testes:
+        return "nenhum"
+    lista = ", ".join(f"`{t}`" for t in testes[:quantos])
+    return lista + (f" e mais {len(testes) - quantos}" if len(testes) > quantos else "")
+
+
+def _resultado_da_hipotese(hipotese: dict[str, Any]) -> str:
+    if hipotese["testes_passaram"]:
+        return "✅"
+    return "❌ (os testes falharam com o patch)" if hipotese.get("aplicou") else "❌ (o patch não aplicou)"
 
 
 def _reproducao(consistente: bool | None) -> str:
@@ -319,14 +361,14 @@ def corpo_da_issue(inv: Investigacao, endereco_da_execucao: str) -> str:
         "",
         "## O que falhou",
         f"- **Tipo:** {inv.tipo or 'não classificado'}",
-        f"- **Testes:** {', '.join(f'`{t}`' for t in inv.testes) or 'nenhum'}",
+        f"- **Testes ({len(inv.testes)}):** {_lista_de_testes(inv.testes)}",
         f"- **Cenários do ponta a ponta:** {', '.join(inv.cenarios) or 'nenhum'}",
         f"- **Reprodução:** {_reproducao(inv.consistente)}",
         f"- **Commits:** base `{inv.base or '?'}`, que falha `{inv.head}`; culpado pelo bisect: `{inv.commit_culpado or 'não isolado'}`",
         "",
         "## Hipóteses",
         *(
-            [f"{h['tentativa']}. {'✅' if h['testes_passaram'] else '❌'} {h['hipotese']}" for h in inv.hipoteses]
+            [f"{h['tentativa']}. {_resultado_da_hipotese(h)} {h['hipotese']}" for h in inv.hipoteses]
             or ["Nenhuma: a investigação parou antes da causa."]
         ),
         "",
@@ -336,7 +378,9 @@ def corpo_da_issue(inv: Investigacao, endereco_da_execucao: str) -> str:
         "",
         MARCA_DO_VISOR,
         "```json",
-        json.dumps(asdict(inv) | {"resumo": "", "patch": bool(inv.patch)}, ensure_ascii=False),
+        json.dumps(
+            asdict(inv) | {"resumo": "", "patch": bool(inv.patch), "patches_tentados": len(inv.patches_tentados)}, ensure_ascii=False
+        ),
         "```",
     ]
     return "\n".join(linhas) + "\n"
