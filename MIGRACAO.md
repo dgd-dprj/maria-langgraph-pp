@@ -1217,6 +1217,18 @@ Duas coisas diferentes:
 - **#393, itens 3 e 4 (decisão da Nicole).** Item 3: a mensagem final da violência doméstica traz o nome do órgão, mas não o município, porque quem informa o CPF de outra pessoa via a região dela (caso `vd_via_orq_3` da pr2 aposentado). Item 4: a confirmação do cadastro fica como está, porque o nome é o que a própria pessoa acabou de digitar. Os itens 1 e 2 entraram em 2026-11-04 (PR #409).
 - **#212, saída da IA (decisão da Nicole: validar já, sem a medição prévia).** A escolha única, a múltipla e a pergunta da desambiguação são conferidas; o que não bate segue o caminho de falha que já existia. Na escolha múltipla, saem só os ids de fora da lista (o critério que estava em aberto), para a escolha válida não se perder. Aviso `ia_saida_invalida`, sem o valor. O `extrair` e o `reescrever`, desligados na produção, seguem sem validação. A lista de 8 valores do SIPEN, que muda o contrato do parentesco, foi para a #522 (decisão de produto do Ícaro).
 
+## #210 e #211: o corpo dos erros da API (decidido em 2026-11-18)
+
+- **Decisão da Nicole:** um PR só, sem mudar nenhum status.
+- **#211:** o 400 de validação e de leitura do corpo, nas rotas que declaram o 400, traz `{"erro": <motivo>}` em português curto, no formato dos erros de negócio, em vez do `{}` do Fastify. O motivo cita o campo e nunca o valor (o valor recusado pode ser um relato). As rotas que não declaram o 400 (o webhook) mantêm o corpo padrão do Fastify. O 400 continua 400: as rotas de negócio passam pelo `PipelineFastify`, e não pela validação do FastAPI, que daria 422.
+- **#210:** o 500 traz `message` fixo e o `reqId`. O identificador é o da requisição, criado uma vez no `PipelineFastify` e presente em todas as linhas de log dela, e não um gerado no tratamento do erro: assim ele leva à linha com a exceção e a stack.
+- **Respostas gravadas aposentadas (regra 2), sem editar nenhuma:**
+  - todo 400 gravado com `{}` sai por regra (`casos_dos_erros_da_api` em `tests/api/casos_aposentados.py`): 5 do contrato, 95 da pr1 e 14 da pr2;
+  - os 500 saem pelo nome: 3 do contrato (`erro-nao-tratado-webhook-*`, exceto o de HEAD) e 3 da pr2. Ficam de fora os 500 de HEAD, que não têm corpo e continuam iguais à gravação, e os dois de `tokensGastos` da pr1, que a #240 já trata à parte;
+  - o caso que voltar a bater com a gravação faz a conferência falhar, como nos outros aposentados. Foi esse aviso que tirou os de HEAD e os da pr1 da lista.
+- **Teste escrito:** `tests/api/test_erros_api.py`, com os cinco casos da #211, o 400 de negócio sem mudança, o motivo sem o valor recebido e o 500 com um gatilho real (o item nulo do webhook): o `reqId` do corpo é o da linha de erro e o de todas as linhas da requisição. A spec D-2 (`test_spec_api_pr2.py`) passou a conferir o corpo novo.
+- **Tykhe:** entra no aviso único (#531). Na produção, só depois da promoção para a `main`, que está na lista de bloqueios do índice.
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.
