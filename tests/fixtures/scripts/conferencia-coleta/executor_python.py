@@ -36,7 +36,7 @@ async def despejar() -> None:
     Path(os.environ["DUMP_ARQUIVO"]).write_text(json.dumps(saida, ensure_ascii=False), encoding="utf-8")  # noqa: ASYNC240
 
 
-async def principal_sonda() -> None:
+async def principal_sonda() -> int:
     for f in PLANEJADOS:
         await adicionar_planejado_de_teste(f)
     config = crawler.config_do_ambiente()
@@ -44,8 +44,9 @@ async def principal_sonda() -> None:
         raise crawler.ErroJs("VERDE_JWT_TOKEN obrigatório — este script fala com o Verde de verdade, sem modo mock")
     try:
         async with httpx.AsyncClient(timeout=None) as cliente:
-            await crawler.coletar(cliente, config)
+            falhas = await crawler.coletar(cliente, config)
         await despejar()
+        return falhas
     finally:
         await fechar_perguntas_store()
         await fechar_fluxos_planejados_store()

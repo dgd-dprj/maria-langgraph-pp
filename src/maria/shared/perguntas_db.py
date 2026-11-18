@@ -18,7 +18,7 @@ import os
 from typing import Any, Literal, NotRequired, Protocol, TypedDict
 
 from maria.shared.logger import logger
-from maria.shared.pool import PoolAsync, criar_pool
+from maria.shared.pool import ConexaoAsync, PoolAsync, criar_pool
 
 
 class OpcaoPergunta(TypedDict):
@@ -73,6 +73,16 @@ class AssuntoDoFlow(AssuntoVerde):
     veioDaRespostaId: int | None
 
 
+class ArvoreColetada(TypedDict):
+    """A árvore de uma categoria, varrida no Verde e guardada em memória até a troca (#251)."""
+
+    flowId: str
+    perguntas: list[PerguntaArvore]
+    # Detalhe de cada assunto, na ordem em que chegou (upsert por idAssunto: o último vence).
+    assuntos: list[AssuntoVerde]
+    ligacoes: list[FlowAssunto]
+
+
 class PerguntasStore(Protocol):
     async def inserir_pergunta(self, p: PerguntaArvore) -> None: ...
     async def inserir_assunto(self, a: AssuntoVerde) -> None: ...
@@ -84,6 +94,9 @@ class PerguntasStore(Protocol):
     # Remove perguntas e ligações flow→assunto antes de recoletar. NÃO apaga
     # assuntos_verde (detalhe compartilhado com outros flows).
     async def limpar_flow(self, flow_id: str) -> None: ...
+    # #251: troca as árvores coletadas de uma vez. Para cada flow, apaga a árvore antiga e grava a nova; no
+    # Postgres, tudo numa transação só. Se qualquer gravação falhar, nada muda e as árvores anteriores ficam.
+    async def substituir_arvores(self, arvores: list[ArvoreColetada]) -> None: ...
 
 
 def _assunto_do_flow(detalhe: AssuntoVerde, veio_da_resposta_id: int | None) -> AssuntoDoFlow:
@@ -127,6 +140,21 @@ class _StoreEmMemoria:
     async def limpar_flow(self, flow_id: str) -> None:
         self._perguntas[:] = [p for p in self._perguntas if p["flowId"] != flow_id]
         self._flow_assuntos[:] = [fa for fa in self._flow_assuntos if fa["flowId"] != flow_id]
+
+    async def substituir_arvores(self, arvores: list[ArvoreColetada]) -> None:
+        # Monta tudo em cópias e só então troca: nada fica pela metade.
+        flows = {a["flowId"] for a in arvores}
+        perguntas = [p for p in self._perguntas if p["flowId"] not in flows]
+        flow_assuntos = [fa for fa in self._flow_assuntos if fa["flowId"] not in flows]
+        assuntos = dict(self._assuntos)
+        for arvore in arvores:
+            perguntas.extend(arvore["perguntas"])
+            for a in arvore["assuntos"]:
+                assuntos[a["idAssunto"]] = a
+            flow_assuntos.extend(arvore["ligacoes"])
+        self._perguntas[:] = perguntas
+        self._flow_assuntos[:] = flow_assuntos
+        self._assuntos = assuntos
 
 
 def _json(valor: object) -> str:
@@ -203,53 +231,18 @@ class _StorePostgres:
 
     async def inserir_pergunta(self, p: PerguntaArvore) -> None:
         await self._pronto
-        # Parâmetros nomeados onde develop reutiliza $5..$8 no DO UPDATE.
         async with self._pool.connection() as conexao:
-            await conexao.execute(
-                """INSERT INTO perguntas (id, flow_id, id_item_categoria, veio_da_resposta_id, texto_pergunta, tipo, opcoes, ordem)
-         VALUES (%(id)s, %(flow_id)s, %(id_item_categoria)s, %(veio_da_resposta_id)s, %(texto_pergunta)s, %(tipo)s, %(opcoes)s::jsonb, %(ordem)s)
-         ON CONFLICT (id) DO UPDATE SET texto_pergunta = %(texto_pergunta)s, tipo = %(tipo)s, opcoes = %(opcoes)s::jsonb, ordem = %(ordem)s""",
-                {
-                    "id": p["id"],
-                    "flow_id": p["flowId"],
-                    "id_item_categoria": p["idItemCategoria"],
-                    "veio_da_resposta_id": p["veioDaRespostaId"],
-                    "texto_pergunta": p["textoPergunta"],
-                    "tipo": p["tipo"],
-                    "opcoes": _json(p["opcoes"]),
-                    "ordem": p["ordem"],
-                },
-            )
+            await _gravar_pergunta(conexao, p)
 
     async def inserir_assunto(self, a: AssuntoVerde) -> None:
         await self._pronto
         async with self._pool.connection() as conexao:
-            await conexao.execute(
-                """INSERT INTO assuntos_verde (id_assunto, nome, nome_materia, descricao, tx_documentos_necessarios, documentos_necessarios, urgente, plantao)
-         VALUES (%(id_assunto)s, %(nome)s, %(nome_materia)s, %(descricao)s, %(tx_documentos_necessarios)s, %(documentos_necessarios)s::jsonb, %(urgente)s, %(plantao)s)
-         ON CONFLICT (id_assunto) DO UPDATE SET nome = %(nome)s, nome_materia = %(nome_materia)s, descricao = %(descricao)s,
-           tx_documentos_necessarios = %(tx_documentos_necessarios)s, documentos_necessarios = %(documentos_necessarios)s::jsonb, urgente = %(urgente)s, plantao = %(plantao)s""",
-                {
-                    "id_assunto": a["idAssunto"],
-                    "nome": a["nome"],
-                    "nome_materia": a.get("nomeMateria"),
-                    "descricao": a.get("descricao"),
-                    "tx_documentos_necessarios": a.get("txDocumentosNecessarios"),
-                    "documentos_necessarios": _json(a["documentosNecessarios"]),
-                    "urgente": a["urgente"],
-                    "plantao": a["plantao"],
-                },
-            )
+            await _gravar_assunto(conexao, a)
 
     async def inserir_flow_assunto(self, fa: FlowAssunto) -> None:
         await self._pronto
         async with self._pool.connection() as conexao:
-            await conexao.execute(
-                """INSERT INTO flow_assuntos (id, flow_id, id_assunto, veio_da_resposta_id)
-         VALUES (%(id)s, %(flow_id)s, %(id_assunto)s, %(veio_da_resposta_id)s)
-         ON CONFLICT (id) DO UPDATE SET id_assunto = %(id_assunto)s, veio_da_resposta_id = %(veio_da_resposta_id)s""",
-                {"id": fa["id"], "flow_id": fa["flowId"], "id_assunto": fa["idAssunto"], "veio_da_resposta_id": fa["veioDaRespostaId"]},
-            )
+            await _gravar_flow_assunto(conexao, fa)
 
     async def listar_perguntas_por_flow(self, flow_id: str) -> list[PerguntaArvore]:
         await self._pronto
@@ -296,8 +289,73 @@ class _StorePostgres:
     async def limpar_flow(self, flow_id: str) -> None:
         await self._pronto
         async with self._pool.connection() as conexao:
-            await conexao.execute("DELETE FROM perguntas WHERE flow_id = %s", (flow_id,))
-            await conexao.execute("DELETE FROM flow_assuntos WHERE flow_id = %s", (flow_id,))
+            await _apagar_flow(conexao, flow_id)
+
+    async def substituir_arvores(self, arvores: list[ArvoreColetada]) -> None:
+        await self._pronto
+        # A conexão do pool está em autocommit; `transaction()` abre um BEGIN de verdade, e qualquer erro dentro
+        # dele faz ROLLBACK: os DELETE de todas as categorias voltam atrás junto.
+        async with self._pool.connection() as conexao, conexao.transaction():
+            for arvore in arvores:
+                await _apagar_flow(conexao, arvore["flowId"])
+                for p in arvore["perguntas"]:
+                    await _gravar_pergunta(conexao, p)
+                for a in arvore["assuntos"]:
+                    await _gravar_assunto(conexao, a)
+                for fa in arvore["ligacoes"]:
+                    await _gravar_flow_assunto(conexao, fa)
+
+
+async def _apagar_flow(conexao: ConexaoAsync, flow_id: str) -> None:
+    await conexao.execute("DELETE FROM perguntas WHERE flow_id = %s", (flow_id,))
+    await conexao.execute("DELETE FROM flow_assuntos WHERE flow_id = %s", (flow_id,))
+
+
+async def _gravar_pergunta(conexao: ConexaoAsync, p: PerguntaArvore) -> None:
+    # Parâmetros nomeados onde develop reutiliza $5..$8 no DO UPDATE.
+    await conexao.execute(
+        """INSERT INTO perguntas (id, flow_id, id_item_categoria, veio_da_resposta_id, texto_pergunta, tipo, opcoes, ordem)
+         VALUES (%(id)s, %(flow_id)s, %(id_item_categoria)s, %(veio_da_resposta_id)s, %(texto_pergunta)s, %(tipo)s, %(opcoes)s::jsonb, %(ordem)s)
+         ON CONFLICT (id) DO UPDATE SET texto_pergunta = %(texto_pergunta)s, tipo = %(tipo)s, opcoes = %(opcoes)s::jsonb, ordem = %(ordem)s""",
+        {
+            "id": p["id"],
+            "flow_id": p["flowId"],
+            "id_item_categoria": p["idItemCategoria"],
+            "veio_da_resposta_id": p["veioDaRespostaId"],
+            "texto_pergunta": p["textoPergunta"],
+            "tipo": p["tipo"],
+            "opcoes": _json(p["opcoes"]),
+            "ordem": p["ordem"],
+        },
+    )
+
+
+async def _gravar_assunto(conexao: ConexaoAsync, a: AssuntoVerde) -> None:
+    await conexao.execute(
+        """INSERT INTO assuntos_verde (id_assunto, nome, nome_materia, descricao, tx_documentos_necessarios, documentos_necessarios, urgente, plantao)
+         VALUES (%(id_assunto)s, %(nome)s, %(nome_materia)s, %(descricao)s, %(tx_documentos_necessarios)s, %(documentos_necessarios)s::jsonb, %(urgente)s, %(plantao)s)
+         ON CONFLICT (id_assunto) DO UPDATE SET nome = %(nome)s, nome_materia = %(nome_materia)s, descricao = %(descricao)s,
+           tx_documentos_necessarios = %(tx_documentos_necessarios)s, documentos_necessarios = %(documentos_necessarios)s::jsonb, urgente = %(urgente)s, plantao = %(plantao)s""",
+        {
+            "id_assunto": a["idAssunto"],
+            "nome": a["nome"],
+            "nome_materia": a.get("nomeMateria"),
+            "descricao": a.get("descricao"),
+            "tx_documentos_necessarios": a.get("txDocumentosNecessarios"),
+            "documentos_necessarios": _json(a["documentosNecessarios"]),
+            "urgente": a["urgente"],
+            "plantao": a["plantao"],
+        },
+    )
+
+
+async def _gravar_flow_assunto(conexao: ConexaoAsync, fa: FlowAssunto) -> None:
+    await conexao.execute(
+        """INSERT INTO flow_assuntos (id, flow_id, id_assunto, veio_da_resposta_id)
+         VALUES (%(id)s, %(flow_id)s, %(id_assunto)s, %(veio_da_resposta_id)s)
+         ON CONFLICT (id) DO UPDATE SET id_assunto = %(id_assunto)s, veio_da_resposta_id = %(veio_da_resposta_id)s""",
+        {"id": fa["id"], "flow_id": fa["flowId"], "id_assunto": fa["idAssunto"], "veio_da_resposta_id": fa["veioDaRespostaId"]},
+    )
 
 
 _store: PerguntasStore | None = None

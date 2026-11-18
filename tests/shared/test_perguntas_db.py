@@ -10,7 +10,7 @@ import psycopg
 import pytest
 from psycopg.rows import TupleRow
 
-from maria.shared.perguntas_db import AssuntoVerde, FlowAssunto, PerguntaArvore, obter_perguntas_store
+from maria.shared.perguntas_db import ArvoreColetada, AssuntoVerde, FlowAssunto, PerguntaArvore, obter_perguntas_store
 
 pytestmark = pytest.mark.usefixtures("stores_limpas")
 
@@ -191,3 +191,51 @@ async def test_postgres_assunto_sem_campos_opcionais_omite_as_chaves(banco_de_ne
     [item] = await store.listar_assuntos_por_flow("flow-pg-assunto")
     assert "nomeMateria" not in item and "descricao" not in item and "txDocumentosNecessarios" not in item
     assert item["veioDaRespostaId"] is None
+
+
+# --- #251: troca das árvores numa transação ------------------------------------
+
+
+def arvore(flow_id: str, texto: str, id_assunto: int) -> ArvoreColetada:
+    return {
+        "flowId": flow_id,
+        "perguntas": [pergunta(flow_id, id=f"{flow_id}-{texto}", textoPergunta=texto)],
+        "assuntos": [assunto(id_assunto, nome=f"assunto {texto}")],
+        "ligacoes": [flow_assunto(flow_id, id_assunto)],
+    }
+
+
+async def test_substituir_troca_so_os_flows_coletados() -> None:
+    store = await obter_perguntas_store()
+    await store.substituir_arvores([arvore("flow-subst-a", "a antiga", 901), arvore("flow-subst-b", "b antiga", 902)])
+    await store.substituir_arvores([arvore("flow-subst-a", "a nova", 903)])
+    assert [p["textoPergunta"] for p in await store.listar_perguntas_por_flow("flow-subst-a")] == ["a nova"]
+    assert [a["idAssunto"] for a in await store.listar_assuntos_por_flow("flow-subst-a")] == [903]
+    assert [p["textoPergunta"] for p in await store.listar_perguntas_por_flow("flow-subst-b")] == ["b antiga"]
+
+
+@pytest.mark.postgres
+async def test_postgres_substituir_troca_numa_transacao(banco_de_negocio: psycopg.AsyncConnection[TupleRow]) -> None:
+    store = await obter_perguntas_store()
+    await store.substituir_arvores([arvore("flow-pg-a", "a antiga", 911), arvore("flow-pg-b", "b antiga", 912)])
+    await store.substituir_arvores([arvore("flow-pg-a", "a nova", 913)])
+    assert [p["textoPergunta"] for p in await store.listar_perguntas_por_flow("flow-pg-a")] == ["a nova"]
+    assert [a["idAssunto"] for a in await store.listar_assuntos_por_flow("flow-pg-a")] == [913]
+    assert [p["textoPergunta"] for p in await store.listar_perguntas_por_flow("flow-pg-b")] == ["b antiga"]
+
+
+@pytest.mark.postgres
+async def test_postgres_falha_no_meio_da_troca_desfaz_tudo(banco_de_negocio: psycopg.AsyncConnection[TupleRow]) -> None:
+    # A primeira categoria já foi apagada e regravada dentro da transação quando a segunda falha (texto NULL
+    # numa coluna NOT NULL). O ROLLBACK devolve as duas árvores anteriores.
+    store = await obter_perguntas_store()
+    await store.substituir_arvores([arvore("flow-pg-c", "c antiga", 921), arvore("flow-pg-d", "d antiga", 922)])
+    quebrada = arvore("flow-pg-d", "d nova", 924)
+    quebrada["perguntas"][0]["textoPergunta"] = None  # type: ignore[typeddict-item]
+    with pytest.raises(psycopg.errors.NotNullViolation):
+        await store.substituir_arvores([arvore("flow-pg-c", "c nova", 923), quebrada])
+    assert [p["textoPergunta"] for p in await store.listar_perguntas_por_flow("flow-pg-c")] == ["c antiga"]
+    assert [a["idAssunto"] for a in await store.listar_assuntos_por_flow("flow-pg-c")] == [921]
+    assert [p["textoPergunta"] for p in await store.listar_perguntas_por_flow("flow-pg-d")] == ["d antiga"]
+    cursor = await banco_de_negocio.execute("SELECT count(*) FROM assuntos_verde WHERE id_assunto IN (923, 924)")
+    assert await cursor.fetchone() == (0,)
