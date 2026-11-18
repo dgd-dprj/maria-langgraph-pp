@@ -38,6 +38,7 @@ from maria.shared.fluxos_planejados_db import fechar_fluxos_planejados_store, li
 from maria.shared.logger import logger
 from maria.shared.pendentes_db import fechar_pendentes_store
 from maria.shared.perguntas_db import fechar_perguntas_store, obter_perguntas_store
+from maria.shared.trava import fechar_travas
 
 Inicializador = Callable[[], Awaitable[object]]
 
@@ -69,6 +70,8 @@ FINALIZADORES: tuple[Inicializador, ...] = (
     fechar_cliente_http,
     # #450: a store dos assuntos pendentes não entra no boot (só o release a usa), mas fecha junto.
     fechar_pendentes_store,
+    # #453: o pool das travas por chave (criação do atendimento, próximo assunto e ponte do WhatsApp).
+    fechar_travas,
 )
 
 

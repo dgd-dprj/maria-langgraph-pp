@@ -157,9 +157,10 @@ async def test_seed_nao_cria_tabela_de_checkpoint(
     await banco_de_negocio.execute("DROP SCHEMA IF EXISTS checkpoint_py CASCADE")
     monkeypatch.setattr(seed_mod, "load_dotenv", lambda: None)
     assert await asyncio.to_thread(seed_mod.main) == 0
-    cursor = await banco_de_negocio.execute(
-        "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'checkpoint_py' OR table_name LIKE 'checkpoint%'"
-    )
+    # Só o schema do checkpointer do Python: `tests/shared/test_checkpointer.py` deixa em `public`, de propósito, as
+    # tabelas `checkpoints` e `checkpoint_migrations` da versão em TypeScript (o estado da produção no corte), e elas
+    # não são do seed. Contar `checkpoint%` em qualquer schema fazia este teste falhar conforme a ordem (#453).
+    cursor = await banco_de_negocio.execute("SELECT count(*) FROM information_schema.tables WHERE table_schema = 'checkpoint_py'")
     linha = await cursor.fetchone()
     assert linha is not None and linha[0] == 0
 
