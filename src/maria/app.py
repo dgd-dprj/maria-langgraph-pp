@@ -124,7 +124,9 @@ def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO,
     # (e do /health) ficam no PipelineFastify, com o contrato do Fastify de develop.
     # O FastAPI fica com o lifespan e o /docs (spec 07, D-3).
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-    rotas = [*basicas.ROTAS, *atendimentos.ROTAS, *orquestrador.ROTAS, *webhook_whatsapp.ROTAS]
+    # #339 (decisão da Nicole, 2026-11-18): o webhook do WhatsApp é público e ainda não confere a assinatura da Meta.
+    # Ele só existe onde o WhatsApp está configurado; na produção, que não tem o WhatsApp, a rota não existe (404).
+    rotas = [*basicas.ROTAS, *atendimentos.ROTAS, *orquestrador.ROTAS, *(webhook_whatsapp.ROTAS if webhook_whatsapp.ligado() else ())]
     registrar_docs(app, rotas)
     app.add_middleware(PipelineFastify, rotas=rotas, chave_api=chave_api)
     return app

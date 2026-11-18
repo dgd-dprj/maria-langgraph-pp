@@ -126,7 +126,12 @@ async def _conferir(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
     monkeypatch.setenv("API_KEY", "chave-conferencia")
     monkeypatch.setenv("MARIA_AMBIENTE", AMBIENTE_DAS_CONFERENCIAS)  # #324: o contrato vale na produção
     limpar_conversas_ativas_de_teste()
+    # #339: o webhook do WhatsApp só é registrado com o token de verificação; nas gravações de develop ele sempre existia.
+    # A aplicação nasce com um token, e ele sai do ambiente logo depois: cada cenário roda com o ambiente da gravação, e a
+    # lógica da rota segue conferida. A rota ausente sem o token é coberta em test_webhook_whatsapp.py.
+    monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "registra-o-webhook-na-conferencia")
     app = criar_app(pre_aquecer=False)
+    monkeypatch.delenv("WHATSAPP_VERIFY_TOKEN")
     por_caso: dict[str, list[str]] = {}
     async with app.router.lifespan_context(app):
         for c in CENARIOS:
