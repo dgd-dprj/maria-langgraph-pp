@@ -200,7 +200,12 @@ def test_o_terraform_declara_producao_em_producao() -> None:
 def test_o_terraform_declara_release_no_release() -> None:
     """O release roda em São Paulo desde a #500 (o `release.tf` da Virgínia saiu)."""
     assert not (TERRAFORM / "release.tf").exists()
-    assert _ambiente_no_terraform("ecs.tf", TERRAFORM_SP) == ["release"]
+    # #482: em São Paulo, o valor sai do `environment` do stack (`local.maria_ambiente`, conferido em
+    # tests/test_terraform_sp.py), e o `environment` padrão do stack é "release".
+    ecs = (TERRAFORM_SP / "ecs.tf").read_text(encoding="utf-8")
+    assert re.findall(r'\{\s*name\s*=\s*"MARIA_AMBIENTE"\s*,\s*value\s*=\s*([^}]+?)\s*\}', ecs) == ["local.maria_ambiente"]
+    variaveis = (TERRAFORM_SP / "variables.tf").read_text(encoding="utf-8")
+    assert re.search(r'variable "environment"\s*\{[^}]*default\s*=\s*"release"', variaveis)
 
 
 def test_as_conferencias_rodam_com_o_ambiente_da_producao() -> None:
