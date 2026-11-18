@@ -23,6 +23,7 @@ import sys
 import traceback
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, cast
 
 import httpx
@@ -249,7 +250,7 @@ async def coletar(cliente: httpx.AsyncClient, config: ConfigVerde) -> int:
     print(f"crawl iniciado — {len(alvos)} categorias")
     total_perguntas = 0
     total_assuntos = 0
-    falhas: list[tuple[str, str]] = []
+    falhas: list[tuple[str, str, str]] = []
     coletadas: list[ArvoreColetada] = []
 
     for flow_id, id_categoria, nome in alvos:
@@ -258,7 +259,7 @@ async def coletar(cliente: httpx.AsyncClient, config: ConfigVerde) -> int:
         except Exception as err:
             erro = str(err)
             print(f"[{nome}] falhou: {erro}", file=sys.stderr)
-            falhas.append((nome, erro))
+            falhas.append((flow_id, nome, erro))
             continue
         coletadas.append(arvore)
         total_perguntas += len(arvore["perguntas"])
@@ -271,8 +272,29 @@ async def coletar(cliente: httpx.AsyncClient, config: ConfigVerde) -> int:
 
     print(f"crawl concluído: {total_perguntas} pergunta(s), {total_assuntos} assunto(s), {len(falhas)} falha(s) em {len(alvos)} categorias")
     if falhas:
-        print("categorias com falha (a árvore anterior foi mantida):", ", ".join(nome for nome, _ in falhas))
+        # #526: com a data da última coleta bem-sucedida, uma categoria que falha em toda execução não passa despercebida.
+        datas = await store.datas_das_coletas([flow_id for flow_id, _, _ in falhas])
+        agora = datetime.now(UTC)
+        print(
+            "categorias com falha (a árvore anterior foi mantida):",
+            ", ".join(f"{nome} ({descrever_ultima_coleta(datas.get(flow_id), agora)})" for flow_id, nome, _ in falhas),
+        )
     return len(falhas)
+
+
+# As datas do resumo saem no horário de Brasília (UTC-3, sem horário de verão desde 2019).
+BRASILIA = timezone(timedelta(hours=-3))
+
+
+def descrever_ultima_coleta(quando: datetime | None, agora: datetime) -> str:
+    """#526: "última coleta em 02/11/2026, há 16 dias", ou "nunca coletada com sucesso"."""
+    if quando is None:
+        return "nunca coletada com sucesso"
+    dias = (agora - quando).days
+    data = quando.astimezone(BRASILIA).strftime("%d/%m/%Y")
+    if dias <= 0:
+        return f"última coleta em {data}, hoje"
+    return f"última coleta em {data}, há {dias} dia{'s' if dias > 1 else ''}"
 
 
 async def principal() -> int:
