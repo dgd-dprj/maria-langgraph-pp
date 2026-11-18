@@ -1225,7 +1225,8 @@ Duas coisas diferentes:
 - **Respostas gravadas aposentadas (regra 2), sem editar nenhuma:**
   - todo 400 gravado com `{}` sai por regra (`casos_dos_erros_da_api` em `tests/api/casos_aposentados.py`): 5 do contrato, 95 da pr1 e 14 da pr2;
   - os 500 saem pelo nome: 3 do contrato (`erro-nao-tratado-webhook-*`, exceto o de HEAD) e 3 da pr2. Ficam de fora os 500 de HEAD, que não têm corpo e continuam iguais à gravação, e os dois de `tokensGastos` da pr1, que a #240 já trata à parte;
-  - o caso que voltar a bater com a gravação faz a conferência falhar, como nos outros aposentados. Foi esse aviso que tirou os de HEAD e os da pr1 da lista.
+  - o caso que voltar a bater com a gravação faz a conferência falhar, como nos outros aposentados. Foi esse aviso que tirou os de HEAD e os da pr1 da lista;
+  - **só o corpo sai da conferência; o status continua conferido** nesses 120 casos (`mantem_status`, com a falha de status marcada `[status]` nas três conferências). Uma mudança futura que leve uma dessas rotas a 422 ou a 500 continua sendo pega. **Verificado por mutação:** com o 400 trocado por 422, as três conferências falharam, com 89 falhas de status.
 - **Teste escrito:** `tests/api/test_erros_api.py`, com os cinco casos da #211, o 400 de negócio sem mudança, o motivo sem o valor recebido e o 500 com um gatilho real (o item nulo do webhook): o `reqId` do corpo é o da linha de erro e o de todas as linhas da requisição. A spec D-2 (`test_spec_api_pr2.py`) passou a conferir o corpo novo.
 - **Tykhe:** entra no aviso único (#531). Na produção, só depois da promoção para a `main`, que está na lista de bloqueios do índice.
 
