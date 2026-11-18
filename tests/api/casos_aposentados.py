@@ -30,6 +30,13 @@ class CasoAposentado:
     issue: int
     motivo: str
     teste: str  # caminho a partir da raiz do repositório
+    # Aposenta só o corpo: o status continua conferido contra a gravação (#210, #211). Uma mudança que levasse o caso a
+    # outro status (um 422, um 500) continua sendo pega pela conferência.
+    mantem_status: bool = False
+
+
+# A falha de status que as conferências registram à parte, para valer mesmo num caso aposentado com `mantem_status`.
+PREFIXO_STATUS = "[status] "
 
 
 # Conferência -> (arquivo de teste dela, nomes dos casos que ela percorre).
@@ -114,13 +121,18 @@ _CAMPO_INTERNO = CasoAposentado(
 # - O 500 trazia o texto da exceção em `message`; agora traz um texto fixo e o `reqId`. Os 500 gravados saem pelo nome:
 #   todos continuavam respondendo 500 quando foram aposentados, só o corpo mudou. Ficam de fora os 500 de HEAD, que não
 #   têm corpo e continuam iguais à gravação, e os dois 500 de `tokensGastos` da PR1, que a #240 já trata à parte (200).
+#   Nos dois, só o corpo sai da conferência: o status continua conferido (`mantem_status`).
 _ERRO_400_COM_MOTIVO = CasoAposentado(
     issue=211,
     motivo="o 400 de validação e de leitura do corpo traz o motivo em português, em vez de {}",
     teste="tests/api/test_erros_api.py",
+    mantem_status=True,
 )
 _ERRO_500_SEM_EXCECAO = CasoAposentado(
-    issue=210, motivo="o 500 traz um texto fixo e o reqId, em vez do texto da exceção", teste="tests/api/test_erros_api.py"
+    issue=210,
+    motivo="o 500 traz um texto fixo e o reqId, em vez do texto da exceção",
+    teste="tests/api/test_erros_api.py",
+    mantem_status=True,
 )
 _CASOS_500: dict[str, tuple[str, ...]] = {
     "contrato": (
@@ -204,12 +216,15 @@ def falhas_que_valem(nome: str, falhas_do_caso: list[str], aposentados: Mapping[
     """As falhas de um caso que contam na conferência.
 
     Caso fora da lista: as próprias falhas. Caso aposentado: nenhuma, a não ser que ele tenha
-    voltado a bater com a gravação, o que vira falha de entrada esquecida."""
+    voltado a bater com a gravação, o que vira falha de entrada esquecida. Caso aposentado só no
+    corpo (`mantem_status`): as falhas de status (`PREFIXO_STATUS`) continuam valendo."""
     caso = aposentados.get(nome)
     if caso is None:
         return falhas_do_caso
     if not falhas_do_caso:
         return [f"{nome}: aposentado (#{caso.issue}), mas voltou a bater com a gravação; tire a entrada de casos_aposentados.py"]
+    if caso.mantem_status:
+        return [f for f in falhas_do_caso if f.startswith(PREFIXO_STATUS)]
     return []
 
 
