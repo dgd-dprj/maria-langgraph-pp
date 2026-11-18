@@ -194,13 +194,138 @@ async def test_seed_duas_vezes_no_postgres(banco_de_negocio: psycopg.AsyncConnec
     assert sorted(f["id"] for f in planejados) == sorted(linhas)
 
 
+# #253 (decisão da Nicole, 2026-11-18): o arquivo vale. Com o banco diferente, o seed mostra a diferença e não grava
+# nada; `--force` sobrescreve. Em develop (achado B2), a edição feita à mão sumia sem aviso.
+
+
+def test_comparar_acha_cada_coluna_diferente(dados: list[FluxoPlanejado]) -> None:
+    a, b, c = dados[0], dados[1], dados[2]
+    no_banco: dict[str, dict[str, object]] = {
+        f["id"]: {
+            "nome": f["nome"],
+            "descricao": f["descricao"],
+            "id_categoria_assunto_verde": f["idCategoriaAssuntoVerde"],
+            "palavras_chave": list(f["palavrasChave"]),
+            "mensagem_fixa": f.get("mensagemFixa"),
+        }
+        for f in (a, b)
+    }
+    no_banco[a["id"]]["mensagem_fixa"] = "corrigida no banco"
+    no_banco[b["id"]]["palavras_chave"] = [*b["palavrasChave"][1:], "palavra só do banco"]
+    # O registro `c` não está no banco: entra sem sobrescrever nada.
+    diferencas = seed_mod.comparar(no_banco, [a, b, c])
+    assert [(d.id, d.coluna) for d in diferencas] == [(a["id"], "mensagem_fixa"), (b["id"], "palavras_chave")]
+    assert diferencas[0].detalhe == "banco «corrigida no banco» / arquivo (vazio)"
+    assert diferencas[1].detalhe == f"o arquivo traz {b['palavrasChave'][0]}; o banco tem a mais palavra só do banco"
+
+
+def test_comparar_sem_diferenca_quando_o_banco_e_igual(dados: list[FluxoPlanejado]) -> None:
+    no_banco: dict[str, dict[str, object]] = {
+        f["id"]: {
+            "nome": f["nome"],
+            "descricao": f["descricao"],
+            "id_categoria_assunto_verde": f["idCategoriaAssuntoVerde"],
+            "palavras_chave": list(f["palavrasChave"]),
+            "mensagem_fixa": f.get("mensagemFixa"),
+        }
+        for f in dados
+    }
+    assert seed_mod.comparar(no_banco, dados) == []
+
+
+def test_argumento_desconhecido(capsys: pytest.CaptureFixture[str]) -> None:
+    assert seed_mod.main(["--forca"]) == 2
+    assert capsys.readouterr().err == "seed falhou: Error: argumento desconhecido: --forca (o único aceito é --force)\n"
+
+
+async def _valor(banco: psycopg.AsyncConnection[TupleRow], coluna: str, id_: str) -> object:
+    cursor = await banco.execute(f"SELECT {coluna} FROM fluxos_planejados WHERE id = %s", (id_,))
+    linha = await cursor.fetchone()
+    assert linha is not None
+    return linha[0]
+
+
 @pytest.mark.postgres
-async def test_seed_desfaz_edicao_manual_da_mensagem_fixa(banco_de_negocio: psycopg.AsyncConnection[TupleRow]) -> None:
-    # Achado B2 (#253), reproduzido de propósito: a régua é develop.
+async def test_seed_recusa_sobrescrever_e_mostra_a_diferenca(
+    banco_de_negocio: psycopg.AsyncConnection[TupleRow], capsys: pytest.CaptureFixture[str]
+) -> None:
+    # O cenário BDD da issue: a mensagem fixa corrigida no banco, o seed com o texto antigo.
     dados = seed_mod.carregar_dados()
     await seed_mod.seed(dados)
-    sem_mensagem = next(f for f in dados if "mensagemFixa" not in f)
-    await banco_de_negocio.execute("UPDATE fluxos_planejados SET mensagem_fixa = 'editada à mão' WHERE id = %s", (sem_mensagem["id"],))
+    capsys.readouterr()
+    editado = next(f for f in dados if "mensagemFixa" not in f)
+    await banco_de_negocio.execute("UPDATE fluxos_planejados SET mensagem_fixa = 'corrigida à mão' WHERE id = %s", (editado["id"],))
+    # E o arquivo mudou outro registro: se o seed gravasse alguma coisa, essa mudança entraria.
+    novo_arquivo = copy.deepcopy(dados)
+    outro = next(f for f in novo_arquivo if f["id"] != editado["id"])
+    descricao_antiga = outro["descricao"]
+    outro["descricao"] = "descrição nova só no arquivo"
+
+    with pytest.raises(seed_mod.ErroSeed) as erro:
+        await seed_mod.seed(novo_arquivo)
+
+    assert "o banco difere do arquivo em 2 registro(s); nada foi gravado" in str(erro.value)
+    assert "--force" in str(erro.value)
+    saida = capsys.readouterr()
+    assert saida.out == ""
+    linhas = saida.err.splitlines()
+    assert linhas[0] == "o banco difere do arquivo em 2 registro(s), 2 coluna(s):"
+    trecho_antigo = descricao_antiga[:80] + ("…" if len(descricao_antiga) > 80 else "")
+    assert sorted(linhas[1:]) == sorted(
+        [
+            f"  - {editado['nome']} ({editado['id']}), mensagem_fixa: banco «corrigida à mão» / arquivo (vazio)",
+            f"  - {outro['nome']} ({outro['id']}), descricao: banco «{trecho_antigo}» / arquivo «descrição nova só no arquivo»",
+        ]
+    )
+    # Nada foi gravado: a correção à mão ficou, e a mudança do arquivo não entrou.
+    assert await _valor(banco_de_negocio, "mensagem_fixa", editado["id"]) == "corrigida à mão"
+    assert await _valor(banco_de_negocio, "descricao", outro["id"]) == descricao_antiga
+
+
+@pytest.mark.postgres
+async def test_seed_com_force_sobrescreve(banco_de_negocio: psycopg.AsyncConnection[TupleRow], capsys: pytest.CaptureFixture[str]) -> None:
+    dados = seed_mod.carregar_dados()
     await seed_mod.seed(dados)
-    cursor = await banco_de_negocio.execute("SELECT mensagem_fixa FROM fluxos_planejados WHERE id = %s", (sem_mensagem["id"],))
-    assert await cursor.fetchone() == (None,)
+    editado = next(f for f in dados if "mensagemFixa" not in f)
+    await banco_de_negocio.execute("UPDATE fluxos_planejados SET mensagem_fixa = 'corrigida à mão' WHERE id = %s", (editado["id"],))
+    capsys.readouterr()
+    await seed_mod.seed(dados, forcar=True)
+    saida = capsys.readouterr()
+    assert "--force: sobrescrevendo 1 registro(s) com o valor do arquivo" in saida.err
+    assert saida.out.splitlines() == ["seed concluído: 74 fluxos planejados inseridos/atualizados em fluxos_planejados"]
+    assert await _valor(banco_de_negocio, "mensagem_fixa", editado["id"]) is None
+
+
+@pytest.mark.postgres
+async def test_seed_pela_linha_de_comando_recusa_e_aceita_force(
+    banco_de_negocio: psycopg.AsyncConnection[TupleRow], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setattr(seed_mod, "load_dotenv", lambda: None)
+    assert await asyncio.to_thread(seed_mod.main, []) == 0
+    editado = next(f for f in seed_mod.carregar_dados() if "mensagemFixa" not in f)
+    await banco_de_negocio.execute("UPDATE fluxos_planejados SET nome = 'renomeado à mão' WHERE id = %s", (editado["id"],))
+    capsys.readouterr()
+    assert await asyncio.to_thread(seed_mod.main, []) == 1
+    erro = capsys.readouterr().err
+    assert f"  - renomeado à mão ({editado['id']}), nome:" not in erro  # o nome mostrado é o do arquivo
+    assert f"({editado['id']}), nome: banco «renomeado à mão» / arquivo «{editado['nome']}»" in erro
+    assert "seed falhou: Error: o banco difere do arquivo em 1 registro(s); nada foi gravado." in erro
+    assert await _valor(banco_de_negocio, "nome", editado["id"]) == "renomeado à mão"
+    assert await asyncio.to_thread(seed_mod.main, ["--force"]) == 0
+    assert await _valor(banco_de_negocio, "nome", editado["id"]) == editado["nome"]
+
+
+@pytest.mark.postgres
+async def test_seed_nao_toca_em_registro_que_so_existe_no_banco(
+    banco_de_negocio: psycopg.AsyncConnection[TupleRow], capsys: pytest.CaptureFixture[str]
+) -> None:
+    dados = seed_mod.carregar_dados()
+    await seed_mod.seed(dados)
+    await banco_de_negocio.execute(
+        "INSERT INTO fluxos_planejados (id, nome, descricao, id_categoria_assunto_verde) VALUES ('so-no-banco', 'x', 'y', 999999)"
+    )
+    capsys.readouterr()
+    await seed_mod.seed(dados)
+    saida = capsys.readouterr()
+    assert saida.err == "aviso: 1 registro(s) só no banco, que o seed não toca: so-no-banco\n"
+    assert await _valor(banco_de_negocio, "nome", "so-no-banco") == "x"
