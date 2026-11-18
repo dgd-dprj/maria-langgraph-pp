@@ -12,7 +12,6 @@ do fluxo escolhido depois (que usa o `chatId` puro).
 
 from __future__ import annotations
 
-import asyncio
 import os
 import uuid
 from typing import Any, cast
@@ -52,6 +51,7 @@ from maria.shared import _js
 from maria.shared._js import AUSENTE
 from maria.shared.atendimentos_db import AtendimentosStore, obter_atendimentos_store
 from maria.shared.pendentes_db import Situacao, obter_pendentes_store
+from maria.shared.trava import trava
 
 MENSAGEM_NAO_IDENTIFICADO = (
     "Não consegui identificar como te ajudar a partir do que você escreveu. "
@@ -470,8 +470,14 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
     resposta = ctx.corpo.get("resposta")
     # Duas chamadas ao mesmo tempo para a mesma conversa (um retry da Tykhe) esperam a vez: sem a trava, a
     # 2ª via o atendimento já registrado, mas ainda sem conversa, e devolvia a mensagem de sucesso do fluxo
-    # (achado do teste de consistência, 2026-11-09). A API roda num processo só, como a ponte do WhatsApp.
-    async with _TRAVAS_PROXIMO.setdefault(origem, asyncio.Lock()):
+    # (achado do teste de consistência, 2026-11-09). #453: a trava passou para o banco, porque durante os deploys
+    # duas ou três tarefas atendem ao mesmo tempo; e a espera tem limite (orçamento da #477).
+    async with trava(f"proximo:{origem}") as obtida:
+        if not obtida:
+            ctx.log.warn(
+                "orquestrador: próximo assunto em processamento por outra chamada", chatId=chat_id, evento="proximo_em_processamento"
+            )
+            return Resposta(409, {"erro": "assunto em processamento — tente de novo em instantes", "status": "em_andamento"})
         if not (isinstance(assunto, str) and assunto) and isinstance(resposta, str) and resposta.strip():
             abertos = await assuntos_em_aberto(chat_id)
             escolha = escolha_nos_abertos(resposta, abertos)
@@ -495,9 +501,6 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
                 return await _abrir_proximo_assunto(ctx, origem, posicao)
             return await _abrir_guardado(ctx, chat_id, assunto)
         return await _abrir_proximo_assunto(ctx, origem)
-
-
-_TRAVAS_PROXIMO: dict[str, asyncio.Lock] = {}
 
 
 def _resposta_lista(chat_id: str, abertos: list[AssuntoAberto]) -> dict[str, Any]:

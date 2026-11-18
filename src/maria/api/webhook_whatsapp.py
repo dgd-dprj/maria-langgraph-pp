@@ -19,7 +19,6 @@ Reproduzido de develop (spec 07, achados A1 e A2): o telefone vai no `chatId`
 
 from __future__ import annotations
 
-import asyncio
 import os
 import time
 from typing import Any, ClassVar
@@ -30,6 +29,7 @@ from maria.orquestrador.graph import obter_grafo as obter_grafo_orquestrador
 from maria.shared import _js
 from maria.shared._js import trim_js
 from maria.shared.atendimentos_db import obter_atendimentos_store
+from maria.shared.trava import trava
 
 PALAVRA_CHAVE_SAIR = "#sair"
 MENSAGEM_SAIU = "Conversa encerrada. Pode mandar uma mensagem nova quando quiser."
@@ -44,9 +44,10 @@ MENSAGEM_FALHA = "Desculpa, tive um problema pra processar sua mensagem. Tenta d
 # Número → chatId da conversa em aberto. Invalidado quando o atendimento conclui,
 # para a próxima mensagem do número abrir uma conversa nova (code review da #198).
 _conversas_ativas: dict[str, str] = {}
-# Número → trava: duas mensagens quase simultâneas do mesmo número (retry do
-# webhook da Meta) não podem ler o mesmo estado do grafo antes de a primeira gravar.
-_travas: dict[str, asyncio.Lock] = {}
+# Duas mensagens quase simultâneas do mesmo número (retry do webhook da Meta) não podem ler o mesmo estado do grafo
+# antes de a primeira gravar: a trava por número é a mesma da criação do atendimento (#453, `maria.shared.trava`), no
+# banco. LIMITE CONHECIDO: o mapa `_conversas_ativas` continua em memória, então a ponte segue precisando de um
+# processo só (Dockerfile). A trava resolve a corrida, não a conversa aberta vista por duas tarefas diferentes.
 
 
 def chat_id_ativo_de_teste(numero: str) -> str | None:
@@ -57,7 +58,6 @@ def chat_id_ativo_de_teste(numero: str) -> str | None:
 def limpar_conversas_ativas_de_teste() -> None:
     """`_limparConversasAtivasDeTeste` de develop."""
     _conversas_ativas.clear()
-    _travas.clear()
 
 
 class _ErroNode(TypeError):
@@ -127,8 +127,12 @@ async def _post_webhook(ctx: Contexto) -> Resposta:
             )
         return Resposta(200, None, texto='{"ok":true}')
 
-    trava = _travas.setdefault(mensagem["de"], asyncio.Lock())
-    async with trava:
+    async with trava(f"whatsapp:{mensagem['de']}") as obtida:
+        if not obtida:
+            # #453: a mensagem anterior do mesmo número ainda está sendo processada depois da espera máxima. Sem 200,
+            # a Meta reenvia a mensagem mais tarde, e ela não se perde nem roda em paralelo.
+            ctx.log.warn("[whatsapp] mensagem anterior do número ainda em processamento", evento="whatsapp_em_processamento")
+            return Resposta(503, None, texto='{"ok":false}')
         await _processar(ctx, mensagem["de"], mensagem["texto"])
     return Resposta(200, None, texto='{"ok":true}')
 

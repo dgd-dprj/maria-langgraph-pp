@@ -44,6 +44,7 @@ from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
 from maria.shared.pendentes_db import obter_pendentes_store
 from maria.shared.respostas import normalizar_resposta, resposta_eh_nao, resposta_eh_sim
+from maria.shared.trava import trava
 
 # Formas naturais de responder à confirmação de TTL além de sim/não (#227), já
 # normalizadas (sem acento, minúsculas: ver normalizar_resposta).
@@ -181,6 +182,21 @@ async def criar_atendimento(
     if chat_id_gerado:
         log.warn("chatId ausente na requisição — gerado UUID (só permitido em NODE_ENV=test)", fluxoId=fluxo_id, chatId=chat_id)
 
+    # #453: duas chamadas iguais ao mesmo tempo (um reenvio da Tykhe) não rodam o fluxo duas vezes. A trava vale entre
+    # processos (no banco) e tem espera máxima: a segunda chamada espera a primeira terminar e devolve o estado atual.
+    async with trava(f"atendimento:{chat_id}") as obtida:
+        return await _criar_ou_retomar(fluxo, fluxo_id, chat_id, dados_conhecidos, log, via_orquestrador, obtida)
+
+
+async def _criar_ou_retomar(
+    fluxo: FluxoConfig,
+    fluxo_id: str,
+    chat_id: str,
+    dados_conhecidos: Any,
+    log: LogRequisicao,
+    via_orquestrador: bool,
+    trava_obtida: bool,
+) -> Resposta:
     # Registra chatId→flowId ANTES de tocar no grafo: chatId de outro fluxo é 409.
     store = await obter_atendimentos_store()
     registro = await store.registrar(chat_id, fluxo_id)
@@ -203,6 +219,18 @@ async def criar_atendimento(
         log.warn("POST em chatId que já existe — devolvendo estado atual, sem reiniciar", fluxoId=fluxo_id, chatId=chat_id)
         corpo = montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt_anterior, valores_anteriores)
         return Resposta(200, corpo, {"Location": f"/atendimentos/{chat_id}"})
+
+    if not trava_obtida:
+        # #453: a primeira chamada ainda está rodando depois da espera máxima e não gravou nada. Rodar o fluxo aqui
+        # o abriria duas vezes; devolver o estado vazio diria à pessoa algo que não aconteceu. Fica um 409 que
+        # pede para tentar de novo, e a próxima tentativa encontra o estado gravado.
+        log.warn(
+            "atendimento em processamento por outra chamada — sem rodar de novo",
+            fluxoId=fluxo_id,
+            chatId=chat_id,
+            evento="atendimento_em_processamento",
+        )
+        return Resposta(409, {"erro": "atendimento em processamento — tente de novo em instantes", "status": "em_andamento"})
 
     log.info("atendimento criado", fluxoId=fluxo_id, chatId=chat_id, evento="atendimento_criado")
     dados = {k: v for k, v in (dados_conhecidos if isinstance(dados_conhecidos, dict) else {}).items() if k != "viaOrquestrador"}
