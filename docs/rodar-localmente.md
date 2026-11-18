@@ -29,6 +29,8 @@ uv sync
 
 O `uv sync` cria o ambiente em `.venv/` com as versões travadas no `uv.lock`. Se o Python 3.12 não estiver instalado, rode antes `uv python install 3.12`.
 
+**No VS Code (#412):** o editor mostra os mesmos erros de tipo que o CI. O repositório traz `.vscode/settings.json`, que desliga a checagem de tipos do Pylance (ele usa o pyright, que discorda do mypy em vários pontos), e `.vscode/extensions.json`, que recomenda a extensão do mypy (`ms-python.mypy-type-checker`). Ela usa o mypy do `.venv` e a configuração do `pyproject.toml`, como o CI. Abra a pasta `maria-langgraph-pp` como pasta do VS Code: se ela estiver dentro de outra pasta aberta, as configurações dela não valem, e é preciso copiar as três chaves do `settings.json` para a configuração da pasta de fora.
+
 ## 3. Configuração (`.env`)
 
 A API lê as variáveis de um arquivo `.env` na raiz do projeto. Escolha um dos dois modos abaixo.
