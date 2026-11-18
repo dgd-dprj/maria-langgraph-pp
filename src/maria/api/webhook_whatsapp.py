@@ -50,6 +50,15 @@ _conversas_ativas: dict[str, str] = {}
 # processo só (Dockerfile). A trava resolve a corrida, não a conversa aberta vista por duas tarefas diferentes.
 
 
+def ligado() -> bool:
+    """#339: o webhook só existe onde o WhatsApp está configurado, ou seja, com `WHATSAPP_VERIFY_TOKEN`, o token que a
+    Meta usa para assinar o webhook. Sem ele, o `GET` de verificação já responde 403 e a Meta não entrega mensagens: a
+    rota só serviria de porta aberta. Lido na criação da aplicação. Na produção, que não tem o WhatsApp, as duas rotas
+    deixam de existir (404). No release, ficam como estavam. Para testar a ponte localmente, basta definir o token; o
+    envio continua em modo simulado sem `WHATSAPP_ACCESS_TOKEN`."""
+    return bool(os.environ.get("WHATSAPP_VERIFY_TOKEN", "").strip())
+
+
 def chat_id_ativo_de_teste(numero: str) -> str | None:
     """`_chatIdAtivoDeTeste` de develop."""
     return _conversas_ativas.get(numero)

@@ -71,7 +71,7 @@ Quatro grupos de rota, com autenticação diferente:
 **Canais por ambiente** (verificado em 2026-10-16 no `ecs.tf` e no `release.tf` de `main` e de develop):
 - **Tykhe:** produção e release.
 - **Bridge do WhatsApp:** **só release.** As quatro variáveis `WHATSAPP_*` existem apenas no `release.tf`.
-- **Em produção a rota do webhook existe,** mas sem `WHATSAPP_VERIFY_TOKEN`: o `GET` de verificação devolve 403 sempre (ver achado A1).
+- **Em produção a rota do webhook existe,** mas sem `WHATSAPP_VERIFY_TOKEN`: o `GET` de verificação devolve 403 sempre (ver achado A1). **Desde 2026-11-18 (#339), sem o token as rotas não são registradas (404).**
 
 ## 2. Contrato
 

@@ -7,12 +7,15 @@ fica em modo mock (sem `WHATSAPP_ACCESS_TOKEN`).
 
 import asyncio
 import time
+from collections.abc import AsyncIterator
 from typing import Any
 
 import httpx
 import pytest
 
+from maria.api import webhook_whatsapp
 from maria.api.webhook_whatsapp import chat_id_ativo_de_teste, limpar_conversas_ativas_de_teste
+from maria.app import criar_app
 from maria.fluxos import ID_PESSOA_PRESA
 from maria.integracoes.whatsapp import extrair_mensagem_whatsapp
 from maria.shared.atendimentos_db import obter_atendimentos_store
@@ -77,6 +80,46 @@ async def test_get_verify_token_errado_403(cliente: httpx.AsyncClient, monkeypat
     monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "segredo-teste")
     r = await cliente.get(f"{URL}?hub.mode=subscribe&hub.verify_token=errado&hub.challenge=abc123")
     assert r.status_code == 403
+
+
+# --- #339 (decisão da Nicole, 2026-11-18): sem o WhatsApp configurado, como na produção, o webhook não existe ----------
+
+
+@pytest.fixture
+async def cliente_sem_whatsapp(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[httpx.AsyncClient]:
+    """A aplicação como na produção: sem `WHATSAPP_VERIFY_TOKEN`."""
+    for variavel in ("WHATSAPP_VERIFY_TOKEN", "WHATSAPP_ACCESS_TOKEN", "WHATSAPP_PHONE_NUMBER_ID", "DATABASE_URL", "VERDE_JWT_TOKEN"):
+        monkeypatch.delenv(variavel, raising=False)
+    app = criar_app(pre_aquecer=False)
+    async with app.router.lifespan_context(app):
+        transporte = httpx.ASGITransport(app=app, client=("127.0.0.1", 50000))
+        async with httpx.AsyncClient(transport=transporte, base_url="http://127.0.0.1:3001") as c:
+            yield c
+
+
+async def test_339_sem_whatsapp_o_post_nao_existe_e_nao_abre_atendimento(
+    cliente_sem_whatsapp: httpx.AsyncClient, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", ID_PESSOA_PRESA)
+    n = numero("test-wpp-339")
+    r = await cliente_sem_whatsapp.post(URL, json=payload_texto(n, "quero saber de um parente preso"))
+    assert r.status_code == 404
+    assert r.json()["message"] == "Route POST:/webhook/whatsapp not found"
+    assert chat_id_ativo_de_teste(n) is None  # nada chegou ao orquestrador
+
+
+async def test_339_sem_whatsapp_o_get_de_verificacao_nao_existe(cliente_sem_whatsapp: httpx.AsyncClient) -> None:
+    r = await cliente_sem_whatsapp.get(f"{URL}?hub.mode=subscribe&hub.verify_token=qualquer&hub.challenge=abc")
+    assert r.status_code == 404
+
+
+@pytest.mark.parametrize(("token", "ligado"), [(None, False), ("", False), ("   ", False), ("segredo", True)])
+def test_339_o_webhook_liga_so_com_o_token(monkeypatch: pytest.MonkeyPatch, token: str | None, ligado: bool) -> None:
+    if token is None:
+        monkeypatch.delenv("WHATSAPP_VERIFY_TOKEN", raising=False)
+    else:
+        monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", token)
+    assert webhook_whatsapp.ligado() is ligado
 
 
 async def test_primeira_mensagem_cai_no_orquestrador_e_abre_atendimento(
