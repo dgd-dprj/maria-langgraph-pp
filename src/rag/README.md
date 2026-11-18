@@ -17,7 +17,7 @@ vetorial são criados por SQL em `src/rag/src/rag/vector_store.py`.
 
 | Arquivo                     | Responsabilidade                                                                            |
 | --------------------------- | ------------------------------------------------------------------------------------------- |
-| `src/rag/src/rag/ingest_documentos.py` | Lê OpenAPI (`swagger.json`/`openapi.json`) ou uma captura HTML e fragmenta as operações. |
+| `src/rag/src/rag/ingest_documentos.py` | Lê OpenAPI (`swagger.json`/`openapi.json`), HTML, PDF (`.pdf`), Word (`.docx`), Excel/CSV (`.xlsx`, `.xls`, `.csv`) e imagens (`.png`, `.jpg`, `.jpeg`, `.webp`, `.bmp`, `.gif`, `.tif`, `.tiff`) em `documentos/` e fragmenta o conteúdo. |
 | `src/rag/embeddings.py`     | Configura o modelo Titan Embeddings do Amazon Bedrock.                                      |
 | `src/rag/vector_store.py`   | Cria a tabela `rag_documentos_swagger` e executa gravação e busca por cosseno no pgvector.  |
 | `src/rag/retriever.py`      | Evita embeddings repetidos por hash, indexa documentos e recupera os três melhores trechos. |
@@ -50,12 +50,23 @@ credenciais AWS no ambiente. Ajuste `AWS_REGION` caso os modelos Bedrock não
 estejam disponíveis em `us-east-1`. O exemplo separa a configuração do RAG do
 `.env` da aplicação.
 
-Indexe o Swagger. O primeiro comando chama Bedrock para gerar os embeddings; nas
+Indexe os documentos com acompanhamento de progresso em tempo real. O primeiro comando chama Bedrock para gerar os embeddings; nas
 execuções seguintes, documentos sem alteração são reaproveitados do Postgres:
 
 ```bash
 uv run --project src/rag python -m rag.ingest
 ```
+
+Opções suportadas pelo comando manual:
+- `--lote 25`: define a quantidade de fragmentos processados por chamada de embeddings (padrão: 25).
+- `--pasta <caminho>`: especifica uma pasta alternativa de documentos.
+- `--silencioso`: suprime os detalhes intermediários de progresso.
+
+O terminal exibe em tempo real as 4 etapas da ingestão:
+1. Descoberta e extração (com OCR em imagens e leitura de PDFs, DOCX, planilhas e OpenAPI);
+2. Verificação de integridade no pgvector (identificando trechos reaproveitados vs novos);
+3. Geração em lotes no Amazon Bedrock com porcentagem de conclusão;
+4. Gravação e sincronização do banco com resumo e tempo total.
 
 Inicie a API local de demonstração em outro terminal:
 
@@ -63,12 +74,20 @@ Inicie a API local de demonstração em outro terminal:
 uv run --project src/rag uvicorn rag.api:app --app-dir src/rag/src --host 0.0.0.0 --port 8010
 ```
 
-Abra `http://127.0.0.1:8010/docs` para explorar os endpoints. A sequência abaixo
-demonstra indexação, busca e explicação:
+Abra `http://127.0.0.1:8010/docs` para explorar os endpoints. É possível disparar a ingestão e acompanhar o progresso via HTTP:
 
 ```bash
 curl http://127.0.0.1:8010/health
-curl -X POST http://127.0.0.1:8010/api/index
+
+# Dispara a indexação síncrona ou em segundo plano:
+curl -X POST "http://127.0.0.1:8010/api/index?background=true"
+
+# Consulta o progresso atual e estatísticas:
+curl http://127.0.0.1:8010/api/index/status
+
+# Ou acompanha os eventos em tempo real via Server-Sent Events (SSE):
+curl -N http://127.0.0.1:8010/api/index/stream
+```
 curl -X POST http://127.0.0.1:8010/api/search \
   -H 'Content-Type: application/json' \
   -d '{"consulta":"O que significa erro de CEP inválido?","limite":3}'

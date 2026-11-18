@@ -6,12 +6,14 @@ from collections.abc import AsyncIterator
 from contextlib import asynccontextmanager
 from typing import Any
 
-from fastapi import FastAPI, HTTPException
+from fastapi import BackgroundTasks, FastAPI, HTTPException, Query, status
+from fastapi.responses import StreamingResponse
 from pydantic import BaseModel, Field
 
 from .catalogo import CandidatoCatalogo
 from .chain import ExplicadorVerde
 from .embeddings import criar_modelo_embeddings
+from .progresso import RastreadorProgresso
 from .recuperador_catalogo import LIMITE_CANDIDATOS, RecuperadorCatalogo
 from .retriever import RecuperadorVerde
 from .settings import carregar_configuracoes
@@ -21,6 +23,7 @@ armazenamento = ArmazenamentoVetorial(carregar_configuracoes().database_url)
 recuperador: RecuperadorVerde | None = None
 explicador: ExplicadorVerde | None = None
 recuperador_catalogo: RecuperadorCatalogo | None = None
+rastreador_ingest = RastreadorProgresso()
 
 
 @asynccontextmanager
@@ -82,6 +85,40 @@ class BuscaCatalogoRequest(BaseModel):
     sincronizar_completo: bool = True
 
 
+class StatusIngestResponse(BaseModel):
+    etapa: str = Field(
+        description="Etapa atual da ingestão (ex: ocioso, descoberta, carregamento, comparacao, embeddings, persistindo, concluido, erro)."
+    )
+    mensagem: str = Field(description="Descrição amigável do estado atual.")
+    atual: int = Field(default=0, description="Quantidade de itens processados na etapa atual.")
+    total: int = Field(default=0, description="Total de itens da etapa atual.")
+    porcentagem: float = Field(default=0.0, description="Porcentagem de conclusão da etapa ou processo.")
+    arquivo_atual: str = Field(default="", description="Nome do arquivo em processamento no momento.")
+    em_andamento: bool = Field(default=False, description="Indica se existe uma ingestão rodando no momento.")
+    iniciado_em: str | None = Field(default=None, description="Timestamp ISO de início.")
+    finalizado_em: str | None = Field(default=None, description="Timestamp ISO de término.")
+    duracao_segundos: float = Field(default=0.0, description="Duração decorrida em segundos.")
+    resumo: dict[str, int] = Field(default_factory=dict, description="Estatísticas finais da indexação.")
+    erro: str | None = Field(default=None, description="Mensagem de erro em caso de falha.")
+    detalhes: dict[str, Any] = Field(default_factory=dict, description="Dados complementares da etapa.")
+
+
+def _executar_indexacao(tamanho_lote: int = 25) -> dict[str, int]:
+    if recuperador is None:
+        raise RuntimeError("RAG ainda não inicializado.")
+    rastreador_ingest.iniciar("Iniciando indexação dos documentos...")
+    try:
+        resumo = recuperador.indexar(
+            callback_progresso=rastreador_ingest.como_callback(),
+            tamanho_lote=tamanho_lote,
+        )
+        rastreador_ingest.concluir(resumo)
+        return resumo
+    except Exception as erro:
+        rastreador_ingest.falhar(erro)
+        raise
+
+
 @app.get("/health")
 def health() -> dict[str, Any]:
     try:
@@ -92,12 +129,54 @@ def health() -> dict[str, Any]:
     return {"status": "ok", "documentos_indexados": total, "candidatos_orquestrador": candidatos}
 
 
+@app.get("/api/index/status", response_model=StatusIngestResponse)
+def status_indexacao() -> dict[str, Any]:
+    """Retorna o progresso e estado atual da ingestão de documentos."""
+    return rastreador_ingest.obter_status()
+
+
+@app.get("/api/index/stream")
+async def stream_indexacao() -> StreamingResponse:
+    """Acompanha em tempo real o progresso da ingestão via Server-Sent Events (SSE)."""
+    return StreamingResponse(
+        rastreador_ingest.gerar_stream_sse(),
+        media_type="text/event-stream",
+        headers={
+            "Cache-Control": "no-cache",
+            "Connection": "keep-alive",
+            "X-Accel-Buffering": "no",
+        },
+    )
+
+
 @app.post("/api/index")
-def indexar() -> dict[str, int]:
+def indexar(
+    tarefas_segundo_plano: BackgroundTasks,
+    background: bool = Query(default=False, description="Quando true, executa a ingestão em segundo plano."),
+    tamanho_lote: int = Query(default=25, ge=1, le=200, description="Tamanho do lote de embeddings."),
+) -> dict[str, Any]:
+    """Inicia a indexação vetorial dos documentos da pasta documentos/ com acompanhamento de progresso."""
+    if rastreador_ingest.obter_estado().em_andamento:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail={
+                "mensagem": "Indexação já está em andamento.",
+                "progresso": rastreador_ingest.obter_status(),
+            },
+        )
+
     if recuperador is None:
         raise HTTPException(status_code=503, detail="RAG ainda não inicializado.")
+
+    if background:
+        tarefas_segundo_plano.add_task(_executar_indexacao, tamanho_lote=tamanho_lote)
+        return {
+            "status": "iniciado",
+            "mensagem": "Indexação iniciada em segundo plano. Consulte /api/index/status ou /api/index/stream.",
+        }
+
     try:
-        return recuperador.indexar()
+        return _executar_indexacao(tamanho_lote=tamanho_lote)
     except Exception as erro:
         raise HTTPException(status_code=500, detail=f"Falha ao indexar documentos: {erro}") from erro
 
