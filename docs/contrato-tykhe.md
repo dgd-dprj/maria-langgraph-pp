@@ -80,7 +80,7 @@ Um fluxo em teste (`em_teste=True`, #324) só aparece no release (`MARIA_AMBIENT
      - Um item da Tykhe volta como `redirecionado` com `tipoCaso` e o `chatId` do assunto, uma vez só.
      - **Idempotente:** chamar de novo devolve o assunto em andamento; um assunto encerrado é pulado; chamadas ao mesmo tempo para a mesma conversa esperam a vez.
      - Sem pendentes, `404 {"erro": "nenhum assunto pendente nesta conversa"}`. Na produção, `404 {"erro": "rota disponível só no ambiente de teste (release)"}`.
-     - No fim de um assunto aberto assim, `assuntosPendentes` lista só os que vêm depois dele.
+     - No fim de um assunto aberto assim, `assuntosPendentes` lista só os que vêm depois dele. **Desde a #493 (2026-11-18), a lista não traz os que já foram abertos ou encaminhados**, inclusive os abertos fora da ordem pelo `flowId` ou pelo `tipoCaso`, na resposta que abre o assunto e na resposta final. O formato não muda: só a lista fica certa.
   2. **Identificação pelo `idUsuario` da Tykhe (decisão da Nicole em 2026-11-10; substitui o CPF no começo, que valeu de 09 a 10/11).**
      - **A Tykhe manda `idUsuario`, o id da pessoa no sistema dela, na 1ª chamada do orquestrador:** `{ "chatId": "…", "mensagem": "…", "idUsuario": "…" }`. Pode ser texto ou número; até 200 caracteres. **Nunca o CPF nem o telefone.** Nas respostas seguintes não precisa mandar de novo (e mandar outro não troca o da conversa).
      - **A Maria não pergunta mais o CPF no começo.** Os fluxos pedem o CPF quando precisam, como antes da #450; `dadosConhecidos.cpf` continua valendo e dispensa a pergunta.

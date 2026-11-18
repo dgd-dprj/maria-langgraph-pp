@@ -542,6 +542,46 @@ async def test_guardado_da_tykhe_abre_pelo_tipo_caso(cliente: httpx.AsyncClient,
     assert (corpo["status"], corpo["tipoCaso"], corpo["chatId"]) == ("redirecionado", "novo-processo", f"{antiga}-assunto-2")
 
 
+# #493 (achado do QA da staging, 13/11): assunto aberto fora da ordem não volta em `assuntosPendentes`.
+
+
+def _ids_pendentes(pendentes: Any) -> list[str]:
+    return [p.get("flowId") or f"tykhe:{p.get('tipoCaso')}" for p in pendentes or []]
+
+
+async def test_493_assunto_aberto_fora_da_ordem_nao_volta_como_pendente(
+    cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
+) -> None:
+    # A violência doméstica é o 1º assunto; a pessoa presa (2), o caso novo (3) e o horário marcado (4) ficam pendentes.
+    chat = await _conversa_com_pendente(cliente, auth, release, VD, PP, NOVO_PROCESSO, HORARIO)
+    pendentes = (await _estado_orquestrador(chat))["assuntosPendentes"]
+    assert _ids_pendentes(pendentes) == [ID_PESSOA_PRESA, "tykhe:novo-processo", "tykhe:agendamentos"]
+
+    # A Tykhe abre o caso novo pelo `tipoCaso`, fora da ordem.
+    caso_novo = (await cliente.post(PROXIMO, json={"chatId": chat, "tipoCaso": "novo-processo"}, headers=auth)).json()
+    assert (caso_novo["status"], caso_novo["tipoCaso"]) == ("redirecionado", "novo-processo")
+    assert _ids_pendentes(caso_novo.get("assuntosPendentes")) == ["tykhe:agendamentos"]
+
+    # Depois abre a pessoa presa pelo `flowId`: o caso novo, já encaminhado, não volta na lista.
+    pessoa_presa = (await cliente.post(PROXIMO, json={"chatId": chat, "flowId": ID_PESSOA_PRESA}, headers=auth)).json()
+    assert pessoa_presa["chatId"] == f"{chat}-assunto-2"
+    assert _ids_pendentes(pessoa_presa.get("assuntosPendentes")) == ["tykhe:agendamentos"]
+
+    # E no fim da pessoa presa, a resposta final também traz só o que falta.
+    fim = await _pessoa_presa_ate_o_fim(cliente, auth, f"{chat}-assunto-2", pessoa_presa)
+    assert _ids_pendentes(fim.get("assuntosPendentes")) == ["tykhe:agendamentos"]
+
+
+async def test_493_na_ordem_normal_a_lista_continua_igual(
+    cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch
+) -> None:
+    chat = await _conversa_com_pendente(cliente, auth, release, VD, PP, NOVO_PROCESSO)
+    # O 2º assunto, na ordem: os pendentes depois dele seguem como antes.
+    pessoa_presa = (await cliente.post(PROXIMO, json={"chatId": chat}, headers=auth)).json()
+    assert pessoa_presa["chatId"] == f"{chat}-assunto-2"
+    assert _ids_pendentes(pessoa_presa.get("assuntosPendentes")) == ["tykhe:novo-processo"]
+
+
 async def test_campo_assunto_antigo_continua_aceito(cliente: httpx.AsyncClient, auth: dict[str, str], release: pytest.MonkeyPatch) -> None:
     """Para quem já usava: `assunto` com o flowId abre como o campo `flowId` (2026-11-13)."""
     antiga = await _conversa_com_pendente(cliente, auth, release, VD, PP)
