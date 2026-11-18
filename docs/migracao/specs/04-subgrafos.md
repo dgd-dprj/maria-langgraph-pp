@@ -122,7 +122,7 @@ Textos das perguntas (byte a byte), nomes de nós e de canais, a ordem das pergu
 ## 6. Observabilidade
 
 Nada é registrado diretamente. Pelas funções chamadas:
-- **Verde:** `pessoa`, `cep` e `cadastroPessoa`. O `corpo` cru é registrado no cadastro (#220).
+- **Verde:** `pessoa`, `cep` e `cadastroPessoa`. O `corpo` cru era registrado no cadastro (#220); desde 2026-11-18, só o status HTTP e o `codigo` do erro.
 - **`reescrever`:** campo `campo`, com o nome do campo e não o conteúdo.
 
 A tradução não acrescenta nenhum log.
