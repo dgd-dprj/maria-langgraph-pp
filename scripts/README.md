@@ -18,7 +18,7 @@ Varre a árvore de perguntas/assuntos do Verde (`GET /integra/assunto/consultar-
 - **Quando rodar**: sob demanda, se a árvore de assuntos do Verde mudar (é a única forma de refrescar `perguntas`/`assuntos_verde`).
 - **Não incremental** — recrawleia (limpa e reinsere) cada `flowId` visitado a cada rodada.
 - **Precisa**: `DATABASE_URL` + `VERDE_JWT_TOKEN`/`VERDE_CLIENT_ID` reais no `.env` — sem modo mock, é coleta de dado real.
-- **Atenção (#251)**: a categoria é apagada antes de ser varrida, sem transação. Se o Verde falhar no meio, ela fica com a árvore parcial ou vazia, e o script **sai com código 0** mesmo assim. Leia o resumo final: "N falha(s)" e a lista de categorias com falha. Cada chamada ao Verde tem prazo de 20 s, como no script de develop (o serviço usa 30 s, #196).
+- **Troca numa transação (#251, decisão da Nicole, 2026-11-18)**: cada categoria é varrida em memória, sem tocar no banco. No fim, as categorias que deram certo trocam de árvore numa transação só. Uma categoria que falhou **fica com a árvore anterior**, aparece no resumo ("categorias com falha (a árvore anterior foi mantida): …"), e o script **sai com código 1**. Se a própria troca falhar no banco, nenhuma árvore muda, e a saída é crawl falhou:. Em develop, a categoria era apagada antes da varredura e a falha saía com código 0. Cada chamada ao Verde tem prazo de 20 s, como no script de develop (o serviço usa 30 s, #196).
 
 ## `conferir_token_verde.py` (issue #298)
 
