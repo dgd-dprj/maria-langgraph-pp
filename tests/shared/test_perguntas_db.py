@@ -230,6 +230,7 @@ async def test_postgres_falha_no_meio_da_troca_desfaz_tudo(banco_de_negocio: psy
     # numa coluna NOT NULL). O ROLLBACK devolve as duas árvores anteriores.
     store = await obter_perguntas_store()
     await store.substituir_arvores([arvore("flow-pg-c", "c antiga", 921), arvore("flow-pg-d", "d antiga", 922)])
+    datas_antes = await store.datas_das_coletas(["flow-pg-c", "flow-pg-d"])
     quebrada = arvore("flow-pg-d", "d nova", 924)
     quebrada["perguntas"][0]["textoPergunta"] = None  # type: ignore[typeddict-item]
     with pytest.raises(psycopg.errors.NotNullViolation):
@@ -239,3 +240,16 @@ async def test_postgres_falha_no_meio_da_troca_desfaz_tudo(banco_de_negocio: psy
     assert [p["textoPergunta"] for p in await store.listar_perguntas_por_flow("flow-pg-d")] == ["d antiga"]
     cursor = await banco_de_negocio.execute("SELECT count(*) FROM assuntos_verde WHERE id_assunto IN (923, 924)")
     assert await cursor.fetchone() == (0,)
+    # #526: a data da última coleta também voltou atrás, inclusive a da categoria já regravada na transação.
+    assert await store.datas_das_coletas(["flow-pg-c", "flow-pg-d"]) == datas_antes
+
+
+@pytest.mark.postgres
+async def test_postgres_datas_das_coletas(banco_de_negocio: psycopg.AsyncConnection[TupleRow]) -> None:
+    store = await obter_perguntas_store()
+    assert await store.datas_das_coletas(["flow-pg-e", "flow-pg-nunca"]) == {}
+    await store.substituir_arvores([arvore("flow-pg-e", "e", 931)])
+    datas = await store.datas_das_coletas(["flow-pg-e", "flow-pg-nunca"])
+    assert set(datas) == {"flow-pg-e"}
+    assert datas["flow-pg-e"].tzinfo is not None
+    assert await store.datas_das_coletas([]) == {}

@@ -7,6 +7,7 @@ inventadas; as stores ficam em memória (sem DATABASE_URL).
 import asyncio
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -364,7 +365,7 @@ async def test_coletar_segue_depois_de_categoria_com_falha(capsys: pytest.Captur
         "[violencia-domestica] 1 pergunta(s), 1 assunto(s)",
         "[categoria a] 4 pergunta(s), 4 assunto(s)",
         "crawl concluído: 5 pergunta(s), 5 assunto(s), 1 falha(s) em 3 categorias",
-        "categorias com falha (a árvore anterior foi mantida): categoria b",
+        "categorias com falha (a árvore anterior foi mantida): categoria b (nunca coletada com sucesso)",
     ]
     assert captura.err.splitlines() == ['[categoria b] falhou: consultar-item-arvore HTTP 503 ({"idCategoria":9002})']
     assert falhas == 1
@@ -438,6 +439,48 @@ async def test_251_nada_vai_ao_banco_antes_do_fim(monkeypatch: pytest.MonkeyPatc
     monkeypatch.setattr(store, "substituir_arvores", registrar)
     await _coletar({**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idCategoria=9002": (500, {})})
     assert chamadas == [[ID_VIOLENCIA_DOMESTICA, "planejado-a"]]
+
+
+# #526 (decisão da Nicole, 2026-11-18, caminho 1): a data da última coleta bem-sucedida de cada categoria, gravada na troca,
+# aparece no resumo para as categorias que falharam. O aviso de falhas seguidas (caminho 2) fica para quando a coleta for agendada.
+
+
+async def test_526_categoria_que_falhou_mostra_a_ultima_coleta(capsys: pytest.CaptureFixture[str]) -> None:
+    await _coletar({**ARVORE_VD, **ARVORE_9001, **_categoria_b_boa()})
+    store = await obter_perguntas_store()
+    # Simula que a última coleta boa da categoria b foi há 16 dias.
+    store._coletas["planejado-b"] = datetime.now(UTC) - timedelta(days=16, hours=1)  # type: ignore[attr-defined]
+    capsys.readouterr()
+    await _coletar({**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idCategoria=9002": (500, {})}, cadastrar=False)
+    ultima = capsys.readouterr().out.splitlines()[-1]
+    data = (datetime.now(UTC) - timedelta(days=16, hours=1)).astimezone(crawler.BRASILIA).strftime("%d/%m/%Y")
+    assert ultima == f"categorias com falha (a árvore anterior foi mantida): categoria b (última coleta em {data}, há 16 dias)"
+
+
+async def test_526_so_a_troca_que_deu_certo_atualiza_a_data() -> None:
+    await _coletar({**ARVORE_VD, **ARVORE_9001, **_categoria_b_boa()})
+    store = await obter_perguntas_store()
+    antes = await store.datas_das_coletas(["planejado-a", "planejado-b"])
+    assert set(antes) == {"planejado-a", "planejado-b"}
+    await _coletar({**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idCategoria=9002": (500, {})}, cadastrar=False)
+    depois = await store.datas_das_coletas(["planejado-a", "planejado-b"])
+    assert depois["planejado-b"] == antes["planejado-b"]  # falhou: a data da última coleta boa fica
+    assert depois["planejado-a"] >= antes["planejado-a"]
+
+
+@pytest.mark.parametrize(
+    ("quando", "esperado"),
+    [
+        (None, "nunca coletada com sucesso"),
+        (datetime(2026, 11, 18, 12, 0, tzinfo=UTC), "última coleta em 18/11/2026, hoje"),
+        (datetime(2026, 11, 17, 11, 0, tzinfo=UTC), "última coleta em 17/11/2026, há 1 dia"),
+        (datetime(2026, 11, 2, 12, 0, tzinfo=UTC), "última coleta em 02/11/2026, há 16 dias"),
+        # 01:00 em UTC ainda é o dia anterior em Brasília.
+        (datetime(2026, 11, 10, 1, 0, tzinfo=UTC), "última coleta em 09/11/2026, há 8 dias"),
+    ],
+)
+def test_526_descrever_ultima_coleta(quando: datetime | None, esperado: str) -> None:
+    assert crawler.descrever_ultima_coleta(quando, datetime(2026, 11, 18, 15, 0, tzinfo=UTC)) == esperado
 
 
 @pytest.mark.parametrize(("falhas", "codigo"), [(0, 0), (1, 1), (3, 1)])

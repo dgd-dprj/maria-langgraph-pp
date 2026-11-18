@@ -15,6 +15,7 @@ from __future__ import annotations
 import asyncio
 import json
 import os
+from datetime import UTC, datetime
 from typing import Any, Literal, NotRequired, Protocol, TypedDict
 
 from maria.shared.logger import logger
@@ -97,6 +98,9 @@ class PerguntasStore(Protocol):
     # #251: troca as árvores coletadas de uma vez. Para cada flow, apaga a árvore antiga e grava a nova; no
     # Postgres, tudo numa transação só. Se qualquer gravação falhar, nada muda e as árvores anteriores ficam.
     async def substituir_arvores(self, arvores: list[ArvoreColetada]) -> None: ...
+    # #526: a data da última coleta bem-sucedida de cada flow, gravada na mesma transação da troca. Flow nunca
+    # coletado com sucesso fica de fora do dicionário.
+    async def datas_das_coletas(self, flow_ids: list[str]) -> dict[str, datetime]: ...
 
 
 def _assunto_do_flow(detalhe: AssuntoVerde, veio_da_resposta_id: int | None) -> AssuntoDoFlow:
@@ -109,6 +113,7 @@ class _StoreEmMemoria:
         self._perguntas: list[PerguntaArvore] = []
         self._assuntos: dict[int, AssuntoVerde] = {}
         self._flow_assuntos: list[FlowAssunto] = []
+        self._coletas: dict[str, datetime] = {}
 
     async def inserir_pergunta(self, p: PerguntaArvore) -> None:
         self._perguntas.append(p)
@@ -155,6 +160,12 @@ class _StoreEmMemoria:
         self._perguntas[:] = perguntas
         self._flow_assuntos[:] = flow_assuntos
         self._assuntos = assuntos
+        agora = datetime.now(UTC)
+        for arvore in arvores:
+            self._coletas[arvore["flowId"]] = agora
+
+    async def datas_das_coletas(self, flow_ids: list[str]) -> dict[str, datetime]:
+        return {f: self._coletas[f] for f in flow_ids if f in self._coletas}
 
 
 def _json(valor: object) -> str:
@@ -227,6 +238,16 @@ class _StorePostgres:
     """
             )
             await conexao.execute("CREATE INDEX IF NOT EXISTS flow_assuntos_flow_id_idx ON flow_assuntos (flow_id)")
+            # #526: a data da última coleta bem-sucedida de cada categoria. Uma categoria que falha em toda execução
+            # fica com a árvore antiga, e esta data mostra há quanto tempo.
+            await conexao.execute(
+                """
+      CREATE TABLE IF NOT EXISTS coletas_arvore (
+        flow_id TEXT PRIMARY KEY,
+        coletado_em TIMESTAMPTZ NOT NULL
+      )
+    """
+            )
         logger.info("[perguntasDb] tabelas 'perguntas', 'assuntos_verde' e 'flow_assuntos' prontas (Postgres)")
 
     async def inserir_pergunta(self, p: PerguntaArvore) -> None:
@@ -304,6 +325,22 @@ class _StorePostgres:
                     await _gravar_assunto(conexao, a)
                 for fa in arvore["ligacoes"]:
                     await _gravar_flow_assunto(conexao, fa)
+                # #526: na mesma transação, então só uma troca que deu certo atualiza a data.
+                await conexao.execute(
+                    """INSERT INTO coletas_arvore (flow_id, coletado_em) VALUES (%s, now())
+         ON CONFLICT (flow_id) DO UPDATE SET coletado_em = now()""",
+                    (arvore["flowId"],),
+                )
+
+    async def datas_das_coletas(self, flow_ids: list[str]) -> dict[str, datetime]:
+        await self._pronto
+        if not flow_ids:
+            return {}
+        async with self._pool.connection() as conexao:
+            linhas = await (
+                await conexao.execute("SELECT flow_id, coletado_em FROM coletas_arvore WHERE flow_id = ANY(%s)", (flow_ids,))
+            ).fetchall()
+        return {linha["flow_id"]: linha["coletado_em"] for linha in linhas}
 
 
 async def _apagar_flow(conexao: ConexaoAsync, flow_id: str) -> None:
