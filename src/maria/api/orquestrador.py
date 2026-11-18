@@ -46,7 +46,7 @@ from maria.orquestrador.fila import (
     texto_proximo_assunto,
     texto_retomada,
 )
-from maria.orquestrador.graph import assuntos_em_aberto, obter_grafo, usuario_do_chat
+from maria.orquestrador.graph import assuntos_em_aberto, obter_grafo, pendentes_ainda_nao_abertos, usuario_do_chat
 from maria.shared import _js
 from maria.shared._js import AUSENTE
 from maria.shared.atendimentos_db import AtendimentosStore, obter_atendimentos_store
@@ -608,7 +608,6 @@ async def _abrir_proximo_assunto(ctx: Contexto, origem: str, so_posicao: int | N
         if so_posicao is not None and posicao != so_posicao:
             continue
         novo = chat_id_do_assunto(origem, posicao)
-        restantes = _com_cpf(pendentes[indice + 1 :], cpf)
         tipo_caso = item.get("tipoCaso")
         if tipo_caso is not None:
             if posicao in encaminhados:
@@ -624,6 +623,8 @@ async def _abrir_proximo_assunto(ctx: Contexto, origem: str, so_posicao: int | N
             )
             corpo = _resposta_redirecionada(novo, tipo_tykhe_por_caso(cast(TipoCasoTykhe, tipo_caso)), None)
             corpo["chatId"] = novo
+            # #493: só os que ainda não foram abertos nem encaminhados, inclusive os abertos fora da ordem.
+            restantes = _com_cpf(await pendentes_ainda_nao_abertos(origem, valores, posicao), cpf)
             return Resposta(200, _com_pendentes(corpo, restantes))
 
         flow_id = item.get("flowId")
@@ -655,6 +656,8 @@ async def _abrir_proximo_assunto(ctx: Contexto, origem: str, so_posicao: int | N
             if novo_agora and isinstance(texto, str):
                 resposta_fluxo.corpo["resposta"] = f"{texto_proximo_assunto(item)}\n\n{texto}"
             resposta_fluxo.corpo["chatId"] = novo
+            # #493: calculado depois de abrir este assunto, sem os já abertos (inclusive fora da ordem) nem os encaminhados.
+            restantes = _com_cpf(await pendentes_ainda_nao_abertos(origem, valores, posicao), cpf)
             _com_pendentes(resposta_fluxo.corpo, restantes)
         return resposta_fluxo
 

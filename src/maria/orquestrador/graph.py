@@ -498,8 +498,26 @@ async def assuntos_pendentes_do_chat(chat_id: str) -> list[_fila.AssuntoPendente
     # conversa de origem que vêm depois dele.
     origem, posicao = _fila.origem_do_chat(chat_id)
     estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{origem}"}})
-    pendentes = (estado.values or {}).get("assuntosPendentes") or []
-    return pendentes[posicao - 1 :] or None
+    return await pendentes_ainda_nao_abertos(origem, estado.values or {}, posicao) or None
+
+
+async def pendentes_ainda_nao_abertos(origem: str, valores: Mapping[str, Any], depois_da_posicao: int) -> list[_fila.AssuntoPendente]:
+    """#493: os pendentes da conversa depois da posição dada que ainda não foram abertos nem encaminhados, na ordem.
+
+    O mesmo critério de `assuntos_em_aberto`: um assunto da Tykhe já devolvido (`assuntosEncaminhados`) ou um assunto
+    com atendimento registrado (aberto pela rota do próximo assunto, inclusive fora da ordem) sai da lista. Sem isso, a
+    Tykhe podia oferecer ou abrir de novo um assunto que a pessoa já resolveu."""
+    atendimentos = await obter_atendimentos_store()
+    encaminhados = set(valores.get("assuntosEncaminhados") or [])
+    restantes: list[_fila.AssuntoPendente] = []
+    for indice, pendente in enumerate(valores.get("assuntosPendentes") or []):
+        posicao = indice + 2
+        if posicao <= depois_da_posicao or posicao in encaminhados:
+            continue
+        if await atendimentos.buscar_atividade(_fila.chat_id_do_assunto(origem, posicao)) is not None:
+            continue
+        restantes.append(pendente)
+    return restantes
 
 
 async def assunto_guardado_do_chat(chat_id: str) -> str | None:

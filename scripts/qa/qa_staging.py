@@ -213,6 +213,14 @@ def fluxos_sem_verde(qa: QA) -> None:
         "abre a pessoa presa pelo flowId",
         d.get("flowId") == ID_PP and d.get("resposta", "").startswith("Agora vamos falar da pessoa presa."),
     )
+    # #493: os assuntos da Tykhe já abertos antes (o horário pela escolha e o outro pelo tipoCaso) não voltam como pendentes.
+    ja_abertos = {"agendamentos"} | ({tipo} if tipo else set())
+    restantes = [p.get("tipoCaso") or p.get("flowId") for p in d.get("assuntosPendentes") or []]
+    qa.conferir(
+        "#493: a pessoa presa aberta fora da ordem não traz de volta assunto já aberto",
+        not ja_abertos.intersection(restantes),
+        f"pendentes: {restantes}",
+    )
     _, d = qa.chamar("POST", "/atendimentos/assuntos-em-aberto", {"chatId": chat})
     qa.conferir("com tudo aberto, a lista diz que não há assuntos em aberto", "Você não tem assuntos em aberto" in d.get("resposta", ""))
 
