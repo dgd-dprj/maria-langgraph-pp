@@ -24,7 +24,7 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 |---|---|---|
 | 1 | #316 | Prazo: a próxima renovação automática do token de produção, em 2026-10-25, ~13:27. É a causa do incidente de 22 e 23/10 (#308). **Feita em 2026-10-23** (PR #318, `fc345df`) |
 | 2 | #239 e #232 | O mesmo padrão do incidente: falha de infraestrutura (Verde, CEP) vira resposta de negócio para a pessoa |
-| 3 | #220 | Corpo da resposta do Verde no log, com dado pessoal. Falta a medição |
+| 3 | #220 | Corpo da resposta do Verde no log, com dado pessoal. **2026-11-18 (decisão da Nicole): o log do cadastro e do encaminhamento passa a ter só o status HTTP e o `codigo` do erro.** Faltam a conferência dos logs já gravados (30 dias) e a decisão sobre a mensagem do Verde que o cadastro devolve à pessoa |
 | 4 | #212 | Validação da saída da IA e lista de parentescos |
 | 5 | #210, #211, #231 e #280 | Mudam o que a Tykhe recebe |
 | 6 | #230 | Contagem de tokens. Falta a medição |
