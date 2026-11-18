@@ -47,8 +47,10 @@ class CandidatoParaDesambiguar(TypedDict):
 # descrição da opção no catálogo ("pessoa-presa", "violencia-domestica", "prisão em flagrante"), e não pelo id:
 # importar os ids de maria.fluxos aqui traria os grafos dos fluxos para dentro da IA. \b evita "empresa".
 TEMA_SENSIVEL = re.compile(r"\b(pessoa[- ]presa|pres[oa]s?|pris[aã]o|viol[eê]ncia[- ]dom[eé]stica)\b", re.IGNORECASE)
-# Emoji e o que vem colado nele: seletor de variação (FE0F), junção (200D) e tom de pele.
-EMOJI = re.compile("[\U0001f000-\U0001faff☀-➿⬀-⯿️‍\U0001f3fb-\U0001f3ff]+")
+# Emoji e o que vem colado nele: os blocos de emoji (1F000-1FAFF, que já incluem o tom de pele 1F3FB-1F3FF), os
+# símbolos (2600-27BF e 2B00-2BFF), o seletor de variação (FE0F) e a junção (200D). Escritos por código, sem faixa
+# repetida: a faixa do tom de pele, listada à parte, gerava o alerta do CodeQL `py/overly-large-range` (#502).
+EMOJI = re.compile("[\U0001f000-\U0001faff☀-➿⬀-⯿️‍]+")
 
 
 def tem_tema_sensivel(candidatos: list[CandidatoParaDesambiguar]) -> bool:
