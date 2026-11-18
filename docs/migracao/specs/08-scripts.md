@@ -65,6 +65,8 @@ O módulo é só a casca dos dois scripts e o arquivo de dados. Toda a gravaçã
 
 ### 2.3 Verificação automática contra o literal de develop
 
+> **Aposentado em 2026-11-18 (#253).** Com a decisão de que o JSON é a fonte, a conferência descrita abaixo (fixture, leitor do literal e `test_seed_extracao.py`) saiu do repositório: ela impedia a mudança de dado que a regra pede. O texto fica como registro de como a transcrição foi conferida. `tests/scripts/test_seed_dados.py` confere o próprio JSON.
+
 **A fonte fica no repositório.** O arquivo `scripts/seedFluxosPlanejados.ts` de `1157a6d` entra como fixture, byte a byte, em `tests/fixtures/scripts/seedFluxosPlanejados-1157a6d.ts`. O teste confere primeiro que a fixture é o blob de develop: calcula o id git (`sha1("blob <tamanho>\0" + conteúdo)`) e compara com `265f1df4f64c5a34abf9e01ce421efa4822dc2e2`. Uma fixture editada à mão falha aí.
 
 **Depois, o teste lê o literal com um leitor próprio, em Python,** e não com o Node da extração. São dois caminhos independentes, e eles precisam concordar. O leitor cobre só o que o literal usa: objetos, listas, strings com aspas duplas, inteiros, e um único escape, `\"`. Qualquer outra construção, inclusive outro escape, faz o teste falhar, em vez de ser ignorada.
