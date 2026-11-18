@@ -22,9 +22,11 @@ from __future__ import annotations
 import asyncio
 import contextlib
 import os
+import time
 from collections.abc import AsyncIterator
 
 import psycopg
+from psycopg_pool import PoolTimeout
 
 from maria.shared.pool import PoolAsync, criar_pool
 
@@ -33,6 +35,8 @@ from maria.shared.pool import PoolAsync, criar_pool
 ESPERA_MAXIMA_S = 20.0
 # Semente do hash da chave: separa estas travas de qualquer outro advisory lock que use a mesma chave.
 SEMENTE_DO_HASH = 453
+# Espera mínima por uma conexão do pool, mesmo com espera de trava menor: abrir uma conexão nova leva algum tempo.
+PRAZO_MINIMO_DA_CONEXAO_S = 1.0
 
 _pool: PoolAsync | None = None
 _travas_em_memoria: dict[str, asyncio.Lock] = {}
@@ -62,29 +66,40 @@ async def trava(chave: str, espera_maxima_s: float | None = None) -> AsyncIterat
             yield obtida
         return
 
-    async with pool.connection() as conexao:
-        obtida = False
-        try:
-            async with conexao.transaction():
-                if espera_maxima_s <= 0:
-                    # `lock_timeout = 0` quer dizer "sem limite" no Postgres: sem espera, é a tentativa única.
-                    linha = await (
-                        await conexao.execute("SELECT pg_try_advisory_xact_lock(hashtextextended(%s, %s))", (chave, SEMENTE_DO_HASH))
-                    ).fetchone()
-                    if not (linha and next(iter(linha.values()))):
-                        raise psycopg.errors.LockNotAvailable("trava ocupada (sem espera)")
-                else:
-                    prazo_ms = max(1, round(espera_maxima_s * 1000))
-                    # `set_config(..., true)` vale só nesta transação, como um SET LOCAL.
-                    await conexao.execute("SELECT set_config('lock_timeout', %s, true)", (f"{prazo_ms}ms",))
-                    await conexao.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, %s))", (chave, SEMENTE_DO_HASH))
-                obtida = True
-                yield True
-        except psycopg.errors.LockNotAvailable:
-            if obtida:
-                raise
-        if not obtida:
-            yield False
+    inicio = time.monotonic()
+    obtida = False
+    try:
+        # Com o pool cheio, pegar a conexão também espera: o prazo é o mesmo da trava, e não os 120 s do pool, para a
+        # segunda chamada caber no orçamento da #477. Um mínimo de 1 s deixa o pool abrir uma conexão nova.
+        async with pool.connection(timeout=max(espera_maxima_s, PRAZO_MINIMO_DA_CONEXAO_S)) as conexao:
+            try:
+                async with conexao.transaction():
+                    restante = espera_maxima_s - (time.monotonic() - inicio)
+                    if restante <= 0:
+                        # `lock_timeout = 0` quer dizer "sem limite" no Postgres: sem espera, é a tentativa única.
+                        linha = await (
+                            await conexao.execute("SELECT pg_try_advisory_xact_lock(hashtextextended(%s, %s))", (chave, SEMENTE_DO_HASH))
+                        ).fetchone()
+                        if not (linha and next(iter(linha.values()))):
+                            raise psycopg.errors.LockNotAvailable("trava ocupada (sem espera)")
+                    else:
+                        prazo_ms = max(1, round(restante * 1000))
+                        # `set_config(..., true)` vale só nesta transação, como um SET LOCAL: a conexão volta ao
+                        # pool sem o limite (teste `test_postgres_o_limite_de_espera_nao_fica_na_conexao_...`).
+                        await conexao.execute("SELECT set_config('lock_timeout', %s, true)", (f"{prazo_ms}ms",))
+                        # `hashtextextended`: hash de 64 bits da chave, o que deixa a colisão entre chaves diferentes
+                        # (uma chamada esperando outra sem motivo) muito improvável.
+                        await conexao.execute("SELECT pg_advisory_xact_lock(hashtextextended(%s, %s))", (chave, SEMENTE_DO_HASH))
+                    obtida = True
+                    yield True
+            except psycopg.errors.LockNotAvailable:
+                if obtida:
+                    raise
+    except PoolTimeout:
+        if obtida:
+            raise
+    if not obtida:
+        yield False
 
 
 @contextlib.asynccontextmanager

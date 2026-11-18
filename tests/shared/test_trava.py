@@ -10,6 +10,7 @@ from collections.abc import AsyncIterator
 import psycopg
 import pytest
 
+from maria.shared import trava as trava_mod
 from maria.shared.trava import SEMENTE_DO_HASH, fechar_travas, trava
 
 
@@ -125,6 +126,50 @@ async def test_postgres_liberada_mesmo_com_erro() -> None:
         async with trava("chave-pg", 1.0):
             raise RuntimeError("falha no meio")
     assert await _livre_vista_de_fora("chave-pg") is True
+
+
+@pytest.mark.postgres
+async def test_postgres_o_limite_de_espera_nao_fica_na_conexao_que_volta_ao_pool(monkeypatch: pytest.MonkeyPatch) -> None:
+    # `set_config(..., true)` vale só na transação da trava. Se valesse na sessão, os 20 s ficariam na conexão quando ela
+    # volta ao pool e passariam a valer para consultas que não têm nada a ver com a trava.
+    _url()
+    async with trava("chave-pg", 3.0) as obtida:
+        assert obtida is True
+    pool = trava_mod._pool
+    assert pool is not None
+    async with pool.connection() as conexao:
+        linha = await (await conexao.execute("SHOW lock_timeout")).fetchone()
+        assert linha is not None and next(iter(linha.values())) == "0"
+
+
+@pytest.mark.postgres
+async def test_postgres_pool_lotado_entrega_false_dentro_do_prazo() -> None:
+    # Com as 10 conexões do pool ocupadas por outras chaves, a 11ª chamada não espera os 120 s do pool: desiste no
+    # prazo da trava (com o mínimo de 1 s para a conexão) e segue o caminho da espera estourada.
+    _url()
+    from maria.shared.pool import MAXIMO_DE_CONEXOES
+
+    ocupadas = asyncio.Event()
+    soltar = asyncio.Event()
+    contagem = 0
+
+    async def ocupar(i: int) -> None:
+        nonlocal contagem
+        async with trava(f"ocupa-{i}", 5.0) as obtida:
+            assert obtida is True
+            contagem += 1
+            if contagem == MAXIMO_DE_CONEXOES:
+                ocupadas.set()
+            await soltar.wait()
+
+    tarefas = [asyncio.create_task(ocupar(i)) for i in range(MAXIMO_DE_CONEXOES)]
+    await asyncio.wait_for(ocupadas.wait(), timeout=10)
+    inicio = time.monotonic()
+    async with trava("outra-chave", 0.2) as obtida:
+        assert obtida is False
+    assert time.monotonic() - inicio < 3.0
+    soltar.set()
+    await asyncio.gather(*tarefas)
 
 
 @pytest.mark.postgres
