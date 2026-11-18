@@ -64,7 +64,56 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - Se ela pede para ver os assuntos ("quero ver meus assuntos"), a Maria mostra a lista.
   - No fim de cada assunto concluído, inclusive no multi-fluxo, sem um urgente na vez, o fim da conversa: "Resumo da nossa conversa:" (cada assunto atendido, com o desfecho e um código de 6 letras e números), "Quer continuar com algum desses assuntos ou encerrar a conversa?" e "Ainda em aberto:" (urgência, "em aberto até dd/mm" e a fase). Os botões: um por assunto em aberto, "Falar de um assunto novo" e "Encerrar a conversa". A violência doméstica aparece como "a situação que você contou", com desfecho neutro. Campos novos `resumoDaConversa` e `opcoesDoFim`; `assuntosEmAberto` ganha `codigo`, `fase` e `venceEm`. A lista também vem pela rota nova `POST /atendimentos/assuntos-em-aberto`, e a escolha abre pela rota do próximo assunto.
   - Fica para depois de 13/11: retomar um assunto que ficou no meio, em andamento, em outra conversa.
+- **O assunto pelo `flowId` (decisão da Nicole, 2026-11-13).** Em `assuntosEmAberto` (no fim da conversa e na rota dos assuntos em aberto), o assunto é identificado pelo `flowId` (assunto da Maria) ou pelo `tipoCaso` (assunto da Tykhe), e não mais pelo `chatIdAssunto`, que saiu da resposta. Cada um aparece uma vez só na lista. A Tykhe manda esse valor como `assunto` na rota do próximo assunto (`"assunto": "agendamentos"`), e a Maria acha o assunto em aberto da pessoa. O id interno (`<chatId>-assunto-N`) ainda é aceito, para quem já usava; um `flowId` que não está em aberto dá 404. O `chatId` que a Maria gera para cada assunto continua na resposta que abre o assunto: é com ele que a conversa segue em `/atendimentos/respostas`. Muda o contrato com a Tykhe (só no release); `docs/contrato-tykhe.md` atualizado.
+  - **Depois, no mesmo dia (pedido da Nicole):** a rota do próximo assunto passa a receber o assunto pelos **mesmos campos** da lista: `flowId` (assunto da Maria) ou `tipoCaso` (assunto da Tykhe), por exemplo `{"chatId": "<conversa>", "flowId": "3df874f2-…"}`. O `/docs` ganha a descrição de cada campo e um exemplo de verdade, no lugar de `"string"`; a rota dos assuntos em aberto também. O campo `assunto` continua aceito e aparece no `/docs` como antigo (`deprecated`).
+- **A ordem dos assuntos (decisão da Nicole, 2026-11-13):** violência doméstica, pessoa presa e saúde (com o plano de saúde), nessa ordem, e depois o resto. Antes, a saúde vinha primeiro (28 e 29/10). Os testes que levavam o plano até o fim agora escolhem o plano na resposta à ordem ("o plano primeiro").
+- **Os textos do fim (decisão da Nicole, 2026-11-13).**
+  - O fim da conversa mantém a pergunta antes ("Quer continuar com algum dos assuntos em aberto ou encerrar a conversa?", ou "com o assunto em aberto" quando é um só). Depois vem "Ainda em aberto:", com os assuntos numerados e separados em "Urgente:" e "Menos urgente:", e "Outras opções:", com o assunto novo e o encerrar.
+  - Todas as listas de escolha saem numeradas, com "Responda com o número da opção.", e os botões levam o mesmo número ("1. O caso novo"). A resposta vale pelo número, pelo texto do botão ou pelo nome.
+  - "Qual você quer resolver primeiro?" passa a ter botões (`opcoes`).
+  - A lista da rota dos assuntos em aberto ganha "Encerrar a conversa".
+  - O assunto que termina no atendimento humano com outro pendente avisa: "Também ficou para depois: …". Antes, só quem atendia via os pendentes.
+  - As frases novas vão para a revisão da equipe, e o guia de teste foi atualizado.
 - Em aberto: a rota de atendimento online do Verde.
+
+**#508 (decisões da Nicole, 2026-11-16 e 17): o Qwen simpático na pergunta de desambiguação, com o tom medido na produção.**
+- **Por quê:** o Qwen vai ser a IA de frente, no lugar do Haiku, e respondia de forma literal ("ok", no teste do Actions).
+- **Onde:** só na pergunta de desambiguação, e só com o Qwen. A reescrita das perguntas segue desligada desde 31/08. Com o Haiku, o prompt fica idêntico.
+- **Emoji:** permitido, nunca em violência doméstica nem pessoa presa. Além da regra no prompt, o código tira o emoji nesses casos.
+- **Comparação** (aprovada, US$ 0,1922; 30 relatos inventados × 3 versões × 2 passadas): acolhimento em 59 de 60 no Qwen com o tom, contra 51 do Haiku e 54 do Qwen sem o tom, com 18,8 palavras em média.
+- **Tom de verdade, só em números (17/11):** "não faz sentido o painel com tudo fictício". A Maria registra o evento `desambiguacao_tom` com as regras de cada pergunta, nunca o texto nem o relato, e o Visor mostra (visor-maria#12).
+- Muda o que a pessoa vê no release: o guia de teste foi atualizado, e o merge espera o horário combinado. Deve entrar antes do corte para São Paulo (#509), para o Qwen chegar à produção já com o tom.
+
+**#502 e #503 (decisão da Nicole, 2026-11-16): depuração em 6 fases (detectar, reproduzir, isolar, achar a causa, corrigir e prevenir), conferida no Visor.**
+- **#502, sem IA e sem custo:**
+  - o job `ponta_a_ponta` do CI testa os fluxos do Verde até o fim, com o Verde, a IA e o e-mail simulados. É o que o QA da staging não confere, porque o Verde de homologação tem cópia de dados reais;
+  - as regras de segurança `S` do ruff passam a valer em `src/`;
+  - o CodeQL roda em todo PR, na `develop` e toda semana.
+- **QA da staging no Actions (#502, depois da #463):** contra o release de São Paulo, com teto de US$ 0,10 por rodada. Se passar, o QA para e avisa a Nicole e o Ícaro, para os dois decidirem se vale passar o valor naquela verificação.
+- **#503:** a rotina com IA percorre as 6 fases, também com teto de US$ 0,10 por investigação e o mesmo aviso. O patch fica como artefato, sem PR automático, e a issue pública nunca leva conteúdo de log. O custo é medido com `count_tokens` antes de ligar.
+  - **17/11, custo medido** (aprovado, US$ 0,0541): o `count_tokens` não aceita o Qwen, e a medida veio do `usage` de uma investigação de teste. Por investigação, de US$ 0,011 a 0,015 só com o trecho alterado, e de US$ 0,025 a 0,058 com os arquivos inteiros, no preço do Haiku.
+  - **17/11, decisões da Nicole:** o Qwen3 Coder 30B (achou a causa e o patch em cerca de 1 s por fase); na hipótese, só o trecho alterado; teto de US$ 0,10.
+  - **17/11, implementada** (`scripts/depuracao/investigar.py`, `.github/workflows/depuracao.yml`):
+    - o gatilho é o CI de um PR **do próprio repositório** que falhou (nunca fork), pelo papel `nicole-github-actions`;
+    - o bisect, a reprodução e a conferência dos patches rodam sem IA.
+  - **Validada** (duas rodadas aprovadas, US$ 0,0128 e US$ 0,0113, mais uma repetição gratuita com as respostas salvas): as 6 fases até "correção pronta", com o culpado certo. As rodadas acharam e corrigiram três defeitos da própria rotina: o id de teste com parâmetro, o patch sem contexto depois com o CRLF no Windows, e a frase nova do bisect.
+  - **Decisão da Nicole:** fica na `develop` e só sobe para a `staging` quando ela chamar.
+- **Achados de 16/11 (comentados na #463):**
+  - o release da Virgínia já foi apagado, mas o `deploy-release.yml` ainda publica lá;
+  - o release de São Paulo, o que a Tykhe usa, roda o código de 11/11, sem a #495 e a #497.
+- **Visor:** a tela Depuração (visor-maria#10) e a leitura do release de São Paulo (visor-maria#11).
+
+**#497 (decisão da Nicole, 2026-11-16): o CPF é conferido pelos dígitos verificadores, sem IA, antes de consultar o Verde.**
+- **Por quê:** desde a `v1.2.0` (13/11), 7 das 17 conversas que terminaram em `rg_nao_encontrado` tinham 11 dígitos, o tamanho do CPF. Uma consulta ao Verde e uma tentativa eram gastas à toa. A conta é exata, não custa nada e é imediata; a IA custaria uma chamada a cada número e poderia errar.
+- **A regra** (`maria/shared/cpf.py`): sem ponto, traço e espaços, 11 dígitos, não todos iguais, e os dois últimos são os dígitos verificadores dos nove primeiros.
+- **Pergunta do RG da pessoa presa:** um CPF não vai ao Verde. A Maria responde "Esse número parece um CPF. Preciso do RG da pessoa presa: o número da identidade dela (tentativa N de 3). Pode escrever só os números ou com pontos e traço." Conta como recusa pelo formato (#394): a 3ª termina em `rg_formato_invalido`. O mesmo vale para o CPF digitado direto no "quer tentar de novo?". Um RG de 11 dígitos que não fecha a conta segue para o Verde.
+- **Perguntas do CPF** (identificar o assistido, o CPF no "quer tentar de novo?" e o CPF da outra pessoa no plano de saúde): o CPF digitado com a conta errada não vai ao Verde. A Maria responde "Esse CPF não está certo. Confira os 11 números e escreva de novo." e conta uma das 3 tentativas, com os desfechos de antes. Antes, a pergunta do CPF do assistido não conferia nada (achado A5).
+- **O CPF de `dadosConhecidos` não passa pela conta:** o contrato com a Tykhe não muda (mesmos campos e `motivoHandoff`, só o texto).
+- **Log sem o número:** `rg_parece_cpf` (com `recusa`, `digitos` e `temLetra`) e `cpf_digito_invalido` (com `tentativa`).
+- **Mock do Verde:** as sentinelas da pessoa pelo CPF (`00000000000`, `66666666666`) não fecham a conta. Ganharam equivalentes que fecham (`00000000191` e `66666666070`), e as antigas continuam valendo para o CPF que vem da Tykhe. Os testes que digitavam CPFs fictícios sem a conta passaram a digitar CPFs que fecham.
+- **Cinco respostas gravadas aposentadas** com registro, sem editar (conferência pr2): `vd_cpf` e, porque dependem da mesma conversa, `vd_get_concluido`, `vd_409_concluido`, `rota_get_query` e `rota_get_escape_invalido_query`.
+- **A Tykhe** faz a mesma conferência no fluxo próprio do CPF e do RG, com os identificadores da #497.
+- Muda o que a pessoa vê: o guia de teste foi atualizado, e o merge espera o horário combinado com a equipe.
 
 **#394 (decisão da Nicole, 2026-11-12):** limite de recusas do RG pelo formato na pessoa presa.
 - A recusa diz a tentativa e dá um exemplo fictício: "Não consegui ler esse RG (tentativa N de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.".
@@ -95,6 +144,31 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 - O prompt ganhou regras (grafia exata, relação invertida só com "meu/minha", parente fora da lista é "Outro"), **só com o Qwen** (`SUFIXO_PARENTESCO`): Qwen VL 235B de 48 para 60 de 61, nas 2 passadas (8 respostas fora dos exemplos do prompt, todas certas). Com o Haiku, as mesmas regras derrubaram o acerto ("mãe" virou "Filho(a)"), e o prompt dele fica o de sempre (57,3 de 61).
 - Erro que fica com o Qwen: quem é casado com o filho ou a filha da pessoa presa ("genro", "sou casado com a filha dele", "marido da filha dele") vira "Sogro(a)"; o Haiku acerta o "genro". Uma regra geral de direção no prompt ("quem escreve é [valor] da pessoa presa") não corrigiu em 3 passadas e fez a "nora" voltar a errar; ficou a versão anterior. Rodada de US$ 0,10 aprovada pela Nicole.
 - A lista de 8 valores do SIPEN (Ícaro, 2026-10-16) continua fora: muda o contrato com a Tykhe.
+
+**#212, genro e nora (decisão da Nicole, 2026-11-13): "Genro/Nora" entra na lista, e as formas comuns do parentesco são lidas pelas palavras, sem IA.**
+- **Valor novo para a Tykhe** em `metadados.parentesco`. Escolhido pela Nicole entre três opções (reconhecer e mandar "Outro"; valor novo já; a lista do SIPEN). Entra na develop agora e **só vai para a produção depois de a Tykhe confirmar que converte o valor** (pergunta na #479). Até lá, a promoção para a `main` espera, ou sai sem este commit.
+- **Frases de identificação** (`parentesco_pela_resposta`, `maria/shared/parentesco.py`): a resposta à pergunta do parentesco é lida pelas palavras quando casa inteira com uma forma conhecida, para todos os parentescos:
+  - a palavra ("genro", "mãe", "vó");
+  - "sou o X", "X dele", "X do preso";
+  - "A do B dele" ("marido da filha dele" é o genro; "mãe da esposa dele", a sogra; "filho do irmão dele", o sobrinho);
+  - "casado com a filha dele";
+  - "meu X", com a relação invertida ("meu genro" é o sogro).
+- "Outro", lido pelas palavras: parente fora da lista e quem não é parente (enteado, padrasto, madrasta, padrinho, advogado, vizinho, colega) e, por decisão da Nicole de 13/11, **namorado e namorada**.
+- O resto (frase longa, nome próprio, "meu filho") continua com a IA, como antes. O log ganha o evento `parentesco_sem_ia`, sem a resposta nem o valor.
+- "Meu sogro foi preso", no relato do orquestrador, passa a dar "Genro/Nora" sem perguntar.
+- O prompt do Qwen (`SUFIXO_PARENTESCO`) troca "genro e nora são Outro" por "quem é casado com o filho ou a filha é Genro/Nora". O do Haiku só ganha o valor novo na lista. **Ainda sem medição no Bedrock.**
+- Testes: um banco de frases por parentesco, cobrindo os 17 valores da lista, e as frases que precisam ir para a IA. Dois testes de conformidade com develop mudam, porque "amigo" passa a ser lido pelas palavras (era o "Outro" da IA simulada).
+- **Medido no mesmo dia** (76 casos, US$ 0,37, [registro na #212](https://github.com/dgd-dprj/maria-langgraph-pp/issues/212#issuecomment-6858129514)): no caminho da produção, Haiku 71 de 76 e Qwen 74 de 76; o "Genro/Nora" na lista não piorou o Haiku nos 61 casos de antes.
+
+**#212, irmão e irmã e o sogro pela posse (decisões da Nicole, 2026-11-13, depois da medição).**
+- **"Irmão(a)" sai da lista e entram "Irmão" e "Irmã".** Valores novos para a Tykhe: entram na pergunta da #479, como o "Genro/Nora".
+- **"Meu irmão" e "minha irmã"** não dizem se quem fala é irmão ou irmã: a Maria pergunta "Você é irmão ou irmã dele?" (ou "dela"), com as opções Irmão e Irmã, como faz com "Você é a mãe ou o pai dele?". Vale no relato do orquestrador e na resposta à pergunta do parentesco. "Meu filho" e "minha filha", na resposta, também passam a ter a pergunta curta, em vez de ir para a IA. A pergunta curta sai uma vez só: se a pessoa repetir, a resposta vai para a IA.
+- **A leitura pelas palavras entende mais duas formas**, que o Haiku e o Qwen erravam na medição:
+  - "o preso é o meu sogro" → "Genro/Nora";
+  - "pai da minha esposa" → "Genro/Nora", e o mesmo para os outros parentes compostos com "meu/minha".
+- **Frase com vírgula** ("ele é o pai da minha esposa, ela pediu pra eu ver"): vale o parentesco dos trechos lidos, se todos derem o mesmo, se a frase não tiver "não" e se nenhum trecho não lido citar outro parente.
+- **Prompt do Qwen:** ganha a regra do gênero ("Irmão" e "Irmã" dizem o gênero de quem escreve; "meu irmão" → "nenhum"). **Sem medição no Bedrock.**
+- **Duas respostas gravadas aposentadas** com registro, sem editar: `pp_parentesco` e `pp_get_concluido` (conferência pr2).
 
 **#475 (decisão da Nicole, 2026-11-12):** a pergunta do RG da pessoa presa mostra os formatos aceitos: "Qual o RG da pessoa presa? Pode escrever só os números ou com pontos e traço. Exemplo: 123456789 ou 12.345.678-9.". O que a Maria aceita não muda (#343), e o "RG não encontrado" continua com 3 tentativas. Três respostas gravadas aposentadas com registro, sem editar. O PR #437, que recusava o RG com espaços, foi fechado como superado pelo #343 e pelo #470.
 
@@ -1136,6 +1210,13 @@ Duas coisas diferentes:
   - a Tykhe repassa o objeto ao abrir o próximo assunto (`POST /atendimentos` com o `flowId` do item), e o fluxo pula o que já sabe;
   - nunca vai o texto do relato.
 - **Achado durante a implementação:** a resposta à pergunta da ordem (e à desambiguação, também na produção) volta só com `{ chatId, resposta }`, e o fluxo aberto depois começava sem os `dadosConhecidos` da 1ª chamada (CPF, endereço). Agora o orquestrador guarda esses dados no estado dele (`dadosConhecidos`, só no checkpoint, nunca em log) e os usa ao abrir o fluxo; o que a Tykhe mandar de novo vale por cima. A conferência com as respostas e os logs gravados de develop continua igual.
+
+## Fechamento da #240, da #393 e da #212 (decidido em 2026-11-17)
+
+- **#240, `dadosConhecidos` (decisão da Nicole: barrar só os campos internos).** A lista combinada com a Tykhe deu lugar ao contrário: em vez de listar o que a Tykhe pode mandar, a Maria descarta o que é interno dos fluxos (desfechos, contadores, resultados do Verde, `tokensGastos` e marcas de etapa) e registra o nome de cada campo descartado (`dados_conhecidos_descartados`). Assim nada que a Tykhe manda hoje deixa de funcionar. Fecha o protocolo falso (com `encaminhamentoId` pré-preenchido e o encaminhamento falhando, a pessoa recebia "Protocolo: <valor>") e a divergência D-5 (`tokensGastos` de fora dava 500). Casos gravados aposentados com registro: `erro-nao-tratado-500` (contrato; o formato do 500 continua conferido pelos `erro-nao-tratado-webhook-*`) e os `dados_encaminhamentoId_*` da pr1. O `viaOrquestrador` continua descartado sem aviso, como desde a #191.
+- **#393, itens 3 e 4 (decisão da Nicole).** Item 3: a mensagem final da violência doméstica traz o nome do órgão, mas não o município, porque quem informa o CPF de outra pessoa via a região dela (caso `vd_via_orq_3` da pr2 aposentado). Item 4: a confirmação do cadastro fica como está, porque o nome é o que a própria pessoa acabou de digitar. Os itens 1 e 2 entraram em 2026-11-04 (PR #409).
+- **#212, saída da IA (decisão da Nicole: validar já, sem a medição prévia).** A escolha única, a múltipla e a pergunta da desambiguação são conferidas; o que não bate segue o caminho de falha que já existia. Na escolha múltipla, saem só os ids de fora da lista (o critério que estava em aberto), para a escolha válida não se perder. Aviso `ia_saida_invalida`, sem o valor. O `extrair` e o `reescrever`, desligados na produção, seguem sem validação. A lista de 8 valores do SIPEN, que muda o contrato do parentesco, foi para a #522 (decisão de produto do Ícaro).
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.

@@ -31,6 +31,12 @@ Como decidir (vale para qualquer assunto):
 SUFIXO_DESAMBIGUAR = """
 Na pergunta, cite as opções em dúvida pelo que as separa, de forma neutra e na mesma pergunta (por exemplo: "pelo plano de saúde ou pelo SUS?", "você já tem um processo ou quer abrir um novo?"). Não pergunte só sobre uma das opções."""  # noqa: E501
 
+# #508 (decisões da Nicole, 2026-11-16): o Qwen vai ser a IA de frente e deve ser simpático com a pessoa atendida.
+# Por enquanto, só na pergunta de desambiguação. Emoji permitido, nunca nos temas sensíveis; além da regra, o
+# código tira o emoji da pergunta quando uma das opções é violência doméstica ou pessoa presa (desambiguar.py).
+SUFIXO_TOM_DESAMBIGUAR = """
+Tom: acolhedor, simples e gentil, como quem atende bem no balcão da Defensoria. Frases curtas, palavras do dia a dia, trate a pessoa por "você", sem termo jurídico. Pode usar um emoji discreto, menos quando uma das opções for violência doméstica ou pessoa presa: nesses casos, nenhum emoji."""  # noqa: E501
+
 # #212 (decisão da Nicole, 2026-11-12): o parentesco só da lista, sem inventar. Medido na comparação da #472, com 53
 # respostas no formato das da produção (1 a 4 palavras): o VL 235B foi de 48 para 60 de 61 (8 delas fora dos exemplos
 # do prompt), igual em 2 passadas. No Haiku, as mesmas regras derrubaram o acerto (52 de 61, contra 57,3 com o prompt
@@ -38,12 +44,17 @@ Na pergunta, cite as opções em dúvida pelo que as separa, de forma neutra e n
 # fluxo para os dois modelos. Erro que fica com o Qwen: quem é casado com o filho ou a filha da pessoa presa ("genro",
 # "sou casado com a filha dele") vira "Sogro(a)". Uma regra geral de direção ("quem escreve é [valor] da pessoa
 # presa") não corrigiu e fez a "nora" voltar a errar (3 passadas, 2026-11-12): ficou esta versão.
+# 2026-11-13 (decisão da Nicole): "Genro/Nora" entrou na lista, e as formas comuns são lidas pelas palavras antes da
+# IA (`parentesco_pela_resposta`). Medido no mesmo dia: 74 de 76 no caminho da produção (#212). Depois, "Irmão(a)"
+# virou "Irmão" e "Irmã" (decisão da Nicole): a regra do gênero, abaixo, ainda sem medição no Bedrock.
 SUFIXO_PARENTESCO = """
 Regras a mais:
-- Responda só com um dos parentescos possíveis, escrito exatamente como na lista (por exemplo, "Irmão(a)", e não "Irmã" nem "Irmã(o)"), ou com "nenhum". Nunca invente outro valor.
+- Responda só com um dos parentescos possíveis, escrito exatamente como na lista (por exemplo, "Irmã", e não "Irmã(o)" nem "Irmão(a)"), ou com "nenhum". Nunca invente outro valor.
+- "Irmão" e "Irmã" dizem o gênero de quem escreve ("irmã dele" → "Irmã"). Se não dá para saber se quem escreve é irmão ou irmã ("meu irmão"), responda "nenhum".
 - O parentesco é o de quem escreve em relação à pessoa presa. Uma palavra só, ou "X dele/dela", diz quem a pessoa que escreve é, sem inverter: "filha" → "Filho(a)", "neta" → "Neto(a)", "mamãe" → "Mãe", "vó dele" → "Avô/Avó". Quem vive junto sem casar no papel → "Companheiro(a)".
 - Só inverta quando a pessoa usa "meu" ou "minha" para dizer quem a pessoa presa é para ela: "minha mãe" → "Filho(a)", "meu marido" → "Esposo(a)", "meu neto" → "Avô/Avó". Se a inversão deixa dúvida entre dois parentescos ("meu filho" pode ser "Mãe" ou "Pai"), responda "nenhum".
-- Parente que não está na lista (enteado(a), padrasto, madrasta, nora, genro, padrinho, tio-avô) e quem não é parente (advogado, vizinho, colega) → "Outro". Não troque por um parentesco parecido: nora e genro não são "Sogro(a)", enteado(a) não é "Filho(a)", e ex-companheiro(a) é "Ex-esposo(a)", não "Companheiro(a)"."""  # noqa: E501
+- Quem é casado com o filho ou a filha da pessoa presa ("genro", "nora", "sou casado com a filha dele", "marido da filha dele") → "Genro/Nora". "Sogro(a)" é o contrário: quem é pai ou mãe do marido ou da esposa da pessoa presa ("sogra", "mãe da esposa dele").
+- Parente que não está na lista (enteado(a), padrasto, madrasta, padrinho, tio-avô) e quem não é parente (advogado, vizinho, colega) → "Outro". Não troque por um parentesco parecido: enteado(a) não é "Filho(a)", e ex-companheiro(a) é "Ex-esposo(a)", não "Companheiro(a)"."""  # noqa: E501
 
 
 def modelo_e_qwen() -> bool:

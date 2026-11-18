@@ -20,7 +20,8 @@ from typing import Any, cast
 from langgraph.types import Command
 
 from maria.api import esquemas
-from maria.api.atendimentos import criar_atendimento, extrair_interrupt
+from maria.api.atendimentos import criar_atendimento, extrair_interrupt, normalizar_cpf_conhecido
+from maria.api.dados_conhecidos import sem_campos_internos
 from maria.api.pipeline import Contexto, Resposta, Rota
 from maria.fluxos import buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.tipos_tykhe import TipoCasoTykhe, TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
@@ -33,12 +34,14 @@ from maria.orquestrador.fila import (
     AssuntoAberto,
     AssuntoGuardado,
     AssuntoPendente,
+    chat_do_assunto_pelo_id,
     chat_id_do_assunto,
     dados_do_relato,
     escolha_nos_abertos,
     id_do_assunto,
     opcoes_abertos,
     origem_do_chat,
+    para_a_tykhe,
     texto_abertos,
     texto_comecando,
     texto_proximo_assunto,
@@ -119,10 +122,18 @@ async def _retomar(grafo: Any, resposta: str, config: Any) -> dict[str, Any]:
 
 async def _post_orquestrador(ctx: Contexto) -> Resposta:
     corpo: dict[str, Any] = ctx.corpo
+    recusa = normalizar_cpf_conhecido(corpo, ctx.log)
+    if recusa is not None:
+        return recusa
+    # #240: campo interno dos fluxos em `dadosConhecidos` é descartado aqui, uma vez, para as duas leituras
+    # do corpo nesta requisição (a da 1ª chamada, guardada, e a do fluxo aberto).
+    if "dadosConhecidos" in corpo:
+        corpo["dadosConhecidos"] = sem_campos_internos(corpo["dadosConhecidos"], ctx.log, "orquestrador")
     mensagem = corpo.get("mensagem", AUSENTE)
     resposta = corpo.get("resposta", AUSENTE)
     # #185: resposta "" barrada ANTES do "algum dos dois", senão chegaria a Command(resume="").
-    if resposta is not AUSENTE and resposta == "":
+    # #303: a resposta só de espaços também é barrada, como a vazia.
+    if isinstance(resposta, str) and not resposta.strip():
         return Resposta(400, {"erro": "resposta não pode ser vazia"})
     if mensagem is AUSENTE and resposta is AUSENTE:
         return Resposta(400, {"erro": "mensagem (1ª chamada) ou resposta (continuação de desambiguação) obrigatório"})
@@ -131,6 +142,19 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     if not _js.verdadeiro(chat_id_corpo) and os.environ.get("APP_ENV") != "test":
         return Resposta(400, {"erro": "chatId obrigatório"})
     chat_id: str = chat_id_corpo if _js.verdadeiro(chat_id_corpo) else str(uuid.uuid4())
+
+    # #303 (opção B): mensagem vazia, nula ou só de espaços vai para "outros" sem chamar a IA (0 token).
+    if resposta is AUSENTE and (mensagem is None or (isinstance(mensagem, str) and not mensagem.strip())):
+        ctx.log.info(
+            "orquestrador: mensagem em branco, redirecionado para a Tykhe (outros) sem chamar a IA",
+            chatId=chat_id,
+            evento="orquestrador_finalizado_sem_fluxo",
+            status="concluido",
+            destino="tykhe",
+            tipoCaso="outros",
+            tokensGastosTotal=0,
+        )
+        return Resposta(200, _resposta_redirecionada(chat_id, tipo_tykhe_por_caso("outros"), None))
 
     config: Any = {"configurable": {"thread_id": f"orquestrador:{chat_id}"}}
     grafo = obter_grafo()
@@ -424,8 +448,10 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
     (`<chatId>-assunto-N`).
 
     - Só `chatId`: o próximo assunto pendente da conversa, na ordem.
-    - Com `assunto` (o `chatIdAssunto` de um item de `assuntosEmAberto`): esse assunto, desta conversa ou guardado de
-      outra conversa da mesma pessoa (2026-11-11).
+    - Com `flowId` (assunto da Maria) ou `tipoCaso` (assunto da Tykhe), os mesmos campos de um item de
+      `assuntosEmAberto` (decisão da Nicole de 2026-11-13): esse assunto, desta conversa ou guardado de outra conversa
+      da mesma pessoa (2026-11-11). O campo `assunto`, com um desses valores ou com o id interno (`<chatId>-assunto-N`),
+      ainda é aceito, para quem já usava.
     - Com `resposta` (a resposta da pessoa à lista dos assuntos em aberto): o assunto escolhido; "Nenhum, quero um
       assunto novo" pede o relato novo; uma resposta que a Maria não entende repete a lista.
 
@@ -437,7 +463,10 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
     if not fluxo_em_teste_liga():
         return Resposta(404, {"erro": "rota disponível só no ambiente de teste (release)"})
     origem, _ = origem_do_chat(chat_id)
-    assunto = ctx.corpo.get("assunto")
+    # O assunto pelos campos da lista (`flowId` ou `tipoCaso`, 13/11) ou pelo campo `assunto`, de antes.
+    assunto = next(
+        (valor for valor in (ctx.corpo.get(c) for c in ("flowId", "tipoCaso", "assunto")) if isinstance(valor, str) and valor), None
+    )
     resposta = ctx.corpo.get("resposta")
     # Duas chamadas ao mesmo tempo para a mesma conversa (um retry da Tykhe) esperam a vez: sem a trava, a
     # 2ª via o atendimento já registrado, mas ainda sem conversa, e devolvia a mensagem de sucesso do fluxo
@@ -456,6 +485,10 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
             if escolha is None:
                 return Resposta(200, _resposta_lista(chat_id, abertos))
             assunto = abertos[escolha]["chatIdAssunto"]
+        elif isinstance(assunto, str) and assunto:
+            # O `flowId` ou o `tipoCaso` vira o id interno do assunto em aberto. Um id que não está em aberto segue
+            # como veio: o id interno de antes abre o assunto; qualquer outro dá 404.
+            assunto = chat_do_assunto_pelo_id(assunto, await assuntos_em_aberto(chat_id)) or assunto
         if isinstance(assunto, str) and assunto:
             origem_do_alvo, posicao = origem_do_chat(assunto)
             if origem_do_alvo == origem and posicao >= 2:
@@ -468,13 +501,14 @@ _TRAVAS_PROXIMO: dict[str, asyncio.Lock] = {}
 
 
 def _resposta_lista(chat_id: str, abertos: list[AssuntoAberto]) -> dict[str, Any]:
-    """ "Qual você quer resolver agora?": a resposta da pessoa volta para a rota do próximo assunto."""
+    """ "Qual você quer resolver agora?": a resposta da pessoa volta para a rota do próximo assunto, que também entende o
+    encerrar (decisão da Nicole, 2026-11-13: quem não quer continuar com os assuntos em aberto pode encerrar)."""
     return {
-        "resposta": texto_abertos(abertos),
+        "resposta": texto_abertos(abertos, com_encerrar=True),
         "tipoResposta": "opcoes",
-        "opcoes": opcoes_abertos(abertos),
+        "opcoes": opcoes_abertos(abertos, com_encerrar=True),
         "status": "em_andamento",
-        "assuntosEmAberto": abertos,
+        "assuntosEmAberto": para_a_tykhe(abertos),
         "_links": {"self": {"href": f"/atendimentos/{chat_id}"}, "responder": {"href": "/atendimentos/proximo-assunto", "method": "POST"}},
     }
 
@@ -652,7 +686,10 @@ ROTAS: tuple[Rota, ...] = (
             404: esquemas.ERRO_ORQUESTRADOR,
             409: esquemas.ERRO_ORQUESTRADOR,
         },
-        resumo="Abre o próximo assunto pendente da conversa, com o chatId gerado pela Maria (multi-fluxo, só no release)",
+        resumo=(
+            "Abre um assunto da conversa: o próximo da fila ou o escolhido pelo flowId (Maria) ou pelo tipoCaso (Tykhe) "
+            "(multi-fluxo, só no release)"
+        ),
         tags=("atendimentos",),
     ),
     Rota(

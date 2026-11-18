@@ -18,6 +18,7 @@ from typing import Any, ClassVar
 from langgraph.types import Command
 
 from maria.api import esquemas
+from maria.api.dados_conhecidos import sem_campos_internos
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
 from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.pessoa_presa.graph import campos_de_log_do_fim
@@ -25,8 +26,10 @@ from maria.orquestrador.fila import (
     AssuntoPendente,
     com_dados_do_fim,
     opcoes_do_fim,
+    para_a_tykhe,
     texto_fim_da_conversa,
     texto_fim_do_assunto,
+    texto_pendentes_no_atendimento_humano,
     urgencia_de,
 )
 from maria.orquestrador.graph import (
@@ -256,16 +259,50 @@ async def _registrar_rodada(fluxo_id: str, chat_id: str, interrupt: Any, resulta
         await store.concluir(chat_id, ConclusaoAtendimento(**conclusao))  # type: ignore[typeddict-item]
 
 
+def _tipo_json(valor: Any) -> str:
+    if isinstance(valor, bool):
+        return "boolean"
+    if isinstance(valor, int | float):
+        return "number"
+    if isinstance(valor, list):
+        return "array"
+    return "object" if isinstance(valor, dict) else type(valor).__name__
+
+
+def normalizar_cpf_conhecido(corpo: dict[str, Any], log: LogRequisicao) -> Resposta | None:
+    """#296: `dadosConhecidos.cpf` é texto. Número inteiro (a Tykhe mandou `"cpf": {{CPF}}` sem aspas) vira
+    texto de 11 dígitos, com os zeros à esquerda que o número perdeu, e o log diz que houve conversão (sem o
+    valor). Qualquer outro tipo (decimal, booleano, lista, objeto, número fora de 11 dígitos) é 400 com o motivo.
+    Texto, vazio e ausente ficam como estão. Muda `corpo` no lugar."""
+    conhecidos = corpo.get("dadosConhecidos")
+    if not isinstance(conhecidos, dict) or "cpf" not in conhecidos:
+        return None
+    cpf = conhecidos["cpf"]
+    if cpf is None or isinstance(cpf, str):
+        return None
+    if isinstance(cpf, int) and not isinstance(cpf, bool) and 0 <= cpf <= 99_999_999_999:
+        conhecidos["cpf"] = str(cpf).zfill(11)
+        log.warn("dadosConhecidos.cpf veio como número; convertido em texto", campo="dadosConhecidos.cpf", tipoRecebido="number")
+        return None
+    log.warn("dadosConhecidos.cpf com tipo inválido", campo="dadosConhecidos.cpf", tipoRecebido=_tipo_json(cpf))
+    return Resposta(400, {"erro": "dadosConhecidos.cpf deve ser texto (ou número inteiro de até 11 dígitos)"})
+
+
 async def _post_atendimentos(ctx: Contexto) -> Resposta:
     corpo: dict[str, Any] = ctx.corpo
+    recusa = normalizar_cpf_conhecido(corpo, ctx.log)
+    if recusa is not None:
+        return recusa
     fluxo_id = corpo.get("flowId", AUSENTE)
     if not _js.verdadeiro(fluxo_id):
         return Resposta(400, {"erro": "flowId obrigatório"})
     fluxo = await buscar_fluxo(fluxo_id)
     if fluxo is None:
         return Resposta(404, {"erro": "fluxo não encontrado — ver GET /fluxos"})
+    # #240: campo interno dos fluxos em `dadosConhecidos` não entra no estado; o nome vai para o log.
+    conhecidos = sem_campos_internos(corpo.get("dadosConhecidos", AUSENTE), ctx.log, "atendimentos")
     # 200, e não 201: a Tykhe só reconhece 200 como sucesso (pedido explícito).
-    return await criar_atendimento(fluxo, fluxo_id, corpo.get("chatId", AUSENTE), corpo.get("dadosConhecidos", AUSENTE), ctx.log)
+    return await criar_atendimento(fluxo, fluxo_id, corpo.get("chatId", AUSENTE), conhecidos, ctx.log)
 
 
 async def _fluxo_do_chat(chat_id: Any) -> tuple[FluxoConfig, str] | Resposta:
@@ -274,7 +311,8 @@ async def _fluxo_do_chat(chat_id: Any) -> tuple[FluxoConfig, str] | Resposta:
     fluxo_id = await store.buscar_flow_id(chat_id)
     if not _js.verdadeiro(fluxo_id):
         return Resposta(404, {"erro": "atendimento não encontrado"})
-    assert fluxo_id is not None
+    # Só estreita o tipo para o mypy: o `if` acima já devolveu 404 sem fluxo.
+    assert fluxo_id is not None  # noqa: S101
     # A conversa já começou: um fluxo em teste desligado depois disso termina normalmente (#324).
     fluxo = await buscar_fluxo(fluxo_id, conversa_em_andamento=True)
     if fluxo is None:
@@ -325,7 +363,7 @@ async def _com_o_que_falta(chat_id: str, corpo: dict[str, Any], final: str, pend
     corpo["resposta"] = f"{final}\n\n{texto_fim_da_conversa(resumo, abertos, guardados)}"
     corpo["resumoDaConversa"] = resumo
     if abertos:
-        corpo["assuntosEmAberto"] = abertos
+        corpo["assuntosEmAberto"] = para_a_tykhe(abertos)
     corpo["opcoesDoFim"] = opcoes_do_fim(abertos)
 
 
@@ -374,8 +412,10 @@ async def _post_respostas(ctx: Contexto) -> Resposta:
                 await (await obter_pendentes_store()).marcar(guardado, "resolvido")
             final = corpo_resposta.get("resposta")
             if fluxo_em_teste_liga() and corpo_resposta.get("status") == "concluido" and isinstance(final, str):
-                # #450: só no fim concluído. No atendimento humano, quem atende vê os pendentes.
                 await _com_o_que_falta(chat_id, corpo_resposta, final, pendentes or [])
+            elif fluxo_em_teste_liga() and corpo_resposta.get("status") == "handoff_humano" and pendentes and isinstance(final, str):
+                # Decisão da Nicole (2026-11-13): no atendimento humano, só o aviso do que ficou para depois.
+                corpo_resposta["resposta"] = f"{final}\n\n{texto_pendentes_no_atendimento_humano(pendentes)}"
         return Resposta(200, corpo_resposta)
 
     atividade = await store.buscar_atividade(chat_id)

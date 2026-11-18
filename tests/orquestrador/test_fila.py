@@ -20,17 +20,22 @@ def ids(fila: list[f.ItemFila]) -> list[str]:
 # ---- a ordem ------------------------------------------------------------------------
 
 
-def test_ordem_padrao_saude_violencia_pessoa_presa_depois_o_resto() -> None:
+def test_ordem_padrao_violencia_pessoa_presa_saude_depois_o_resto() -> None:
+    """Decisão da Nicole (2026-11-13): a violência doméstica, a pessoa presa e a saúde, nessa ordem (antes, a saúde
+    vinha primeiro)."""
     fila = f.montar_fila([nec("tykhe:novo-processo"), nec(ID_PESSOA_PRESA), nec(ID_VIOLENCIA_DOMESTICA), nec("tykhe:saude")])
-    assert ids(fila) == ["tykhe:saude", ID_VIOLENCIA_DOMESTICA, ID_PESSOA_PRESA, "tykhe:novo-processo"]
+    assert ids(fila) == [ID_VIOLENCIA_DOMESTICA, ID_PESSOA_PRESA, "tykhe:saude", "tykhe:novo-processo"]
 
 
 def test_plano_de_saude_tem_a_prioridade_da_saude() -> None:
-    assert ids(f.montar_fila([nec(ID_PESSOA_PRESA), nec(ID_PROBLEMAS_PLANO_SAUDE)])) == [ID_PROBLEMAS_PLANO_SAUDE, ID_PESSOA_PRESA]
+    assert ids(f.montar_fila([nec(ID_PROBLEMAS_PLANO_SAUDE), nec(ID_PESSOA_PRESA)])) == [ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE]
+    assert ids(f.montar_fila([nec(ID_PROBLEMAS_PLANO_SAUDE), nec("tykhe:saude")])) == [ID_PROBLEMAS_PLANO_SAUDE, "tykhe:saude"]
 
 
 def test_a_ordem_padrao_vale_mesmo_com_urgencia_em_outro_assunto() -> None:
-    """Decisão de 28 e 29/10: saúde, violência e pessoa presa nessa ordem, sempre."""
+    """Violência, pessoa presa e saúde nessa ordem, sempre: o sinal de risco não passa um deles na frente."""
+    fila = f.montar_fila([nec(ID_PROBLEMAS_PLANO_SAUDE, urgente=True), nec(ID_PESSOA_PRESA)])
+    assert ids(fila) == [ID_PESSOA_PRESA, ID_PROBLEMAS_PLANO_SAUDE]
     fila = f.montar_fila([nec(ID_PESSOA_PRESA, urgente=True), nec(ID_VIOLENCIA_DOMESTICA)])
     assert ids(fila) == [ID_VIOLENCIA_DOMESTICA, ID_PESSOA_PRESA]
 
@@ -57,11 +62,11 @@ def test_sair_sai_da_fila_quando_ha_outro_assunto() -> None:
 
 
 def test_texto_com_dois_assuntos_e_urgencia() -> None:
-    fila = f.montar_fila([nec(ID_PESSOA_PRESA), nec(ID_PROBLEMAS_PLANO_SAUDE, urgente=True)])
+    fila = f.montar_fila([nec(ID_PROBLEMAS_PLANO_SAUDE), nec(ID_PESSOA_PRESA, urgente=True)])
     assert f.texto_ordem(fila) == (
-        "Entendi. Você falou de duas coisas: o plano de saúde e a pessoa presa.\n"
-        "Vou começar pelo plano de saúde, porque parece mais urgente.\n"
-        "Depois, falamos da pessoa presa.\n"
+        "Entendi. Você falou de duas coisas: a pessoa presa e o plano de saúde.\n"
+        "Vou começar pela pessoa presa, porque parece mais urgente.\n"
+        "Depois, falamos do plano de saúde.\n"
         "Pode ser assim?"
     )
 
@@ -70,15 +75,19 @@ def test_texto_com_tres_assuntos_e_a_violencia_com_nome_discreto() -> None:
     fila = f.montar_fila([nec(ID_PESSOA_PRESA), nec(ID_VIOLENCIA_DOMESTICA), nec("tykhe:saude")])
     assert f.texto_ordem(fila) == (
         "Entendi. Você falou de três coisas:\n"
-        "• a saúde\n• a situação que você contou\n• a pessoa presa\n"
-        "Vou começar pela saúde.\n"
+        "• a situação que você contou\n• a pessoa presa\n• a saúde\n"
+        "Vou começar pela situação que você contou.\n"
         "Depois, falamos das outras.\n"
         "Pode ser assim?"
     )
-    assert (
-        f.texto_qual_primeiro(fila)
-        == "Tudo bem. Qual você quer resolver primeiro?\n• a saúde\n• a situação que você contou\n• a pessoa presa"
+    # Decisão da Nicole (2026-11-13): numerada, com a legenda, e com botões do mesmo número.
+    assert f.texto_qual_primeiro(fila) == (
+        "Tudo bem. Qual você quer resolver primeiro?\n\n"
+        "1. A situação que você contou\n2. A pessoa presa\n3. A saúde\n\n"
+        "Responda com o número da opção."
     )
+    assert f.opcoes_qual_primeiro(fila) == ["1. A situação que você contou", "2. A pessoa presa", "3. A saúde"]
+    assert f.assunto_escolhido("2. A pessoa presa", fila) == 1
 
 
 def test_textos_nao_prometem_tudo_na_mesma_conversa() -> None:
@@ -126,15 +135,16 @@ def _tres() -> list[f.ItemFila]:
 @pytest.mark.parametrize(
     ("resposta", "posicao"),
     [
+        # A ordem: a violência (0), a pessoa presa (1) e a saúde (2).
         ("3", 2),
         (" 1 ", 0),
-        ("a do meu filho", 2),
-        ("a pessoa presa", 2),
-        ("o da cadeia", 2),
-        ("a saude", 0),
-        ("o hospital", 0),
-        ("a situação", 1),
-        ("a ameaça", 1),
+        ("a do meu filho", 1),
+        ("a pessoa presa", 1),
+        ("o da cadeia", 1),
+        ("a saude", 2),
+        ("o hospital", 2),
+        ("a situação", 0),
+        ("a ameaça", 0),
     ],
 )
 def test_assunto_escolhido(resposta: str, posicao: int) -> None:
@@ -148,19 +158,19 @@ def test_assunto_escolhido_sem_saber(resposta: str) -> None:
 
 def test_para_frente() -> None:
     fila = _tres()
-    assert ids(f.para_frente(fila, 2)) == [ID_PESSOA_PRESA, "tykhe:saude", ID_VIOLENCIA_DOMESTICA]
+    assert ids(f.para_frente(fila, 2)) == ["tykhe:saude", ID_VIOLENCIA_DOMESTICA, ID_PESSOA_PRESA]
 
 
 def test_pendente_leva_flow_id_do_fluxo_da_maria_e_tipo_caso_da_tykhe() -> None:
     fila = _tres()
-    assert f.pendente(fila[2]) == {
+    assert f.pendente(fila[1]) == {
         "nome": "a pessoa presa",
         "urgente": False,
         "urgencia": "urgente",
         "flowId": ID_PESSOA_PRESA,
         "dadosConhecidos": {"perguntaParentesco": "Você é a mãe ou o pai dele?", "opcoesParentesco": {"mae": "Mãe", "pai": "Pai"}},
     }
-    assert f.pendente(fila[0]) == {"nome": "a saúde", "urgente": False, "urgencia": "urgente", "tipoCaso": "saude"}
+    assert f.pendente(fila[2]) == {"nome": "a saúde", "urgente": False, "urgencia": "urgente", "tipoCaso": "saude"}
 
 
 def test_pendente_nao_leva_o_trecho_do_relato() -> None:
@@ -172,8 +182,8 @@ def test_com_dados_do_fim_leva_o_cpf_so_para_os_fluxos_da_maria() -> None:
     """#442: o CPF informado no 1º assunto segue para os próximos fluxos; a Tykhe não precisa dele de volta."""
     pendentes = [f.pendente(i) for i in _tres()]
     saida = f.com_dados_do_fim(pendentes, {"cpf": "11111111111"})
-    assert "dadosConhecidos" not in saida[0]  # a saúde é da Tykhe
-    assert saida[2]["dadosConhecidos"]["cpf"] == "11111111111"
-    assert saida[2]["dadosConhecidos"]["perguntaParentesco"] == "Você é a mãe ou o pai dele?"
+    assert "dadosConhecidos" not in saida[2]  # a saúde é da Tykhe
+    assert saida[1]["dadosConhecidos"]["cpf"] == "11111111111"
+    assert saida[1]["dadosConhecidos"]["perguntaParentesco"] == "Você é a mãe ou o pai dele?"
     assert f.com_dados_do_fim(pendentes, {}) == pendentes
-    assert "cpf" not in pendentes[2].get("dadosConhecidos", {})  # não muda a lista original
+    assert "cpf" not in pendentes[1].get("dadosConhecidos", {})  # não muda a lista original

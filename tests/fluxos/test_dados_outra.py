@@ -61,7 +61,7 @@ def test_estado_civil_casa_com_a_lista(resposta: str, esperado: str | None) -> N
     [
         ("mãe", "Mãe"),
         ("mae", "Mãe"),
-        ("irmã", "Irmão(a)"),
+        ("irmã", "Irmã"),
         ("avó", "Avô/Avó"),
         ("tia", "Tio(a)"),
         ("esposa", "Esposo(a)"),

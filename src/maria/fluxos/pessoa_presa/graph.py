@@ -43,9 +43,10 @@ from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_ap
 from maria.integracoes.verde import consultar_processo_com_status as consultar_processo_verde
 from maria.shared import _js
 from maria.shared.contexto import contexto_atual
+from maria.shared.cpf import cpf_valido
 from maria.shared.logger import logger
 from maria.shared.nomes import nome_mascarado
-from maria.shared.parentesco import MAE_OU_PAI_DELA, MAE_OU_PAI_DELE, OPCOES_MAE_PAI, ler_resposta_parentesco, texto_mae_ou_pai
+from maria.shared.parentesco import PEDEM_PERGUNTA, ler_resposta_parentesco, parentesco_pela_resposta, pergunta_curta
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.cadastro_pessoa.graph import grafo as subgrafo_cadastro_pessoa
 from maria.subgrafos.identificar_assistido.graph import grafo as subgrafo_identificar_assistido
@@ -86,7 +87,10 @@ TEXTO_PARENTESCO = "Qual seu parentesco com a pessoa presa?"
 PARENTESCOS_PERMITIDOS = [
     "Mãe",
     "Pai",
-    "Irmão(a)",
+    # #212 (decisão da Nicole, 2026-11-13): "Irmão(a)" virou dois valores. Valor novo para a Tykhe: só vai para a
+    # produção depois de ela confirmar a conversão (#479).
+    "Irmão",
+    "Irmã",
     "Esposo(a)",
     "Ex-esposo(a)",
     "Companheiro(a)",
@@ -100,6 +104,9 @@ PARENTESCOS_PERMITIDOS = [
     "Sogro(a)",
     # #438 (decisão da Nicole, 2026-11-06): "meu avô foi preso" também é parentesco.
     "Neto(a)",
+    # #212 (decisão da Nicole, 2026-11-13): quem é casado com o filho ou a filha da pessoa presa. Antes era "Outro",
+    # e o Qwen lia como "Sogro(a)". Valor novo para a Tykhe: só vai para a produção depois de ela confirmar (#479).
+    "Genro/Nora",
     "Outro",
 ]
 
@@ -237,6 +244,14 @@ def texto_rg_invalido(recusa: int) -> str:
     )
 
 
+def texto_rg_parece_cpf(recusa: int) -> str:
+    """#497: a pessoa escreveu um CPF na pergunta do RG. A Maria não consulta o Verde e conta como recusa pelo formato."""
+    return (
+        "Esse número parece um CPF. Preciso do RG da pessoa presa: o número da identidade dela "
+        f"(tentativa {recusa} de {LIMITE_RECUSAS_RG_FORMATO}). Pode escrever só os números ou com pontos e traço."
+    )
+
+
 def texto_tentar_novamente(state: PessoaPresaState) -> str:
     tentativa = _js.coalesce(state.get("tentativasRg"), 1)
     return f"Não encontrei ninguém com esse RG (tentativa {_js.texto_template(tentativa)} de 3). Quer tentar de novo?"
@@ -331,19 +346,22 @@ def depois_de_tem_processo(state: PessoaPresaState) -> str:
 
 
 def depois_de_pedir_rg(state: PessoaPresaState) -> str:
-    return "valido" if rg_formato_valido(_js.coalesce(state.get("rg"), "")) else "invalido"
+    rg = _js.coalesce(state.get("rg"), "")
+    # #497: um CPF tem o formato de um RG (só números), mas não vai ao Verde.
+    return "valido" if rg_formato_valido(rg) and not cpf_valido(rg) else "invalido"
 
 
 async def recusar_rg(state: PessoaPresaState) -> Atualizacao:
     """#394: conta a recusa pelo formato e registra o evento, sem o que a pessoa digitou (só quantos dígitos havia e
-    se havia letra)."""
+    se havia letra). #497: um CPF no lugar do RG conta igual, com o evento `rg_parece_cpf`."""
     rg = state.get("rg")
     texto = rg if isinstance(rg, str) else ""
     recusas = _js.coalesce(state.get("recusasRgFormato"), 0) + 1
+    parece_cpf = cpf_valido(texto)
     logger.info(
-        "RG recusado pelo formato",
+        "RG recusado: parece um CPF" if parece_cpf else "RG recusado pelo formato",
         **contexto_atual(),
-        evento="rg_recusado_formato",
+        evento="rg_parece_cpf" if parece_cpf else "rg_recusado_formato",
         recusa=recusas,
         digitos=sum(c in "0123456789" for c in texto),
         temLetra=any(c.isalpha() for c in texto),
@@ -361,7 +379,9 @@ async def rg_formato_invalido(state: PessoaPresaState) -> Atualizacao:
 
 
 async def preparar_pergunta_rg_invalido(state: PessoaPresaState) -> Atualizacao:
-    preparado = await preparar_pergunta("rgInvalido", texto_rg_invalido(_js.coalesce(state.get("recusasRgFormato"), 1)))
+    recusa = _js.coalesce(state.get("recusasRgFormato"), 1)
+    texto = texto_rg_parece_cpf(recusa) if cpf_valido(state.get("rg")) else texto_rg_invalido(recusa)
+    preparado = await preparar_pergunta("rgInvalido", texto)
     # `{ ...preparado, rg: undefined }`: limpa o RG inválido para o pedirRg
     # perguntar de novo (regra de estado: undefined no canal vira None).
     return {**preparado, "rg": None}
@@ -410,7 +430,10 @@ async def pergunta_tentar_novamente(state: PessoaPresaState) -> Atualizacao:
 def depois_de_pergunta_tentar(state: PessoaPresaState) -> str:
     if not _js.verdadeiro(_ler(state, "querTentarNovamente")):
         return "naoConfirmado"
-    return "consultarApenado" if _js.verdadeiro(_ler(state, "digitouRgDireto")) else "pedirRg"
+    if not _js.verdadeiro(_ler(state, "digitouRgDireto")):
+        return "pedirRg"
+    # #497: um CPF digitado direto no "quer tentar de novo?" também não vai ao Verde.
+    return "recusarRg" if cpf_valido(state.get("rg")) else "consultarApenado"
 
 
 async def preparar_pergunta_confirma_nome(state: PessoaPresaState) -> Atualizacao:
@@ -476,11 +499,20 @@ async def pedir_parentesco(state: PessoaPresaState) -> Atualizacao:
     if opcoes:
         # #438: a resposta à pergunta curta é lida pelas palavras ("o primo", "sou a mãe").
         escolhido = ler_resposta_parentesco(resposta, opcoes)
-        if escolhido in (MAE_OU_PAI_DELE, MAE_OU_PAI_DELA):
-            # Escolheu o filho ou a filha: falta só saber se é a mãe ou o pai (volta à pergunta).
-            return {"perguntaParentesco": texto_mae_ou_pai(escolhido), "opcoesParentesco": dict(OPCOES_MAE_PAI)}
+        if escolhido in PEDEM_PERGUNTA:
+            # Escolheu o filho ou o irmão: falta saber se é a mãe ou o pai, o irmão ou a irmã (volta à pergunta).
+            return dict(pergunta_curta(escolhido))
         if escolhido in PARENTESCOS_PERMITIDOS:
             return {"parentesco": escolhido, "opcoesParentesco": None}
+    # #212: as formas comuns ("genro", "sou a mãe dele", "marido da filha dele") pelas palavras, sem IA.
+    pelas_palavras = parentesco_pela_resposta(resposta)
+    if pelas_palavras in PEDEM_PERGUNTA and not opcoes:
+        # "meu filho", "meu irmão" (decisão da Nicole, 2026-11-13): a pergunta curta, uma vez só. Se a pessoa repetir
+        # na pergunta curta, a resposta segue para a IA, sem laço.
+        return dict(pergunta_curta(pelas_palavras))
+    if pelas_palavras in PARENTESCOS_PERMITIDOS:
+        logger.info("[parentesco] lido pelas palavras, sem IA", **contexto_atual(), evento="parentesco_sem_ia")
+        return {"parentesco": pelas_palavras}
     classificado = await classificar_parentesco(resposta)
     return {
         "parentesco": classificado["parentesco"],
@@ -627,7 +659,7 @@ _construtor.add_edge("prepararPerguntaTentarNovamente", "perguntaTentarNovamente
 _construtor.add_conditional_edges(
     "perguntaTentarNovamente",
     depois_de_pergunta_tentar,
-    {"pedirRg": "prepararPerguntaRg", "naoConfirmado": "naoConfirmado", "consultarApenado": "consultarApenado"},
+    {"pedirRg": "prepararPerguntaRg", "naoConfirmado": "naoConfirmado", "consultarApenado": "consultarApenado", "recusarRg": "recusarRg"},
 )
 _construtor.add_edge("prepararPerguntaConfirmaNome", "pedirConfirmaNome")
 _construtor.add_conditional_edges(

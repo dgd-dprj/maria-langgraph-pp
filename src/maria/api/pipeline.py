@@ -51,7 +51,8 @@ from maria.shared.logger import logger
 CONTENT_TYPE_JSON = "application/json; charset=utf-8"
 LIMITE_CORPO = 1_048_576  # bodyLimit padrão do Fastify (1 MiB)
 _METODOS_COM_CORPO = frozenset(("POST", "PUT", "PATCH", "DELETE", "OPTIONS"))
-_TOKEN = r"[!#$%&'*+.^_`|~0-9A-Za-z-]+"
+# "token" da RFC 9110 (nome de tipo de mídia), não credencial.
+_TOKEN = r"[!#$%&'*+.^_`|~0-9A-Za-z-]+"  # noqa: S105
 _TIPO_MIDIA = re.compile(rf"{_TOKEN}/{_TOKEN}")
 _RAZAO = {
     400: "Bad Request",

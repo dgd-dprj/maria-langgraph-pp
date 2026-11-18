@@ -54,6 +54,8 @@ async def _conversar(
             resposta = "11111111111"
         elif pergunta == TEXTO_PARENTESCO or "mãe ou o pai" in pergunta or "qual deles" in pergunta:
             resposta = parentesco
+        elif "irmão ou irmã" in pergunta:
+            resposta = "irmã"
         elif corpo["tipoResposta"] == "sim_nao":
             resposta = "true"
         else:
@@ -112,7 +114,9 @@ async def test_dois_presos_pergunta_qual_deles(cliente: httpx.AsyncClient, auth:
     chat, primeira = await _abrir(cliente, auth, "meu primo e meu irmão foram presos ontem")
     perguntas = await _conversar(cliente, auth, chat, primeira, parentesco="o irmão")
     assert "Você falou do seu primo e do seu irmão. Sobre qual deles é este atendimento?" in perguntas
-    assert (await _estado(ID_PESSOA_PRESA, chat))["parentesco"] == "Irmão(a)"
+    # #212 (2026-11-13): "Irmão(a)" virou "Irmão" e "Irmã"; a Maria pergunta qual dos dois.
+    assert "Você é irmão ou irmã dele?" in perguntas
+    assert (await _estado(ID_PESSOA_PRESA, chat))["parentesco"] == "Irmã"
 
 
 async def test_escolheu_o_filho_pergunta_mae_ou_pai_depois(

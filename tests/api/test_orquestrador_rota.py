@@ -53,6 +53,29 @@ async def test_resposta_vazia_400_e_nao_500(cliente: httpx.AsyncClient, auth: di
     assert r.status_code == 400
 
 
+@pytest.mark.parametrize("mensagem", ["", None, "   ", "\n\t "])
+async def test_mensagem_em_branco_vai_para_outros_sem_ia_303(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch, mensagem: str | None
+) -> None:
+    # #303 (opção B): vazia, nula ou só de espaços tem o mesmo resultado e não chama o grafo (0 token).
+    def grafo_proibido() -> Any:
+        raise AssertionError("mensagem em branco não pode chamar o grafo nem a IA")
+
+    monkeypatch.setattr("maria.api.orquestrador.obter_grafo", grafo_proibido)
+    r = await cliente.post(BASE, json={"chatId": novo_chat_id(), "mensagem": mensagem}, headers=auth)
+    corpo = r.json()
+    assert r.status_code == 200
+    assert corpo["status"] == "redirecionado"
+    assert corpo["tipoCaso"] == "outros"
+    assert corpo["tokensGastos"] == {"input": 0, "output": 0, "total": 0}
+
+
+@pytest.mark.parametrize("resposta", ["", "   ", "\n"])
+async def test_resposta_em_branco_400_303(cliente: httpx.AsyncClient, auth: dict[str, str], resposta: str) -> None:
+    r = await cliente.post(BASE, json={"chatId": novo_chat_id(), "resposta": resposta}, headers=auth)
+    assert r.status_code == 400
+
+
 async def test_sem_authorization_401(cliente: httpx.AsyncClient) -> None:
     r = await cliente.post(BASE, json={"mensagem": "qualquer coisa"})
     assert r.status_code == 401
@@ -154,6 +177,56 @@ async def test_relato_ambiguo_pergunta_e_resposta_resolve(
     assert r2.status_code == 200
     assert c2["flowId"] == ID_PESSOA_PRESA
     assert c2["status"] == "em_andamento", "agora é o fluxo real perguntando"
+
+
+async def test_dados_conhecidos_da_1a_chamada_chegam_ao_fluxo_depois_da_desambiguacao_297(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # #297: o CPF vai só na 1ª chamada; a resposta da desambiguação volta com `{ chatId, resposta }` e o fluxo
+    # identificado ali ainda recebe o CPF (guardado no checkpoint do orquestrador, #442), sem a Tykhe reenviá-lo.
+    from maria.api import orquestrador as rota
+
+    recebidos: list[dict[str, Any]] = []
+
+    async def falso(fluxo: Any, fluxo_id: str, chat_id: str, dados: dict[str, Any], log: Any, via_orquestrador: bool = False) -> Resposta:
+        recebidos.append(dict(dados))
+        return Resposta(200, {"status": "em_andamento"})
+
+    monkeypatch.setattr(rota, "criar_atendimento", falso)
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWIDS", f"{ID_PESSOA_PRESA},{ID_VIOLENCIA_DOMESTICA}")
+    chat_id = novo_chat_id()
+    r1 = await cliente.post(
+        BASE,
+        json={"chatId": chat_id, "mensagem": "relato que bate com 2 fluxos", "dadosConhecidos": {"cpf": "11111111111"}},
+        headers=auth,
+    )
+    assert "flowId" not in r1.json(), "ainda desambiguando: o fluxo não abriu"
+    assert recebidos == []
+
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWIDS", ID_PESSOA_PRESA)
+    r2 = await cliente.post(BASE, json={"chatId": chat_id, "resposta": "pessoa-presa"}, headers=auth)
+    assert r2.status_code == 200
+    assert [d.get("cpf") for d in recebidos] == ["11111111111"]
+
+
+async def test_sem_dados_conhecidos_a_desambiguacao_nao_inventa_cpf_297(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from maria.api import orquestrador as rota
+
+    recebidos: list[dict[str, Any]] = []
+
+    async def falso(fluxo: Any, fluxo_id: str, chat_id: str, dados: dict[str, Any], log: Any, via_orquestrador: bool = False) -> Resposta:
+        recebidos.append(dict(dados))
+        return Resposta(200, {"status": "em_andamento"})
+
+    monkeypatch.setattr(rota, "criar_atendimento", falso)
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWIDS", f"{ID_PESSOA_PRESA},{ID_VIOLENCIA_DOMESTICA}")
+    chat_id = novo_chat_id()
+    await cliente.post(BASE, json={"chatId": chat_id, "mensagem": "relato que bate com 2 fluxos"}, headers=auth)
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWIDS", ID_PESSOA_PRESA)
+    await cliente.post(BASE, json={"chatId": chat_id, "resposta": "pessoa-presa"}, headers=auth)
+    assert len(recebidos) == 1 and "cpf" not in recebidos[0]
 
 
 def _pergunta_raiz(flow_id: str, texto: str) -> PerguntaArvore:
@@ -269,7 +342,7 @@ async def test_via_orquestrador_cpf_encontrado_pergunta_confirmacao_189_191(
     await responder("false")  # sem processo
     r_cpf = await responder("true")  # tem RO; sem CPF pré-preenchido: pergunta
     assert "Qual o seu CPF" in r_cpf.json()["resposta"]
-    r_confirma = await responder("11111111111")
+    r_confirma = await responder("12345678909")
     assert "Confirma que seus dados são" in r_confirma.json()["resposta"], "via orquestrador pergunta a confirmação"
     r = await responder("sim")
     assert r.json()["status"] == "concluido"

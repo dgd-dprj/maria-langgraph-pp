@@ -42,10 +42,10 @@ NOME_SIMPLES: dict[str, str] = {
     ID_OUTROS: "o outro assunto",
 }
 
-# Ordem padrão (Nicole, 28 e 29/10), com ou sem urgência: saúde primeiro, porque risco à saúde não
-# espera; depois a violência doméstica; depois a pessoa presa; depois o resto, o urgente antes, o
-# que a Maria conduz em seguida e o que é da Tykhe por último.
-PRIORIDADE: dict[str, int] = {ID_SAUDE: 0, ID_PROBLEMAS_PLANO_SAUDE: 0, ID_VIOLENCIA_DOMESTICA: 1, ID_PESSOA_PRESA: 2}
+# Ordem padrão, com ou sem urgência. Decisão da Nicole (2026-11-13), invertendo a de 28 e 29/10 (saúde primeiro):
+# a violência doméstica primeiro, depois a pessoa presa, depois a saúde e o plano de saúde; depois o resto, o
+# urgente antes, o que a Maria conduz em seguida e o que é da Tykhe por último.
+PRIORIDADE: dict[str, int] = {ID_VIOLENCIA_DOMESTICA: 0, ID_PESSOA_PRESA: 1, ID_SAUDE: 2, ID_PROBLEMAS_PLANO_SAUDE: 2}
 CONDUZIDOS_PELA_MARIA = frozenset({ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, ID_PROBLEMAS_PLANO_SAUDE})
 
 # #450 (decisão da Nicole, 2026-11-10): o parâmetro de urgência de cada assunto, que vai para a Tykhe em
@@ -149,8 +149,9 @@ class AssuntoGuardado(TypedDict):
 
 
 class AssuntoAberto(TypedDict):
-    """#450: um assunto em aberto da pessoa (desta conversa ou guardado de outra), como vai para a Tykhe em
-    `assuntosEmAberto`. O id do assunto é o `chatId` dele."""
+    """#450: um assunto em aberto da pessoa (desta conversa ou guardado de outra). O `chatIdAssunto` é o id interno do
+    assunto e não vai para a Tykhe (`para_a_tykhe`): para ela, o assunto é o `flowId` (fluxo da Maria) ou o
+    `tipoCaso` (assunto da Tykhe), que aparecem uma vez só na lista."""
 
     nome: str
     urgente: bool
@@ -183,6 +184,21 @@ def _id_do_item(item: Mapping[str, Any]) -> str:
 def id_do_assunto(item: Mapping[str, Any]) -> str:
     """O id do tipo do assunto: o `flowId` (fluxo da Maria) ou `tykhe:<tipoCaso>` (assunto da Tykhe)."""
     return _id_do_item(item)
+
+
+def para_a_tykhe(abertos: Sequence[AssuntoAberto]) -> list[dict[str, Any]]:
+    """#450 (decisão da Nicole, 2026-11-13): `assuntosEmAberto` como vai para a Tykhe, sem o `chatIdAssunto`. O
+    assunto é identificado pelo `flowId` ou pelo `tipoCaso`."""
+    return [{chave: valor for chave, valor in aberto.items() if chave != "chatIdAssunto"} for aberto in abertos]
+
+
+def chat_do_assunto_pelo_id(assunto: str, abertos: Sequence[AssuntoAberto]) -> str | None:
+    """O `chatIdAssunto` interno do item de `assuntosEmAberto` cujo `flowId` ou `tipoCaso` é `assunto`. None quando
+    nenhum assunto em aberto tem esse id."""
+    for aberto in abertos:
+        if assunto in (aberto.get("flowId"), aberto.get("tipoCaso")):
+            return aberto["chatIdAssunto"]
+    return None
 
 
 def urgencia_de(item: Mapping[str, Any]) -> Urgencia:
@@ -249,8 +265,29 @@ def texto_ordem(fila: list[ItemFila]) -> str:
     )
 
 
+# Decisão da Nicole (2026-11-13): as listas em que a pessoa escolhe saem numeradas, com a legenda, e os botões levam
+# o mesmo número ("1. A pessoa presa"). A resposta vale pelo número, pelo texto do botão ou pelo nome do assunto.
+TEXTO_LEGENDA_NUMERO = "Responda com o número da opção."
+
+
+def _numerada(nomes: Sequence[str], inicio: int = 1) -> list[str]:
+    """ "1. A pessoa presa", "2. O plano de saúde"…"""
+    return [f"{inicio + i}. {_maiuscula(nome)}" for i, nome in enumerate(nomes)]
+
+
+def _numero_da_opcao(resposta: str) -> int | None:
+    """O número de uma opção: "2", "2.", "2) O plano" ou o texto do botão "2. O plano de saúde"."""
+    numero = re.fullmatch(r"\s*(\d{1,2})\s*(?:[.)\-–]\s*.*)?", resposta, flags=re.DOTALL)
+    return int(numero.group(1)) if numero else None
+
+
 def texto_qual_primeiro(fila: list[ItemFila]) -> str:
-    return f"Tudo bem. Qual você quer resolver primeiro?\n{_lista([i['nome'] for i in fila])}"
+    lista = "\n".join(_numerada([i["nome"] for i in fila]))
+    return f"Tudo bem. Qual você quer resolver primeiro?\n\n{lista}\n\n{TEXTO_LEGENDA_NUMERO}"
+
+
+def opcoes_qual_primeiro(fila: list[ItemFila]) -> list[str]:
+    return _numerada([i["nome"] for i in fila])
 
 
 def texto_comecando(item: ItemFila) -> str:
@@ -280,6 +317,12 @@ def texto_fim_do_assunto(pendentes: list[AssuntoPendente], guardados: bool) -> s
             texto += f" Vou guardar {quais} por até 30 dias para a gente continuar depois."
         partes.append(texto)
     return "\n\n".join(partes)
+
+
+def texto_pendentes_no_atendimento_humano(pendentes: Sequence[Mapping[str, Any]]) -> str:
+    """Decisão da Nicole (2026-11-13): quando o assunto termina no atendimento humano, a Maria também avisa o que ficou
+    para depois."""
+    return f"Também ficou para depois: {_nomes_juntos([str(p['nome']) for p in pendentes])}."
 
 
 def origem_do_chat(chat_id: str) -> tuple[str, int]:
@@ -381,46 +424,87 @@ def _data_curta(data: str) -> str:
     return f"{data[8:10]}/{data[5:7]}" if len(data) >= 10 else data
 
 
+def _detalhes_do_aberto(aberto: Mapping[str, Any]) -> str:
+    """ "guardado até 13/12, ainda não começou": a urgência fica no título do grupo. Vai entre parênteses depois do nome
+    (decisão da Nicole, 2026-11-13: no lugar do ponto do meio)."""
+    detalhes = []
+    if aberto.get("venceEm"):
+        detalhes.append(f"guardado até {_data_curta(str(aberto['venceEm']))}")
+    detalhes.append(FASES.get(str(aberto.get("fase")), "ainda não começou"))
+    return ", ".join(detalhes)
+
+
+def _grupos_por_urgencia(abertos: Sequence[Mapping[str, Any]], *, com_detalhes: bool) -> str:
+    """Os assuntos em aberto numerados, em "Urgente:" e "Menos urgente:" (só os grupos que existem). A lista já vem com
+    os urgentes primeiro (`assuntos_em_aberto`, `em_ordem_de_urgencia`), então a numeração segue a ordem dela, que é a
+    mesma das opções e da leitura da resposta (`escolha_nos_abertos`)."""
+    blocos: list[str] = []
+    for urgencia, titulo in (("urgente", "Urgente:"), ("menos_urgente", "Menos urgente:")):
+        linhas = []
+        for numero, aberto in enumerate(abertos, start=1):
+            if urgencia_de(aberto) != urgencia:
+                continue
+            linha = f"{numero}. {_maiuscula(str(aberto['nome']))}"
+            linhas.append(f"{linha} ({_detalhes_do_aberto(aberto)})" if com_detalhes else linha)
+        if linhas:
+            blocos.append(titulo + "\n" + "\n".join(linhas))
+    return "\n\n".join(blocos)
+
+
+def _outras_opcoes(abertos: Sequence[Mapping[str, Any]], primeira: str) -> list[str]:
+    """Depois dos assuntos: a opção de um assunto novo e a de encerrar, numeradas em seguida."""
+    return _numerada([primeira, TEXTO_ENCERRAR], inicio=len(abertos) + 1)
+
+
 def texto_fim_da_conversa(resumo: Sequence[ResumoDoAssunto], abertos: Sequence[Mapping[str, Any]], guardados: bool) -> str:
-    """#450 (decisão da Nicole, 2026-11-11): no fim, o resumo da conversa, a pergunta e o que ainda está em aberto."""
+    """#450, no fim: o resumo da conversa, a pergunta e o que ainda está em aberto.
+
+    Decisão da Nicole (2026-11-13): a pergunta fica antes; depois, "Ainda em aberto", com os assuntos numerados e
+    separados por urgência; depois, as outras opções (assunto novo e encerrar) e a legenda do número. A frase muda com
+    um assunto em aberto ou com vários."""
     partes = [
         "Resumo da nossa conversa:\n" + "\n".join(f"• {_maiuscula(r['nome'])}: {r['desfecho']} (código {r['codigo']})" for r in resumo)
     ]
     if not abertos:
-        partes.append("Quer falar de um assunto novo ou encerrar a conversa?")
+        partes.append("Quer falar de um assunto novo ou encerrar a conversa?\n" + "\n".join(_outras_opcoes(abertos, TEXTO_FALAR_DE_NOVO)))
+        partes.append(TEXTO_LEGENDA_NUMERO)
         return "\n\n".join(partes)
-    partes.append("Quer continuar com algum desses assuntos ou encerrar a conversa?")
-    linhas = []
-    for aberto in abertos:
-        detalhes = [_maiuscula(str(aberto["nome"])), "urgente" if urgencia_de(aberto) == "urgente" else "menos urgente"]
-        if aberto.get("venceEm"):
-            detalhes.append(f"em aberto até {_data_curta(str(aberto['venceEm']))}")
-        detalhes.append(FASES.get(str(aberto.get("fase")), "ainda não começou"))
-        linhas.append("• " + " · ".join(detalhes))
-    partes.append("Ainda em aberto:\n" + "\n".join(linhas))
+    if len(abertos) == 1:
+        partes.append("Quer continuar com o assunto em aberto ou encerrar a conversa?")
+    else:
+        partes.append("Quer continuar com algum dos assuntos em aberto ou encerrar a conversa?")
+    partes.append("Ainda em aberto:\n\n" + _grupos_por_urgencia(abertos, com_detalhes=True))
+    partes.append("Outras opções:\n" + "\n".join(_outras_opcoes(abertos, TEXTO_FALAR_DE_NOVO)))
+    legenda = TEXTO_LEGENDA_NUMERO
     if guardados:
-        partes.append("Os assuntos em aberto ficam guardados por até 30 dias.")
+        legenda += " Os assuntos em aberto ficam guardados por até 30 dias."
+    partes.append(legenda)
     return "\n\n".join(partes)
 
 
 def opcoes_do_fim(abertos: Sequence[Mapping[str, Any]]) -> list[str]:
-    """Um botão para cada assunto em aberto (abre direto), mais o assunto novo e o encerrar."""
-    return [*(_maiuscula(str(a["nome"])) for a in abertos), TEXTO_FALAR_DE_NOVO, TEXTO_ENCERRAR]
+    """Um botão numerado para cada assunto em aberto (abre direto), mais o assunto novo e o encerrar."""
+    return [*_numerada([str(a["nome"]) for a in abertos]), *_outras_opcoes(abertos, TEXTO_FALAR_DE_NOVO)]
 
 
-def texto_abertos(abertos: Sequence[Mapping[str, Any]]) -> str:
-    """A lista dos assuntos em aberto, com os urgentes separados quando há dos dois tipos."""
-    urgentes = [a["nome"] for a in abertos if urgencia_de(a) == "urgente"]
-    outros = [a["nome"] for a in abertos if urgencia_de(a) == "menos_urgente"]
-    if urgentes and outros:
-        return f"Qual você quer resolver agora?\n\nUrgente:\n{_lista(urgentes)}\n\nMenos urgente:\n{_lista(outros)}"
-    if urgentes:
-        return f"Qual você quer resolver agora?\n\nUrgente:\n{_lista(urgentes)}"
-    return f"Qual você quer resolver agora?\n\n{_lista(outros)}"
+def texto_abertos(abertos: Sequence[Mapping[str, Any]], *, com_encerrar: bool = False) -> str:
+    """A lista dos assuntos em aberto, numerada e separada por urgência, mais o assunto novo (e o encerrar, quando a
+    lista vem do fim da conversa) e a legenda do número."""
+    if com_encerrar:
+        outras = _outras_opcoes(abertos, TEXTO_OPCAO_NENHUM)
+    else:
+        outras = _numerada([TEXTO_OPCAO_NENHUM], inicio=len(abertos) + 1)
+    return (
+        f"Qual você quer resolver agora?\n\n{_grupos_por_urgencia(abertos, com_detalhes=False)}\n\n"
+        f"Outras opções:\n" + "\n".join(outras) + f"\n\n{TEXTO_LEGENDA_NUMERO}"
+    )
 
 
-def opcoes_abertos(abertos: Sequence[Mapping[str, Any]]) -> list[str]:
-    return [*(_maiuscula(a["nome"]) for a in abertos), TEXTO_OPCAO_NENHUM]
+def opcoes_abertos(abertos: Sequence[Mapping[str, Any]], *, com_encerrar: bool = False) -> list[str]:
+    nomes = _numerada([str(a["nome"]) for a in abertos])
+    if com_encerrar:
+        return [*nomes, *_outras_opcoes(abertos, TEXTO_OPCAO_NENHUM)]
+    return [*nomes, *_numerada([TEXTO_OPCAO_NENHUM], inicio=len(abertos) + 1)]
 
 
 def texto_retomada(item: Mapping[str, object]) -> str:
@@ -434,9 +518,9 @@ def escolha_nos_abertos(resposta: str, abertos: Sequence[Mapping[str, Any]]) -> 
 
     Vale o texto da opção, o número dela (1, 2… na ordem dos assuntos; depois deles, o assunto novo e o encerrar) e o
     nome do assunto numa resposta livre ("o da cadeia")."""
-    numero = re.fullmatch(r"\s*(\d+)\s*", resposta)
-    if numero:
-        posicao = int(numero.group(1)) - 1
+    numero = _numero_da_opcao(resposta)
+    if numero is not None:
+        posicao = numero - 1
         if posicao == len(abertos):
             return "nenhum"
         if posicao == len(abertos) + 1:
@@ -465,9 +549,9 @@ def _palavras(texto: str) -> set[str]:
 def assunto_escolhido(resposta: str, fila: list[ItemFila]) -> int | None:
     """A posição do assunto que a pessoa escolheu: pelo número da lista ("2"), pelo nome ("o plano")
     ou por uma palavra do que ela contou ("a do meu filho"). None quando não dá para saber."""
-    numero = re.fullmatch(r"\s*(\d+)\s*", resposta)
-    if numero:
-        posicao = int(numero.group(1)) - 1
+    numero = _numero_da_opcao(resposta)
+    if numero is not None:
+        posicao = numero - 1
         return posicao if 0 <= posicao < len(fila) else None
     ditas = _palavras(resposta)
     if not ditas:

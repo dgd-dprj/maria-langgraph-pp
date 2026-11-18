@@ -72,14 +72,59 @@ _NOME_MASCARADO = CasoAposentado(
 # `MIGRACAO.md`). As gravações não foram editadas.
 # #475 (decisão da Nicole, 2026-11-12): a pergunta do RG mostra os formatos aceitos.
 _PERGUNTA_DO_RG = CasoAposentado(issue=475, motivo="a pergunta do RG mostra os formatos aceitos", teste="tests/fluxos/test_pessoa_presa.py")
+_IRMAO_E_IRMA = CasoAposentado(issue=212, motivo="o parentesco Irmão(a) virou Irmão e Irmã", teste="tests/shared/test_parentesco.py")
+# #497 (decisão da Nicole, 2026-11-16): o CPF digitado na conversa passa pela conta dos dígitos verificadores antes do
+# Verde. O CPF da gravação ("11111111111") não fecha a conta: a conversa pede o CPF de novo e não conclui, e as consultas
+# seguintes à mesma conversa mudam junto.
+_CPF_PELA_CONTA = CasoAposentado(
+    issue=497, motivo="o CPF da gravação não fecha a conta dos dígitos verificadores", teste="tests/subgrafos/test_subgrafos.py"
+)
+
+# #296: `dadosConhecidos.cpf` numérico vira texto de 11 dígitos e outro tipo é 400 com motivo; na gravação, o 200 sumia com o campo.
+_CPF_NUMERICO = CasoAposentado(
+    issue=296, motivo="cpf de dadosConhecidos que não é texto: número vira texto, outro tipo é 400", teste="tests/api/test_cpf_conhecido.py"
+)
+_CASOS_CPF_NUMERICO = (
+    "dados_cpf_zero",
+    "dados_cpf_sete",
+    "dados_cpf_true",
+    "dados_cpf_false",
+    "dados_cpf_objeto",
+    "dados_cpf_lista",
+    "dados_cpf_lista1",
+    "dados_cpf_lista2",
+    "dados_cpf_float_pequeno",
+    "dados_cpf_inteiro_grande",
+    "dados_cpf_float",
+    "dados_cpf_objeto_cheio",
+)
+
+# #240 (decisão da Nicole, 2026-11-17): campo interno dos fluxos em `dadosConhecidos` é descartado. A gravação provocava
+# o erro não tratado com `dadosConhecidos.tokensGastos: null`; agora o campo sai, e a criação segue com 200. O formato do
+# 500 continua conferido pelos três casos `erro-nao-tratado-webhook-*`.
+_CAMPO_INTERNO = CasoAposentado(
+    issue=240,
+    motivo="tokensGastos de fora é campo interno e é descartado; a criação não quebra mais",
+    teste="tests/api/test_dados_conhecidos_internos.py",
+)
 
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
     "contrato": {
+        "erro-nao-tratado-500": _CAMPO_INTERNO,
         "pessoa-presa-resposta-rg-200": _NOME_MASCARADO,
         "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
         "pessoa-presa-resposta-texto-sem-opcoes-200": _PERGUNTA_DO_RG,
     },
-    "pr1": {},
+    "pr1": {
+        **{nome: _CPF_NUMERICO for nome in _CASOS_CPF_NUMERICO},
+        # #240: develop devolvia em `metadados` o `encaminhamentoId` pré-preenchido; agora ele é descartado na entrada.
+        # O `null` fica fora: a gravação já não o mostrava, e a resposta continua igual.
+        **{
+            nome: _CAMPO_INTERNO
+            for nome in nomes_dos_casos("pr1")
+            if nome.startswith("dados_encaminhamentoId_") and nome != "dados_encaminhamentoId_null"
+        },
+    },
     "pr2": {
         "pp_rg": _NOME_MASCARADO,
         "pp_get_confirma_nome": _NOME_MASCARADO,
@@ -89,6 +134,20 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
         ),
         "pp_sem_processo": _PERGUNTA_DO_RG,
         "orq_identifica_responde": _PERGUNTA_DO_RG,
+        # #212 (decisão da Nicole, 2026-11-13): "Irmão(a)" virou "Irmão" e "Irmã"; a resposta "irmão" grava "Irmão".
+        "pp_parentesco": _IRMAO_E_IRMA,
+        "pp_get_concluido": _IRMAO_E_IRMA,
+        # #393, item 3 (decisão da Nicole, 2026-11-17): o município do órgão saiu da mensagem final da violência doméstica.
+        "vd_via_orq_3": CasoAposentado(
+            issue=393,
+            motivo="o município do órgão saiu da mensagem final da violência doméstica",
+            teste="tests/fluxos/test_mensagem_sem_municipio.py",
+        ),
+        "vd_cpf": _CPF_PELA_CONTA,
+        "vd_get_concluido": _CPF_PELA_CONTA,
+        "vd_409_concluido": _CPF_PELA_CONTA,
+        "rota_get_query": _CPF_PELA_CONTA,
+        "rota_get_escape_invalido_query": _CPF_PELA_CONTA,
     },
 }
 

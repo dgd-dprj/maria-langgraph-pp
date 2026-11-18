@@ -313,7 +313,14 @@ def depois_da_ordem(state: OrquestradorState) -> Literal["escolher", "comecar"]:
 async def perguntar_primeiro(state: OrquestradorState) -> dict[str, Any]:
     """ "Qual você quer resolver primeiro?" Sem entender a resposta, segue a ordem proposta."""
     fila = cast(list[_fila.ItemFila], state.get("fila") or [])
-    resposta = cast(str, interrupt({"pergunta": _fila.texto_qual_primeiro(fila), "tipo": "texto", "etapa": "primeiro"}))
+    # Decisão da Nicole (2026-11-13): com botões numerados, como a lista dos assuntos em aberto.
+    pergunta = {
+        "pergunta": _fila.texto_qual_primeiro(fila),
+        "tipo": "opcoes",
+        "opcoes": _fila.opcoes_qual_primeiro(fila),
+        "etapa": "primeiro",
+    }
+    resposta = cast(str, interrupt(pergunta))
     posicao = _fila.assunto_escolhido(resposta, fila)
     return {"fila": _fila.para_frente(fila, posicao) if posicao is not None else fila, "escolherPrimeiro": False}
 

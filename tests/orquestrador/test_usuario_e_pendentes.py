@@ -30,6 +30,7 @@ from maria.orquestrador.fila import (
     texto_abertos,
     texto_fim_da_conversa,
     texto_fim_do_assunto,
+    texto_pendentes_no_atendimento_humano,
     texto_retomada,
     urgencia_de,
     urgencia_do_assunto,
@@ -123,10 +124,23 @@ def test_store_guarda_a_urgencia_mesmo_sem_o_campo() -> None:
 # ---- os assuntos em aberto -----------------------------------------------------------------------
 
 
+# Decisão da Nicole (2026-11-13): listas numeradas, com a legenda do número, e os botões com o mesmo número.
+
+
 def test_lista_dos_abertos_com_um_tipo_so() -> None:
-    assert texto_abertos([NOVO, HORARIO]) == "Qual você quer resolver agora?\n\n• o caso novo\n• o seu horário marcado"
-    assert texto_abertos([PRESA]) == "Qual você quer resolver agora?\n\nUrgente:\n• a pessoa presa"
-    assert opcoes_abertos([PRESA]) == ["A pessoa presa", "Nenhum, quero um assunto novo"]
+    assert texto_abertos([NOVO, HORARIO]) == (
+        "Qual você quer resolver agora?\n\n"
+        "Menos urgente:\n1. O caso novo\n2. O seu horário marcado\n\n"
+        "Outras opções:\n3. Nenhum, quero um assunto novo\n\n"
+        "Responda com o número da opção."
+    )
+    assert texto_abertos([PRESA]) == (
+        "Qual você quer resolver agora?\n\n"
+        "Urgente:\n1. A pessoa presa\n\n"
+        "Outras opções:\n2. Nenhum, quero um assunto novo\n\n"
+        "Responda com o número da opção."
+    )
+    assert opcoes_abertos([PRESA]) == ["1. A pessoa presa", "2. Nenhum, quero um assunto novo"]
 
 
 def test_lista_separa_os_urgentes_dos_menos_urgentes() -> None:
@@ -134,16 +148,26 @@ def test_lista_separa_os_urgentes_dos_menos_urgentes() -> None:
     assert [g["nome"] for g in abertos] == ["a pessoa presa", "o plano de saúde", "o caso novo", "o seu horário marcado"]
     assert texto_abertos(abertos) == (
         "Qual você quer resolver agora?\n\n"
-        "Urgente:\n• a pessoa presa\n• o plano de saúde\n\n"
-        "Menos urgente:\n• o caso novo\n• o seu horário marcado"
+        "Urgente:\n1. A pessoa presa\n2. O plano de saúde\n\n"
+        "Menos urgente:\n3. O caso novo\n4. O seu horário marcado\n\n"
+        "Outras opções:\n5. Nenhum, quero um assunto novo\n\n"
+        "Responda com o número da opção."
     )
     assert opcoes_abertos(abertos) == [
-        "A pessoa presa",
-        "O plano de saúde",
-        "O caso novo",
-        "O seu horário marcado",
-        "Nenhum, quero um assunto novo",
+        "1. A pessoa presa",
+        "2. O plano de saúde",
+        "3. O caso novo",
+        "4. O seu horário marcado",
+        "5. Nenhum, quero um assunto novo",
     ]
+
+
+def test_lista_do_fim_da_conversa_tem_o_encerrar() -> None:
+    """Quem não quer continuar com os assuntos em aberto pode encerrar (decisão da Nicole, 2026-11-13)."""
+    assert texto_abertos([PRESA, NOVO], com_encerrar=True).endswith(
+        "Outras opções:\n3. Nenhum, quero um assunto novo\n4. Encerrar a conversa\n\nResponda com o número da opção."
+    )
+    assert opcoes_abertos([PRESA, NOVO], com_encerrar=True)[-2:] == ["3. Nenhum, quero um assunto novo", "4. Encerrar a conversa"]
 
 
 @pytest.mark.parametrize(
@@ -157,6 +181,11 @@ def test_lista_separa_os_urgentes_dos_menos_urgentes() -> None:
         ("3", "nenhum"),
         ("4", "encerrar"),
         ("5", None),
+        # O texto do botão numerado.
+        ("1. A pessoa presa", 0),
+        ("2) o caso novo", 1),
+        ("3. Nenhum, quero um assunto novo", "nenhum"),
+        ("4. Encerrar a conversa", "encerrar"),
         ("Encerrar a conversa", "encerrar"),
         ("quero encerrar", "encerrar"),
         ("Nenhum, quero um assunto novo", "nenhum"),
@@ -240,13 +269,21 @@ def test_fim_da_conversa_com_assuntos_em_aberto() -> None:
         "Resumo da nossa conversa:\n"
         "• A pessoa presa: dados confirmados e encaminhados (código K7M2QX)\n"
         "• A situação que você contou: encaminhada (código P3R8TZ)\n\n"
-        "Quer continuar com algum desses assuntos ou encerrar a conversa?\n\n"
-        "Ainda em aberto:\n"
-        "• O plano de saúde · urgente · em aberto até 11/12 · ainda não começou\n"
-        "• O caso novo · menos urgente · ainda não começou\n\n"
-        "Os assuntos em aberto ficam guardados por até 30 dias."
+        "Quer continuar com algum dos assuntos em aberto ou encerrar a conversa?\n\n"
+        "Ainda em aberto:\n\n"
+        "Urgente:\n1. O plano de saúde (guardado até 11/12, ainda não começou)\n\n"
+        "Menos urgente:\n2. O caso novo (ainda não começou)\n\n"
+        "Outras opções:\n3. Falar de um assunto novo\n4. Encerrar a conversa\n\n"
+        "Responda com o número da opção. Os assuntos em aberto ficam guardados por até 30 dias."
     )
-    assert opcoes_do_fim(abertos) == ["O plano de saúde", "O caso novo", TEXTO_FALAR_DE_NOVO, TEXTO_ENCERRAR]
+    assert opcoes_do_fim(abertos) == ["1. O plano de saúde", "2. O caso novo", f"3. {TEXTO_FALAR_DE_NOVO}", f"4. {TEXTO_ENCERRAR}"]
+
+
+def test_fim_da_conversa_com_um_assunto_em_aberto() -> None:
+    resumo = [{"nome": "a pessoa presa", "desfecho": "dados confirmados e encaminhados", "codigo": "K7M2QX"}]
+    texto = texto_fim_da_conversa(resumo, [{**NOVO, "fase": "nao_iniciado"}], guardados=False)  # type: ignore[arg-type]
+    assert "Quer continuar com o assunto em aberto ou encerrar a conversa?" in texto
+    assert texto.endswith("Outras opções:\n2. Falar de um assunto novo\n3. Encerrar a conversa\n\nResponda com o número da opção.")
 
 
 def test_fim_da_conversa_sem_nada_em_aberto() -> None:
@@ -254,9 +291,19 @@ def test_fim_da_conversa_sem_nada_em_aberto() -> None:
     assert texto_fim_da_conversa(resumo, [], guardados=False) == (  # type: ignore[arg-type]
         "Resumo da nossa conversa:\n"
         "• O plano de saúde: pedido enviado à Defensoria (código A1B2C3)\n\n"
-        "Quer falar de um assunto novo ou encerrar a conversa?"
+        "Quer falar de um assunto novo ou encerrar a conversa?\n"
+        "1. Falar de um assunto novo\n2. Encerrar a conversa\n\n"
+        "Responda com o número da opção."
     )
-    assert opcoes_do_fim([]) == [TEXTO_FALAR_DE_NOVO, TEXTO_ENCERRAR]
+    assert opcoes_do_fim([]) == [f"1. {TEXTO_FALAR_DE_NOVO}", f"2. {TEXTO_ENCERRAR}"]
+
+
+def test_aviso_curto_no_atendimento_humano() -> None:
+    """Decisão da Nicole (2026-11-13): no atendimento humano, só o aviso do que ficou para depois."""
+    um = [_pendente("a pessoa presa", "urgente")]
+    assert texto_pendentes_no_atendimento_humano(um) == "Também ficou para depois: a pessoa presa."
+    dois = [_pendente("a pessoa presa", "urgente"), _pendente("o caso novo", "menos_urgente")]
+    assert texto_pendentes_no_atendimento_humano(dois) == "Também ficou para depois: a pessoa presa e o caso novo."
 
 
 # ---- o fim de cada assunto -----------------------------------------------------------------------
@@ -386,12 +433,18 @@ async def test_pedido_de_ver_mostra_a_lista_e_abre_o_escolhido(modelo: Modelo) -
     c = Conversa()
     r = await c.iniciar("quero ver meus assuntos", id_usuario="u-ver")
     assert pergunta(r) == {
-        "pergunta": "Qual você quer resolver agora?\n\nUrgente:\n• a pessoa presa\n\nMenos urgente:\n• o caso novo",
+        "pergunta": (
+            "Qual você quer resolver agora?\n\n"
+            "Urgente:\n1. A pessoa presa\n\n"
+            "Menos urgente:\n2. O caso novo\n\n"
+            "Outras opções:\n3. Nenhum, quero um assunto novo\n\n"
+            "Responda com o número da opção."
+        ),
         "tipo": "opcoes",
-        "opcoes": ["A pessoa presa", "O caso novo", "Nenhum, quero um assunto novo"],
+        "opcoes": ["1. A pessoa presa", "2. O caso novo", "3. Nenhum, quero um assunto novo"],
         "etapa": "pendentes",
     }
-    r = await c.responder("A pessoa presa")
+    r = await c.responder("1. A pessoa presa")
     assert r["pendenteEscolhido"]["nome"] == "a pessoa presa"
 
 

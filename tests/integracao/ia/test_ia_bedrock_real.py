@@ -121,11 +121,14 @@ async def test_parentesco_issue_17(relato: str, esperado: str) -> None:
     ("relato", "esperado"),
     [
         # #212: as leituras erradas da comparação da #472.
-        ("Irmã", "Irmão(a)"),  # o Haiku escreveu "Irmã(o)", fora da lista
+        ("Irmã", "Irmã"),  # o Haiku escreveu "Irmã(o)", fora da lista
         ("minha mãe", "Filho(a)"),  # relação invertida
         ("filha", "Filho(a)"),  # palavra só: sem inverter
-        ("nora", "Outro"),  # parente fora da lista: o Qwen dizia "Sogro(a)"
         ("enteada", "Outro"),  # o Qwen dizia "Filho(a)"
+        # #212 (2026-11-13): "Genro/Nora" entrou na lista. A palavra solta nem chega à IA (`parentesco_pela_resposta`);
+        # a frase longa chega, e o Qwen dizia "Sogro(a)".
+        ("ele é casado com a minha filha faz uns cinco anos, sou o sogro dele", "Sogro(a)"),
+        ("eu sou casado com a filha mais velha dele", "Genro/Nora"),
     ],
 )
 async def test_parentesco_qwen_so_da_lista_212(relato: str, esperado: str) -> None:

@@ -3,11 +3,13 @@
 Reproduz o `ChatBedrockConverse` do @langchain/aws 1.4.4, e NÃO o
 `with_structured_output` do langchain-aws Python:
 
-- **Sem validação.** O parser de develop (`chat_models.js:781-786`) devolve os
-  `args` da ferramenta como vieram; o zod só descreve a saída no prompt. Com
-  classe Pydantic, o Python validaria, e um id inventado viraria fallback.
-  A ausência de validação é defeito de develop reproduzido de propósito:
-  https://github.com/dgd-dprj/maria-langgraph-pp/issues/212
+- **Sem validação aqui.** O parser de develop (`chat_models.js:781-786`) devolve os
+  `args` da ferramenta como vieram; o zod só descreve a saída no prompt. A
+  validação fica em cada função ligada na produção (#212, decisão da Nicole em
+  2026-11-17): a escolha única e a múltipla (`classificar.py`) e a pergunta da
+  desambiguação (`desambiguar.py`). Saída fora do esquema segue o caminho de
+  falha que já existe e é registrada por `avisar_saida_invalida`. O `extrair` e o
+  `reescrever` estão desligados na produção e continuam sem validação.
 - **Requisição idêntica.** O `toolConfig` vai pronto (a ordem das chaves do
   `toolSpec` é a de develop), e o `inferenceConfig` vazio que o langchain-aws
   Python acrescenta é removido: develop não envia nenhum.
@@ -31,7 +33,24 @@ from langchain_core.runnables import RunnableLambda
 from maria.shared import _js
 from maria.shared._js import AUSENTE
 from maria.shared.bedrock import CONFIG_BOTOCORE, cota_como_sdk_js
-from maria.shared.logger import serializar_erro
+from maria.shared.contexto import contexto_atual
+from maria.shared.logger import logger, serializar_erro
+
+
+def avisar_saida_invalida(funcao: str, motivo: str, ids_dentro: int | None = None, ids_fora: int | None = None) -> None:
+    """#212: a saída da IA não bate com o esquema e foi descartada. Só a função, o motivo (`fora_da_lista`,
+    `tipo_errado` ou `chave_ausente`) e, na escolha múltipla, quantos ids vieram dentro e fora da lista.
+    **Nunca** o valor devolvido pelo modelo nem o texto do relato."""
+    logger.warn(
+        "[ia] saída fora do esquema, descartada",
+        **contexto_atual(),
+        evento="ia_saida_invalida",
+        funcao=funcao,
+        motivo=motivo,
+        idsDentro=ids_dentro,
+        idsFora=ids_fora,
+    )
+
 
 # Absorve instabilidade passageira do Bedrock (throttle, timeout de rede) antes
 # de cair no fallback (issue #46). Em develop cada módulo declara o seu; o valor
@@ -73,7 +92,8 @@ class _ClienteTardio:
 
     def _criar(self) -> Any:
         modelo = self._modelo
-        assert modelo is not None
+        # Só estreita o tipo para o mypy: `_criar` só é chamado depois de o modelo ser guardado.
+        assert modelo is not None  # noqa: S101
         with cota_como_sdk_js():
             return create_aws_client(
                 service_name=self._servico,
