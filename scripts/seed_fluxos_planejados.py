@@ -29,7 +29,6 @@ from dotenv import load_dotenv
 
 from maria.fluxos import fluxos_por_id
 from maria.shared._js import trim_js
-from maria.shared.checkpointer import fechar_checkpointer, inicializar_checkpointer
 from maria.shared.fluxos_planejados_db import FluxoPlanejado
 
 DADOS = Path(__file__).resolve().parent / "dados" / "fluxos_planejados.json"
@@ -114,11 +113,9 @@ async def seed(dados: list[FluxoPlanejado]) -> None:
 
 
 async def _executar() -> int:
-    # Em develop, importar src/fluxos/index.js já cria o checkpointer (top-level await nos
-    # grafos), antes de qualquer guarda do seed: loga o aviso do MemorySaver, ou conecta o
-    # PostgresSaver e cria as tabelas de checkpoint. Uma falha aqui não passa pelo
-    # "seed falhou:": o processo morre com a pilha e código 1 (spec 08, achado B5).
-    await inicializar_checkpointer()
+    # #255 (decisão da Nicole, 2026-11-17): o seed não inicializa mais o checkpointer do LangGraph. Em develop
+    # (TypeScript), importar os fluxos já criava as tabelas de checkpoint e, com o banco fora, matava o processo
+    # antes do "seed falhou:"; a tradução reproduzia isso de propósito. Agora qualquer falha passa pelo prefixo do seed.
     try:
         await seed(carregar_dados())
     except Exception as erro:
@@ -128,8 +125,6 @@ async def _executar() -> int:
         print(f"seed falhou: {nome}: {erro}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         return 1
-    finally:
-        await fechar_checkpointer()
     return 0
 
 
