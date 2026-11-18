@@ -43,7 +43,11 @@ Migração **única**, já rodada — populou `fluxos_planejados` com os 74 regi
 - **Por que ainda existe**: é a **única cópia restante** dos dados originais (nome, descrição, palavras-chave, id de categoria do Verde, mensagem fixa) — sem ela, recriar `fluxos_planejados` do zero (banco novo, recuperação de desastre) não teria fonte.
 - **Os dados** ficam em `scripts/dados/fluxos_planejados.json`, transcritos do seed de develop @ `1157a6d`. O teste `tests/scripts/test_seed_extracao.py` confere o arquivo contra o `.ts` original, guardado byte a byte em `tests/fixtures/scripts/`. **Não edite o JSON à mão**: uma mudança de dado entra no seed de develop, e a fixture, o id do blob esperado e o JSON mudam juntos.
 - **Precisa**: `DATABASE_URL` no ambiente/`.env`.
-- **Atenção (#253, colide com a #249)**: o seed **sobrescreve** nome, descrição, palavras-chave e `mensagem_fixa` dos 74 registros com o valor do arquivo, e grava `mensagem_fixa = NULL` nos 72 que não têm mensagem. **Uma edição feita à mão no banco some na próxima execução**, inclusive uma correção de mensagem fixa (a #249 provavelmente será resolvida assim). Rodar o seed num banco existente desfaz essas edições sem aviso. Até a #253 decidir qual é a fonte do dado, use o seed só em banco novo, ou leve a correção também para o seed.
+- **O arquivo vale (#253, decisão da Nicole, 2026-11-18).** Toda mudança de dado (nome, descrição, categoria, palavras-chave, mensagem fixa) entra **por PR** em `scripts/dados/fluxos_planejados.json`, e o seed leva ao banco. Não se edita a tabela à mão.
+  - **Antes de gravar, o seed compara o banco com o arquivo.** Se algum registro estiver diferente, ele mostra cada registro e coluna (nos textos, o valor do banco e o do arquivo; nas palavras-chave, o que entra e o que sai), **não grava nada** e sai com `seed falhou:` e código 1.
+  - **`--force`** (`uv run python scripts/seed_fluxos_planejados.py --force`) mostra a mesma diferença e sobrescreve, para quando a sobrescrita é intencional (por exemplo, depois de levar ao JSON a correção que alguém fez no banco).
+  - **A gravação é uma transação só:** entram os 74 registros, ou nenhum. Um registro que só existe no banco não é tocado e aparece num aviso.
+  - **O primeiro PR que mudar um dado** (provavelmente o da #249) aposenta, com registro, a conferência do JSON contra o `.ts` de develop (`tests/scripts/test_seed_extracao.py`), que hoje impede editar o JSON. Até lá, vale a regra do item anterior: "não edite o JSON à mão" fora desse PR.
 
 ## `logs-prod.sh`
 
