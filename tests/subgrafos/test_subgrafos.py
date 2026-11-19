@@ -341,7 +341,13 @@ async def test_11_cadastro_com_sucesso() -> None:
     c = await (await _cadastro().iniciar({"cpf": "12345678901"})).responder("Fulano de Tal", "01/01/1990", "20000000", "10", "não")
     estado = await c.estado()
     assert c.pendente is None
-    assert estado["dadosPessoa"] == {"encontrado": True, "idPessoa": 888888, "nome": "Fulano de Tal"}
+    # #231: o CEP coletado volta em `enderecoDetalhado`, no formato do Verde.
+    assert estado["dadosPessoa"] == {
+        "encontrado": True,
+        "idPessoa": 888888,
+        "nome": "Fulano de Tal",
+        "enderecoDetalhado": {"cep": "20000000"},
+    }
     assert "cadastroErro" not in estado
 
 
@@ -507,7 +513,12 @@ async def test_cadastro_com_id_pessoa_null_do_verde_mantem_null(verde_real: Tran
     verde_real.tratador = responder
     c = await (await _cadastro().iniciar({"cpf": "12345678901"})).responder("Fulano de Tal", "01/01/1990", "20000000", "10", "não")
     estado = await c.estado()
-    assert estado["dadosPessoa"] == {"encontrado": True, "idPessoa": None, "nome": "Fulano de Tal"}
+    assert estado["dadosPessoa"] == {
+        "encontrado": True,
+        "idPessoa": None,
+        "nome": "Fulano de Tal",
+        "enderecoDetalhado": {"cep": "20000000"},
+    }
     assert "cadastroErro" not in estado
 
 
