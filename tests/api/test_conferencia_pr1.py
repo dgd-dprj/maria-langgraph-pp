@@ -24,7 +24,7 @@ import httpx
 import pytest
 
 from maria.app import criar_app
-from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, PREFIXO_STATUS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr1")
@@ -117,6 +117,9 @@ async def _conferir(cliente_conferencia: httpx.AsyncClient, monkeypatch: pytest.
             if obtido == esperado:
                 do_caso.append(f"{nome}: a divergência registrada sumiu ({DIVERGENCIAS[nome]})")
             continue
+        if r.status_code != d["status"]:
+            # À parte, para valer também num caso aposentado só no corpo (`mantem_status`, #210 e #211).
+            do_caso.append(f"{PREFIXO_STATUS}{nome}: status {r.status_code} != {d['status']}")
         if obtido != esperado:
             do_caso.append(f"{nome}:\n    python:  {obtido}\n    develop: {esperado}")
     return por_caso

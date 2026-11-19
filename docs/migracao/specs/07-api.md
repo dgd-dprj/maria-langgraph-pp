@@ -87,8 +87,8 @@ Quatro grupos de rota, com autenticação diferente:
 **(lido)** O Fastify trata uma requisição nesta ordem:
 1. procura a rota; se não acha, 404 no formato 4;
 2. `onRequest` com o bearer-auth; se falha, 401 no formato 2;
-3. parser do `content-type`: 415 no formato 5; JSON inválido, 400 `{}`;
-4. validação do schema do corpo, com coerção (3.2): 400 `{}`;
+3. parser do `content-type`: 415 no formato 5; JSON inválido, 400 `{}` (desde a #211, `{"erro": <motivo>}`);
+4. validação do schema do corpo, com coerção (3.2): 400 `{}` (desde a #211, `{"erro": <motivo>}`);
 5. o handler: formatos 6 e 7, ou sucesso;
 6. a serialização da resposta pelo schema (3.3).
 
@@ -129,9 +129,9 @@ A tradução serializa com um serializador próprio, guiado pelo mesmo schema de
 
 | # | Status | Corpo | Quando |
 |---|---|---|---|
-| 1 | 400 | `{}` | Falha de schema ou de parse |
+| 1 | 400 | `{}` | Falha de schema ou de parse. **Desde a #211 (2026-11-18): `{"erro":"<motivo em português>"}`**, nas rotas que declaram o 400 |
 | 2 | 401 | `{"error":"missing authorization header"}` ou `{"error":"invalid authorization header"}` | Bearer-auth |
-| 3 | 500 | `{"statusCode":500,"error":"Internal Server Error","message":"<texto>"}` | Erro não tratado. O teste compara tudo menos o valor de `message` (#210) |
+| 3 | 500 | `{"statusCode":500,"error":"Internal Server Error","message":"<texto>"}` | Erro não tratado. O teste compara tudo menos o valor de `message` (#210). **Desde a #210 (2026-11-18): `message` fixo e o campo `reqId`** (3.10) |
 | 4 | 404 | `{"message":"Route GET:/x not found","error":"Not Found","statusCode":404}` | Rota inexistente, inclusive com barra final |
 | 5 | 415 | `{"statusCode":415,"code":"FST_ERR_CTP_INVALID_MEDIA_TYPE","error":"Unsupported Media Type","message":"Unsupported Media Type"}` | `content-type` sem parser |
 | 6 | 400/404/409 | `{"erro":"<mensagem>"}` | Erros de negócio dos handlers |
@@ -189,6 +189,8 @@ No Python, a condição é `APP_ENV != "test"`. A imagem define `APP_ENV=product
 ### 3.10 Erro não tratado
 
 O tratador de erro do Fastify loga o erro e responde no formato 3, com `message = err.message`. No Python, `message` é o `str(exc)`. As notas que o LangGraph anexa à exceção não entram no `str()` (verificado no orquestrador). Para as exceções que a tradução reproduz com a mensagem do JS (`TypeError` do `ids.map`, do `.trim()`, do `null.toUpperCase()`), `message` é igual; nas demais, difere, e o teste compara tudo menos o valor (#210).
+
+**Desde a #210 (decisão da Nicole, 2026-11-18):** o 500 não devolve mais o texto da exceção. O corpo é `{"statusCode":500,"error":"Internal Server Error","message":"Erro interno. Informe o reqId à equipe da Maria.","reqId":"<uuid>"}`. O `reqId` é o mesmo gerado no começo da requisição e presente em todas as linhas de log dela, inclusive a de nível error, que guarda a exceção e a stack. Não há um segundo identificador gerado no tratamento do erro. Testes em `tests/api/test_erros_api.py`.
 
 ### 3.11 `normalizarResposta` e o TTL (#234)
 

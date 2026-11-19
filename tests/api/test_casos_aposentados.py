@@ -5,6 +5,7 @@ from __future__ import annotations
 from tests.api.casos_aposentados import (
     CASOS_APOSENTADOS,
     CONFERENCIAS,
+    PREFIXO_STATUS,
     CasoAposentado,
     falhas_da_conferencia,
     falhas_que_valem,
@@ -68,6 +69,25 @@ def test_caso_aposentado_que_volta_a_bater_falha() -> None:
     falhas = falhas_que_valem("fluxos", [], aposentados)
     assert len(falhas) == 1
     assert "voltou a bater" in falhas[0]
+
+
+def test_aposentado_so_no_corpo_continua_conferindo_o_status() -> None:
+    # #210 e #211: o corpo do 400 mudou de propósito, mas um 422 ou um 500 no lugar do 400 continua sendo pego.
+    so_corpo = {"erro": CasoAposentado(issue=211, motivo="corpo do 400", teste=ESTE_TESTE, mantem_status=True)}
+    corpo = "erro: corpo diferente"
+    status = f"{PREFIXO_STATUS}erro: status 422 != 400"
+    assert falhas_que_valem("erro", [corpo], so_corpo) == []
+    assert falhas_que_valem("erro", [status, corpo], so_corpo) == [status]
+    assert "voltou a bater" in falhas_que_valem("erro", [], so_corpo)[0]
+    # Sem a marca, o caso sai inteiro, como antes.
+    inteiro = {"erro": CasoAposentado(issue=211, motivo="corpo do 400", teste=ESTE_TESTE)}
+    assert falhas_que_valem("erro", [status, corpo], inteiro) == []
+
+
+def test_os_aposentados_dos_erros_da_api_mantem_o_status() -> None:
+    dos_erros = [c for casos in CASOS_APOSENTADOS.values() for c in casos.values() if c.issue in (210, 211)]
+    assert len(dos_erros) == 120  # 114 de 400 com {} e 6 de 500
+    assert all(c.mantem_status for c in dos_erros)
 
 
 def test_falhas_da_conferencia_aplica_a_lista_caso_a_caso() -> None:

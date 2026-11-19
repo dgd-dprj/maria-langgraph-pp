@@ -30,7 +30,7 @@ import pytest
 from maria.api.webhook_whatsapp import limpar_conversas_ativas_de_teste
 from maria.app import criar_app
 from tests.api.campos_posteriores import sem_campos_posteriores
-from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, PREFIXO_STATUS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr2")
@@ -146,7 +146,8 @@ async def _conferir(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
             do_caso = por_caso.setdefault(c["nome"], [])
             for campo in ("status", "contentType", "location"):
                 if r[campo] != d[campo]:
-                    do_caso.append(f"{c['nome']}: {campo} {r[campo]!r} != {d[campo]!r}")
+                    prefixo = PREFIXO_STATUS if campo == "status" else ""
+                    do_caso.append(f"{prefixo}{c['nome']}: {campo} {r[campo]!r} != {d[campo]!r}")
             if d["status"] == 500 and r["corpo"] and esperado_corpo:
                 obtido, esperado = json.loads(r["corpo"]), json.loads(esperado_corpo)
                 obtido.pop("message"), esperado.pop("message")  # #210
