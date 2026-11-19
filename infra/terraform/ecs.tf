@@ -43,13 +43,13 @@ resource "aws_ecs_task_definition" "api" {
       # environment, e não em secrets, para não ser copiado com os segredos.
       { name = "MARIA_AMBIENTE", value = "producao" },
     ]
-    secrets = concat([
+    # Issue #405 — produção ainda não chama a Lambda de e-mail (o plano de saúde só roda no release, #324):
+    # EMAIL_NUDECON_URL/EMAIL_NUDECON_API_KEY ficam fora daqui. O segredo `email-nudecon` de produção já existe
+    # (secrets.tf) e a role de execução já o lê; para ligar, basta pôr as duas chaves nesta lista, como em release.tf.
+    secrets = [
       for k in ["VERDE_API_URL", "VERDE_JWT_TOKEN", "VERDE_CLIENT_ID", "DATABASE_URL", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT", "API_KEY"] :
       { name = k, valueFrom = "${aws_secretsmanager_secret.app.arn}:${k}::" }
-      ], [
-      for k in ["EMAIL_NUDECON_URL", "EMAIL_NUDECON_API_KEY"] :
-      { name = k, valueFrom = "${aws_secretsmanager_secret.email_nudecon.arn}:${k}::" }
-    ])
+    ]
     logConfiguration = {
       logDriver = "awslogs"
       options = {
