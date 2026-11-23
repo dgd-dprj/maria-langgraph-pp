@@ -2,7 +2,33 @@
   "rules": [
     {
       "rulePriority": 1,
-      "description": "Manter só as 10 últimas imagens sem tag; imagem com tag nunca expira",
+      "description": "Proteção (#384, #544): imagem com latest ou release nunca expira, mesmo carregando também uma tag sha-",
+      "selection": {
+        "tagStatus": "tagged",
+        "tagPrefixList": ["latest", "release"],
+        "countType": "imageCountMoreThan",
+        "countNumber": 9999
+      },
+      "action": {
+        "type": "expire"
+      }
+    },
+    {
+      "rulePriority": 2,
+      "description": "Manter só as 30 imagens mais novas com tag sha-, fora as protegidas pela regra 1 (rollback por commit, #544)",
+      "selection": {
+        "tagStatus": "tagged",
+        "tagPrefixList": ["sha-"],
+        "countType": "imageCountMoreThan",
+        "countNumber": 30
+      },
+      "action": {
+        "type": "expire"
+      }
+    },
+    {
+      "rulePriority": 3,
+      "description": "Manter só as 10 últimas imagens sem tag",
       "selection": {
         "tagStatus": "untagged",
         "countType": "imageCountMoreThan",
