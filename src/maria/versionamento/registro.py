@@ -147,10 +147,11 @@ async def _registrar(pool: PoolAsync, ambiente: str, manifesto: Manifesto, meta:
     registrados: list[str] = []
     prs: list[dict[str, Any]] = [pr for pr in meta.get("prs", []) if isinstance(pr, dict) and "numero" in pr]
     async with pool.connection() as conexao:
-        await conexao.execute(_CRIAR_TABELA)
-        await conexao.execute(_CRIAR_INDICE)
+        # A trava vem antes do DDL: duas tasks subindo juntas numa tabela nova não colidem no CREATE TABLE.
         await conexao.execute("SELECT pg_advisory_lock(%s)", (CHAVE_DA_TRAVA,))
         try:
+            await conexao.execute(_CRIAR_TABELA)
+            await conexao.execute(_CRIAR_INDICE)
             comp = manifesto[COMPARTILHADO]
             ultima_comp = await _ultima(conexao, COMPARTILHADO, ambiente)
             compartilhado_mudou = ultima_comp is not None and ultima_comp["hash"] != comp["hash"]

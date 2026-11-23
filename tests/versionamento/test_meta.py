@@ -3,7 +3,15 @@
 from typing import Any
 
 from maria.versionamento.manifesto import montar_manifesto
-from maria.versionamento.meta import conferir_pr, entrada_do_pr, extrair_secao, issue_de_origem, prs_do_compartilhado, prs_do_fluxo
+from maria.versionamento.meta import (
+    areas_do_pr,
+    conferir_pr,
+    entrada_do_pr,
+    extrair_secao,
+    issue_de_origem,
+    prs_do_compartilhado,
+    prs_do_fluxo,
+)
 from tests.versionamento.conftest import GRAFO, escrever
 
 CORPO = """## Resumo
@@ -81,16 +89,16 @@ def test_entrada_do_pr_junta_secoes_issue_aprovacao_e_arquivos() -> None:
     assert entrada["solicitante"] == "Nicole, Ícaro"
     assert entrada["aprovado_por"] == ["Ana", "Nicole"]
     assert entrada["issue_origem"] == 99 == issue_de_origem(CORPO)
-    assert entrada["arquivos"] == ["README.md", "src/maria/fluxos/exemplo/graph.py"]
+    assert entrada["areas"] == ["fluxo:exemplo"] and "arquivos" not in entrada
 
 
 def test_atribuicao_dos_prs_por_pasta_config_e_compartilhado() -> None:
     prs = [
-        {"numero": 1, "arquivos": ["src/maria/fluxos/pessoa_presa/graph.py"]},
-        {"numero": 2, "arquivos": ["src/maria/fluxos/violencia_domestica/api.py"]},
-        {"numero": 3, "arquivos": ["src/maria/fluxos/__init__.py"]},
-        {"numero": 4, "arquivos": ["src/maria/shared/trava.py"]},
-        {"numero": 5, "arquivos": ["docs/x.md"]},
+        {"numero": 1, "areas": areas_do_pr(["src/maria/fluxos/pessoa_presa/graph.py"])},
+        {"numero": 2, "areas": areas_do_pr(["src/maria/fluxos/violencia_domestica/api.py"])},
+        {"numero": 3, "areas": areas_do_pr(["src/maria/fluxos/__init__.py"])},
+        {"numero": 4, "areas": areas_do_pr(["src/maria/shared/trava.py"])},
+        {"numero": 5, "areas": areas_do_pr(["docs/x.md"])},
     ]
     assert [p["numero"] for p in prs_do_fluxo(prs, "pessoa_presa")] == [1, 3]
     assert [p["numero"] for p in prs_do_fluxo(prs, None)] == [3]

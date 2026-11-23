@@ -95,15 +95,28 @@ def entrada_do_pr(pr: dict[str, Any], arquivos: list[str], aprovadores: list[str
         "solicitante": extrair_secao(corpo, SECAO_SOLICITANTE),
         "resumo": extrair_secao(corpo, SECAO_RESUMO),
         "issue_origem": issue_de_origem(corpo),
-        "arquivos": sorted(arquivos),
+        "areas": areas_do_pr(arquivos),
     }
+
+
+def areas_do_pr(arquivos: list[str]) -> list[str]:
+    """Resume os arquivos de um PR em áreas (`fluxo:<pasta>`, `config`, `compartilhado`): o JSON que vai na imagem fica pequeno."""
+    areas: set[str] = set()
+    for arquivo in arquivos:
+        partes = arquivo.split("/")
+        if arquivo in CAMINHOS_DE_CONFIG:
+            areas.add("config")
+        elif arquivo.startswith("src/maria/fluxos/") and len(partes) > 4:
+            areas.add(f"fluxo:{partes[3]}")
+        elif arquivo.startswith(PASTAS_COMPARTILHADAS):
+            areas.add("compartilhado")
+    return sorted(areas)
 
 
 def prs_do_fluxo(prs: list[dict[str, Any]], pasta: str | None) -> list[dict[str, Any]]:
     """Os PRs que mexeram na pasta do fluxo ou na configuração dos fluxos (fluxos/__init__.py, tipos_tykhe.py)."""
-    prefixo = f"src/maria/fluxos/{pasta}/" if pasta else None
-    return [pr for pr in prs if any(a in CAMINHOS_DE_CONFIG or (prefixo and a.startswith(prefixo)) for a in pr.get("arquivos", []))]
+    return [pr for pr in prs if "config" in pr.get("areas", []) or (pasta and f"fluxo:{pasta}" in pr.get("areas", []))]
 
 
 def prs_do_compartilhado(prs: list[dict[str, Any]]) -> list[dict[str, Any]]:
-    return [pr for pr in prs if any(a.startswith(PASTAS_COMPARTILHADAS) for a in pr.get("arquivos", []))]
+    return [pr for pr in prs if "compartilhado" in pr.get("areas", [])]

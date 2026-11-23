@@ -8,7 +8,8 @@ Uso (no deploy, antes do `docker build`; precisa do `gh` autenticado por GH_TOKE
 O deploy acontece num push em `staging` ou `main`, que é o merge de um PR de promoção (develop→staging, staging→main).
 O script acha esse PR, lista os commits dele, e para cada commit acha o PR de origem (os PRs para a `develop`, onde
 mora o "Solicitado por" e o "Resumo da mudança"). Para cada um guarda quem pediu, o resumo, quem aprovou e os arquivos
-mexidos; a Maria atribui cada fluxo aos PRs que mexeram na pasta dele. Falha ao consultar o GitHub não impede o
+mexidos, resumidos em áreas (o JSON vai como argumento do `docker build`, que tem limite de tamanho); a Maria atribui
+cada fluxo aos PRs que mexeram na pasta dele. Falha ao consultar o GitHub não impede o
 deploy: o JSON sai só com o commit e a tag, e o aviso vai para o stderr.
 """
 
@@ -24,6 +25,8 @@ from typing import Any
 from maria.versionamento.meta import entrada_do_pr
 
 Consulta = Callable[[str], Any]
+# `GET pulls/{n}/commits` devolve no máximo 250 commits.
+LIMITE_DE_COMMITS_DA_API = 250
 
 
 def _gh(caminho: str) -> Any:
@@ -41,7 +44,10 @@ def prs_do_deploy(repo: str, sha: str, consulta: Consulta) -> list[dict[str, Any
         return []
     numero_promocao = promocao[0]["number"]
     vistos: dict[int, dict[str, Any]] = {}
-    for commit in consulta(f"repos/{repo}/pulls/{numero_promocao}/commits"):
+    commits = consulta(f"repos/{repo}/pulls/{numero_promocao}/commits")
+    if len(commits) >= LIMITE_DE_COMMITS_DA_API:
+        sys.stderr.write("::warning::A promoção tem 250 commits ou mais (limite da API): alguns PRs podem ficar sem solicitante\n")
+    for commit in commits:
         for pr in consulta(f"repos/{repo}/commits/{commit['sha']}/pulls"):
             if pr["number"] == numero_promocao or pr.get("base", {}).get("ref") != "develop" or not pr.get("merged_at"):
                 continue

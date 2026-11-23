@@ -30,7 +30,7 @@ META = {
             "solicitante": "Nicole",
             "resumo": "Pede o nome completo.",
             "issue_origem": 5,
-            "arquivos": ["src/maria/fluxos/exemplo/graph.py"],
+            "areas": ["fluxo:exemplo"],
         },
         {
             "numero": 11,
@@ -39,7 +39,7 @@ META = {
             "aprovado_por": [],
             "solicitante": "",
             "resumo": "",
-            "arquivos": ["src/maria/shared/util.py"],
+            "areas": ["compartilhado"],
         },
     ],
 }

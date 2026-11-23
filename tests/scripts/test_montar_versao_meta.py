@@ -43,7 +43,7 @@ def test_junta_os_prs_da_promocao_sem_repetir_nem_pegar_promocao() -> None:
     prs = prs_do_deploy(REPO, "deploy", consulta)
     assert [p["numero"] for p in prs] == [10, 11]
     assert prs[0]["solicitante"] == "Nicole" and prs[0]["aprovado_por"] == ["Ana"] and prs[0]["issue_origem"] == 5
-    assert prs[0]["arquivos"] == ["src/maria/fluxos/pessoa_presa/graph.py"]
+    assert prs[0]["areas"] == ["fluxo:pessoa_presa"]
     assert prs[1]["solicitante"] == "" and prs[1]["resumo"] == ""
 
 
@@ -70,3 +70,9 @@ def test_main_imprime_json(monkeypatch: pytest.MonkeyPatch, capsys: pytest.Captu
     monkeypatch.setattr("montar_versao_meta._gh", consulta)
     assert main(["--repo", REPO, "--sha", "deploy", "--tag", "sha-deploy"]) == 0
     assert json.loads(capsys.readouterr().out)["prs"][0]["numero"] == 10
+
+
+def test_promocao_com_250_commits_avisa_do_limite_da_api(capsys: pytest.CaptureFixture[str]) -> None:
+    respostas = {**RESPOSTAS, f"repos/{REPO}/pulls/100/commits": [{"sha": "c1"}] * 250}
+    prs_do_deploy(REPO, "deploy", lambda caminho: respostas[caminho])
+    assert "250 commits" in capsys.readouterr().err
