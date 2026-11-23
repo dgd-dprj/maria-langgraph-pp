@@ -16,6 +16,7 @@ concurrency:
 permissions:
   id-token: write # necessário pro OIDC (aws-actions/configure-aws-credentials)
   contents: read
+  pull-requests: read # #542: o script de metadados lê os PRs do deploy
 
 env:
   # #509: a produção roda em São Paulo (sa-east-1) desde o corte; a da Virgínia foi desligada.
@@ -50,10 +51,23 @@ jobs:
 
       - uses: aws-actions/amazon-ecr-login@03f1aad4c6c7ffd436567f42f9384779290529bd # v2.1.7
 
+      # #542: metadados da versão (commit, PRs, solicitante, resumo) vão dentro da imagem, e a Maria os grava na
+      # tabela fluxos_versoes no startup. Falha aqui não impede o deploy: o script avisa e sai só com o commit.
+      - name: Metadados da versão dos fluxos
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          PYTHONPATH=src python3 scripts/montar_versao_meta.py --repo "$GITHUB_REPOSITORY" --sha "$GITHUB_SHA" \
+            --tag "sha-$GITHUB_SHA" --autor "$GITHUB_ACTOR" > versao-meta.json \
+            || echo "{\"commit_sha\": \"$GITHUB_SHA\", \"tag_imagem\": \"sha-$GITHUB_SHA\", \"prs\": []}" > versao-meta.json
+
+      # #542: além da tag do ambiente, a imagem leva a tag do commit (sha-<commit>), para o rollback manual voltar a ela.
       - name: Build e push da imagem
         run: |
-          docker build -t "$ECR_REPO:$IMAGE_TAG" .
+          docker build --build-arg VERSAO_META="$(cat versao-meta.json)" \
+            -t "$ECR_REPO:$IMAGE_TAG" -t "$ECR_REPO:sha-$GITHUB_SHA" .
           docker push "$ECR_REPO:$IMAGE_TAG"
+          docker push "$ECR_REPO:sha-$GITHUB_SHA"
 
       # Com desiredCount 0 (service criado antes da imagem existir) não há task para trocar: publica
       # a imagem e segue, sem forçar deployment.

@@ -39,6 +39,8 @@ from maria.shared.logger import logger
 from maria.shared.pendentes_db import fechar_pendentes_store
 from maria.shared.perguntas_db import fechar_perguntas_store, obter_perguntas_store
 from maria.shared.trava import fechar_travas
+from maria.versionamento.manifesto import montar_manifesto
+from maria.versionamento.registro import carregar_meta, registrar_versoes
 
 Inicializador = Callable[[], Awaitable[object]]
 
@@ -85,6 +87,22 @@ async def _pre_aquecer_catalogo() -> None:
         logger.error("[embeddingsFluxos] falha ao pré-aquecer catálogo no boot", err=erro)
 
 
+async def _registrar_versoes_dos_fluxos() -> None:
+    """#542: grava no Postgres a versão de cada fluxo que mudou desde o último deploy, para auditoria.
+
+    Em segundo plano, como o pré-aquecimento: não atrasa o `/health` nem derruba a subida. Sem DATABASE_URL (testes), não faz nada.
+    """
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        return
+    try:
+        manifesto = await asyncio.to_thread(montar_manifesto)
+    except Exception as erro:
+        logger.error("[versionamento] falha ao ler os fluxos para registrar a versão (a Maria segue atendendo)", err=erro)
+        return
+    await registrar_versoes(url, ambiente() or "(ausente)", manifesto, carregar_meta())
+
+
 def _registrar_fluxos_ligados() -> None:
     """#324: o ambiente e os fluxos ligados ficam visíveis a cada subida."""
     ligados = fluxos_ligados()
@@ -110,13 +128,15 @@ def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO,
             await inicializar()
         _registrar_fluxos_ligados()
         aquecimento = asyncio.create_task(_pre_aquecer_catalogo()) if pre_aquecer else None
+        registro_de_versoes = asyncio.create_task(_registrar_versoes_dos_fluxos()) if pre_aquecer else None
         try:
             yield
         finally:
-            if aquecimento is not None:
-                aquecimento.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await aquecimento
+            for tarefa in (aquecimento, registro_de_versoes):
+                if tarefa is not None:
+                    tarefa.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await tarefa
             for finalizar in FINALIZADORES:
                 await finalizar()
 

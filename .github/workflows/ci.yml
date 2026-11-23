@@ -109,6 +109,41 @@ jobs:
           docker logs maria
           exit 1
 
+  # #542: quando o PR para a `develop` muda um fluxo (código, textos, grafo ou configuração), o corpo precisa dizer quem
+  # pediu e resumir a mudança. A comparação é estática (lê os arquivos, não importa o código antigo). Não é check
+  # obrigatório dos rulesets: só falha o PR que muda fluxo sem as duas seções.
+  versao-dos-fluxos:
+    if: github.base_ref == 'develop'
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Código da develop (base do PR)
+        uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.base.sha }}
+          path: base
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6
+
+      - name: Instalar Python (versão de .python-version) e dependências
+        run: uv sync --frozen
+
+      # O corpo do PR vem por variável de ambiente, nunca interpolado no script (é texto de quem abre o PR).
+      - name: Conferir a versão dos fluxos
+        env:
+          CORPO_DO_PR: ${{ github.event.pull_request.body }}
+        run: |
+          printf '%s' "$CORPO_DO_PR" > "$RUNNER_TEMP/corpo.md"
+          uv run python -m maria.versionamento manifesto --raiz base/src/maria > "$RUNNER_TEMP/base.json"
+          uv run python -m maria.versionamento manifesto --raiz src/maria > "$RUNNER_TEMP/head.json"
+          uv run python -m maria.versionamento verificar-pr --base "$RUNNER_TEMP/base.json" --head "$RUNNER_TEMP/head.json" \
+            --corpo "$RUNNER_TEMP/corpo.md" --resumo "$GITHUB_STEP_SUMMARY"
+
   # #502: o que o QA da staging não confere. Os fluxos que consultam o Verde (pessoa
   # presa, violência doméstica e plano de saúde) até o fim, pela API, com a Maria inteira
   # (imagem, uvicorn, Postgres e checkpoint) e o Verde, a IA e o e-mail simulados. Sem
