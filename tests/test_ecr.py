@@ -113,3 +113,17 @@ def test_controle_a_regra_antiga_apaga_a_latest() -> None:
 def test_terraform_usa_o_arquivo_da_politica() -> None:
     ecr = (POLITICA.parent / "ecr.tf").read_text(encoding="utf-8")
     assert 'file("${path.module}/ecr-lifecycle.json")' in ecr
+
+
+# --- São Paulo (#544): alerta de custo do ECR ---
+
+TF_SP = Path(__file__).parent.parent / "infra" / "terraform-sp"
+
+
+def test_sp_orcamento_do_ecr_alerta_em_us_20_so_no_servico_ecr() -> None:
+    budget = (TF_SP / "budget-ecr.tf").read_text(encoding="utf-8")
+    assert 'resource "aws_budgets_budget" "ecr"' in budget
+    assert '"Amazon EC2 Container Registry (ECR)"' in budget
+    assert "subscriber_email_addresses = var.alerta_custo_ecr_emails" in budget
+    variaveis = (TF_SP / "variables.tf").read_text(encoding="utf-8")
+    assert "default     = 20" in variaveis
