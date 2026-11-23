@@ -55,3 +55,15 @@ variable "bedrock_model_arns" {
   ]
   description = "ARNs que a task role pode invocar no Bedrock. O padrão cobre os modelos Qwen in-region (dados no Brasil), o Ministral 14B (a volta atrás do Qwen, #482) e o Titan Embed Text v2 (embeddings dos fluxos, `BEDROCK_EMBEDDING_MODEL_ID`). Para um perfil global (ex.: Claude Haiku), acrescente o inference-profile e o foundation-model das outras regiões."
 }
+
+variable "alerta_custo_ecr_emails" {
+  description = "E-mails que recebem o alerta quando o custo mensal do ECR passar do limite (#544). Vazio = sem orçamento."
+  type        = list(string)
+  default     = []
+}
+
+variable "alerta_custo_ecr_limite_usd" {
+  description = "Limite mensal do ECR, em dólares, que dispara o alerta (#544)."
+  type        = number
+  default     = 20
+}

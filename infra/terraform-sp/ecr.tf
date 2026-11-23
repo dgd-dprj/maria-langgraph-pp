@@ -8,7 +8,7 @@ resource "aws_ecr_repository" "api" {
   }
 }
 
-# Política de São Paulo (#384, #544): latest e release nunca expiram; as 30 imagens sha- mais novas e as 10 sem tag mais novas ficam para rollback.
+# Mesma política da Virgínia (#384): só imagem sem tag expira; as 10 mais novas ficam para rollback.
 resource "aws_ecr_lifecycle_policy" "api" {
   repository = aws_ecr_repository.api.name
   policy     = file("${path.module}/ecr-lifecycle.json")
