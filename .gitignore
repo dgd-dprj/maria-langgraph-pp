@@ -25,3 +25,4 @@ graphify-out/
 
 # Catálogo copiado do release (#361): nunca versionar
 docker/catalogo/*.sql
+versao-meta.json

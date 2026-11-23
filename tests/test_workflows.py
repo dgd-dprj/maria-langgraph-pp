@@ -404,3 +404,28 @@ def test_producao_nao_redeploya_com_desired_count_zero() -> None:
     passos = _passos("deploy-prod.yml", "deploy")
     forcar = next(p for p in passos if "Forçar novo deployment" in p.get("name", ""))["run"]
     assert "desiredCount" in forcar and "-gt 0" in forcar
+
+
+def test_ci_confere_a_versao_dos_fluxos_so_nos_prs_para_a_develop() -> None:
+    # #542: o PR que muda um fluxo precisa de "Solicitado por" e "Resumo da mudança". Não é check obrigatório do ruleset.
+    job = _carregar("ci.yml")["jobs"]["versao-dos-fluxos"]
+    assert job["if"] == "github.base_ref == 'develop'"
+    texto = str(job["steps"])
+    assert "base.sha" in texto and "verificar-pr" in texto
+    # O corpo do PR vai por variável de ambiente, nunca interpolado no script (é texto de quem abre o PR).
+    comandos = "\n".join(passo.get("run", "") for passo in job["steps"])
+    assert "github.event.pull_request.body" not in comandos
+    assert "versao-dos-fluxos" not in {"test", "imagem"}
+
+
+@pytest.mark.parametrize("nome", ["deploy-release.yml", "deploy-prod.yml"])
+def test_deploy_leva_a_versao_dos_fluxos_na_imagem_e_publica_a_tag_do_commit(nome: str) -> None:
+    # #542: metadados da versão dentro da imagem, tag `sha-<commit>` além da tag do ambiente, e o deploy não depende deles.
+    assert _carregar(nome)["permissions"]["pull-requests"] == "read"
+    passos = _passos(nome, "deploy")
+    meta = next(p for p in passos if "Metadados da versão" in p.get("name", ""))["run"]
+    assert "montar_versao_meta.py" in meta and "|| echo" in meta
+    build = next(p for p in passos if "Build e push" in p.get("name", ""))["run"]
+    assert "--build-arg VERSAO_META" in build
+    assert '-t "$ECR_REPO:sha-$GITHUB_SHA"' in build
+    assert 'docker push "$ECR_REPO:sha-$GITHUB_SHA"' in build
