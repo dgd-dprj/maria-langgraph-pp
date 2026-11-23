@@ -60,6 +60,7 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 | `WHATSAPP_PHONE_NUMBER_ID` | ausente | Número do WhatsApp na Meta. Sem ele (ou sem o token), o envio é simulado e só registrado no log |
 | `WHATSAPP_ACCESS_TOKEN` | ausente | Token da Meta para enviar mensagens |
 | `WHATSAPP_VERIFY_TOKEN` | ausente | Token da verificação do webhook (`GET /webhook/whatsapp`). **Também liga as rotas do webhook (#339):** sem ele, `GET` e `POST /webhook/whatsapp` não existem (404), como na produção. Para testar a ponte localmente, basta defini-lo; o envio segue simulado sem `WHATSAPP_ACCESS_TOKEN` |
+| `VERSOES_API_KEY` | ausente | Bearer **próprio** da leitura das versões dos fluxos (`GET /versoes-dos-fluxos`, #547), para o Visor. Diferente da `API_KEY` da Tykhe (a subida falha se forem iguais). **Sem ela as rotas não existem (404).** Contrato em `docs/versionamento-dos-fluxos.md` |
 | `MOCK_CLASSIFICACAO_FLOWID` | ausente | Com `APP_ENV=test`, o fluxo que a classificação simulada escolhe. Sem ela, o relato vai para `outros` |
 | `MOCK_CLASSIFICACAO_FLOWIDS` | ausente | Com `APP_ENV=test`, vários ids separados por vírgula: simula um relato ambíguo (desambiguação) |
 | `MOCK_NECESSIDADES` | ausente | Com `APP_ENV=test` e `MARIA_AMBIENTE=release`, a lista (JSON) de necessidades que a classificação do multi-fluxo simulada devolve: ids ou objetos com `id`, `evidencia` e `urgente` (#435). Sem ela, vale o sentido de `MOCK_CLASSIFICACAO_FLOWID(S)` |

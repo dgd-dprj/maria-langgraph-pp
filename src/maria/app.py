@@ -26,7 +26,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from maria.api import atendimentos, basicas, orquestrador, webhook_whatsapp
+from maria.api import atendimentos, basicas, orquestrador, versoes, webhook_whatsapp
 from maria.api.docs import registrar_docs
 from maria.api.pipeline import PipelineFastify
 from maria.fluxos import ambiente, catalogo_para_classificacao, fluxos_ligados, fluxos_por_id
@@ -146,7 +146,18 @@ def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO,
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
     # #339 (decisão da Nicole, 2026-11-18): o webhook do WhatsApp é público e ainda não confere a assinatura da Meta.
     # Ele só existe onde o WhatsApp está configurado; na produção, que não tem o WhatsApp, a rota não existe (404).
-    rotas = [*basicas.ROTAS, *atendimentos.ROTAS, *orquestrador.ROTAS, *(webhook_whatsapp.ROTAS if webhook_whatsapp.ligado() else ())]
+    rotas = [
+        *basicas.ROTAS,
+        *atendimentos.ROTAS,
+        *orquestrador.ROTAS,
+        *(webhook_whatsapp.ROTAS if webhook_whatsapp.ligado() else ()),
+        # #547: leitura das versões dos fluxos para o Visor, com chave própria; sem `VERSOES_API_KEY` a rota não existe (404).
+        *(versoes.ROTAS if versoes.ligado() else ()),
+    ]
     registrar_docs(app, rotas)
-    app.add_middleware(PipelineFastify, rotas=rotas, chave_api=chave_api)
+    chave_versoes = versoes.chave_configurada()
+    if chave_versoes == chave_api:
+        raise RuntimeError("VERSOES_API_KEY deve ser diferente da API_KEY (a chave da Tykhe não pode abrir a leitura das versões)")
+    chaves_extras = {versoes.CHAVE: chave_versoes} if chave_versoes else {}
+    app.add_middleware(PipelineFastify, rotas=rotas, chave_api=chave_api, chaves_extras=chaves_extras)
     return app
