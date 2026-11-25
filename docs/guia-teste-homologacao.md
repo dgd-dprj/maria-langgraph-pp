@@ -114,7 +114,7 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 1. Relato livre sobre um familiar preso (inventado).
 2. Número do processo → **Sim** e um número de teste (SEEU, se houver), ou **Não**.
 3. RG da pessoa presa → o **RG de teste**.
-4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
+4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #551:** o nome vem **completo** (a #393 o mascarava, só com o primeiro nome e as iniciais). A confirmação do CPF do assistido continua mascarada.
 5. Parentesco → por exemplo, "sou a mãe". **Depois da #438, o relato do passo 1 conta:**
    - **com o parentesco no relato** ("meu primo foi preso", "meu avô foi preso", "sou a mãe dele"), a Maria **não pergunta**;
    - **"meu filho foi preso":** ela pergunta só "Você é a mãe ou o pai dele?";

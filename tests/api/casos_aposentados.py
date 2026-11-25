@@ -67,10 +67,9 @@ def nomes_dos_casos(conferencia: str) -> list[str]:
 # ligam, é coberto por testes escritos, e não pelas gravações.
 AMBIENTE_DAS_CONFERENCIAS = "producao"
 
-# #393 (decisão da Nicole, 2026-11-04): "Confirma que a pessoa presa é …?" mostra o nome mascarado.
-_NOME_MASCARADO = CasoAposentado(
-    issue=393, motivo="o nome do apenado sai mascarado na confirmação do RG", teste="tests/fluxos/test_pessoa_presa.py"
-)
+# #551 (2026-11-25): a confirmação do RG voltou a mostrar o nome completo da pessoa presa; os 4 casos que a #393
+# aposentou (pessoa-presa-resposta-rg-200, pessoa-presa-get-metadados-parciais-200, pp_rg, pp_get_confirma_nome)
+# voltam a bater com as gravações e saíram daqui.
 
 # Histórico dos casos de `GET /fluxos`: a #329 aposentou 6 (contrato `fluxos-200`; pr1 `fluxos`,
 # `fluxos_query`, `auth_bearer_espacos_fluxos`, `auth_bearer_duplo_espaco_fluxos`; pr2
@@ -169,8 +168,6 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
     "contrato": {
         **casos_dos_erros_da_api("contrato"),
         "erro-nao-tratado-500": _CAMPO_INTERNO,
-        "pessoa-presa-resposta-rg-200": _NOME_MASCARADO,
-        "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
         "pessoa-presa-resposta-texto-sem-opcoes-200": _PERGUNTA_DO_RG,
     },
     "pr1": {
@@ -186,8 +183,6 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
     },
     "pr2": {
         **casos_dos_erros_da_api("pr2"),
-        "pp_rg": _NOME_MASCARADO,
-        "pp_get_confirma_nome": _NOME_MASCARADO,
         # #394 (decisão da Nicole, 2026-11-12): a recusa do RG pelo formato diz a tentativa e dá um exemplo.
         "pp_rg_invalido": CasoAposentado(
             issue=394, motivo="a mensagem de recusa do RG pelo formato mudou", teste="tests/fluxos/test_pessoa_presa.py"
