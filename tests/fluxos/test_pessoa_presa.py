@@ -476,6 +476,35 @@ def test_551_texto_da_confirmacao_com_nome_real_e_sem_nome() -> None:
     assert texto_confirma_nome({}) == "Confirma que a pessoa presa é essa pessoa?"
 
 
+def test_551_nome_com_particulas_e_acentos_aparece_inteiro() -> None:
+    from maria.fluxos.pessoa_presa.graph import texto_confirma_nome
+
+    assert texto_confirma_nome({"dadosApenado": {"encontrado": True, "nome": "MARIA DA CONCEIÇÃO DE SOUZA"}}) == (
+        "Confirma que a pessoa presa é MARIA DA CONCEIÇÃO DE SOUZA?"
+    )
+    assert texto_confirma_nome({"dadosApenado": {"encontrado": True, "nome": "Ana"}}) == "Confirma que a pessoa presa é Ana?"
+
+
+async def test_551_nao_confirmar_o_nome_completo_continua_handoff_sem_perguntar_parentesco() -> None:
+    f = _fluxo()
+    await f.iniciar()
+    r = await f.responder("false", "11111111111")
+    assert texto(r) == "Confirma que a pessoa presa é Pessoa de Teste (mock)?"
+    r = await f.responder("false")
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "nome_nao_confirmado"
+    assert not re.search("parentesco", texto(r))
+
+
+async def test_551_pelo_orquestrador_o_apenado_sai_completo_e_o_assistido_continua_mascarado() -> None:
+    f = _fluxo()
+    await f.iniciar({"viaOrquestrador": True})
+    r = await f.responder("false", "11111111111")
+    assert texto(r) == "Confirma que a pessoa presa é Pessoa de Teste (mock)?"
+    r = await f.responder("true", "amigo", "12345678909")
+    assert texto(r) == "Confirma que seus dados são: Pessoa T.?"
+
+
 async def test_extracao_livre_campos_pre_preenchidos_pulam_perguntas_mas_verde_roda() -> None:
     r = await _fluxo().iniciar(
         {"temProcesso": True, "numeroProcesso": "0000088-95.2026.8.19.0010", "rg": "11111111111", "parentesco": "amigo"}
