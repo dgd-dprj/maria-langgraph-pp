@@ -45,7 +45,6 @@ from maria.shared import _js
 from maria.shared.contexto import contexto_atual
 from maria.shared.cpf import cpf_valido
 from maria.shared.logger import logger
-from maria.shared.nomes import nome_mascarado
 from maria.shared.parentesco import PEDEM_PERGUNTA, ler_resposta_parentesco, parentesco_pela_resposta, pergunta_curta
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.cadastro_pessoa.graph import grafo as subgrafo_cadastro_pessoa
@@ -259,9 +258,8 @@ def texto_tentar_novamente(state: PessoaPresaState) -> str:
 
 def texto_confirma_nome(state: PessoaPresaState) -> str:
     nome = _js.coalesce(_js.opt(_ler(state, "dadosApenado"), "nome"), "essa pessoa")
-    # #393 (decisão da Nicole, 2026-11-04): quem digita o RG de qualquer pessoa não vê o nome completo dela.
-    if isinstance(nome, str) and nome.strip() and nome != "essa pessoa":
-        return f"Confirma que a pessoa presa é {nome_mascarado(nome)}?"
+    # #551 (pedido do Ícaro, 2026-11-25): a confirmação do RG mostra o nome completo; desfaz o item 2 da #393.
+    # A confirmação do CPF do assistido (subgrafo identificar_assistido) continua mascarada.
     return f"Confirma que a pessoa presa é {_js.texto_template(nome)}?"
 
 
