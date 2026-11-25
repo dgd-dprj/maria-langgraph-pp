@@ -48,7 +48,7 @@ class _Pool:
         self.fechado = True
 
 
-LINHA = {
+LINHA: dict[str, Any] = {
     **{coluna: None for coluna, _ in leitura.CAMPOS_DA_LISTA},
     "id": 3,
     "fluxo": "f1",
@@ -86,7 +86,7 @@ async def test_buscar_traz_snapshot_e_none_quando_nao_existe(pool: tuple[_Pool, 
     assert (await leitura.buscar("postgresql://x", 3))["snapshot"] == {"a": 1}  # type: ignore[index]
 
     vazio = _Pool(_Conexao([], LINHA))
-    vazio.conexao.execute = lambda *_a, **_k: _async(_Cursor([]))  # type: ignore[method-assign,assignment]
+    vazio.conexao.execute = lambda *_a, **_k: _async(_Cursor([]))  # type: ignore[method-assign]
     monkeypatch.setattr(leitura, "criar_pool", lambda _url: vazio)
     assert await leitura.buscar("postgresql://x", 99) is None
 
