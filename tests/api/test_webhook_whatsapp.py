@@ -19,6 +19,7 @@ from maria.app import criar_app
 from maria.fluxos import ID_PESSOA_PRESA
 from maria.integracoes.whatsapp import extrair_mensagem_whatsapp
 from maria.shared.atendimentos_db import obter_atendimentos_store
+from tests.api.relogio import adiantar_relogio_do_ttl
 
 URL = "/webhook/whatsapp"
 
@@ -201,6 +202,8 @@ async def test_sim_na_confirmacao_de_ttl_continua_o_atendimento_227(cliente: htt
     assert chat_id, "deveria ter aberto atendimento"
 
     monkeypatch.setenv("TTL_INATIVIDADE_HORAS", "0")
+
+    adiantar_relogio_do_ttl(monkeypatch)
     await cliente.post(URL, json=payload_texto(n, "Amigo(a)"))
     monkeypatch.delenv("TTL_INATIVIDADE_HORAS")
     store = await obter_atendimentos_store()

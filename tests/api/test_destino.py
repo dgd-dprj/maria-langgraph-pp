@@ -11,6 +11,7 @@ import pytest
 
 from maria.api.atendimentos import destino_do_log, montar_resposta_atendimento
 from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, buscar_fluxo
+from tests.api.relogio import adiantar_relogio_do_ttl
 
 BASE = "/atendimentos"
 _ids = count(1)
@@ -64,6 +65,7 @@ async def test_expirado_traz_destino_sessao_expirada(
     chat_id = novo_chat_id()
     await cliente.post(BASE, json={"chatId": chat_id, "flowId": ID_VIOLENCIA_DOMESTICA}, headers=auth)
     monkeypatch.setenv("TTL_INATIVIDADE_HORAS", "0")
+    adiantar_relogio_do_ttl(monkeypatch)
     await cliente.post(f"{BASE}/respostas", json={"chatId": chat_id, "resposta": "true"}, headers=auth)
     monkeypatch.delenv("TTL_INATIVIDADE_HORAS")
     corpo = (await cliente.post(f"{BASE}/respostas", json={"chatId": chat_id, "resposta": "false"}, headers=auth)).json()
