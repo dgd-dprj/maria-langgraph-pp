@@ -1230,6 +1230,22 @@ Duas coisas diferentes:
 - **Teste escrito:** `tests/api/test_erros_api.py`, com os cinco casos da #211, o 400 de negócio sem mudança, o motivo sem o valor recebido e o 500 com um gatilho real (o item nulo do webhook): o `reqId` do corpo é o da linha de erro e o de todas as linhas da requisição. A spec D-2 (`test_spec_api_pr2.py`) passou a conferir o corpo novo.
 - **Tykhe:** entra no aviso único (#531). Na produção, só depois da promoção para a `main`, que está na lista de bloqueios do índice.
 
+## #231: o endereço de quem acabou de se cadastrar (decidido em 2026-11-18)
+
+- **Decisão da Nicole:** quem acabou de se cadastrar volta com `dadosPessoa.enderecoDetalhado`, pelo menos com o CEP.
+- **O formato:** `{"cep": "<8 dígitos>"}`, texto e sem hífen, o mesmo do Verde para quem já tinha cadastro (`"25780000"`, observado ao vivo, `docs/integracao-verde.md`) e o mesmo que a Tykhe manda em `dadosConhecidos.endereco.cep`. Assim a Tykhe lê o campo do mesmo jeito em todo lugar. O CEP digitado é limpo (`cep_do_verde`, em `subgrafos/cadastro_pessoa/graph.py`); fora de 8 dígitos, a chave não vem, como antes. A chave entra depois do `nome`, na ordem das chaves do Verde.
+- **O que não muda:** o POST `/pessoa` (o endereço vai ao Verde como foi digitado) e o que a pessoa vê.
+- **Na violência doméstica**, o `consultar_cep` do pai encontra o CEP e preenche `idUf`, `idBairro` e `idMunicipio`, como para quem já tinha cadastro. Na pessoa presa, que não consulta o CEP, vem só o `cep`.
+- **O simulador do Verde** devolve `"20000-000"` (com hífen) para a pessoa encontrada, como em develop. Ele não foi mudado, para não mexer nas respostas gravadas; o formato de referência é o do Verde real.
+- **Respostas gravadas:** nenhuma mudou. Nenhum caso gravado termina num cadastro bem-sucedido com CEP (os de cadastro usam um CPF que a #497 já desvia).
+- **Testes:** `tests/subgrafos/test_cadastro_cep.py` (o formato, a chave ausente com CEP fora do formato, o POST `/pessoa` igual) e `tests/api/test_cadastro_cep_resposta.py` (o caminho inteiro, cadastro → `consultar_cep` → resposta, com o CEP e os ids).
+- **Tykhe:** entra no aviso único (#531), junto com a #210 e a #211, e na lista de bloqueios da `main`.
+
+## O relógio do TTL nos testes (2026-11-19)
+
+- **O defeito era do teste.** Com `TTL_INATIVIDADE_HORAS=0`, a Maria pergunta se a pessoa quer continuar quando o intervalo desde a última atividade é maior que zero. No Windows, o relógio anda em degraus de cerca de 15 ms, e a criação e a resposta às vezes caíam no mesmo degrau: o intervalo dava zero, e o teste falhava de vez em quando (`ttl_c0_confirmacao` da pr2, 1 vez em cerca de 14, achado no PR #541). No Linux do CI o degrau é bem menor. Na produção, com 24 h, isso não acontece.
+- **A correção:** o teste diz que o tempo passou. `tests/api/relogio.py` troca o relógio que o TTL lê por um 1 segundo à frente do real. Ele vale nos 27 cenários da pr2 que definem o TTL e nos 3 arquivos de teste que o zeram (`test_ttl_inatividade.py`, `test_destino.py` e `test_webhook_whatsapp.py`). O `test_spec_api_pr2.py` já para o relógio de propósito, para conferir o intervalo zero, e não mudou. O código da Maria não mudou. Conferido com 20 rodadas seguidas, sem falha.
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.

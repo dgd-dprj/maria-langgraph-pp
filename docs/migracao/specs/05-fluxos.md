@@ -57,7 +57,7 @@ O inventário conferiu contra o Python, e tudo bate:
 - `dadosPessoa.encontrado` e `falhaInfra`;
 - `confirmaAssistido` só com `viaOrquestrador`;
 - `cadastroErro` em falha;
-- `dadosPessoa` sem `enderecoDetalhado` depois do cadastro (#231);
+- `dadosPessoa` sem `enderecoDetalhado` depois do cadastro (#231; **corrigido em 2026-11-19**: o cadastro devolve o CEP, e o `consultar_cep` da violência doméstica preenche os ids);
 - `endereco` que não volta ao pai;
 - a soma de tokens (#230).
 
