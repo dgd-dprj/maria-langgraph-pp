@@ -22,6 +22,33 @@ Código das funções, classes e constantes da pasta do fluxo, textos entre aspa
 DATABASE_URL=... uv run python -m maria.versionamento listar pessoa-presa --ambiente producao --detalhes
 ```
 
+## Rota de leitura para o Visor (#547)
+
+Somente leitura, para o Visor (#15 do visor-maria, que não lê o banco da Maria). Fora do `/docs` público.
+
+**Autenticação.** `Authorization: Bearer <VERSOES_API_KEY>`. É uma chave **própria**, diferente da `API_KEY` da Tykhe: a da Tykhe recebe `401` nestas rotas, e a do Visor recebe `401` nas rotas da Tykhe. Sem `VERSOES_API_KEY` na Maria, as rotas respondem `404` (não existem). A subida falha se as duas chaves forem iguais.
+
+**`GET /versoes-dos-fluxos?fluxo=<id ou nome>&ambiente=<ambiente>&limite=<1 a 100, padrão 20>`** → `200`:
+
+```json
+{
+  "lidoEm": "2026-11-23T20:00:00+00:00",
+  "emVigor": [{ "fluxo": "…", "nomeFluxo": "pessoa-presa", "ambiente": "producao", "id": 7, "hash": "…", "registradoEm": "…" }],
+  "versoes": [{ "id": 7, "fluxo": "…", "nomeFluxo": "…", "ambiente": "…", "registradoEm": "…", "hash": "…", "hashAnterior": "…",
+                "resumo": "…", "resumoOrigem": "pr", "solicitante": "…", "autorCommit": "…", "aprovadoPor": "…", "prNumero": 123,
+                "prTitulo": "…", "issueOrigem": 120, "commitSha": "…", "tagImagem": "sha-…", "mudouCodigoCompartilhado": false,
+                "alteracoes": [] }]
+}
+```
+
+`versoes` vem da mais nova para a mais antiga e **sem `snapshot`**. `emVigor` é a última versão gravada de cada fluxo em cada ambiente. `fluxo` aceita o id ou o nome; `compartilhado` é uma entrada como as outras.
+
+**`GET /versoes-dos-fluxos/:id`** → `200` com a mesma versão **e o `snapshot`** (o Visor compara duas versões pelos snapshots). `404` se o id não existe.
+
+**Erros** (corpo `{"erro": "…"}`): `400` com o motivo para `fluxo`, `ambiente`, `limite` ou `id` inválidos; `401` sem chave ou com chave errada; `503` se o banco não responde (texto fixo; a exceção fica só no log, com o `reqId`).
+
+**Subir em cada ambiente (manual, como os demais segredos).** 1) Gerar uma chave aleatória longa e guardá-la no segredo do ambiente no Secrets Manager, com o nome `VERSOES_API_KEY`, e no Visor. 2) Só depois, listar `VERSOES_API_KEY` entre os `secrets` da task em `infra/terraform-sp/ecs.tf` (release) e `prod.tf` (produção) e aplicar. Injetar antes de a chave existir no segredo faz a task falhar ao subir.
+
 ## Rollback (manual)
 
 A tabela diz qual commit e qual imagem usar. Voltar tudo: redeployar a imagem `sha-<commit>`. Voltar só um fluxo: `git revert` dos commits da pasta dele, PR e deploy (se `mudou_codigo_compartilhado` for verdadeiro, confira os outros fluxos). Conversa em andamento retoma com o grafo do código novo: ver #543.

@@ -149,6 +149,8 @@ class Rota:
     caminho: str
     handler: Handler
     protegida: bool = True
+    # Qual chave autentica a rota: "api" é a `API_KEY` da Tykhe; outra (ex.: "versoes", #547) tem Bearer próprio.
+    chave: str = "api"
     corpo: Schema | None = None
     respostas: dict[int, Schema] = field(default_factory=dict)
     # Metadados para o /docs (OpenAPI).
@@ -466,7 +468,14 @@ def _err_log(erro: BaseException) -> dict[str, Any]:
 class PipelineFastify:
     """Middleware ASGI. Caminhos em `delegados` (o /docs) vão ao app de baixo."""
 
-    def __init__(self, app: ASGIApp, rotas: Iterable[Rota], chave_api: str, delegados: tuple[str, ...] = ("/docs",)) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        rotas: Iterable[Rota],
+        chave_api: str,
+        delegados: tuple[str, ...] = ("/docs",),
+        chaves_extras: dict[str, str] | None = None,
+    ) -> None:
         self.app = app
         lista = list(rotas)
         self.rotas = {(r.metodo, r.caminho): r for r in lista if ":" not in r.caminho}
@@ -479,6 +488,7 @@ class PipelineFastify:
         # Métodos com alguma rota: para os outros, o find-my-way nem olha a URL.
         self.metodos = {r.metodo for r in lista}
         self.chave_api = chave_api.encode()
+        self.chaves_extras = {nome: valor.encode() for nome, valor in (chaves_extras or {}).items()}
         self.delegados = delegados
 
     def _casar(self, metodo: str, caminho: str, decodificar_param: bool) -> tuple[Rota | None, dict[str, str], bool]:
@@ -597,7 +607,9 @@ class PipelineFastify:
         self, rota: Rota, entrada: _Entrada, receive: Receive, log: LogRequisicao, req_log: dict[str, Any]
     ) -> tuple[int, str, dict[str, str], str | None]:
         if rota.protegida:
-            falha = _autenticar(entrada.cabecalhos, self.chave_api)
+            falha = _autenticar(
+                entrada.cabecalhos, self.chaves_extras.get(rota.chave, self.chave_api) if rota.chave != "api" else self.chave_api
+            )
             if falha is not None:
                 return 401, json.dumps({"error": falha}, separators=(",", ":")), {}, CONTENT_TYPE_JSON
         try:
