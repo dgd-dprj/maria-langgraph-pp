@@ -116,17 +116,25 @@ async def test_fluxo_completo_processo_nao_encontrado_mesmo_motivo_de_origem() -
     "rg",
     [
         pytest.param("22222222222", id="situacao-libertado"),
-        pytest.param("33333333333", id="tipo-preso-provisorio"),
         pytest.param("44444444444", id="regime-aberto"),
     ],
 )
 async def test_fluxo_completo_dados_do_apenado_fora_do_permitido_issue_57(rg: str) -> None:
-    # Três testes de develop (situação, tipo de preso e regime), um por sentinela.
+    # Testes de develop (situação e regime), um por sentinela. O tipo de preso saiu da regra na #561.
     f = _fluxo()
     await f.iniciar()
     r_final = await f.responder("true", "0000088-95.2026.8.19.0010", rg, "true", "amigo")
     assert r_final["statusFinal"] == "handoff_humano"
     assert r_final["motivoHandoff"] == "dados_pessoa_nao_atendidos"
+
+
+async def test_561_tipo_de_preso_provisorio_conclui_se_situacao_e_regime_passam() -> None:
+    # "33333333333" é a sentinela do mock: ATIVO, PROVISÓRIO, SEMIABERTO. O Felipe disse que o regime decide.
+    f = _fluxo()
+    await f.iniciar()
+    r_final = await f.responder("true", "0000088-95.2026.8.19.0010", "33333333333", "true", "amigo")
+    assert r_final["statusFinal"] == "concluido"
+    assert r_final.get("motivoHandoff") is None
 
 
 async def test_fluxo_completo_situacao_com_prefixo_em_conclui_issue_57() -> None:

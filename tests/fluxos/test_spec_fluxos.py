@@ -530,7 +530,7 @@ def test_4_metadados_pessoa_presa_resumos_mantem_null_e_omitem_ausente() -> None
 # ---- teste 5: TypeError do concluir com null do Verde --------------------------------
 
 
-@pytest.mark.parametrize("campo", ["situacao", "tipoPreso", "regime"])
+@pytest.mark.parametrize("campo", ["situacao", "regime"])
 async def test_5_null_do_verde_no_apenado_lanca_type_error_como_em_develop(verde_real: TransporteFalso, campo: str) -> None:
     _verde(verde_real, _rotas_pp(apenado={**APENADO, campo: None}))
     with pytest.raises(TypeError, match=r"^Cannot read properties of null \(reading 'toUpperCase'\)"):
@@ -543,10 +543,17 @@ async def test_5_situacao_numero_lanca_como_em_develop(verde_real: TransporteFal
         await _conversa(obter_pp(), {}, [*PP_COM, "123456", "Sim", "amigo"])
 
 
-async def test_5_curto_circuito_situacao_fora_da_lista_nao_le_tipo_preso_null(verde_real: TransporteFalso) -> None:
-    _verde(verde_real, _rotas_pp(apenado={**APENADO, "situacao": "LIBERTADO", "tipoPreso": None}))
+async def test_5_curto_circuito_situacao_fora_da_lista_nao_le_regime_null(verde_real: TransporteFalso) -> None:
+    _verde(verde_real, _rotas_pp(apenado={**APENADO, "situacao": "LIBERTADO", "regime": None}))
     _, _, r = await _conversa(obter_pp(), {}, [*PP_COM, "123456", "Sim", "amigo"])
     assert r["motivoHandoff"] == "dados_pessoa_nao_atendidos"
+
+
+@pytest.mark.parametrize("tipo_preso", [None, "SENTENCIADO", "PROVISÓRIO", "CONDENADO"])
+async def test_561_tipo_de_preso_nao_barra_nem_lanca(verde_real: TransporteFalso, tipo_preso: str | None) -> None:
+    _verde(verde_real, _rotas_pp(apenado={**APENADO, "tipoPreso": tipo_preso}))
+    _, _, r = await _conversa(obter_pp(), {}, [*PP_COM, "123456", "Sim", "amigo"])
+    assert r["statusFinal"] == "concluido"
 
 
 async def test_5_campo_ausente_nao_lanca(verde_real: TransporteFalso) -> None:
