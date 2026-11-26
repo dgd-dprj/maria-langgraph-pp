@@ -8,7 +8,9 @@ Usa 4 dos 6 módulos de `src/maria/ia/` (`classificar`, `classificar_fluxos`, `d
 
 ```mermaid
 flowchart TD
-    A(["Relato livre (mensagem)"]) --> B[/"Busca por similaridade no catálogo<br/>(só corta com mais de 15 opções; hoje são 9 na produção e 10 no release, #256 e #353)"/]
+    A(["Relato livre (mensagem)"]) --> P{"Só uma palavra da lista<br/>do atalho? (#553)"}
+    P -->|"sim: preso, cadeia…"| F
+    P -->|"não"| B[/"Busca por similaridade no catálogo<br/>(só corta com mais de 15 opções; hoje são 9 na produção e 10 no release, #256 e #353)"/]
     B --> C[/"IA: classificar candidatos plausíveis<br/>(nas rodadas seguintes, só entre os que sobraram)"/]
     C --> D{"Quantos candidatos<br/>restaram?"}
     D -->|"0"| R(["redirecionado<br/>tipoCaso: outros"])
@@ -29,6 +31,7 @@ flowchart TD
 
 ## Passo a passo
 
+0. **Atalho por palavra (#553, decisão da Nicole, 2026-11-26)** — antes da busca e da IA, na produção e no release: se o relato inteiro, sem caixa, acento, pontuação e espaços, é uma palavra só da lista (`src/maria/orquestrador/atalho.py`: "preso", "presa", "cadeia", "detento", "presidiário", com feminino e plural), o orquestrador vai direto ao fluxo de pessoa presa, com 0 token. A linha de log `orquestrador_fluxo_identificado` ganha `atalho: "palavra_de_prisao"` (só o motivo, nunca a mensagem). Vale só para o relato (1ª classificação ou relato novo); a resposta a uma pergunta de esclarecimento e a frase com mais contexto ("meu marido foi preso e quero me divorciar") seguem com a IA. Origem: em 25/11, "preso" sozinho caiu em "outros" no release de SP, porque a IA do multi-fluxo leu a palavra como prisão citada sem pedido (ver [`ia.md`](ia.md)).
 1. **`classificar`** — 1ª rodada: busca por similaridade (embedding, `fluxo_embeddings`) no catálogo de classificação (`catalogo_para_classificacao()`: 2 fluxos implementados + 7 tipos atendidos pela Tykhe, issue #225; os planejados só entram com `ORQUESTRADOR_INCLUIR_PLANEJADOS=true`), retorna até 15 candidatos (`CANDIDATOS_MAXIMOS`; era 10 até a #353, que mediu o ganho com as 74 categorias ligadas fora do ar). **Com o catálogo de 9 opções (10 no release, com o plano de saúde, #386), a busca não corta nada:** com até 15 opções, o catálogo inteiro passa sem calcular embedding nenhum (#256). Chama IA (`classificar_fluxos_plausiveis`) pra filtrar quais desses candidatos são plausíveis de verdade a partir do relato. Rodadas seguintes: classifica de novo, mas só **dentro** do subconjunto que já sobrou — nunca alarga de volta pro catálogo todo.
 2. Decisão por quantos candidatos restaram (`depois_de_classificar`):
    - **0** → `nenhum` → nó `naoIdentificado` → `redirecionado` com `tipoCaso: "outros"` (issue #225; antes era `handoff_humano`).
@@ -45,6 +48,7 @@ flowchart TD
 
 | Regra | Valor | Por quê |
 |---|---|---|
+| Atalho por palavra antes da IA | relato de uma palavra só: preso, presa, cadeia, detento, presidiário (feminino e plural) → pessoa presa | #553 — a palavra solta caía em "outros" no multi-fluxo; o atalho é 0 token e não depende do modelo. |
 | Candidatos por rodada de retrieval | 10 | Mesmo valor de antes da issue #28. |
 | Limite de rodadas de desambiguação | 5 | Subiu de 3 (issue #43) — com 76 categorias no catálogo (na época), relatos ambíguos entre categorias parecidas levam mais idas e vindas pra convergir. |
 | Rodada em que começa a sumarizar | 3 | Issue #47 — histórico bruto cresce demais depois de algumas rodadas. |

@@ -80,3 +80,6 @@ class OrquestradorState(TypedDict, total=False):
     # Os assuntos guardados de outras conversas desta pessoa, e o que ela escolheu atender agora.
     pendentesGuardados: list[AssuntoGuardado] | None
     pendenteEscolhido: AssuntoGuardado | None
+    # #553: o motivo do atalho por palavra (o relato era só uma palavra da lista, e a IA não foi chamada). Vai no log da
+    # rota, sem a mensagem. None quando a classificação foi pela IA.
+    atalho: str | None
