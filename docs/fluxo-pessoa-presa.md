@@ -57,11 +57,12 @@ A conclusão (`concluir`, em `src/maria/fluxos/pessoa_presa/graph.py`) checa, ne
 
 1. **Sem número de processo** (`temProcesso === false`) → `handoff_humano`, motivo `sem_numero_processo`. Mesmo com RG/nome/parentesco todos ok — sem processo não tem como acompanhar a situação de verdade (issue #49).
 2. **Processo com origem não suportada** (`dadosProcesso.origem !== "SEEU"`) → `handoff_humano`, motivo `origem_processo_nao_suportada`. Só processos de origem **SEEU** são resolvidos pelo bot; qualquer outra origem (ou processo não encontrado) cai aqui (issue #51). A mensagem depende do caso (#341/#352, decisão de 2026-11-03, sem mudar o motivo): quando o Verde responde que não achou o número (400, 404 ou 422), a pessoa ouve "Não consegui localizar esse número de processo no sistema. Vou encaminhar seu atendimento pra equipe conferir com você."; com outra origem, falha de infra (#239) ou `dados` sem `id`, continua a mensagem de origem não tratada.
-3. **Situação/tipo de preso/regime fora do permitido** → `handoff_humano`, motivo `dados_pessoa_nao_atendidos` (issue #57):
+3. **Processo que não é da pessoa do RG** (issue #558, decisão do Icaro de 2026-11-26) → `handoff_humano`, `destino: atendimento_humano`, motivo `processo_nao_vinculado_ao_rg`. A Maria chama `GET /caso/consultar-casos-pessoa/{idPessoa}` (o `idPessoa` vem do `POST /apenado`) e confere se o número do processo informado (só dígitos) ou o `id` do processo consultado está entre os `numeroProcesso`/`idProcesso` dos casos. Se não está, a pessoa **não é avisada do motivo**: vale a mensagem genérica de encaminhamento. Sem número de processo, sem `idPessoa` ou com a consulta de casos falhando (infra do Verde), a conferência é pulada e o fluxo segue como antes (evento de log `processo_rg_nao_conferido`). O log traz só o resultado e a contagem de casos.
+4. **Situação/tipo de preso/regime fora do permitido** → `handoff_humano`, motivo `dados_pessoa_nao_atendidos` (issue #57):
    - `situacao` precisa estar em: `ATIVO`, `RESDOM`, `TRABALHO EXTRAMURO`, `BAIXA HOSPITALAR`, `VPF`, `VPF/TRABALHO EXTRAMURO`, `VPF/ATIVIDADE EDUCACIONAL`, `ABERTO/DOMICÍLIO COVID-19` (comparado sem prefixo `"EM "`, que o Verde usa de forma inconsistente).
    - `tipoPreso` precisa ser `CONDENADO` (não `PROVISÓRIO`).
    - `regime` precisa ser `FECHADO` ou `SEMIABERTO` (não `ABERTO`).
-4. **Tudo ok** → `concluido`.
+5. **Tudo ok** → `concluido`.
 
 Outros motivos de handoff, fora dessa função:
 - `rg_nao_encontrado` — esgotou as 3 tentativas de consulta ao Verde (RG do preso).

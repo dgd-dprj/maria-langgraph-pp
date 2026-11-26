@@ -33,6 +33,7 @@ from maria.shared._js import AUSENTE
 from maria.shared.contexto import contexto_atual
 from maria.shared.logger import logger
 from maria.shared.types import (
+    CasosPessoa,
     DadosApenado,
     DadosCep,
     DadosPessoa,
@@ -277,6 +278,41 @@ async def consultar_apenado_por_rg(rg: str) -> DadosApenado:
     for chave in ("idSeap", "idPessoa", "nome", "situacao", "tipoPreso", "regime"):
         _js.definir(saida, chave, _js.prop(dados, chave))
     return cast(DadosApenado, saida)
+
+
+# --- Casos da pessoa (GET /caso/consultar-casos-pessoa/{idPessoa}) ---------------
+
+
+async def consultar_casos_pessoa(id_pessoa: int) -> CasosPessoa:
+    """#558: os processos dos casos de uma pessoa, para conferir se o processo informado é dela.
+
+    Falha de infra ou resposta fora do formato voltam como `consultado: False`, e o chamador decide (hoje, segue como antes).
+    Nada do corpo vai para log: só o resultado e a contagem."""
+    vazio: CasosPessoa = {"consultado": False, "numeros": [], "ids": []}
+    if not VERDE_JWT_TOKEN:
+        logger.warn(MENSAGEM_MOCK, **contexto_atual())
+        return vazio
+    inicio = _agora_ms()
+    url = f"{VERDE_API_URL}/caso/consultar-casos-pessoa/{_escapar(str(id_pessoa))}"
+    resultado = await chamar_verde_com_retry("casos_pessoa", _requisicao("GET", url, com_accept=True, ler_corpo=True))
+    if not resultado.ok or resultado.res is None:
+        await _fechar(resultado)
+        return vazio
+    corpo = _js.json_parse(resultado.res.content)
+    casos = _js.prop(corpo, "dados")
+    if not isinstance(casos, list):
+        return vazio
+    numeros: list[str] = []
+    ids: list[int] = []
+    for caso in casos:
+        numero = _js.prop(caso, "numeroProcesso")
+        if isinstance(numero, str) and (digitos := re.sub(r"\D", "", numero)):
+            numeros.append(digitos)
+        id_processo = _js.prop(caso, "idProcesso")
+        if isinstance(id_processo, int) and not isinstance(id_processo, bool):
+            ids.append(id_processo)
+    _sucesso("casos_pessoa", inicio, casos=len(casos))
+    return {"consultado": True, "numeros": numeros, "ids": ids}
 
 
 # --- Processo (GET /processo/consultar/{numero}) --------------------------------

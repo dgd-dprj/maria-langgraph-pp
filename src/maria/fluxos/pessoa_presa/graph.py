@@ -39,7 +39,7 @@ from maria.ia.ajuste_qwen import SUFIXO_PARENTESCO, com_ajuste_qwen
 from maria.ia.classificar import classificar_entre_opcoes
 from maria.ia.extrair import extrair_campos_livre
 from maria.ia.reescrever import preparar_pergunta
-from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_apenado_por_rg
+from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_apenado_por_rg, consultar_casos_pessoa
 from maria.integracoes.verde import consultar_processo_com_status as consultar_processo_verde
 from maria.shared import _js
 from maria.shared.contexto import contexto_atual
@@ -522,6 +522,34 @@ async def pedir_parentesco(state: PessoaPresaState) -> Atualizacao:
     }
 
 
+async def processo_e_do_rg(state: PessoaPresaState) -> bool:
+    """#558: o processo informado está entre os casos da pessoa do RG? Falso só quando o Verde respondeu e o processo não
+    está lá. Sem número, sem `idPessoa` ou com a consulta de casos falhando (infra, mock), segue como antes (True):
+    não derruba quem está certo. O log leva o resultado e a contagem, nunca o número do processo, o RG nem o corpo."""
+    numero = state.get("numeroProcesso")
+    id_pessoa = _js.opt(_ler(state, "dadosApenado"), "idPessoa")
+    if not isinstance(numero, str) or not isinstance(id_pessoa, int) or isinstance(id_pessoa, bool):
+        return True
+    casos = await consultar_casos_pessoa(id_pessoa)
+    if not casos["consultado"]:
+        logger.warn(
+            "[pessoa-presa] conferência do processo com o RG não feita; segue como antes",
+            **contexto_atual(),
+            evento="processo_rg_nao_conferido",
+        )
+        return True
+    id_processo = _js.opt(_ler(state, "dadosProcesso"), "id")
+    if re.sub(r"\D", "", numero) in casos["numeros"] or (isinstance(id_processo, int) and id_processo in casos["ids"]):
+        return True
+    logger.info(
+        "[pessoa-presa] o processo não está entre os casos da pessoa do RG",
+        **contexto_atual(),
+        evento="processo_nao_vinculado_ao_rg",
+        casos=len(casos["numeros"]),
+    )
+    return False
+
+
 async def concluir(state: PessoaPresaState) -> Atualizacao:
     if state.get("temProcesso") is False:
         return {
@@ -538,6 +566,10 @@ async def concluir(state: PessoaPresaState) -> Atualizacao:
             "motivoHandoff": "origem_processo_nao_suportada",
             "mensagemFinal": MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO if nao_localizado else MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA,
         }
+    if not await processo_e_do_rg(state):
+        # #558 (decisão do Icaro, 2026-11-26): o assistido não é avisado do motivo. Sem mensagemFinal: a rota usa a
+        # mensagemHandoff do FluxoConfig, a mesma dos outros encaminhamentos.
+        return {"statusFinal": "handoff_humano", "motivoHandoff": "processo_nao_vinculado_ao_rg"}
     if not dados_apenado_atendidos(state):
         # Sem mensagemFinal: a rota usa a mensagemHandoff do FluxoConfig.
         return {"statusFinal": "handoff_humano", "motivoHandoff": "dados_pessoa_nao_atendidos"}

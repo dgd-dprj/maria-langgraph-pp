@@ -82,6 +82,10 @@ Se esgotar as 3 tentativas por infra, `consultar_apenado_por_rg`/`consultar_pess
 
 `origem` importa: só `"SEEU"` é considerado "resolvido pelo bot" no fluxo de pessoa presa (issue #51) — qualquer outra origem vira handoff.
 
+### `GET /caso/consultar-casos-pessoa/{idPessoa}` — pessoa presa (#558)
+
+Conferir se o processo informado é da pessoa do RG. Executado em 2026-11-26 no Verde de produção (3 RGs de teste e 9 processos): devolve `{ "dados": [casos] }`; cada caso tem, entre outros, `numeroProcesso` (formato do CNJ, com ou sem pontuação: a Maria compara só os dígitos) e `idProcesso`. Os processos de cada RG apareceram nos casos dele, e nenhum nos de outro RG. **Não verificado:** se todo processo legítimo de um apenado aparece nos casos dele; por isso uma falha da consulta não barra o fluxo.
+
 ### `GET /pessoa?cpf=` — violência doméstica
 
 ```json
