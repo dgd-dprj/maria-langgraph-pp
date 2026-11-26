@@ -37,9 +37,6 @@ MANTER = {
     "tests/fixtures/contrato/serializacao-fastify.mts": "sonda da serialização do Fastify",
     "tests/fixtures/ia/caracterizacao-ia.mts": "caracterização das chamadas de IA de develop",
     "tests/fixtures/js/numeros-js.mts": "sonda da semântica de números do JS",
-    "tests/fixtures/scripts/extrair_seed.mjs": "extração dos 74 fluxos planejados",
-    # O seed de develop @ 1157a6d, byte a byte: o teste confere o id do blob git.
-    "tests/fixtures/scripts/seedFluxosPlanejados-1157a6d.ts": "seed original, conferido pelo id do blob",
 }
 
 

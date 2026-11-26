@@ -25,6 +25,7 @@ TABELAS_DE_NEGOCIO = (
     "perguntas",
     "assuntos_verde",
     "flow_assuntos",
+    "coletas_arvore",
     "fluxos_planejados",
     "fluxo_embeddings",
     "assuntos_pendentes",

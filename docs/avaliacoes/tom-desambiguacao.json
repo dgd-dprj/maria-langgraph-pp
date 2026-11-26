@@ -1,0 +1,4560 @@
+{
+ "issue": 508,
+ "rodado_em": "2026-11-16T20:16:23+00:00",
+ "passadas": 2,
+ "relatos": 30,
+ "preco": "Haiku us.: US$ 1,10 e US$ 5,50 por milhão (teto seguro; o Qwen custa menos)",
+ "custo_total": 0.192208,
+ "resumo": {
+  "haiku": {
+   "nome": "Haiku, prompt de hoje (produção)",
+   "perguntas": 60,
+   "erros": 0,
+   "regras": {
+    "termina_em_pergunta": 60,
+    "ate_25_palavras": 34,
+    "sem_termo_tecnico": 60,
+    "oferece_as_alternativas": 60,
+    "sem_emoji_no_tema_sensivel": 60,
+    "tem_acolhimento": 51
+   },
+   "palavras_em_media": 25.9,
+   "com_emoji": 0,
+   "custo": 0.093361
+  },
+  "qwen": {
+   "nome": "Qwen, prompt de antes da #508",
+   "perguntas": 60,
+   "erros": 0,
+   "regras": {
+    "termina_em_pergunta": 60,
+    "ate_25_palavras": 55,
+    "sem_termo_tecnico": 60,
+    "oferece_as_alternativas": 60,
+    "sem_emoji_no_tema_sensivel": 60,
+    "tem_acolhimento": 54
+   },
+   "palavras_em_media": 19.3,
+   "com_emoji": 0,
+   "custo": 0.04661
+  },
+  "qwen_tom": {
+   "nome": "Qwen com o tom (#508)",
+   "perguntas": 60,
+   "erros": 0,
+   "regras": {
+    "termina_em_pergunta": 59,
+    "ate_25_palavras": 55,
+    "sem_termo_tecnico": 60,
+    "oferece_as_alternativas": 60,
+    "sem_emoji_no_tema_sensivel": 60,
+    "tem_acolhimento": 59
+   },
+   "palavras_em_media": 18.8,
+   "com_emoji": 3,
+   "custo": 0.052237
+  }
+ },
+ "resultados": [
+  {
+   "caso": 1,
+   "relato": "Meu irmão foi preso semana passada e eu queria saber como está o processo dele.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber informações sobre onde seu irmão está preso e como está a situação dele no sistema penitenciário, ou você já sabe onde ele está e quer saber as novidades sobre o processo judicial dele (como audiência marcada ou decisão do juiz)?",
+   "pergunta": "Você quer saber informações sobre onde seu irmão está preso e como está a situação dele no sistema penitenciário, ou você já sabe onde ele está e quer saber as novidades sobre o processo judicial dele (como audiência marcada ou decisão do juiz)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1003,
+   "tokens_saida": 98,
+   "custo": 0.0016423000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 1,
+   "relato": "Meu irmão foi preso semana passada e eu queria saber como está o processo dele.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre a situação dele dentro da prisão ou sobre o andamento do processo judicial dele?",
+   "pergunta": "Você quer saber sobre a situação dele dentro da prisão ou sobre o andamento do processo judicial dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 511,
+   "tokens_saida": 28,
+   "custo": 0.0007161,
+   "erro": ""
+  },
+  {
+   "caso": 1,
+   "relato": "Meu irmão foi preso semana passada e eu queria saber como está o processo dele.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre como está andando o processo dele?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre como está andando o processo dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 598,
+   "tokens_saida": 27,
+   "custo": 0.0008063,
+   "erro": ""
+  },
+  {
+   "caso": 2,
+   "relato": "Meu filho está na cadeia e a audiência dele foi remarcada, não sei a nova data.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber informações sobre a situação ou processo do seu filho que está preso, ou quer confirmar/remarcar um atendimento que você marcou na Defensoria?",
+   "pergunta": "Você quer saber informações sobre a situação ou processo do seu filho que está preso, ou quer confirmar/remarcar um atendimento que você marcou na Defensoria?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 991,
+   "tokens_saida": 76,
+   "custo": 0.0015081,
+   "erro": ""
+  },
+  {
+   "caso": 2,
+   "relato": "Meu filho está na cadeia e a audiência dele foi remarcada, não sei a nova data.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre um atendimento agendado na Defensoria?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre um atendimento agendado na Defensoria?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 501,
+   "tokens_saida": 30,
+   "custo": 0.0007161,
+   "erro": ""
+  },
+  {
+   "caso": 2,
+   "relato": "Meu filho está na cadeia e a audiência dele foi remarcada, não sei a nova data.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre o filho que está preso ou sobre um agendamento que já foi marcado?",
+   "pergunta": "Você quer saber sobre o filho que está preso ou sobre um agendamento que já foi marcado?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 588,
+   "tokens_saida": 29,
+   "custo": 0.0008063,
+   "erro": ""
+  },
+  {
+   "caso": 3,
+   "relato": "Prenderam meu marido ontem e ninguém me fala nada, quero entrar com alguma coisa.",
+   "opcoes": [
+    "pessoa-presa",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você está procurando informações sobre onde seu marido está preso agora e como está a situação dele, ou quer iniciar um novo processo/ação na Defensoria sobre outro assunto relacionado à prisão dele?",
+   "pergunta": "Você está procurando informações sobre onde seu marido está preso agora e como está a situação dele, ou quer iniciar um novo processo/ação na Defensoria sobre outro assunto relacionado à prisão dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1032,
+   "tokens_saida": 85,
+   "custo": 0.0016027,
+   "erro": ""
+  },
+  {
+   "caso": 3,
+   "relato": "Prenderam meu marido ontem e ninguém me fala nada, quero entrar com alguma coisa.",
+   "opcoes": [
+    "pessoa-presa",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou quer mesmo abrir um novo processo por algo relacionado a ele?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou quer mesmo abrir um novo processo por algo relacionado a ele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 532,
+   "tokens_saida": 31,
+   "custo": 0.0007557,
+   "erro": ""
+  },
+  {
+   "caso": 3,
+   "relato": "Prenderam meu marido ontem e ninguém me fala nada, quero entrar com alguma coisa.",
+   "opcoes": [
+    "pessoa-presa",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou quer começar algo novo, como um processo?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou quer começar algo novo, como um processo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 619,
+   "tokens_saida": 27,
+   "custo": 0.0008294000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 4,
+   "relato": "Meu sobrinho foi preso e eu não sei se ele já tem advogado ou processo aberto.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber em que situação seu sobrinho está agora na prisão, ou você já conhece o processo dele e quer acompanhar o que está acontecendo?",
+   "pergunta": "Você quer saber em que situação seu sobrinho está agora na prisão, ou você já conhece o processo dele e quer acompanhar o que está acontecendo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1003,
+   "tokens_saida": 76,
+   "custo": 0.0015213000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 4,
+   "relato": "Meu sobrinho foi preso e eu não sei se ele já tem advogado ou processo aberto.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento de um processo que já começou?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento de um processo que já começou?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 514,
+   "tokens_saida": 29,
+   "custo": 0.0007249000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 4,
+   "relato": "Meu sobrinho foi preso e eu não sei se ele já tem advogado ou processo aberto.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento de um processo que já começou?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento de um processo que já começou?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 601,
+   "tokens_saida": 29,
+   "custo": 0.0008206,
+   "erro": ""
+  },
+  {
+   "caso": 5,
+   "relato": "Quero visitar meu pai que está preso e também saber quando sai a decisão.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você procura saber informações sobre onde seu pai está preso e como visitá-lo, ou quer descobrir quando sai a decisão do juiz sobre o processo dele?",
+   "pergunta": "Você procura saber informações sobre onde seu pai está preso e como visitá-lo, ou quer descobrir quando sai a decisão do juiz sobre o processo dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1001,
+   "tokens_saida": 74,
+   "custo": 0.0015081,
+   "erro": ""
+  },
+  {
+   "caso": 5,
+   "relato": "Quero visitar meu pai que está preso e também saber quando sai a decisão.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento do processo dele?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento do processo dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 508,
+   "tokens_saida": 26,
+   "custo": 0.0007018,
+   "erro": ""
+  },
+  {
+   "caso": 5,
+   "relato": "Quero visitar meu pai que está preso e também saber quando sai a decisão.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento do processo dele?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento do processo dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 595,
+   "tokens_saida": 26,
+   "custo": 0.0007975,
+   "erro": ""
+  },
+  {
+   "caso": 6,
+   "relato": "Meu companheiro me bate e eu quero me separar dele.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você está em perigo agora ou receia pela sua segurança imediata? Ou o que você mais precisa é de ajuda para processar a separação e definir questões como pensão, guarda dos filhos ou divisão de bens?",
+   "pergunta": "Você está em perigo agora ou receia pela sua segurança imediata? Ou o que você mais precisa é de ajuda para processar a separação e definir questões como pensão, guarda dos filhos ou divisão de bens?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1035,
+   "tokens_saida": 92,
+   "custo": 0.0016445,
+   "erro": ""
+  },
+  {
+   "caso": 6,
+   "relato": "Meu companheiro me bate e eu quero me separar dele.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você está buscando proteção imediata por causa da violência ou quer seguir com a separação e outros direitos legais?",
+   "pergunta": "Você está buscando proteção imediata por causa da violência ou quer seguir com a separação e outros direitos legais?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 537,
+   "tokens_saida": 35,
+   "custo": 0.0007832000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 6,
+   "relato": "Meu companheiro me bate e eu quero me separar dele.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você está buscando proteção ou ajuda por causa da violência, ou quer começar o processo de separação?",
+   "pergunta": "Você está buscando proteção ou ajuda por causa da violência, ou quer começar o processo de separação?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 624,
+   "tokens_saida": 31,
+   "custo": 0.0008569000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 7,
+   "relato": "Meu ex me ameaça desde que eu pedi pensão para as crianças.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você está procurando ajuda agora principalmente porque tem medo das ameaças dele, ou porque precisa regularizar a pensão alimentícia das crianças?",
+   "pergunta": "Você está procurando ajuda agora principalmente porque tem medo das ameaças dele, ou porque precisa regularizar a pensão alimentícia das crianças?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1039,
+   "tokens_saida": 72,
+   "custo": 0.0015389000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 7,
+   "relato": "Meu ex me ameaça desde que eu pedi pensão para as crianças.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você está buscando proteção de imediato por causa das ameaças ou quer abrir um novo processo para pedir pensão?",
+   "pergunta": "Você está buscando proteção de imediato por causa das ameaças ou quer abrir um novo processo para pedir pensão?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 539,
+   "tokens_saida": 35,
+   "custo": 0.0007854000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 7,
+   "relato": "Meu ex me ameaça desde que eu pedi pensão para as crianças.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você está buscando proteção porque se sente em perigo por causa das ameaças, ou quer abrir um novo processo sobre a pensão?",
+   "pergunta": "Você está buscando proteção porque se sente em perigo por causa das ameaças, ou quer abrir um novo processo sobre a pensão?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 626,
+   "tokens_saida": 38,
+   "custo": 0.0008976,
+   "erro": ""
+  },
+  {
+   "caso": 8,
+   "relato": "Já tenho medida protetiva mas ele continua me perseguindo, quero saber do processo.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber como está o processo da medida protetiva (se já foi julgado, o que o juiz decidiu) ou quer relatar que ele continua te agredindo/perseguindo mesmo com a medida já em vigor?",
+   "pergunta": "Você quer saber como está o processo da medida protetiva (se já foi julgado, o que o juiz decidiu) ou quer relatar que ele continua te agredindo/perseguindo mesmo com a medida já em vigor?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1018,
+   "tokens_saida": 91,
+   "custo": 0.0016203,
+   "erro": ""
+  },
+  {
+   "caso": 8,
+   "relato": "Já tenho medida protetiva mas ele continua me perseguindo, quero saber do processo.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber como está o andamento do processo já existente ou precisa de ajuda imediata porque está sendo perseguida mesmo com a proteção?",
+   "pergunta": "Você quer saber como está o andamento do processo já existente ou precisa de ajuda imediata porque está sendo perseguida mesmo com a proteção?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 524,
+   "tokens_saida": 40,
+   "custo": 0.0007964000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 8,
+   "relato": "Já tenho medida protetiva mas ele continua me perseguindo, quero saber do processo.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber como está o processo que já existe, ou precisa de ajuda urgente porque ele está te perseguindo mesmo com a medida protetiva?",
+   "pergunta": "Você quer saber como está o processo que já existe, ou precisa de ajuda urgente porque ele está te perseguindo mesmo com a medida protetiva?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 611,
+   "tokens_saida": 40,
+   "custo": 0.0008921000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 9,
+   "relato": "Meu marido me xinga e quebrou minhas coisas, tenho uma audiência marcada sobre a guarda.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O seu marido continua oferecendo risco a você neste momento, ou você principalmente precisa confirmar/remarcar a data da audiência sobre guarda?",
+   "pergunta": "O seu marido continua oferecendo risco a você neste momento, ou você principalmente precisa confirmar/remarcar a data da audiência sobre guarda?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1011,
+   "tokens_saida": 69,
+   "custo": 0.0014916,
+   "erro": ""
+  },
+  {
+   "caso": 9,
+   "relato": "Meu marido me xinga e quebrou minhas coisas, tenho uma audiência marcada sobre a guarda.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você precisa de ajuda com a situação de agressão ou quer verificar detalhes da audiência marcada?",
+   "pergunta": "Você precisa de ajuda com a situação de agressão ou quer verificar detalhes da audiência marcada?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 518,
+   "tokens_saida": 30,
+   "custo": 0.0007348000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 9,
+   "relato": "Meu marido me xinga e quebrou minhas coisas, tenho uma audiência marcada sobre a guarda.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você está mais preocupada com a segurança agora, por causa das ameaças e do que aconteceu, ou quer saber sobre a audiência marcada?",
+   "pergunta": "Você está mais preocupada com a segurança agora, por causa das ameaças e do que aconteceu, ou quer saber sobre a audiência marcada?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 605,
+   "tokens_saida": 39,
+   "custo": 0.00088,
+   "erro": ""
+  },
+  {
+   "caso": 10,
+   "relato": "Meu ex foi preso por me agredir e agora a família dele me ameaça.",
+   "opcoes": [
+    "violencia-domestica",
+    "pessoa-presa"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O que você precisa resolver com mais urgência agora: proteger-se das ameaças que está recebendo, ou saber informações sobre a situação de prisão do seu ex?",
+   "pergunta": "O que você precisa resolver com mais urgência agora: proteger-se das ameaças que está recebendo, ou saber informações sobre a situação de prisão do seu ex?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1005,
+   "tokens_saida": 77,
+   "custo": 0.001529,
+   "erro": ""
+  },
+  {
+   "caso": 10,
+   "relato": "Meu ex foi preso por me agredir e agora a família dele me ameaça.",
+   "opcoes": [
+    "violencia-domestica",
+    "pessoa-presa"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você está buscando ajuda por causa das ameaças que está recebendo ou porque quer saber sobre a situação dele na prisão?",
+   "pergunta": "Você está buscando ajuda por causa das ameaças que está recebendo ou porque quer saber sobre a situação dele na prisão?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 514,
+   "tokens_saida": 36,
+   "custo": 0.0007634000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 10,
+   "relato": "Meu ex foi preso por me agredir e agora a família dele me ameaça.",
+   "opcoes": [
+    "violencia-domestica",
+    "pessoa-presa"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você está buscando ajuda por causa das ameaças que está recebendo ou quer informações sobre a situação da prisão dele?",
+   "pergunta": "Você está buscando ajuda por causa das ameaças que está recebendo ou quer informações sobre a situação da prisão dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 601,
+   "tokens_saida": 35,
+   "custo": 0.0008536,
+   "erro": ""
+  },
+  {
+   "caso": 11,
+   "relato": "O plano não autorizou minha cirurgia e o médico disse que é urgente.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "A cirurgia que o plano negou é uma operação que você precisa fazer, ou o problema é que o plano não quer pagar/cobrir a cirurgia depois que você já fez em outro lugar?",
+   "pergunta": "A cirurgia que o plano negou é uma operação que você precisa fazer, ou o problema é que o plano não quer pagar/cobrir a cirurgia depois que você já fez em outro lugar?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1173,
+   "tokens_saida": 83,
+   "custo": 0.0017468000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 11,
+   "relato": "O plano não autorizou minha cirurgia e o médico disse que é urgente.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "O problema é especificamente sobre a cirurgia não ser autorizada pelo plano de saúde, ou também envolve outros tipos de atendimento médico como exames, remédios ou tratamento?",
+   "pergunta": "O problema é especificamente sobre a cirurgia não ser autorizada pelo plano de saúde, ou também envolve outros tipos de atendimento médico como exames, remédios ou tratamento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 654,
+   "tokens_saida": 47,
+   "custo": 0.0009779,
+   "erro": ""
+  },
+  {
+   "caso": 11,
+   "relato": "O plano não autorizou minha cirurgia e o médico disse que é urgente.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer ajuda com a cirurgia negada pelo plano de saúde ou com outro tipo de tratamento, como remédio, exame ou vaga no hospital?",
+   "pergunta": "Você quer ajuda com a cirurgia negada pelo plano de saúde ou com outro tipo de tratamento, como remédio, exame ou vaga no hospital?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 741,
+   "tokens_saida": 43,
+   "custo": 0.0010516,
+   "erro": ""
+  },
+  {
+   "caso": 12,
+   "relato": "Preciso de uma cirurgia no joelho e não sei se é pelo convênio ou pelo posto.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "A sua cirurgia é pelo plano de saúde ou convênio médico, ou é pelo SUS (posto de saúde, hospital público)?",
+   "pergunta": "A sua cirurgia é pelo plano de saúde ou convênio médico, ou é pelo SUS (posto de saúde, hospital público)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 1175,
+   "tokens_saida": 68,
+   "custo": 0.0016665,
+   "erro": ""
+  },
+  {
+   "caso": 12,
+   "relato": "Preciso de uma cirurgia no joelho e não sei se é pelo convênio ou pelo posto.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você está com problema no convênio (plano de saúde) para fazer a cirurgia, ou precisa de ajuda para conseguir a cirurgia pelo posto de saúde (SUS)?",
+   "pergunta": "Você está com problema no convênio (plano de saúde) para fazer a cirurgia, ou precisa de ajuda para conseguir a cirurgia pelo posto de saúde (SUS)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 658,
+   "tokens_saida": 48,
+   "custo": 0.0009878,
+   "erro": ""
+  },
+  {
+   "caso": 12,
+   "relato": "Preciso de uma cirurgia no joelho e não sei se é pelo convênio ou pelo posto.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você está com problema no convênio médico (como negativa ou demora pra liberar a cirurgia) ou precisa da cirurgia pelo SUS (posto de saúde)?",
+   "pergunta": "Você está com problema no convênio médico (como negativa ou demora pra liberar a cirurgia) ou precisa da cirurgia pelo SUS (posto de saúde)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 745,
+   "tokens_saida": 48,
+   "custo": 0.0010835,
+   "erro": ""
+  },
+  {
+   "caso": 13,
+   "relato": "Minha mãe precisa de internação e o hospital pediu autorização do plano.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O plano de saúde negou, atrasou ou está demorando para autorizar a internação da sua mãe, ou o problema é conseguir a vaga de internação e o atendimento que ela precisa?",
+   "pergunta": "O plano de saúde negou, atrasou ou está demorando para autorizar a internação da sua mãe, ou o problema é conseguir a vaga de internação e o atendimento que ela precisa?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 1173,
+   "tokens_saida": 85,
+   "custo": 0.0017578000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 13,
+   "relato": "Minha mãe precisa de internação e o hospital pediu autorização do plano.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "O problema é com a autorização da internação pelo plano de saúde ou com a obtenção da vaga no hospital em si?",
+   "pergunta": "O problema é com a autorização da internação pelo plano de saúde ou com a obtenção da vaga no hospital em si?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 652,
+   "tokens_saida": 34,
+   "custo": 0.0009042000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 13,
+   "relato": "Minha mãe precisa de internação e o hospital pediu autorização do plano.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você está com problema de autorização pra internação ou é algo relacionado a cirurgia pelo plano de saúde?",
+   "pergunta": "Você está com problema de autorização pra internação ou é algo relacionado a cirurgia pelo plano de saúde?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 739,
+   "tokens_saida": 31,
+   "custo": 0.0009834000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 14,
+   "relato": "O convênio negou o exame e a cirurgia do meu filho.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O seu problema é especificamente com a negação da cirurgia, ou também inclui a negação do exame que o filho precisa fazer?",
+   "pergunta": "O seu problema é especificamente com a negação da cirurgia, ou também inclui a negação do exame que o filho precisa fazer?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 1170,
+   "tokens_saida": 66,
+   "custo": 0.00165,
+   "erro": ""
+  },
+  {
+   "caso": 14,
+   "relato": "O convênio negou o exame e a cirurgia do meu filho.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "O que você quer resolver: o exame negado ou a cirurgia negada pelo convênio?",
+   "pergunta": "O que você quer resolver: o exame negado ou a cirurgia negada pelo convênio?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 653,
+   "tokens_saida": 32,
+   "custo": 0.0008943000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 14,
+   "relato": "O convênio negou o exame e a cirurgia do meu filho.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer ajuda com o exame ou com a cirurgia? As duas coisas podem ter caminhos diferentes.",
+   "pergunta": "Você quer ajuda com o exame ou com a cirurgia? As duas coisas podem ter caminhos diferentes.",
+   "regras": {
+    "termina_em_pergunta": false,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 740,
+   "tokens_saida": 33,
+   "custo": 0.0009955,
+   "erro": ""
+  },
+  {
+   "caso": 15,
+   "relato": "Estou esperando cirurgia há meses e quero saber se dá para entrar na justiça.",
+   "opcoes": [
+    "questoes-de-saude",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O seu problema é conseguir que o sistema de saúde faça a cirurgia que você precisa, ou você já fez a cirurgia e quer processar alguém por erro médico ou pela demora?",
+   "pergunta": "O seu problema é conseguir que o sistema de saúde faça a cirurgia que você precisa, ou você já fez a cirurgia e quer processar alguém por erro médico ou pela demora?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1092,
+   "tokens_saida": 83,
+   "custo": 0.0016577,
+   "erro": ""
+  },
+  {
+   "caso": 15,
+   "relato": "Estou esperando cirurgia há meses e quero saber se dá para entrar na justiça.",
+   "opcoes": [
+    "questoes-de-saude",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer resolver isso por meio de um novo processo judicial ou precisa de ajuda para conseguir a cirurgia mais rápido, como por exemplo via SUS ou plano de saúde?",
+   "pergunta": "Você quer resolver isso por meio de um novo processo judicial ou precisa de ajuda para conseguir a cirurgia mais rápido, como por exemplo via SUS ou plano de saúde?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 587,
+   "tokens_saida": 42,
+   "custo": 0.0008767,
+   "erro": ""
+  },
+  {
+   "caso": 15,
+   "relato": "Estou esperando cirurgia há meses e quero saber se dá para entrar na justiça.",
+   "opcoes": [
+    "questoes-de-saude",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer entrar na justiça por causa da cirurgia que está esperando, ou tem outro problema sem processo ainda, como divórcio, pensão ou imóvel?",
+   "pergunta": "Você quer entrar na justiça por causa da cirurgia que está esperando, ou tem outro problema sem processo ainda, como divórcio, pensão ou imóvel?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 674,
+   "tokens_saida": 46,
+   "custo": 0.0009944,
+   "erro": ""
+  },
+  {
+   "caso": 16,
+   "relato": "Quero saber do meu processo de pensão, acho que tinha uma audiência essa semana.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber como está andando seu processo de pensão, ou está tentando confirmar/remarcar a audiência que marcou para essa semana?",
+   "pergunta": "Você quer saber como está andando seu processo de pensão, ou está tentando confirmar/remarcar a audiência que marcou para essa semana?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1002,
+   "tokens_saida": 69,
+   "custo": 0.0014817,
+   "erro": ""
+  },
+  {
+   "caso": 16,
+   "relato": "Quero saber do meu processo de pensão, acho que tinha uma audiência essa semana.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber o que está acontecendo com um processo que já existe, ou quer verificar se tem algum atendimento marcado na Defensoria?",
+   "pergunta": "Você quer saber o que está acontecendo com um processo que já existe, ou quer verificar se tem algum atendimento marcado na Defensoria?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 507,
+   "tokens_saida": 38,
+   "custo": 0.0007667,
+   "erro": ""
+  },
+  {
+   "caso": 16,
+   "relato": "Quero saber do meu processo de pensão, acho que tinha uma audiência essa semana.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber como está o andamento do seu processo ou verificar se tem agendamento marcado para este semana?",
+   "pergunta": "Você quer saber como está o andamento do seu processo ou verificar se tem agendamento marcado para este semana?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 594,
+   "tokens_saida": 31,
+   "custo": 0.0008239000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 17,
+   "relato": "Me ligaram da Defensoria sobre meu caso e eu perdi a ligação.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você precisa saber quando é o próximo atendimento marcado na Defensoria, ou quer informações sobre como está seu processo (sentença, audiência, prazos)?",
+   "pergunta": "Você precisa saber quando é o próximo atendimento marcado na Defensoria, ou quer informações sobre como está seu processo (sentença, audiência, prazos)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 997,
+   "tokens_saida": 75,
+   "custo": 0.0015092,
+   "erro": ""
+  },
+  {
+   "caso": 17,
+   "relato": "Me ligaram da Defensoria sobre meu caso e eu perdi a ligação.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber o que aconteceu no seu caso (como audiência marcada ou decisão) ou quer confirmar/cancelar um atendimento já marcado?",
+   "pergunta": "Você quer saber o que aconteceu no seu caso (como audiência marcada ou decisão) ou quer confirmar/cancelar um atendimento já marcado?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 505,
+   "tokens_saida": 40,
+   "custo": 0.0007755,
+   "erro": ""
+  },
+  {
+   "caso": 17,
+   "relato": "Me ligaram da Defensoria sobre meu caso e eu perdi a ligação.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber o que aconteceu no seu caso (como audiência, decisão ou prazo) ou precisa reagendar ou confirmar um atendimento marcado?",
+   "pergunta": "Você quer saber o que aconteceu no seu caso (como audiência, decisão ou prazo) ou precisa reagendar ou confirmar um atendimento marcado?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 592,
+   "tokens_saida": 41,
+   "custo": 0.0008767,
+   "erro": ""
+  },
+  {
+   "caso": 18,
+   "relato": "Tenho um atendimento marcado mas não sei se é sobre o processo antigo ou um novo.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O atendimento é para você confirmar ou remarcar uma data/horário que já estava marcado, ou é para começar a tratar de um assunto novo que ainda não tinha processo na Defensoria?",
+   "pergunta": "O atendimento é para você confirmar ou remarcar uma data/horário que já estava marcado, ou é para começar a tratar de um assunto novo que ainda não tinha processo na Defensoria?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1025,
+   "tokens_saida": 79,
+   "custo": 0.001562,
+   "erro": ""
+  },
+  {
+   "caso": 18,
+   "relato": "Tenho um atendimento marcado mas não sei se é sobre o processo antigo ou um novo.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um atendimento ou processo em andamento, ou está querendo abrir um novo caso?",
+   "pergunta": "Você já tem um atendimento ou processo em andamento, ou está querendo abrir um novo caso?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 527,
+   "tokens_saida": 28,
+   "custo": 0.0007337,
+   "erro": ""
+  },
+  {
+   "caso": 18,
+   "relato": "Tenho um atendimento marcado mas não sei se é sobre o processo antigo ou um novo.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um atendimento ou processo em andamento, ou quer abrir um novo caso?",
+   "pergunta": "Você já tem um atendimento ou processo em andamento, ou quer abrir um novo caso?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 614,
+   "tokens_saida": 26,
+   "custo": 0.0008184,
+   "erro": ""
+  },
+  {
+   "caso": 19,
+   "relato": "Não consigo entrar no aplicativo para ver meu horário marcado.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você quer resolver o problema de acesso ao app para conseguir entrar e ver seu horário, ou já consegue entrar no app mas quer consultar ou confirmar seu agendamento?",
+   "pergunta": "Você quer resolver o problema de acesso ao app para conseguir entrar e ver seu horário, ou já consegue entrar no app mas quer consultar ou confirmar seu agendamento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1007,
+   "tokens_saida": 77,
+   "custo": 0.0015312000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 19,
+   "relato": "Não consigo entrar no aplicativo para ver meu horário marcado.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer ajuda para acessar o aplicativo ou precisa consultar/detalhes do atendimento já agendado?",
+   "pergunta": "Você quer ajuda para acessar o aplicativo ou precisa consultar/detalhes do atendimento já agendado?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 507,
+   "tokens_saida": 33,
+   "custo": 0.0007392000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 19,
+   "relato": "Não consigo entrar no aplicativo para ver meu horário marcado.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você está com dificuldade para acessar o app ou quer conferir detalhes do atendimento já agendado?",
+   "pergunta": "Você está com dificuldade para acessar o app ou quer conferir detalhes do atendimento já agendado?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 594,
+   "tokens_saida": 32,
+   "custo": 0.0008294000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 20,
+   "relato": "O aplicativo não mostra meu processo, sumiu tudo.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O problema é que você não consegue acessar o aplicativo ou encontrar as informações nele, ou você quer saber se há novidades/atualizações no seu processo?",
+   "pergunta": "O problema é que você não consegue acessar o aplicativo ou encontrar as informações nele, ou você quer saber se há novidades/atualizações no seu processo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1015,
+   "tokens_saida": 75,
+   "custo": 0.001529,
+   "erro": ""
+  },
+  {
+   "caso": 20,
+   "relato": "O aplicativo não mostra meu processo, sumiu tudo.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você está com problema no app (não aparece nada, travou, sumiu) ou quer saber o que está acontecendo com um processo específico que você já tem?",
+   "pergunta": "Você está com problema no app (não aparece nada, travou, sumiu) ou quer saber o que está acontecendo com um processo específico que você já tem?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 516,
+   "tokens_saida": 44,
+   "custo": 0.0008096000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 20,
+   "relato": "O aplicativo não mostra meu processo, sumiu tudo.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você está com dificuldade no app ou quer saber o que está acontecendo com um processo já aberto?",
+   "pergunta": "Você está com dificuldade no app ou quer saber o que está acontecendo com um processo já aberto?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 603,
+   "tokens_saida": 31,
+   "custo": 0.0008338000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 21,
+   "relato": "Fiz o cadastro no aplicativo e queria abrir um pedido de divórcio.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você está tendo dificuldade para usar o aplicativo ou já conseguiu se cadastrar e agora quer iniciar um novo processo de divórcio?",
+   "pergunta": "Você está tendo dificuldade para usar o aplicativo ou já conseguiu se cadastrar e agora quer iniciar um novo processo de divórcio?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1047,
+   "tokens_saida": 69,
+   "custo": 0.0015312000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 21,
+   "relato": "Fiz o cadastro no aplicativo e queria abrir um pedido de divórcio.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer resolver algo no app, como cadastro ou funcionalidade, ou quer começar um novo processo, como o divórcio?",
+   "pergunta": "Você quer resolver algo no app, como cadastro ou funcionalidade, ou quer começar um novo processo, como o divórcio?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 543,
+   "tokens_saida": 36,
+   "custo": 0.0007953000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 21,
+   "relato": "Fiz o cadastro no aplicativo e queria abrir um pedido de divórcio.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um processo aberto ou quer iniciar um novo, como o divórcio?",
+   "pergunta": "Você já tem um processo aberto ou quer iniciar um novo, como o divórcio?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 630,
+   "tokens_saida": 29,
+   "custo": 0.0008525,
+   "erro": ""
+  },
+  {
+   "caso": 22,
+   "relato": "Meu senhorio quer me despejar e eu não sei o que fazer.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você quer que a Defensoria abra um processo novo para ajudar com o despejo, ou precisa de orientação sobre o que fazer primeiro nessa situação?",
+   "pergunta": "Você quer que a Defensoria abra um processo novo para ajudar com o despejo, ou precisa de orientação sobre o que fazer primeiro nessa situação?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 989,
+   "tokens_saida": 72,
+   "custo": 0.0014839,
+   "erro": ""
+  },
+  {
+   "caso": 22,
+   "relato": "Meu senhorio quer me despejar e eu não sei o que fazer.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um processo sobre isso ou quer abrir um novo?",
+   "pergunta": "Você já tem um processo sobre isso ou quer abrir um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 496,
+   "tokens_saida": 22,
+   "custo": 0.0006666,
+   "erro": ""
+  },
+  {
+   "caso": 22,
+   "relato": "Meu senhorio quer me despejar e eu não sei o que fazer.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um processo sobre isso ou quer começar um novo?",
+   "pergunta": "Você já tem um processo sobre isso ou quer começar um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 583,
+   "tokens_saida": 20,
+   "custo": 0.0007513000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 23,
+   "relato": "Comprei uma geladeira com defeito e a loja não troca.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O problema da geladeira já foi denunciado ou você está iniciando agora uma reclamação contra a loja?",
+   "pergunta": "O problema da geladeira já foi denunciado ou você está iniciando agora uma reclamação contra a loja?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 988,
+   "tokens_saida": 60,
+   "custo": 0.0014168000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 23,
+   "relato": "Comprei uma geladeira com defeito e a loja não troca.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um processo aberto sobre isso ou quer começar um novo?",
+   "pergunta": "Você já tem um processo aberto sobre isso ou quer começar um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 496,
+   "tokens_saida": 22,
+   "custo": 0.0006666,
+   "erro": ""
+  },
+  {
+   "caso": 23,
+   "relato": "Comprei uma geladeira com defeito e a loja não troca.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você já abriu alguma reclamação ou processo sobre isso, ou quer começar um novo?",
+   "pergunta": "Você já abriu alguma reclamação ou processo sobre isso, ou quer começar um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 583,
+   "tokens_saida": 28,
+   "custo": 0.0007953000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 24,
+   "relato": "Quero tirar a segunda via da certidão de nascimento.",
+   "opcoes": [
+    "outros-assuntos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você quer tirar a segunda via da certidão de nascimento ou precisa de ajuda jurídica para resolver um problema legal, como uma questão de família, dívida, ou outro assunto que precise de um processo na Defensoria?",
+   "pergunta": "Você quer tirar a segunda via da certidão de nascimento ou precisa de ajuda jurídica para resolver um problema legal, como uma questão de família, dívida, ou outro assunto que precise de um processo na Defensoria?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 986,
+   "tokens_saida": 89,
+   "custo": 0.0015741000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 24,
+   "relato": "Quero tirar a segunda via da certidão de nascimento.",
+   "opcoes": [
+    "outros-assuntos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um processo aberto ou precisa de ajuda com algo que ainda não está em processo, como tirar documentos?",
+   "pergunta": "Você já tem um processo aberto ou precisa de ajuda com algo que ainda não está em processo, como tirar documentos?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 493,
+   "tokens_saida": 33,
+   "custo": 0.0007238,
+   "erro": ""
+  },
+  {
+   "caso": 24,
+   "relato": "Quero tirar a segunda via da certidão de nascimento.",
+   "opcoes": [
+    "outros-assuntos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um processo aberto na Defensoria ou está começando algo novo agora?",
+   "pergunta": "Você já tem um processo aberto na Defensoria ou está começando algo novo agora?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 580,
+   "tokens_saida": 26,
+   "custo": 0.000781,
+   "erro": ""
+  },
+  {
+   "caso": 25,
+   "relato": "Meu pai faleceu e quero saber dos bens dele.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Os bens do seu pai têm herdeiros definidos, ou você precisa descobrir como dividir a herança entre os familiares?",
+   "pergunta": "Os bens do seu pai têm herdeiros definidos, ou você precisa descobrir como dividir a herança entre os familiares?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 987,
+   "tokens_saida": 65,
+   "custo": 0.0014432,
+   "erro": ""
+  },
+  {
+   "caso": 25,
+   "relato": "Meu pai faleceu e quero saber dos bens dele.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um processo sobre a herança ou quer abrir um novo?",
+   "pergunta": "Você já tem um processo sobre a herança ou quer abrir um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 493,
+   "tokens_saida": 22,
+   "custo": 0.0006633,
+   "erro": ""
+  },
+  {
+   "caso": 25,
+   "relato": "Meu pai faleceu e quero saber dos bens dele.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você já tem um processo sobre isso ou quer começar um novo?",
+   "pergunta": "Você já tem um processo sobre isso ou quer começar um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 580,
+   "tokens_saida": 20,
+   "custo": 0.000748,
+   "erro": ""
+  },
+  {
+   "caso": 26,
+   "relato": "Tenho um processo de guarda e quero remarcar a data que me deram.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você quer remarcar uma data de atendimento que já marcou na Defensoria, ou quer saber notícias sobre o andamento do seu processo de guarda?",
+   "pergunta": "Você quer remarcar uma data de atendimento que já marcou na Defensoria, ou quer saber notícias sobre o andamento do seu processo de guarda?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 998,
+   "tokens_saida": 73,
+   "custo": 0.0014993000000000003,
+   "erro": ""
+  },
+  {
+   "caso": 26,
+   "relato": "Tenho um processo de guarda e quero remarcar a data que me deram.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer remarcar um atendimento agendado (como hora marcada) ou verificar o andamento do processo (como audiências e decisões)?",
+   "pergunta": "Você quer remarcar um atendimento agendado (como hora marcada) ou verificar o andamento do processo (como audiências e decisões)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 505,
+   "tokens_saida": 41,
+   "custo": 0.000781,
+   "erro": ""
+  },
+  {
+   "caso": 26,
+   "relato": "Tenho um processo de guarda e quero remarcar a data que me deram.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer remarcar um atendimento já marcado ou saber como está o andamento do processo de guarda?",
+   "pergunta": "Você quer remarcar um atendimento já marcado ou saber como está o andamento do processo de guarda?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 592,
+   "tokens_saida": 29,
+   "custo": 0.0008107,
+   "erro": ""
+  },
+  {
+   "caso": 27,
+   "relato": "Meu filho foi detido na escola e levaram ele para a delegacia.",
+   "opcoes": [
+    "pessoa-presa",
+    "outros-assuntos"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você precisa de informações sobre a situação do seu filho que está detido (como em qual delegacia ele está, o que aconteceu ou próximos passos), ou precisa resolver outro assunto diferente?",
+   "pergunta": "Você precisa de informações sobre a situação do seu filho que está detido (como em qual delegacia ele está, o que aconteceu ou próximos passos), ou precisa resolver outro assunto diferente?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 953,
+   "tokens_saida": 82,
+   "custo": 0.0014993000000000003,
+   "erro": ""
+  },
+  {
+   "caso": 27,
+   "relato": "Meu filho foi detido na escola e levaram ele para a delegacia.",
+   "opcoes": [
+    "pessoa-presa",
+    "outros-assuntos"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre o que está acontecendo com ele na delegacia ou precisa de ajuda com outra coisa?",
+   "pergunta": "Você quer saber sobre o que está acontecendo com ele na delegacia ou precisa de ajuda com outra coisa?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 468,
+   "tokens_saida": 31,
+   "custo": 0.0006853,
+   "erro": ""
+  },
+  {
+   "caso": 27,
+   "relato": "Meu filho foi detido na escola e levaram ele para a delegacia.",
+   "opcoes": [
+    "pessoa-presa",
+    "outros-assuntos"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer saber sobre o que está acontecendo com ele na detenção ou ajuda com outra coisa?",
+   "pergunta": "Você quer saber sobre o que está acontecendo com ele na detenção ou ajuda com outra coisa?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 555,
+   "tokens_saida": 29,
+   "custo": 0.00077,
+   "erro": ""
+  },
+  {
+   "caso": 28,
+   "relato": "Quero pensão do pai da minha filha e ele já foi violento comigo.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "violencia-domestica"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "Você está procurando ajuda principalmente para receber pensão alimentícia do pai da criança, ou precisa primeiro de proteção contra a violência que sofreu dele?",
+   "pergunta": "Você está procurando ajuda principalmente para receber pensão alimentícia do pai da criança, ou precisa primeiro de proteção contra a violência que sofreu dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1038,
+   "tokens_saida": 72,
+   "custo": 0.0015378000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 28,
+   "relato": "Quero pensão do pai da minha filha e ele já foi violento comigo.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "violencia-domestica"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer abrir um novo processo sobre a pensão ou precisa de ajuda por causa da violência que sofreu dele?",
+   "pergunta": "Você quer abrir um novo processo sobre a pensão ou precisa de ajuda por causa da violência que sofreu dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 540,
+   "tokens_saida": 33,
+   "custo": 0.0007755,
+   "erro": ""
+  },
+  {
+   "caso": 28,
+   "relato": "Quero pensão do pai da minha filha e ele já foi violento comigo.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "violencia-domestica"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você está buscando ajuda porque está em perigo ou com medo por causa da violência, ou porque quer resolver algo como a pensão, mesmo que já tenha havido violência?",
+   "pergunta": "Você está buscando ajuda porque está em perigo ou com medo por causa da violência, ou porque quer resolver algo como a pensão, mesmo que já tenha havido violência?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 627,
+   "tokens_saida": 48,
+   "custo": 0.0009537,
+   "erro": ""
+  },
+  {
+   "caso": 29,
+   "relato": "O remédio da minha avó acabou no posto e o plano também não cobre.",
+   "opcoes": [
+    "questoes-de-saude",
+    "problemas-plano-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O seu plano de saúde negou cobrir o remédio, ou o plano simplesmente não cobre remédios desse tipo de jeito?",
+   "pergunta": "O seu plano de saúde negou cobrir o remédio, ou o plano simplesmente não cobre remédios desse tipo de jeito?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 1173,
+   "tokens_saida": 70,
+   "custo": 0.0016753000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 29,
+   "relato": "O remédio da minha avó acabou no posto e o plano também não cobre.",
+   "opcoes": [
+    "questoes-de-saude",
+    "problemas-plano-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "O problema é com o remédio pelo SUS (posto) ou pelo plano de saúde?",
+   "pergunta": "O problema é com o remédio pelo SUS (posto) ou pelo plano de saúde?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 655,
+   "tokens_saida": 27,
+   "custo": 0.0008690000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 29,
+   "relato": "O remédio da minha avó acabou no posto e o plano também não cobre.",
+   "opcoes": [
+    "questoes-de-saude",
+    "problemas-plano-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você precisa de ajuda com o remédio que faltou no posto, ou com o plano de saúde que não cobre? 💊",
+   "pergunta": "Você precisa de ajuda com o remédio que faltou no posto, ou com o plano de saúde que não cobre? 💊",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 742,
+   "tokens_saida": 37,
+   "custo": 0.0010197000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 30,
+   "relato": "Quero cancelar o atendimento de amanhã e saber se meu processo andou.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 1,
+   "pergunta_bruta": "O que você precisa fazer agora: cancelar ou remarcar seu atendimento de amanhã, ou você quer saber as notícias do seu processo em andamento?",
+   "pergunta": "O que você precisa fazer agora: cancelar ou remarcar seu atendimento de amanhã, ou você quer saber as notícias do seu processo em andamento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1001,
+   "tokens_saida": 73,
+   "custo": 0.0015026000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 30,
+   "relato": "Quero cancelar o atendimento de amanhã e saber se meu processo andou.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 1,
+   "pergunta_bruta": "Você quer mudar ou cancelar um atendimento marcado, ou quer saber o que está acontecendo com um processo já em andamento?",
+   "pergunta": "Você quer mudar ou cancelar um atendimento marcado, ou quer saber o que está acontecendo com um processo já em andamento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 506,
+   "tokens_saida": 37,
+   "custo": 0.0007601,
+   "erro": ""
+  },
+  {
+   "caso": 30,
+   "relato": "Quero cancelar o atendimento de amanhã e saber se meu processo andou.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 1,
+   "pergunta_bruta": "Você quer cancelar um atendimento marcado ou acompanhar o que está acontecendo com seu processo?",
+   "pergunta": "Você quer cancelar um atendimento marcado ou acompanhar o que está acontecendo com seu processo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 593,
+   "tokens_saida": 29,
+   "custo": 0.0008118000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 1,
+   "relato": "Meu irmão foi preso semana passada e eu queria saber como está o processo dele.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber principalmente como está a situação do seu irmão na cadeia (se está bem, em qual presídio, documentos) ou quer saber o andamento processual (se tem audiência marcada, como está o julgamento)?",
+   "pergunta": "Você quer saber principalmente como está a situação do seu irmão na cadeia (se está bem, em qual presídio, documentos) ou quer saber o andamento processual (se tem audiência marcada, como está o julgamento)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1003,
+   "tokens_saida": 92,
+   "custo": 0.0016093000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 1,
+   "relato": "Meu irmão foi preso semana passada e eu queria saber como está o processo dele.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre como anda o processo dele na justiça?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre como anda o processo dele na justiça?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 511,
+   "tokens_saida": 29,
+   "custo": 0.0007216,
+   "erro": ""
+  },
+  {
+   "caso": 1,
+   "relato": "Meu irmão foi preso semana passada e eu queria saber como está o processo dele.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento do processo que está rolando?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento do processo que está rolando?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 598,
+   "tokens_saida": 29,
+   "custo": 0.0008173000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 2,
+   "relato": "Meu filho está na cadeia e a audiência dele foi remarcada, não sei a nova data.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você está procurando informações sobre a situação do seu filho que está preso, ou quer confirmar a nova data da audiência que foi marcada?",
+   "pergunta": "Você está procurando informações sobre a situação do seu filho que está preso, ou quer confirmar a nova data da audiência que foi marcada?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 991,
+   "tokens_saida": 69,
+   "custo": 0.0014696000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 2,
+   "relato": "Meu filho está na cadeia e a audiência dele foi remarcada, não sei a nova data.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre o atendimento que já foi marcado?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre o atendimento que já foi marcado?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 501,
+   "tokens_saida": 28,
+   "custo": 0.0007051000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 2,
+   "relato": "Meu filho está na cadeia e a audiência dele foi remarcada, não sei a nova data.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você está procurando informação sobre alguém que está preso ou quer saber sobre um atendimento já marcado na Defensoria?",
+   "pergunta": "Você está procurando informação sobre alguém que está preso ou quer saber sobre um atendimento já marcado na Defensoria?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 588,
+   "tokens_saida": 33,
+   "custo": 0.0008283,
+   "erro": ""
+  },
+  {
+   "caso": 3,
+   "relato": "Prenderam meu marido ontem e ninguém me fala nada, quero entrar com alguma coisa.",
+   "opcoes": [
+    "pessoa-presa",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer informações sobre onde seu marido está preso e como acompanhar a situação dele, ou quer entrar com um novo processo judicial para resolver um problema específico (como pensão, guarda de filhos ou outro assunto)?",
+   "pergunta": "Você quer informações sobre onde seu marido está preso e como acompanhar a situação dele, ou quer entrar com um novo processo judicial para resolver um problema específico (como pensão, guarda de filhos ou outro assunto)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1032,
+   "tokens_saida": 89,
+   "custo": 0.0016247,
+   "erro": ""
+  },
+  {
+   "caso": 3,
+   "relato": "Prenderam meu marido ontem e ninguém me fala nada, quero entrar com alguma coisa.",
+   "opcoes": [
+    "pessoa-presa",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou quer abrir um novo caso para resolver algo relacionado a isso?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou quer abrir um novo caso para resolver algo relacionado a isso?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 532,
+   "tokens_saida": 31,
+   "custo": 0.0007557,
+   "erro": ""
+  },
+  {
+   "caso": 3,
+   "relato": "Prenderam meu marido ontem e ninguém me fala nada, quero entrar com alguma coisa.",
+   "opcoes": [
+    "pessoa-presa",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou quer abrir um novo processo?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou quer abrir um novo processo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 619,
+   "tokens_saida": 25,
+   "custo": 0.0008184,
+   "erro": ""
+  },
+  {
+   "caso": 4,
+   "relato": "Meu sobrinho foi preso e eu não sei se ele já tem advogado ou processo aberto.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O seu sobrinho foi preso agora pouco, ou você quer saber o que está acontecendo com um processo que já existe há tempo?",
+   "pergunta": "O seu sobrinho foi preso agora pouco, ou você quer saber o que está acontecendo com um processo que já existe há tempo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1003,
+   "tokens_saida": 67,
+   "custo": 0.0014718,
+   "erro": ""
+  },
+  {
+   "caso": 4,
+   "relato": "Meu sobrinho foi preso e eu não sei se ele já tem advogado ou processo aberto.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento de algum processo que já começou?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento de algum processo que já começou?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 514,
+   "tokens_saida": 29,
+   "custo": 0.0007249000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 4,
+   "relato": "Meu sobrinho foi preso e eu não sei se ele já tem advogado ou processo aberto.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre o sobrinho que está preso ou sobre algum processo que ele já tenha?",
+   "pergunta": "Você quer saber sobre o sobrinho que está preso ou sobre algum processo que ele já tenha?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 601,
+   "tokens_saida": 29,
+   "custo": 0.0008206,
+   "erro": ""
+  },
+  {
+   "caso": 5,
+   "relato": "Quero visitar meu pai que está preso e também saber quando sai a decisão.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O que você precisa fazer primeiro: obter informações sobre a prisão do seu pai (como onde ele está, horário de visita) ou saber o andamento do processo dele (quando sai a decisão, audiência marcada)?",
+   "pergunta": "O que você precisa fazer primeiro: obter informações sobre a prisão do seu pai (como onde ele está, horário de visita) ou saber o andamento do processo dele (quando sai a decisão, audiência marcada)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1001,
+   "tokens_saida": 86,
+   "custo": 0.0015741000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 5,
+   "relato": "Quero visitar meu pai que está preso e também saber quando sai a decisão.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre a decisão de um processo que está em andamento?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre a decisão de um processo que está em andamento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 508,
+   "tokens_saida": 30,
+   "custo": 0.0007238,
+   "erro": ""
+  },
+  {
+   "caso": 5,
+   "relato": "Quero visitar meu pai que está preso e também saber quando sai a decisão.",
+   "opcoes": [
+    "pessoa-presa",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento do processo dele?",
+   "pergunta": "Você quer saber sobre a situação dele na prisão ou sobre o andamento do processo dele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 595,
+   "tokens_saida": 26,
+   "custo": 0.0007975,
+   "erro": ""
+  },
+  {
+   "caso": 6,
+   "relato": "Meu companheiro me bate e eu quero me separar dele.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Neste momento, o que é mais importante para você: se proteger da violência e conseguir uma medida de proteção contra seu companheiro, ou resolver a separação e as questões financeiras/de filhos com ele?",
+   "pergunta": "Neste momento, o que é mais importante para você: se proteger da violência e conseguir uma medida de proteção contra seu companheiro, ou resolver a separação e as questões financeiras/de filhos com ele?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1035,
+   "tokens_saida": 85,
+   "custo": 0.001606,
+   "erro": ""
+  },
+  {
+   "caso": 6,
+   "relato": "Meu companheiro me bate e eu quero me separar dele.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você está buscando ajuda porque está sofrendo agressão ou porque quer resolver o fim do relacionamento, como separação ou divisão de bens?",
+   "pergunta": "Você está buscando ajuda porque está sofrendo agressão ou porque quer resolver o fim do relacionamento, como separação ou divisão de bens?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 537,
+   "tokens_saida": 43,
+   "custo": 0.0008272,
+   "erro": ""
+  },
+  {
+   "caso": 6,
+   "relato": "Meu companheiro me bate e eu quero me separar dele.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você está buscando ajuda porque está sofrendo violência ou porque quer resolver a separação e outros assuntos legais?",
+   "pergunta": "Você está buscando ajuda porque está sofrendo violência ou porque quer resolver a separação e outros assuntos legais?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 624,
+   "tokens_saida": 34,
+   "custo": 0.0008734000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 7,
+   "relato": "Meu ex me ameaça desde que eu pedi pensão para as crianças.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "As ameaças que você está recebendo estão deixando você com medo pela sua segurança, ou o que você mais precisa é resolver a questão da pensão alimentícia das crianças?",
+   "pergunta": "As ameaças que você está recebendo estão deixando você com medo pela sua segurança, ou o que você mais precisa é resolver a questão da pensão alimentícia das crianças?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1039,
+   "tokens_saida": 81,
+   "custo": 0.0015884,
+   "erro": ""
+  },
+  {
+   "caso": 7,
+   "relato": "Meu ex me ameaça desde que eu pedi pensão para as crianças.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você está buscando proteção porque está sendo ameaçada ou quer abrir um processo novo, como o da pensão?",
+   "pergunta": "Você está buscando proteção porque está sendo ameaçada ou quer abrir um processo novo, como o da pensão?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 539,
+   "tokens_saida": 33,
+   "custo": 0.0007744000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 7,
+   "relato": "Meu ex me ameaça desde que eu pedi pensão para as crianças.",
+   "opcoes": [
+    "violencia-domestica",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você está buscando proteção porque está com medo dele, ou quer abrir um processo novo para pedir pensão?",
+   "pergunta": "Você está buscando proteção porque está com medo dele, ou quer abrir um processo novo para pedir pensão?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 626,
+   "tokens_saida": 32,
+   "custo": 0.0008646,
+   "erro": ""
+  },
+  {
+   "caso": 8,
+   "relato": "Já tenho medida protetiva mas ele continua me perseguindo, quero saber do processo.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer denunciar novas agressões ou perseguições do seu agressor, ou quer saber como está o andamento do seu processo de medida protetiva?",
+   "pergunta": "Você quer denunciar novas agressões ou perseguições do seu agressor, ou quer saber como está o andamento do seu processo de medida protetiva?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1018,
+   "tokens_saida": 74,
+   "custo": 0.0015268000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 8,
+   "relato": "Já tenho medida protetiva mas ele continua me perseguindo, quero saber do processo.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre o andamento do processo que já existe ou precisa de ajuda porque está sendo perseguida apesar da medida protetiva?",
+   "pergunta": "Você quer saber sobre o andamento do processo que já existe ou precisa de ajuda porque está sendo perseguida apesar da medida protetiva?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 524,
+   "tokens_saida": 38,
+   "custo": 0.0007854000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 8,
+   "relato": "Já tenho medida protetiva mas ele continua me perseguindo, quero saber do processo.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber o que está acontecendo com o processo que já existe, ou precisa de ajuda porque está sendo perseguida mesmo com a medida protetiva?",
+   "pergunta": "Você quer saber o que está acontecendo com o processo que já existe, ou precisa de ajuda porque está sendo perseguida mesmo com a medida protetiva?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 611,
+   "tokens_saida": 42,
+   "custo": 0.0009031,
+   "erro": ""
+  },
+  {
+   "caso": 9,
+   "relato": "Meu marido me xinga e quebrou minhas coisas, tenho uma audiência marcada sobre a guarda.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O que você precisa resolver agora com a gente: a situação de violência e agressão do seu marido, ou confirmar/remarcar a audiência sobre guarda que já está marcada?",
+   "pergunta": "O que você precisa resolver agora com a gente: a situação de violência e agressão do seu marido, ou confirmar/remarcar a audiência sobre guarda que já está marcada?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1011,
+   "tokens_saida": 79,
+   "custo": 0.0015466000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 9,
+   "relato": "Meu marido me xinga e quebrou minhas coisas, tenho uma audiência marcada sobre a guarda.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer ajuda com a situação de violência ou precisa confirmar ou alterar o seu agendamento?",
+   "pergunta": "Você quer ajuda com a situação de violência ou precisa confirmar ou alterar o seu agendamento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 518,
+   "tokens_saida": 30,
+   "custo": 0.0007348000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 9,
+   "relato": "Meu marido me xinga e quebrou minhas coisas, tenho uma audiência marcada sobre a guarda.",
+   "opcoes": [
+    "violencia-domestica",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você está precisando de proteção ou apoio por causa das ameaças e agressões, ou quer confirmar ou alterar a audiência que já está marcada?",
+   "pergunta": "Você está precisando de proteção ou apoio por causa das ameaças e agressões, ou quer confirmar ou alterar a audiência que já está marcada?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 605,
+   "tokens_saida": 44,
+   "custo": 0.0009075,
+   "erro": ""
+  },
+  {
+   "caso": 10,
+   "relato": "Meu ex foi preso por me agredir e agora a família dele me ameaça.",
+   "opcoes": [
+    "violencia-domestica",
+    "pessoa-presa"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você precisa de ajuda principalmente porque está sendo ameaçada agora, ou porque quer saber informações sobre a prisão do seu ex?",
+   "pergunta": "Você precisa de ajuda principalmente porque está sendo ameaçada agora, ou porque quer saber informações sobre a prisão do seu ex?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1005,
+   "tokens_saida": 68,
+   "custo": 0.0014795,
+   "erro": ""
+  },
+  {
+   "caso": 10,
+   "relato": "Meu ex foi preso por me agredir e agora a família dele me ameaça.",
+   "opcoes": [
+    "violencia-domestica",
+    "pessoa-presa"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você está precisando de ajuda por causa das ameaças que está recebendo, ou quer saber algo sobre o ex que está preso?",
+   "pergunta": "Você está precisando de ajuda por causa das ameaças que está recebendo, ou quer saber algo sobre o ex que está preso?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 514,
+   "tokens_saida": 38,
+   "custo": 0.0007744000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 10,
+   "relato": "Meu ex foi preso por me agredir e agora a família dele me ameaça.",
+   "opcoes": [
+    "violencia-domestica",
+    "pessoa-presa"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você está buscando ajuda por causa da ameaça que está sofrendo ou quer informações sobre a situação dele na prisão?",
+   "pergunta": "Você está buscando ajuda por causa da ameaça que está sofrendo ou quer informações sobre a situação dele na prisão?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 601,
+   "tokens_saida": 35,
+   "custo": 0.0008536,
+   "erro": ""
+  },
+  {
+   "caso": 11,
+   "relato": "O plano não autorizou minha cirurgia e o médico disse que é urgente.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O problema é especificamente que o plano de saúde não autorizou ou está demorando para autorizar uma cirurgia?",
+   "pergunta": "O problema é especificamente que o plano de saúde não autorizou ou está demorando para autorizar uma cirurgia?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 1173,
+   "tokens_saida": 64,
+   "custo": 0.0016423000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 11,
+   "relato": "O plano não autorizou minha cirurgia e o médico disse que é urgente.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "O problema é só com a cirurgia (que o plano negou ou está atrasando) ou também envolve outro tipo de tratamento, remédio ou exame?",
+   "pergunta": "O problema é só com a cirurgia (que o plano negou ou está atrasando) ou também envolve outro tipo de tratamento, remédio ou exame?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 654,
+   "tokens_saida": 45,
+   "custo": 0.0009669000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 11,
+   "relato": "O plano não autorizou minha cirurgia e o médico disse que é urgente.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você está com problema na cirurgia pelo plano de saúde, ou precisa de ajuda com outra questão de saúde, como remédio, exame ou tratamento?",
+   "pergunta": "Você está com problema na cirurgia pelo plano de saúde, ou precisa de ajuda com outra questão de saúde, como remédio, exame ou tratamento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 741,
+   "tokens_saida": 42,
+   "custo": 0.0010461,
+   "erro": ""
+  },
+  {
+   "caso": 12,
+   "relato": "Preciso de uma cirurgia no joelho e não sei se é pelo convênio ou pelo posto.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O seu convênio ou plano de saúde já negou, atrasou ou está demorando para autorizar essa cirurgia no joelho?",
+   "pergunta": "O seu convênio ou plano de saúde já negou, atrasou ou está demorando para autorizar essa cirurgia no joelho?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 1175,
+   "tokens_saida": 68,
+   "custo": 0.0016665,
+   "erro": ""
+  },
+  {
+   "caso": 12,
+   "relato": "Preciso de uma cirurgia no joelho e não sei se é pelo convênio ou pelo posto.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre a cirurgia pelo convênio (plano de saúde) ou pelo posto de saúde (SUS)?",
+   "pergunta": "Você quer saber sobre a cirurgia pelo convênio (plano de saúde) ou pelo posto de saúde (SUS)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 658,
+   "tokens_saida": 35,
+   "custo": 0.0009163000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 12,
+   "relato": "Preciso de uma cirurgia no joelho e não sei se é pelo convênio ou pelo posto.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "A sua cirurgia no joelho é pelo plano de saúde (convênio) ou pelo posto de saúde (SUS)?",
+   "pergunta": "A sua cirurgia no joelho é pelo plano de saúde (convênio) ou pelo posto de saúde (SUS)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 745,
+   "tokens_saida": 35,
+   "custo": 0.001012,
+   "erro": ""
+  },
+  {
+   "caso": 13,
+   "relato": "Minha mãe precisa de internação e o hospital pediu autorização do plano.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O plano de saúde negou, atrasou ou recusou a autorização para a internação da sua mãe, ou ele ainda está analisando o pedido?",
+   "pergunta": "O plano de saúde negou, atrasou ou recusou a autorização para a internação da sua mãe, ou ele ainda está analisando o pedido?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 1173,
+   "tokens_saida": 74,
+   "custo": 0.0016973000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 13,
+   "relato": "Minha mãe precisa de internação e o hospital pediu autorização do plano.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "O problema é sobre a autorização da internação pelo plano de saúde ou sobre a própria vaga no hospital, sem envolver plano?",
+   "pergunta": "O problema é sobre a autorização da internação pelo plano de saúde ou sobre a própria vaga no hospital, sem envolver plano?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 652,
+   "tokens_saida": 35,
+   "custo": 0.0009097,
+   "erro": ""
+  },
+  {
+   "caso": 13,
+   "relato": "Minha mãe precisa de internação e o hospital pediu autorização do plano.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer ajuda com algo relacionado à cirurgia (como autorização, material ou reembolso), ou é sobre internação, remédio, exame ou outro tipo de tratamento?",
+   "pergunta": "Você quer ajuda com algo relacionado à cirurgia (como autorização, material ou reembolso), ou é sobre internação, remédio, exame ou outro tipo de tratamento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 739,
+   "tokens_saida": 50,
+   "custo": 0.0010879000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 14,
+   "relato": "O convênio negou o exame e a cirurgia do meu filho.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O que o convênio negou primeiro: o exame que seu filho precisa fazer ou a cirurgia?",
+   "pergunta": "O que o convênio negou primeiro: o exame que seu filho precisa fazer ou a cirurgia?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 1170,
+   "tokens_saida": 58,
+   "custo": 0.001606,
+   "erro": ""
+  },
+  {
+   "caso": 14,
+   "relato": "O convênio negou o exame e a cirurgia do meu filho.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "O seu caso é mais sobre o exame ou sobre a cirurgia?",
+   "pergunta": "O seu caso é mais sobre o exame ou sobre a cirurgia?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 653,
+   "tokens_saida": 23,
+   "custo": 0.0008448,
+   "erro": ""
+  },
+  {
+   "caso": 14,
+   "relato": "O convênio negou o exame e a cirurgia do meu filho.",
+   "opcoes": [
+    "problemas-plano-de-saude",
+    "questoes-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer ajuda com o exame ou com a cirurgia? 😊",
+   "pergunta": "Você quer ajuda com o exame ou com a cirurgia? 😊",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 740,
+   "tokens_saida": 24,
+   "custo": 0.0009460000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 15,
+   "relato": "Estou esperando cirurgia há meses e quero saber se dá para entrar na justiça.",
+   "opcoes": [
+    "questoes-de-saude",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você está esperando por uma cirurgia que o SUS ou seu plano de saúde deveria estar fornecendo, ou o problema é com dívida, contrato ou outro assunto que não é de saúde?",
+   "pergunta": "Você está esperando por uma cirurgia que o SUS ou seu plano de saúde deveria estar fornecendo, ou o problema é com dívida, contrato ou outro assunto que não é de saúde?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1092,
+   "tokens_saida": 85,
+   "custo": 0.0016687,
+   "erro": ""
+  },
+  {
+   "caso": 15,
+   "relato": "Estou esperando cirurgia há meses e quero saber se dá para entrar na justiça.",
+   "opcoes": [
+    "questoes-de-saude",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você está com dificuldade para conseguir a cirurgia pelo plano de saúde ou pelo SUS?",
+   "pergunta": "Você está com dificuldade para conseguir a cirurgia pelo plano de saúde ou pelo SUS?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 587,
+   "tokens_saida": 27,
+   "custo": 0.0007942,
+   "erro": ""
+  },
+  {
+   "caso": 15,
+   "relato": "Estou esperando cirurgia há meses e quero saber se dá para entrar na justiça.",
+   "opcoes": [
+    "questoes-de-saude",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer resolver algo ligado à saúde, como cirurgia ou tratamento, ou está pensando em abrir um processo novo sobre outro assunto?",
+   "pergunta": "Você quer resolver algo ligado à saúde, como cirurgia ou tratamento, ou está pensando em abrir um processo novo sobre outro assunto?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 674,
+   "tokens_saida": 38,
+   "custo": 0.0009504000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 16,
+   "relato": "Quero saber do meu processo de pensão, acho que tinha uma audiência essa semana.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber como está seu processo (se houve audiência, sentença ou decisão) ou quer confirmar se seu agendamento para essa semana está mantido?",
+   "pergunta": "Você quer saber como está seu processo (se houve audiência, sentença ou decisão) ou quer confirmar se seu agendamento para essa semana está mantido?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1002,
+   "tokens_saida": 74,
+   "custo": 0.0015092,
+   "erro": ""
+  },
+  {
+   "caso": 16,
+   "relato": "Quero saber do meu processo de pensão, acho que tinha uma audiência essa semana.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre o que já está acontecendo no seu processo, como audiência ou decisão, ou quer verificar um atendimento agendado na Defensoria?",
+   "pergunta": "Você quer saber sobre o que já está acontecendo no seu processo, como audiência ou decisão, ou quer verificar um atendimento agendado na Defensoria?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 507,
+   "tokens_saida": 42,
+   "custo": 0.0007887,
+   "erro": ""
+  },
+  {
+   "caso": 16,
+   "relato": "Quero saber do meu processo de pensão, acho que tinha uma audiência essa semana.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer ver como está o andamento do seu processo (como audiências, decisões ou prazos) ou está querendo confirmar ou mudar um agendamento que já fez aqui na Defensoria?",
+   "pergunta": "Você quer ver como está o andamento do seu processo (como audiências, decisões ou prazos) ou está querendo confirmar ou mudar um agendamento que já fez aqui na Defensoria?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 594,
+   "tokens_saida": 53,
+   "custo": 0.0009449,
+   "erro": ""
+  },
+  {
+   "caso": 17,
+   "relato": "Me ligaram da Defensoria sobre meu caso e eu perdi a ligação.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber o que aconteceu com o seu processo na justiça, ou você tem um atendimento/consulta agendado na Defensoria que pode ter sido remarcado?",
+   "pergunta": "Você quer saber o que aconteceu com o seu processo na justiça, ou você tem um atendimento/consulta agendado na Defensoria que pode ter sido remarcado?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 997,
+   "tokens_saida": 78,
+   "custo": 0.0015257,
+   "erro": ""
+  },
+  {
+   "caso": 17,
+   "relato": "Me ligaram da Defensoria sobre meu caso e eu perdi a ligação.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber o que aconteceu no seu caso (como audiência ou decisão) ou precisa verificar se tem algum atendimento marcado (data, horário ou local)?",
+   "pergunta": "Você quer saber o que aconteceu no seu caso (como audiência ou decisão) ou precisa verificar se tem algum atendimento marcado (data, horário ou local)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 505,
+   "tokens_saida": 42,
+   "custo": 0.0007865,
+   "erro": ""
+  },
+  {
+   "caso": 17,
+   "relato": "Me ligaram da Defensoria sobre meu caso e eu perdi a ligação.",
+   "opcoes": [
+    "ver-andamento-do-processo",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber como está seu caso (como audiência, decisão ou prazo) ou está tentando marcar ou reagendar um atendimento?",
+   "pergunta": "Você quer saber como está seu caso (como audiência, decisão ou prazo) ou está tentando marcar ou reagendar um atendimento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 592,
+   "tokens_saida": 38,
+   "custo": 0.0008602000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 18,
+   "relato": "Tenho um atendimento marcado mas não sei se é sobre o processo antigo ou um novo.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer confirmar ou remarcar o atendimento que já tem marcado, ou quer abrir um novo caso sobre um problema diferente?",
+   "pergunta": "Você quer confirmar ou remarcar o atendimento que já tem marcado, ou quer abrir um novo caso sobre um problema diferente?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1025,
+   "tokens_saida": 66,
+   "custo": 0.0014905,
+   "erro": ""
+  },
+  {
+   "caso": 18,
+   "relato": "Tenho um atendimento marcado mas não sei se é sobre o processo antigo ou um novo.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você já tem um processo em andamento ou quer abrir um caso novo?",
+   "pergunta": "Você já tem um processo em andamento ou quer abrir um caso novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 527,
+   "tokens_saida": 22,
+   "custo": 0.0007007000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 18,
+   "relato": "Tenho um atendimento marcado mas não sei se é sobre o processo antigo ou um novo.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você já tem um processo em andamento ou está querendo abrir um novo?",
+   "pergunta": "Você já tem um processo em andamento ou está querendo abrir um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 614,
+   "tokens_saida": 23,
+   "custo": 0.0008019000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 19,
+   "relato": "Não consigo entrar no aplicativo para ver meu horário marcado.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O problema é conseguir acessar o aplicativo (como login ou funcionamento do app) ou você consegue acessar o app, mas quer confirmar/remarcar o horário que tem marcado?",
+   "pergunta": "O problema é conseguir acessar o aplicativo (como login ou funcionamento do app) ou você consegue acessar o app, mas quer confirmar/remarcar o horário que tem marcado?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1007,
+   "tokens_saida": 79,
+   "custo": 0.0015422,
+   "erro": ""
+  },
+  {
+   "caso": 19,
+   "relato": "Não consigo entrar no aplicativo para ver meu horário marcado.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você está com dificuldade para acessar o app em si, ou quer saber informações sobre um agendamento já marcado (como data, local ou horário)?",
+   "pergunta": "Você está com dificuldade para acessar o app em si, ou quer saber informações sobre um agendamento já marcado (como data, local ou horário)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 507,
+   "tokens_saida": 43,
+   "custo": 0.0007942,
+   "erro": ""
+  },
+  {
+   "caso": 19,
+   "relato": "Não consigo entrar no aplicativo para ver meu horário marcado.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-meus-agendamentos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer ajuda para entrar no app ou quer confirmar/cancelar um atendimento que já marcou?",
+   "pergunta": "Você quer ajuda para entrar no app ou quer confirmar/cancelar um atendimento que já marcou?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 594,
+   "tokens_saida": 30,
+   "custo": 0.0008184,
+   "erro": ""
+  },
+  {
+   "caso": 20,
+   "relato": "O aplicativo não mostra meu processo, sumiu tudo.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O problema está em acessar ou usar o aplicativo, ou você quer saber o que aconteceu com seu processo?",
+   "pergunta": "O problema está em acessar ou usar o aplicativo, ou você quer saber o que aconteceu com seu processo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1015,
+   "tokens_saida": 61,
+   "custo": 0.001452,
+   "erro": ""
+  },
+  {
+   "caso": 20,
+   "relato": "O aplicativo não mostra meu processo, sumiu tudo.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você está com problema no app (não aparece nada, travou, sumiu a tela) ou quer saber como está o andamento do seu processo mesmo?",
+   "pergunta": "Você está com problema no app (não aparece nada, travou, sumiu a tela) ou quer saber como está o andamento do seu processo mesmo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 516,
+   "tokens_saida": 41,
+   "custo": 0.0007931,
+   "erro": ""
+  },
+  {
+   "caso": 20,
+   "relato": "O aplicativo não mostra meu processo, sumiu tudo.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer resolver um problema no app (como falta de acesso ou dados sumindo) ou está querendo saber o que está acontecendo com seu processo em si?",
+   "pergunta": "Você quer resolver um problema no app (como falta de acesso ou dados sumindo) ou está querendo saber o que está acontecendo com seu processo em si?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 603,
+   "tokens_saida": 41,
+   "custo": 0.0008888,
+   "erro": ""
+  },
+  {
+   "caso": 21,
+   "relato": "Fiz o cadastro no aplicativo e queria abrir um pedido de divórcio.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você está tendo dificuldade para usar o aplicativo ou a plataforma digital da Defensoria, ou já conseguiu acessar normalmente e agora quer iniciar um novo processo de divórcio?",
+   "pergunta": "Você está tendo dificuldade para usar o aplicativo ou a plataforma digital da Defensoria, ou já conseguiu acessar normalmente e agora quer iniciar um novo processo de divórcio?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1047,
+   "tokens_saida": 82,
+   "custo": 0.0016027,
+   "erro": ""
+  },
+  {
+   "caso": 21,
+   "relato": "Fiz o cadastro no aplicativo e queria abrir um pedido de divórcio.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você precisa de ajuda com o aplicativo ou quer mesmo iniciar um novo pedido, como o divórcio?",
+   "pergunta": "Você precisa de ajuda com o aplicativo ou quer mesmo iniciar um novo pedido, como o divórcio?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 543,
+   "tokens_saida": 31,
+   "custo": 0.0007678,
+   "erro": ""
+  },
+  {
+   "caso": 21,
+   "relato": "Fiz o cadastro no aplicativo e queria abrir um pedido de divórcio.",
+   "opcoes": [
+    "ajuda-app-defensoria-rj",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você está com dificuldade no aplicativo ou quer mesmo abrir um novo caso de divórcio?",
+   "pergunta": "Você está com dificuldade no aplicativo ou quer mesmo abrir um novo caso de divórcio?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 630,
+   "tokens_saida": 29,
+   "custo": 0.0008525,
+   "erro": ""
+  },
+  {
+   "caso": 22,
+   "relato": "Meu senhorio quer me despejar e eu não sei o que fazer.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer começar um novo caso na Defensoria sobre este despejo, ou já tem um processo aberto sobre este assunto que precisa de acompanhamento?",
+   "pergunta": "Você quer começar um novo caso na Defensoria sobre este despejo, ou já tem um processo aberto sobre este assunto que precisa de acompanhamento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 989,
+   "tokens_saida": 71,
+   "custo": 0.0014784000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 22,
+   "relato": "Meu senhorio quer me despejar e eu não sei o que fazer.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você já tem um processo sobre isso ou quer abrir um novo?",
+   "pergunta": "Você já tem um processo sobre isso ou quer abrir um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 496,
+   "tokens_saida": 20,
+   "custo": 0.0006556,
+   "erro": ""
+  },
+  {
+   "caso": 22,
+   "relato": "Meu senhorio quer me despejar e eu não sei o que fazer.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você já tem um processo sobre isso ou quer abrir um novo?",
+   "pergunta": "Você já tem um processo sobre isso ou quer abrir um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 583,
+   "tokens_saida": 20,
+   "custo": 0.0007513000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 23,
+   "relato": "Comprei uma geladeira com defeito e a loja não troca.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer abrir um novo processo na Defensoria Pública para resolver esse problema com a geladeira, ou precisa de orientação sobre outra questão?",
+   "pergunta": "Você quer abrir um novo processo na Defensoria Pública para resolver esse problema com a geladeira, ou precisa de orientação sobre outra questão?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 988,
+   "tokens_saida": 71,
+   "custo": 0.0014773000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 23,
+   "relato": "Comprei uma geladeira com defeito e a loja não troca.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você já abriu alguma ação ou quer começar um novo processo sobre isso?",
+   "pergunta": "Você já abriu alguma ação ou quer começar um novo processo sobre isso?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 496,
+   "tokens_saida": 25,
+   "custo": 0.0006831000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 23,
+   "relato": "Comprei uma geladeira com defeito e a loja não troca.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você já abriu algum pedido ou processo sobre isso, ou quer começar um novo agora?",
+   "pergunta": "Você já abriu algum pedido ou processo sobre isso, ou quer começar um novo agora?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 583,
+   "tokens_saida": 26,
+   "custo": 0.0007843,
+   "erro": ""
+  },
+  {
+   "caso": 24,
+   "relato": "Quero tirar a segunda via da certidão de nascimento.",
+   "opcoes": [
+    "outros-assuntos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você está começando um processo novo na Defensoria (como uma ação de aluguel, divórcio, pensão, etc.) ou só precisa de ajuda para resolver uma questão administrativa de documentos?",
+   "pergunta": "Você está começando um processo novo na Defensoria (como uma ação de aluguel, divórcio, pensão, etc.) ou só precisa de ajuda para resolver uma questão administrativa de documentos?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 986,
+   "tokens_saida": 82,
+   "custo": 0.0015356,
+   "erro": ""
+  },
+  {
+   "caso": 24,
+   "relato": "Quero tirar a segunda via da certidão de nascimento.",
+   "opcoes": [
+    "outros-assuntos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você precisa de ajuda com algo que já está em andamento ou quer resolver um assunto novo, como tirar documentos?",
+   "pergunta": "Você precisa de ajuda com algo que já está em andamento ou quer resolver um assunto novo, como tirar documentos?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 493,
+   "tokens_saida": 33,
+   "custo": 0.0007238,
+   "erro": ""
+  },
+  {
+   "caso": 24,
+   "relato": "Quero tirar a segunda via da certidão de nascimento.",
+   "opcoes": [
+    "outros-assuntos",
+    "iniciar-novo-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer resolver algo novo, como abrir um caso, ou é sobre outro assunto, como tirar um documento?",
+   "pergunta": "Você quer resolver algo novo, como abrir um caso, ou é sobre outro assunto, como tirar um documento?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 580,
+   "tokens_saida": 31,
+   "custo": 0.0008085,
+   "erro": ""
+  },
+  {
+   "caso": 25,
+   "relato": "Meu pai faleceu e quero saber dos bens dele.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "O seu interesse é apenas saber quais são os bens que seu pai deixou, ou você quer também resolver questões sobre como dividir esses bens com outros herdeiros?",
+   "pergunta": "O seu interesse é apenas saber quais são os bens que seu pai deixou, ou você quer também resolver questões sobre como dividir esses bens com outros herdeiros?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 987,
+   "tokens_saida": 74,
+   "custo": 0.0014927,
+   "erro": ""
+  },
+  {
+   "caso": 25,
+   "relato": "Meu pai faleceu e quero saber dos bens dele.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você já iniciou algum procedimento sobre os bens do seu pai ou quer começar um novo?",
+   "pergunta": "Você já iniciou algum procedimento sobre os bens do seu pai ou quer começar um novo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 493,
+   "tokens_saida": 27,
+   "custo": 0.0006908000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 25,
+   "relato": "Meu pai faleceu e quero saber dos bens dele.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "outros-assuntos"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você já começou alguma etapa para dividir os bens do seu pai ou ainda vai começar tudo do zero?",
+   "pergunta": "Você já começou alguma etapa para dividir os bens do seu pai ou ainda vai começar tudo do zero?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 580,
+   "tokens_saida": 31,
+   "custo": 0.0008085,
+   "erro": ""
+  },
+  {
+   "caso": 26,
+   "relato": "Tenho um processo de guarda e quero remarcar a data que me deram.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer remarcar um atendimento ou consulta que já marcou na Defensoria, ou quer saber como está indo seu processo de guarda na Justiça?",
+   "pergunta": "Você quer remarcar um atendimento ou consulta que já marcou na Defensoria, ou quer saber como está indo seu processo de guarda na Justiça?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 998,
+   "tokens_saida": 74,
+   "custo": 0.0015048000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 26,
+   "relato": "Tenho um processo de guarda e quero remarcar a data que me deram.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer remarcar um atendimento já marcado (como data e horário) ou precisa saber o que está acontecendo com o seu processo (como audiência, decisão ou prazo)?",
+   "pergunta": "Você quer remarcar um atendimento já marcado (como data e horário) ou precisa saber o que está acontecendo com o seu processo (como audiência, decisão ou prazo)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 505,
+   "tokens_saida": 48,
+   "custo": 0.0008195,
+   "erro": ""
+  },
+  {
+   "caso": 26,
+   "relato": "Tenho um processo de guarda e quero remarcar a data que me deram.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer alterar o dia ou horário de um atendimento já marcado, ou está interessada em saber o que está rolando no seu processo de guarda?",
+   "pergunta": "Você quer alterar o dia ou horário de um atendimento já marcado, ou está interessada em saber o que está rolando no seu processo de guarda?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 592,
+   "tokens_saida": 41,
+   "custo": 0.0008767,
+   "erro": ""
+  },
+  {
+   "caso": 27,
+   "relato": "Meu filho foi detido na escola e levaram ele para a delegacia.",
+   "opcoes": [
+    "pessoa-presa",
+    "outros-assuntos"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você está procurando informações sobre a situação atual do seu filho na delegacia ou na cadeia, ou está buscando ajuda com outro tipo de questão (como procedimento na escola, seus direitos como responsável, etc)?",
+   "pergunta": "Você está procurando informações sobre a situação atual do seu filho na delegacia ou na cadeia, ou está buscando ajuda com outro tipo de questão (como procedimento na escola, seus direitos como responsável, etc)?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": false,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 953,
+   "tokens_saida": 86,
+   "custo": 0.0015213000000000002,
+   "erro": ""
+  },
+  {
+   "caso": 27,
+   "relato": "Meu filho foi detido na escola e levaram ele para a delegacia.",
+   "opcoes": [
+    "pessoa-presa",
+    "outros-assuntos"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer saber sobre ele agora na delegacia ou sobre algo que aconteceu depois, como se ele foi preso e está em uma cadeia?",
+   "pergunta": "Você quer saber sobre ele agora na delegacia ou sobre algo que aconteceu depois, como se ele foi preso e está em uma cadeia?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 468,
+   "tokens_saida": 37,
+   "custo": 0.0007183000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 27,
+   "relato": "Meu filho foi detido na escola e levaram ele para a delegacia.",
+   "opcoes": [
+    "pessoa-presa",
+    "outros-assuntos"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você está procurando ajuda sobre o que aconteceu com ele na delegacia, ou precisa de outro tipo de apoio?",
+   "pergunta": "Você está procurando ajuda sobre o que aconteceu com ele na delegacia, ou precisa de outro tipo de apoio?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 555,
+   "tokens_saida": 33,
+   "custo": 0.000792,
+   "erro": ""
+  },
+  {
+   "caso": 28,
+   "relato": "Quero pensão do pai da minha filha e ele já foi violento comigo.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "violencia-domestica"
+   ],
+   "sensivel": true,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "A violência que você sofreu foi recente ou está acontecendo agora? Você tem medo dele neste momento ou já está segura?",
+   "pergunta": "A violência que você sofreu foi recente ou está acontecendo agora? Você tem medo dele neste momento ou já está segura?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1038,
+   "tokens_saida": 66,
+   "custo": 0.0015048000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 28,
+   "relato": "Quero pensão do pai da minha filha e ele já foi violento comigo.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "violencia-domestica"
+   ],
+   "sensivel": true,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você está procurando ajuda por causa da violência que sofreu ou quer dar início a um processo novo, como a pensão?",
+   "pergunta": "Você está procurando ajuda por causa da violência que sofreu ou quer dar início a um processo novo, como a pensão?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 540,
+   "tokens_saida": 36,
+   "custo": 0.000792,
+   "erro": ""
+  },
+  {
+   "caso": 28,
+   "relato": "Quero pensão do pai da minha filha e ele já foi violento comigo.",
+   "opcoes": [
+    "iniciar-novo-processo",
+    "violencia-domestica"
+   ],
+   "sensivel": true,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer resolver algo como pensão ou guarda, ou precisa de proteção porque está em risco por causa de violência?",
+   "pergunta": "Você quer resolver algo como pensão ou guarda, ou precisa de proteção porque está em risco por causa de violência?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 627,
+   "tokens_saida": 33,
+   "custo": 0.0008712,
+   "erro": ""
+  },
+  {
+   "caso": 29,
+   "relato": "O remédio da minha avó acabou no posto e o plano também não cobre.",
+   "opcoes": [
+    "questoes-de-saude",
+    "problemas-plano-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "A dificuldade é conseguir o remédio (que acabou no posto) ou é com o plano que não quer cobrir?",
+   "pergunta": "A dificuldade é conseguir o remédio (que acabou no posto) ou é com o plano que não quer cobrir?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": false
+   },
+   "tokens_entrada": 1173,
+   "tokens_saida": 65,
+   "custo": 0.0016478000000000003,
+   "erro": ""
+  },
+  {
+   "caso": 29,
+   "relato": "O remédio da minha avó acabou no posto e o plano também não cobre.",
+   "opcoes": [
+    "questoes-de-saude",
+    "problemas-plano-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você precisa de ajuda pra conseguir o remédio pelo SUS ou pelo plano de saúde?",
+   "pergunta": "Você precisa de ajuda pra conseguir o remédio pelo SUS ou pelo plano de saúde?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 655,
+   "tokens_saida": 26,
+   "custo": 0.0008635000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 29,
+   "relato": "O remédio da minha avó acabou no posto e o plano também não cobre.",
+   "opcoes": [
+    "questoes-de-saude",
+    "problemas-plano-de-saude"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você precisa de ajuda com o remédio que acabou no posto, ou com o plano de saúde que não cobre? 😊",
+   "pergunta": "Você precisa de ajuda com o remédio que acabou no posto, ou com o plano de saúde que não cobre? 😊",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 742,
+   "tokens_saida": 36,
+   "custo": 0.0010142,
+   "erro": ""
+  },
+  {
+   "caso": 30,
+   "relato": "Quero cancelar o atendimento de amanhã e saber se meu processo andou.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "haiku",
+   "passada": 2,
+   "pergunta_bruta": "Você quer cancelar um atendimento que já marcou, ou quer saber como está seu processo no juiz?",
+   "pergunta": "Você quer cancelar um atendimento que já marcou, ou quer saber como está seu processo no juiz?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 1001,
+   "tokens_saida": 61,
+   "custo": 0.0014366000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 30,
+   "relato": "Quero cancelar o atendimento de amanhã e saber se meu processo andou.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen",
+   "passada": 2,
+   "pergunta_bruta": "Você quer cancelar ou alterar um agendamento marcado, ou está querendo saber o que aconteceu no seu processo?",
+   "pergunta": "Você quer cancelar ou alterar um agendamento marcado, ou está querendo saber o que aconteceu no seu processo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 506,
+   "tokens_saida": 34,
+   "custo": 0.0007436000000000001,
+   "erro": ""
+  },
+  {
+   "caso": 30,
+   "relato": "Quero cancelar o atendimento de amanhã e saber se meu processo andou.",
+   "opcoes": [
+    "ver-meus-agendamentos",
+    "ver-andamento-do-processo"
+   ],
+   "sensivel": false,
+   "versao": "qwen_tom",
+   "passada": 2,
+   "pergunta_bruta": "Você quer cancelar um atendimento marcado ou saber o que está acontecendo com o seu processo?",
+   "pergunta": "Você quer cancelar um atendimento marcado ou saber o que está acontecendo com o seu processo?",
+   "regras": {
+    "termina_em_pergunta": true,
+    "ate_25_palavras": true,
+    "sem_termo_tecnico": true,
+    "oferece_as_alternativas": true,
+    "sem_emoji_no_tema_sensivel": true,
+    "tem_acolhimento": true
+   },
+   "tokens_entrada": 593,
+   "tokens_saida": 29,
+   "custo": 0.0008118000000000001,
+   "erro": ""
+  }
+ ]
+}

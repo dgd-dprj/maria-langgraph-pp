@@ -25,6 +25,15 @@ Erro com status que tem schema na rota sai `{}` (o Fastify serializa o objeto
 Error pelo schema, e nenhuma propriedade declarada existe nele); sem schema, sai
 o corpo padrão do Fastify. Erro 4xx é registrado em nível info com `res` e
 `err`; 5xx, em nível error com `req`, `res` e `err`.
+
+Duas mudanças de contrato saíram dessa régua (decisão da Nicole, 2026-11-18, um PR só):
+
+- #211: o 400 de validação e de leitura do corpo, nas rotas que declaram o 400
+  (`{"erro": …}`), traz o motivo em português, no formato dos erros de negócio:
+  `{"erro": "flowId com formato inválido (esperado um UUID)"}`. O status continua 400.
+- #210: o 500 não devolve mais o texto da exceção. O corpo mantém `statusCode`,
+  `error` e `message` (agora um texto fixo) e ganha o `reqId` da requisição, o
+  mesmo da linha de log que guarda a exceção e a stack.
 """
 
 from __future__ import annotations
@@ -61,6 +70,16 @@ _RAZAO = {
     413: "Payload Too Large",
     415: "Unsupported Media Type",
     500: "Internal Server Error",
+}
+
+# #210: o texto fixo do 500. A exceção fica só no log, achada pelo `reqId` que vai junto no corpo.
+MENSAGEM_500 = "Erro interno. Informe o reqId à equipe da Maria."
+
+# #211: o motivo, em português, dos 400 de leitura do corpo (FastifyError).
+_MOTIVO_400_FASTIFY = {
+    "FST_ERR_CTP_EMPTY_JSON_BODY": "corpo vazio, mas o content-type é application/json",
+    "FST_ERR_CTP_INVALID_JSON_BODY": "JSON inválido no corpo",
+    "FST_ERR_CTP_INVALID_CONTENT_LENGTH": "o tamanho do corpo não bate com o Content-Length (o corpo precisa estar em UTF-8)",
 }
 
 
@@ -130,6 +149,8 @@ class Rota:
     caminho: str
     handler: Handler
     protegida: bool = True
+    # Qual chave autentica a rota: "api" é a `API_KEY` da Tykhe; outra (ex.: "versoes", #547) tem Bearer próprio.
+    chave: str = "api"
     corpo: Schema | None = None
     respostas: dict[int, Schema] = field(default_factory=dict)
     # Metadados para o /docs (OpenAPI).
@@ -399,6 +420,24 @@ def _pilha(erro: BaseException) -> str:
     return "".join(traceback.format_exception(erro)).rstrip("\n")
 
 
+def motivo_400(erro: BaseException) -> str:
+    """#211: o motivo de um 400 de validação ou de leitura do corpo, em português curto, sem o valor recebido."""
+    if isinstance(erro, ErroValidacao):
+        validacao = erro.validacao
+        campo = str(validacao["instancePath"]).lstrip("/")
+        parametros = validacao["params"] if isinstance(validacao["params"], dict) else {}
+        if not campo:
+            return "o corpo precisa ser um objeto JSON"
+        if validacao["keyword"] == "format":
+            esperado = " (esperado um UUID)" if parametros.get("format") == "uuid" else ""
+            return f"{campo} com formato inválido{esperado}"
+        tipo = parametros.get("type")
+        return f"{campo} precisa ser texto" if tipo == "string" else f"{campo} precisa ser um objeto"
+    if isinstance(erro, ErroFastify):
+        return _MOTIVO_400_FASTIFY.get(erro.codigo, "requisição inválida")
+    return "requisição inválida"
+
+
 def _err_log(erro: BaseException) -> dict[str, Any]:
     if isinstance(erro, ErroValidacao):
         return {
@@ -429,7 +468,14 @@ def _err_log(erro: BaseException) -> dict[str, Any]:
 class PipelineFastify:
     """Middleware ASGI. Caminhos em `delegados` (o /docs) vão ao app de baixo."""
 
-    def __init__(self, app: ASGIApp, rotas: Iterable[Rota], chave_api: str, delegados: tuple[str, ...] = ("/docs",)) -> None:
+    def __init__(
+        self,
+        app: ASGIApp,
+        rotas: Iterable[Rota],
+        chave_api: str,
+        delegados: tuple[str, ...] = ("/docs",),
+        chaves_extras: dict[str, str] | None = None,
+    ) -> None:
         self.app = app
         lista = list(rotas)
         self.rotas = {(r.metodo, r.caminho): r for r in lista if ":" not in r.caminho}
@@ -442,6 +488,7 @@ class PipelineFastify:
         # Métodos com alguma rota: para os outros, o find-my-way nem olha a URL.
         self.metodos = {r.metodo for r in lista}
         self.chave_api = chave_api.encode()
+        self.chaves_extras = {nome: valor.encode() for nome, valor in (chaves_extras or {}).items()}
         self.delegados = delegados
 
     def _casar(self, metodo: str, caminho: str, decodificar_param: bool) -> tuple[Rota | None, dict[str, str], bool]:
@@ -560,7 +607,9 @@ class PipelineFastify:
         self, rota: Rota, entrada: _Entrada, receive: Receive, log: LogRequisicao, req_log: dict[str, Any]
     ) -> tuple[int, str, dict[str, str], str | None]:
         if rota.protegida:
-            falha = _autenticar(entrada.cabecalhos, self.chave_api)
+            falha = _autenticar(
+                entrada.cabecalhos, self.chaves_extras.get(rota.chave, self.chave_api) if rota.chave != "api" else self.chave_api
+            )
             if falha is not None:
                 return 401, json.dumps({"error": falha}, separators=(",", ":")), {}, CONTENT_TYPE_JSON
         try:
@@ -588,14 +637,23 @@ class PipelineFastify:
                 log.error(str(erro), req=req_log, res={"statusCode": status}, err=_err_log(erro))
             else:
                 log.info(str(erro), res={"statusCode": status}, err=_err_log(erro))
-            return status, self._corpo_erro(rota, status, erro), {}, CONTENT_TYPE_JSON
+            return status, self._corpo_erro(rota, status, erro, log.req_id), {}, CONTENT_TYPE_JSON
         except Exception as erro:
-            # O tratador de erro padrão do Fastify pega qualquer exceção: 500.
+            # O tratador de erro padrão do Fastify pega qualquer exceção: 500. A exceção e a stack vão para esta
+            # linha de log, com o `reqId` da requisição; o corpo leva só o `reqId` (#210).
             log.error(str(erro), req=req_log, res={"statusCode": 500}, err=_err_log(erro))
-            return 500, self._corpo_erro(rota, 500, erro), {}, CONTENT_TYPE_JSON
+            return 500, self._corpo_erro(rota, 500, erro, log.req_id), {}, CONTENT_TYPE_JSON
 
     @staticmethod
-    def _corpo_erro(rota: Rota, status: int, erro: BaseException) -> str:
+    def _corpo_erro(rota: Rota, status: int, erro: BaseException, req_id: str) -> str:
+        if status >= 500:
+            # #210: o formato do Fastify, sem o texto da exceção, e o `reqId` para achar a linha do log.
+            razao = _RAZAO.get(status, "Internal Server Error")
+            corpo_500 = {"statusCode": status, "error": razao, "message": MENSAGEM_500, "reqId": req_id}
+            return json.dumps(corpo_500, ensure_ascii=False, separators=(",", ":"))
+        if status == 400 and status in rota.respostas:
+            # #211: o motivo no formato dos erros de negócio (`{"erro": …}`), em vez do `{}` do Fastify.
+            return json.dumps({"erro": motivo_400(erro)}, ensure_ascii=False, separators=(",", ":"))
         if status in rota.respostas:
             return "{}"
         corpo: dict[str, Any] = {"statusCode": status}

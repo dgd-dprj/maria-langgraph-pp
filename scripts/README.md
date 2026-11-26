@@ -9,10 +9,7 @@ uv run python scripts/coletar_arvore_perguntas_verde.py
 uv run python scripts/seed_fluxos_planejados.py
 ```
 
-> **Efeito ao iniciar, herdado de develop (#255).** Esses dois scripts inicializam o checkpointer do LangGraph antes de qualquer outra coisa, como a importação dos fluxos fazia em develop:
-> - sem `DATABASE_URL`, a primeira linha da saída é um aviso em JSON (`[checkpoint] DATABASE_URL ausente — usando MemorySaver`);
-> - com `DATABASE_URL`, o script **cria as tabelas de checkpoint** (no schema `checkpoint_py`) no banco de destino;
-> - com o banco inalcançável, o script morre com a pilha do psycopg, **sem** a mensagem `seed falhou:`/`crawl falhou:`. No Windows, o libpq não percebe a conexão recusada e pode ficar esperando sem limite: confira o `DATABASE_URL` antes.
+> **Sem checkpointer (#255, decisão da Nicole, 2026-11-17).** Os dois scripts não inicializam mais o checkpointer do LangGraph, como a importação dos fluxos fazia em develop: não criam tabelas de checkpoint, a saída não tem o aviso do MemorySaver, e qualquer falha (inclusive o banco inalcançável) sai com a mensagem seed falhou: ou crawl falhou: e código 1. No Windows, o libpq não percebe a conexão recusada e pode ficar esperando sem limite: confira o DATABASE_URL antes.
 
 ## `coletar_arvore_perguntas_verde.py` (issue #20)
 
@@ -21,7 +18,7 @@ Varre a árvore de perguntas/assuntos do Verde (`GET /integra/assunto/consultar-
 - **Quando rodar**: sob demanda, se a árvore de assuntos do Verde mudar (é a única forma de refrescar `perguntas`/`assuntos_verde`).
 - **Não incremental** — recrawleia (limpa e reinsere) cada `flowId` visitado a cada rodada.
 - **Precisa**: `DATABASE_URL` + `VERDE_JWT_TOKEN`/`VERDE_CLIENT_ID` reais no `.env` — sem modo mock, é coleta de dado real.
-- **Atenção (#251)**: a categoria é apagada antes de ser varrida, sem transação. Se o Verde falhar no meio, ela fica com a árvore parcial ou vazia, e o script **sai com código 0** mesmo assim. Leia o resumo final: "N falha(s)" e a lista de categorias com falha. Cada chamada ao Verde tem prazo de 20 s, como no script de develop (o serviço usa 30 s, #196).
+- **Troca numa transação (#251, decisão da Nicole, 2026-11-18)**: cada categoria é varrida em memória, sem tocar no banco. No fim, as categorias que deram certo trocam de árvore numa transação só. Uma categoria que falhou **fica com a árvore anterior**, aparece no resumo ("categorias com falha (a árvore anterior foi mantida): …"), e o script **sai com código 1**. Se a própria troca falhar no banco, nenhuma árvore muda, e a saída é crawl falhou:. **Data da última coleta (#526):** a troca grava, na mesma transação, a data da última coleta bem-sucedida de cada categoria (tabela `coletas_arvore`), e o resumo mostra essa data para cada categoria que falhou ("categoria b (última coleta em 02/11/2026, há 16 dias)" ou "nunca coletada com sucesso"). Assim, uma categoria que falha em toda execução não fica com a árvore antiga sem ninguém ver. O aviso de falhas seguidas fica para quando a coleta for agendada ou o catálogo passar de 15 opções. Em develop, a categoria era apagada antes da varredura e a falha saía com código 0. Cada chamada ao Verde tem prazo de 20 s, como no script de develop (o serviço usa 30 s, #196).
 
 ## `conferir_token_verde.py` (issue #298)
 
@@ -44,9 +41,13 @@ Migração **única**, já rodada — populou `fluxos_planejados` com os 74 regi
 ### Uso
 
 - **Por que ainda existe**: é a **única cópia restante** dos dados originais (nome, descrição, palavras-chave, id de categoria do Verde, mensagem fixa) — sem ela, recriar `fluxos_planejados` do zero (banco novo, recuperação de desastre) não teria fonte.
-- **Os dados** ficam em `scripts/dados/fluxos_planejados.json`, transcritos do seed de develop @ `1157a6d`. O teste `tests/scripts/test_seed_extracao.py` confere o arquivo contra o `.ts` original, guardado byte a byte em `tests/fixtures/scripts/`. **Não edite o JSON à mão**: uma mudança de dado entra no seed de develop, e a fixture, o id do blob esperado e o JSON mudam juntos.
+- **Os dados** ficam em `scripts/dados/fluxos_planejados.json`, transcritos do seed de develop @ `1157a6d`. **Desde a #253, este JSON é a fonte**: uma mudança de dado entra por PR nele. A conferência contra o `.ts` de develop (o teste de extração, com a fixture e o leitor do literal; ver a spec 08) foi aposentada em 2026-11-18, no mesmo PR da decisão; `tests/scripts/test_seed_dados.py` confere o próprio arquivo (ids únicos e tipos dos campos).
 - **Precisa**: `DATABASE_URL` no ambiente/`.env`.
-- **Atenção (#253, colide com a #249)**: o seed **sobrescreve** nome, descrição, palavras-chave e `mensagem_fixa` dos 74 registros com o valor do arquivo, e grava `mensagem_fixa = NULL` nos 72 que não têm mensagem. **Uma edição feita à mão no banco some na próxima execução**, inclusive uma correção de mensagem fixa (a #249 provavelmente será resolvida assim). Rodar o seed num banco existente desfaz essas edições sem aviso. Até a #253 decidir qual é a fonte do dado, use o seed só em banco novo, ou leve a correção também para o seed.
+- **O arquivo vale (#253, decisão da Nicole, 2026-11-18).** Toda mudança de dado (nome, descrição, categoria, palavras-chave, mensagem fixa) entra **por PR** em `scripts/dados/fluxos_planejados.json`, e o seed leva ao banco. Não se edita a tabela à mão.
+  - **Antes de gravar, o seed compara o banco com o arquivo.** Se algum registro estiver diferente, ele mostra cada registro e coluna (nos textos, o valor do banco e o do arquivo; nas palavras-chave, o que entra e o que sai), **não grava nada** e sai com `seed falhou:` e código 1.
+  - **`--force`** (`uv run python scripts/seed_fluxos_planejados.py --force`) mostra a mesma diferença e sobrescreve, para quando a sobrescrita é intencional (por exemplo, depois de levar ao JSON a correção que alguém fez no banco).
+  - **A gravação é uma transação só:** entram os 74 registros, ou nenhum. Um registro que só existe no banco não é tocado e aparece num aviso.
+  - **Roda só à mão.** Nenhum deploy, subida de container ou passo de pipeline chama o seed. Por isso, a recusa com código 1 não trava nada sozinha: aparece para quem rodou.
 
 ## `logs-prod.sh`
 

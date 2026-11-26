@@ -29,6 +29,8 @@ uv sync
 
 O `uv sync` cria o ambiente em `.venv/` com as versões travadas no `uv.lock`. Se o Python 3.12 não estiver instalado, rode antes `uv python install 3.12`.
 
+**No VS Code (#412):** o editor mostra os mesmos erros de tipo que o CI. O repositório traz `.vscode/settings.json`, que desliga a checagem de tipos do Pylance (ele usa o pyright, que discorda do mypy em vários pontos), e `.vscode/extensions.json`, que recomenda a extensão do mypy (`ms-python.mypy-type-checker`). Ela usa o mypy do `.venv` e a configuração do `pyproject.toml`, como o CI. Elas valem quando `maria-langgraph-pp` é uma **pasta raiz** do VS Code. Se você trabalha numa pasta de fora com vários repositórios, não é preciso copiar nada: use um workspace com várias pastas (Arquivo > Adicionar Pasta ao Workspace… e salve o workspace fora do repositório), com `maria-langgraph-pp` como uma das pastas. As configurações do `.vscode/` dela passam a valer só para ela, e uma mudança futura chega sozinha. Aberta só como subpasta de outra pasta, as configurações dela não valem.
+
 ## 3. Configuração (`.env`)
 
 A API lê as variáveis de um arquivo `.env` na raiz do projeto. Escolha um dos dois modos abaixo.
@@ -235,7 +237,7 @@ Sobe o banco (`db`) e a API (`app`, porta 3001). A IA e o Verde ficam simulados 
 - **Banco:** `127.0.0.1:55432`, usuário, senha e banco `maria` (valores só para uso local). Serve também para `DATABASE_URL=postgresql://maria:maria@127.0.0.1:55432/maria uv run pytest -m postgres`: esses testes **apagam as tabelas de negócio**, então rode-os com o volume descartável.
 - **Zerar tudo:** `docker compose down -v` apaga o volume do banco.
 - **Bedrock real:** `AWS_PROFILE=meu-perfil docker compose -f docker-compose.yml -f docker-compose.bedrock.yml up --build` (monta `~/.aws` só para leitura).
-- **Catálogo do release (opcional):** quem tem acesso de rede ao RDS de release roda `CATALOGO_DATABASE_URL=... scripts/sincronizar_catalogo_release.sh`, que grava `docker/catalogo/catalogo-release.sql` (ignorado pelo git) só com `fluxos_planejados`, `perguntas`, `assuntos_verde` e `flow_assuntos`. Depois, `docker compose --profile catalogo up --build` carrega o arquivo quando a API já criou as tabelas; repetir não duplica. **Nunca** copie `atendimentos` nem `checkpoint_py`: têm conversas, que são dado pessoal. O seed de `fluxos_planejados` (`scripts/seed_fluxos_planejados.py`) não roda sozinho, porque sobrescreve edições manuais (#253).
+- **Catálogo do release (opcional):** quem tem acesso de rede ao RDS de release roda `CATALOGO_DATABASE_URL=... scripts/sincronizar_catalogo_release.sh`, que grava `docker/catalogo/catalogo-release.sql` (ignorado pelo git) só com `fluxos_planejados`, `perguntas`, `assuntos_verde` e `flow_assuntos`. Depois, `docker compose --profile catalogo up --build` carrega o arquivo quando a API já criou as tabelas; repetir não duplica. **Nunca** copie `atendimentos` nem `checkpoint_py`: têm conversas, que são dado pessoal. O seed de `fluxos_planejados` (`scripts/seed_fluxos_planejados.py`) não roda sozinho: é manual. Com o banco diferente do arquivo, ele mostra a diferença e não grava nada; `--force` sobrescreve (#253).
 
 ## 7. Documentação das rotas
 

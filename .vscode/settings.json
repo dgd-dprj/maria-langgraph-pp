@@ -1,0 +1,9 @@
+{
+  // #412 (decisão da Nicole, 2026-11-18): o editor acusa os mesmos erros de tipo que o CI. O CI roda o mypy em modo
+  // strict (pyproject.toml, [tool.mypy]); o Pylance usa o pyright, que discorda em vários pontos (74 erros que o mypy
+  // não acusa, contados em 2026-11-18). Por isso a checagem de tipos do Pylance fica desligada, e a extensão do mypy
+  // mostra os erros, com o mypy do próprio ambiente do projeto e a configuração do pyproject.toml.
+  "python.analysis.typeCheckingMode": "off",
+  "mypy-type-checker.importStrategy": "fromEnvironment",
+  "mypy-type-checker.reportingScope": "file"
+}

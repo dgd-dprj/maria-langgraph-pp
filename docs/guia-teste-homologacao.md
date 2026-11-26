@@ -25,6 +25,14 @@ Neste guia, "WhatsApp" é o número de teste da Maria, e "Tykhe" é o fluxo da T
 
 **O foco do teste é o ambiente, e não a tradução.** Leia a seção 1 antes de começar: ela diz o que já foi conferido e onde vale olhar.
 
+> **O que o QA automático já confere (desde 2026-11-17, #502).** Depois de cada publicação do release a partir da `staging`, o QA da staging roda sozinho no GitHub Actions e comenta o resumo no último PR que entrou na `staging`:
+> - a publicação é do commit atual da `staging`, e o release responde (`/health` e `/docs`);
+> - o orquestrador com vários assuntos, a ordem, os assuntos em aberto e o encerrar;
+> - o CPF recusado antes do Verde (#497);
+> - nenhum erro no log do release durante o teste.
+>
+> **Continua com a equipe:** os fluxos que consultam pessoa no Verde (pessoa presa até o fim, violência doméstica e plano de saúde) e o fim da conversa depois deles. O QA nunca procura RG nem CPF no Verde de homologação, porque ele tem cópia de dados reais. Se o comentário do QA disser que algo falhou, a subida para a `main` espera a correção.
+
 ## 1. O que já foi conferido e o que falta
 
 ### Já conferido: a lógica dos dois fluxos
@@ -91,6 +99,8 @@ Para cada caso, anote o horário de início e fim (com minutos) e o canal (Whats
 6. "Confirma que seus dados são…?" → **Sim**.
 
 **Esperado:** uma mensagem de encaminhamento com o **nome de um órgão** e um **número de protocolo**.
+- **Depois da #393 (item 3, 2026-11-17):** a mensagem **não mostra mais o município** do órgão, só o nome dele (por exemplo, "Vou encaminhar seu caso para <órgão>. Protocolo: …").
+- **Antes:** o município aparecia entre parênteses depois do nome do órgão.
 
 Repita com um **CPF que já existe** na homologação, se houver. A Maria deve pedir a confirmação do nome e seguir sem cadastro. Isso vale para o CPF digitado na conversa; se a Tykhe já mandou o CPF, não há confirmação (#236).
 - **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Confirma que seus dados são: Maria S. S.?"). Se o cadastro tiver nome social, é ele que aparece, também mascarado.
@@ -104,7 +114,7 @@ Repita com um **CPF que já existe** na homologação, se houver. A Maria deve p
 1. Relato livre sobre um familiar preso (inventado).
 2. Número do processo → **Sim** e um número de teste (SEEU, se houver), ou **Não**.
 3. RG da pessoa presa → o **RG de teste**.
-4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #393:** o nome vem **mascarado**, só com o primeiro nome e as iniciais dos outros (por exemplo, "Jose S. P."). **Antes da #393:** o nome completo.
+4. "Confirma que a pessoa presa é <nome>?" → **Sim**. **Depois da #551:** o nome vem **completo** (a #393 o mascarava, só com o primeiro nome e as iniciais). A confirmação do CPF do assistido continua mascarada.
 5. Parentesco → por exemplo, "sou a mãe". **Depois da #438, o relato do passo 1 conta:**
    - **com o parentesco no relato** ("meu primo foi preso", "meu avô foi preso", "sou a mãe dele"), a Maria **não pergunta**;
    - **"meu filho foi preso":** ela pergunta só "Você é a mãe ou o pai dele?";
@@ -175,7 +185,7 @@ O fluxo de problemas com plano de saúde é o primeiro **fluxo em teste**. Ele f
 
 | Caminho | Mensagem final |
 |---|---|
-| Para você, com as fotos, tudo confirmado | "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você." |
+| Para você, com as fotos, tudo confirmado | "Seu atendimento foi registrado e entraremos em contato o mais breve possível." |
 | Para outra pessoa (desde 2026-11-06, #433) | A Maria pede o CPF da pessoa atendida, busca os dados dela no Verde e segue com as imagens, a situação, a renda, o resumo (com os dados dela) e a confirmação. **Desde a #444**, o e-mail ao NUDECON traz também "Solicitante - Nome" e "Solicitante - CPF" (quem pediu); o resumo não os mostra. **Desde a #446**, se o Verde não tem cadastro desse CPF (404), a Maria pede os dados dela (nome, nascimento, estado civil, profissão, RG, endereço, telefone, WhatsApp, e-mail e o parentesco com quem fala) e segue o mesmo fluxo; o resumo e o e-mail dizem "dados informados, sem cadastro no Verde". **Desde a #448**, a resposta traz `dadosColetados.solicitante` (nome e CPF de quem fala) e `dadosColetados.outraPessoa` (os dados dela e `origem`); confira que o CPF de quem fala não é o da pessoa atendida. Para testar: `52998224725` existe no Verde de homologação; um CPF válido sem cadastro (por exemplo `39053344705`) cai na coleta; um CPF com dígito errado (`11111111111`) o Verde recusa com 400 e a Maria repete a pergunta. CPF com formato errado ou recusado 3 vezes, ou Verde fora do ar, levam à equipe |
 | CEP de outro município ou sem CEP (desde 2026-11-06, #439) | Nada muda: o fluxo segue como para qualquer pessoa, sem unidade e sem handoff por município; o endereço aparece no resumo |
 
@@ -265,6 +275,7 @@ Fase 1b do multi-fluxo (decisões da Nicole de 2026-11-09 e 2026-11-10). **Na pr
 | Pessoa presa, RG com letra (ex.: `12a`) | **Desde a #394:** "Não consegui ler esse RG (tentativa 1 de 3). Escreva só os números do RG da pessoa presa, sem letras. Por exemplo: 123456789.", depois "tentativa 2 de 3"; na 3ª recusa, a conversa vai para o atendimento humano (`motivoHandoff: rg_formato_invalido`), sem consultar o Verde |
 | Pessoa presa, um CPF na pergunta do RG (ex.: `123.456.789-09`, fictício) | **Desde a #497:** "Esse número parece um CPF. Preciso do RG da pessoa presa: o número da identidade dela (tentativa 1 de 3). Pode escrever só os números ou com pontos e traço.", sem consultar o Verde. Conta junto com as recusas da #394: na 3ª, `rg_formato_invalido`. Um RG de 11 dígitos que não fecha a conta do CPF (ex.: `11111111111`) segue para o Verde como antes |
 | CPF com a conta dos dígitos verificadores errada (ex.: `123.456.789-00`) | **Desde a #497:** "Esse CPF não está certo. Confira os 11 números e escreva de novo." (no plano de saúde, para outra pessoa: "…do CPF da pessoa que será atendida…"), sem consultar o Verde. Conta como uma das 3 tentativas. O CPF que a Tykhe manda em `dadosConhecidos` não passa pela conta |
+| Relato vago entre duas opções, no release (o Qwen), por exemplo "Meu ex não paga a pensão e ainda me ameaça" | **Desde a #508:** a pergunta de esclarecimento é acolhedora e curta (cerca de 20 palavras), trata a pessoa por "você", cita as duas opções ("…ou…?") e não usa termo técnico. Pode vir com um emoji discreto, **nunca** quando uma das opções é violência doméstica ou pessoa presa. Na produção (o Haiku, na Virgínia), nada muda |
 
 ## 4. Como reconhecer uma falha do ambiente
 

@@ -30,6 +30,10 @@ ENV APP_ENV=production \
     PYTHONUNBUFFERED=1 \
     PATH="/app/.venv/bin:$PATH"
 COPY --from=build /app/.venv ./.venv
+# #542: metadados da versão (commit, PRs, solicitante, resumo), em JSON, gravados pela esteira no deploy. Vazio no build
+# local. A Maria lê este arquivo no startup para registrar a versão dos fluxos. Não é segredo.
+ARG VERSAO_META=""
+RUN printf '%s' "$VERSAO_META" > /app/versao-meta.json
 EXPOSE 3001
 # Um único processo (sem --workers): a ponte do WhatsApp guarda estado em memória.
 CMD ["python", "-m", "maria.main"]

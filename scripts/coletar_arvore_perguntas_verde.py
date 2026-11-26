@@ -10,8 +10,10 @@ Uso: `uv run python scripts/coletar_arvore_perguntas_verde.py` (precisa de
 DATABASE_URL e de VERDE_JWT_TOKEN/VERDE_CLIENT_ID reais no .env; sem modo mock,
 é um script de coleta de dado real, não faz sentido rodar contra dado inventado).
 
-Reproduz develop, inclusive o achado #251: a categoria é apagada antes de varrer,
-sem transação, e uma falha no meio sai com código 0.
+#251 (decisão da Nicole, 2026-11-18): cada categoria é varrida em memória, sem tocar no
+banco. No fim, as categorias que deram certo trocam de árvore numa transação só. Uma
+categoria que falhou fica com a árvore anterior, e o script sai com código 1. Em
+develop, a categoria era apagada antes da varredura, e a falha saía com código 0.
 """
 
 import asyncio
@@ -21,6 +23,7 @@ import sys
 import traceback
 import uuid
 from dataclasses import dataclass
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any, cast
 
 import httpx
@@ -38,9 +41,15 @@ from maria.shared._js import (
     trim_js,
     verdadeiro,
 )
-from maria.shared.checkpointer import fechar_checkpointer, inicializar_checkpointer
 from maria.shared.fluxos_planejados_db import fechar_fluxos_planejados_store, listar_fluxos_planejados
-from maria.shared.perguntas_db import AssuntoVerde, PerguntaArvore, fechar_perguntas_store, obter_perguntas_store
+from maria.shared.perguntas_db import (
+    ArvoreColetada,
+    AssuntoVerde,
+    FlowAssunto,
+    PerguntaArvore,
+    fechar_perguntas_store,
+    obter_perguntas_store,
+)
 
 VERDE_API_URL_PADRAO = "https://homologacao.verde.rj.def.br/api/integra"
 
@@ -145,11 +154,11 @@ def _tamanho_zero(valor: Any) -> bool:
     return isinstance(valor, list | str) and len(valor) == 0
 
 
-async def crawlear_flow(
+async def varrer_flow(
     cliente: httpx.AsyncClient, config: ConfigVerde, flow_id: str, id_categoria_assunto_verde: int, nome: str
-) -> tuple[int, int]:
-    store = await obter_perguntas_store()
-    await store.limpar_flow(flow_id)
+) -> ArvoreColetada:
+    """Varre a árvore da categoria no Verde e devolve tudo em memória, sem tocar no banco (#251)."""
+    arvore: ArvoreColetada = {"flowId": flow_id, "perguntas": [], "assuntos": [], "ligacoes": []}
 
     ordem = 0
     total_perguntas = 0
@@ -182,15 +191,14 @@ async def crawlear_flow(
             # Detalhe do assunto é upsert por idAssunto (compartilhado entre
             # categorias); a ligação flow→assunto é sempre uma linha NOVA, mesmo
             # quando o idAssunto já existia de outra categoria.
-            await store.inserir_assunto(cast(AssuntoVerde, assunto))
-            await store.inserir_flow_assunto(
-                {
-                    "id": str(uuid.uuid4()),
-                    "flowId": flow_id,
-                    "idAssunto": id_assunto,
-                    "veioDaRespostaId": None if veio_da_resposta_id is AUSENTE else veio_da_resposta_id,
-                }
-            )
+            arvore["assuntos"].append(cast(AssuntoVerde, assunto))
+            ligacao: FlowAssunto = {
+                "id": str(uuid.uuid4()),
+                "flowId": flow_id,
+                "idAssunto": id_assunto,
+                "veioDaRespostaId": None if veio_da_resposta_id is AUSENTE else veio_da_resposta_id,
+            }
+            arvore["ligacoes"].append(ligacao)
             total_assuntos += 1
             return
 
@@ -214,7 +222,7 @@ async def crawlear_flow(
             "ordem": ordem,
         }
         ordem += 1
-        await store.inserir_pergunta(cast(PerguntaArvore, linha))
+        arvore["perguntas"].append(cast(PerguntaArvore, linha))
         total_perguntas += 1
 
         for resposta in respostas:
@@ -223,10 +231,11 @@ async def crawlear_flow(
 
     await visitar({"idCategoria": id_categoria_assunto_verde}, None, 0)
     print(f"[{nome}] {total_perguntas} pergunta(s), {total_assuntos} assunto(s)")
-    return total_perguntas, total_assuntos
+    return arvore
 
 
-async def coletar(cliente: httpx.AsyncClient, config: ConfigVerde) -> None:
+async def coletar(cliente: httpx.AsyncClient, config: ConfigVerde) -> int:
+    """Varre todas as categorias e troca as árvores das que deram certo numa transação só. Devolve o número de falhas."""
     alvos: list[tuple[str, int, str]] = []
 
     # Único fluxo IMPLEMENTADO com categoria do Verde equivalente; pessoa presa
@@ -241,27 +250,55 @@ async def coletar(cliente: httpx.AsyncClient, config: ConfigVerde) -> None:
     print(f"crawl iniciado — {len(alvos)} categorias")
     total_perguntas = 0
     total_assuntos = 0
-    falhas: list[tuple[str, str]] = []
+    falhas: list[tuple[str, str, str]] = []
+    coletadas: list[ArvoreColetada] = []
 
     for flow_id, id_categoria, nome in alvos:
         try:
-            perguntas, assuntos = await crawlear_flow(cliente, config, flow_id, id_categoria, nome)
-            total_perguntas += perguntas
-            total_assuntos += assuntos
+            arvore = await varrer_flow(cliente, config, flow_id, id_categoria, nome)
         except Exception as err:
             erro = str(err)
             print(f"[{nome}] falhou: {erro}", file=sys.stderr)
-            falhas.append((nome, erro))
+            falhas.append((flow_id, nome, erro))
+            continue
+        coletadas.append(arvore)
+        total_perguntas += len(arvore["perguntas"])
+        total_assuntos += len(arvore["ligacoes"])
+
+    # Uma transação só para todas as categorias que deram certo. Se ela falhar, nenhuma árvore muda,
+    # e o erro sobe até o "crawl falhou:".
+    store = await obter_perguntas_store()
+    await store.substituir_arvores(coletadas)
 
     print(f"crawl concluído: {total_perguntas} pergunta(s), {total_assuntos} assunto(s), {len(falhas)} falha(s) em {len(alvos)} categorias")
     if falhas:
+        # #526: com a data da última coleta bem-sucedida, uma categoria que falha em toda execução não passa despercebida.
+        datas = await store.datas_das_coletas([flow_id for flow_id, _, _ in falhas])
+        agora = datetime.now(UTC)
         print(
-            "categorias com falha (revisar manualmente — pode ser categoria sem árvore no Verde):",
-            ", ".join(nome for nome, _ in falhas),
+            "categorias com falha (a árvore anterior foi mantida):",
+            ", ".join(f"{nome} ({descrever_ultima_coleta(datas.get(flow_id), agora)})" for flow_id, nome, _ in falhas),
         )
+    return len(falhas)
 
 
-async def principal() -> None:
+# As datas do resumo saem no horário de Brasília (UTC-3, sem horário de verão desde 2019).
+BRASILIA = timezone(timedelta(hours=-3))
+
+
+def descrever_ultima_coleta(quando: datetime | None, agora: datetime) -> str:
+    """#526: "última coleta em 02/11/2026, há 16 dias", ou "nunca coletada com sucesso"."""
+    if quando is None:
+        return "nunca coletada com sucesso"
+    dias = (agora - quando).days
+    data = quando.astimezone(BRASILIA).strftime("%d/%m/%Y")
+    if dias <= 0:
+        return f"última coleta em {data}, hoje"
+    return f"última coleta em {data}, há {dias} dia{'s' if dias > 1 else ''}"
+
+
+async def principal() -> int:
+    """Devolve o número de categorias que falharam."""
     config = config_do_ambiente()
     if not config.jwt_token:
         raise ErroJs("VERDE_JWT_TOKEN obrigatório — este script fala com o Verde de verdade, sem modo mock")
@@ -269,20 +306,18 @@ async def principal() -> None:
         raise ErroJs("DATABASE_URL obrigatório — sem isso o resultado do crawl não fica salvo em lugar nenhum")
     try:
         async with httpx.AsyncClient(timeout=None) as cliente:
-            await coletar(cliente, config)
+            return await coletar(cliente, config)
     finally:
         await fechar_perguntas_store()
         await fechar_fluxos_planejados_store()
 
 
 async def _executar() -> int:
-    # Em develop, importar src/fluxos/index.js já cria o checkpointer (top-level await nos
-    # grafos), antes de qualquer guarda do script: loga o aviso do MemorySaver, ou conecta o
-    # PostgresSaver e cria as tabelas de checkpoint. Uma falha aqui não passa pelo
-    # "crawl falhou:": o processo morre com a pilha e código 1 (spec 08, achado B5).
-    await inicializar_checkpointer()
+    # #255 (decisão da Nicole, 2026-11-17): a coleta não inicializa mais o checkpointer do LangGraph. Em develop
+    # (TypeScript), importar os fluxos já criava as tabelas de checkpoint e, com o banco fora, matava o processo
+    # antes do "crawl falhou:"; a tradução reproduzia isso de propósito. Agora qualquer falha passa pelo prefixo.
     try:
-        await principal()
+        falhas = await principal()
     except Exception as erro:
         # `console.error("crawl falhou:", erro)` do Node: primeira linha `<nome>: <mensagem>`,
         # seguida da pilha. A pilha é a do Python (spec 08, D-4).
@@ -290,9 +325,8 @@ async def _executar() -> int:
         print(f"crawl falhou: {nome}: {erro}", file=sys.stderr)
         traceback.print_exc(file=sys.stderr)
         return 1
-    finally:
-        await fechar_checkpointer()
-    return 0
+    # #251: categoria que falhou não passa mais como sucesso para quem roda nem para uma automação.
+    return 1 if falhas else 0
 
 
 def main() -> int:

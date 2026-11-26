@@ -24,7 +24,7 @@ import httpx
 import pytest
 
 from maria.app import criar_app
-from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, PREFIXO_STATUS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr1")
@@ -48,12 +48,11 @@ DIVERGENCIAS = {
     "orq_mensagem_null": "mensagem nula vai para outros sem IA (#303)",
     "orq_mensagem_vazio": "mensagem vazia vai para outros sem IA (#303)",
 }
-# dadosConhecidos.tokensGastos fora do formato {input, output, total} numéricos:
-# develop aceita e zera ou corrompe a contagem em silêncio (o NaN da soma vira null
-# no checkpoint JSON e depois 0; "0x0" vira 0 pelo Number()), e conclui com 200. O
-# Python lança TypeError na criação: 500, falhando mais cedo e mais alto. D-5 da
-# spec 07, divergência aceita em 2026-10-17 (mesmo molde do D-1 do fluxos). Com null, os dois lados dão 500 e só a mensagem difere (#210).
-TOKENS_500 = {
+# dadosConhecidos.tokensGastos vindo de fora. Develop aceitava e zerava ou corrompia a contagem em silêncio, e o
+# Python lançava TypeError na criação: 500 (D-5 da spec 07, divergência aceita em 2026-10-17). Desde a #240
+# (decisão da Nicole, 2026-11-17), `tokensGastos` é campo interno dos fluxos e é descartado na entrada: a criação
+# segue com 200, como sem o campo. O corpo não é comparado com develop, que devolvia a contagem corrompida.
+TOKENS_DESCARTADOS = {
     c["nome"] for c in CENARIOS if c["nome"].startswith(("dados_tokensGastos_", "dados_tokens_")) or c["nome"] == "criar_tokens_null_500"
 }
 
@@ -108,9 +107,9 @@ async def _conferir(cliente_conferencia: httpx.AsyncClient, monkeypatch: pytest.
         if nome in CLIENTE_DE_TESTE:
             continue
         do_caso = por_caso.setdefault(nome, [])
-        if nome in TOKENS_500:
-            if r.status_code != 500:
-                do_caso.append(f"{nome}: esperado 500 (D-5, divergência aceita), veio {r.status_code}")
+        if nome in TOKENS_DESCARTADOS:
+            if r.status_code != 200:
+                do_caso.append(f"{nome}: esperado 200 (#240, tokensGastos de fora descartado), veio {r.status_code}")
             continue
         obtido = (r.status_code, r.headers.get("content-type"), _norm(r.headers.get("location")), _norm(r.content.decode("utf-8")))
         esperado = (d["status"], d["contentType"], _norm(d["location"]), _norm(d["corpo"]))
@@ -118,6 +117,9 @@ async def _conferir(cliente_conferencia: httpx.AsyncClient, monkeypatch: pytest.
             if obtido == esperado:
                 do_caso.append(f"{nome}: a divergência registrada sumiu ({DIVERGENCIAS[nome]})")
             continue
+        if r.status_code != d["status"]:
+            # À parte, para valer também num caso aposentado só no corpo (`mantem_status`, #210 e #211).
+            do_caso.append(f"{PREFIXO_STATUS}{nome}: status {r.status_code} != {d['status']}")
         if obtido != esperado:
             do_caso.append(f"{nome}:\n    python:  {obtido}\n    develop: {esperado}")
     return por_caso

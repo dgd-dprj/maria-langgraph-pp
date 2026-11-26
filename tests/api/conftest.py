@@ -22,6 +22,10 @@ async def cliente(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[httpx.AsyncC
     monkeypatch.delenv("VERDE_JWT_TOKEN", raising=False)
     for variavel in ("MOCK_CLASSIFICACAO_FLOWID", "MOCK_CLASSIFICACAO_FLOWIDS", "ORQUESTRADOR_INCLUIR_PLANEJADOS", "MARIA_AMBIENTE"):
         monkeypatch.delenv(variavel, raising=False)
+    # #339: o webhook do WhatsApp só existe com o token de verificação. Os testes de rota sobem a aplicação com ele,
+    # como o release, para a ponte existir como antes; a produção sem WhatsApp tem testes próprios (test_webhook_whatsapp.py).
+    if not os.environ.get("WHATSAPP_VERIFY_TOKEN"):
+        monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "token-de-verificacao-dos-testes")
     app = criar_app(pre_aquecer=False)
     async with app.router.lifespan_context(app):
         transporte = httpx.ASGITransport(app=app, client=("127.0.0.1", 50000))

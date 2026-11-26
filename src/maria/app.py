@@ -26,7 +26,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 
-from maria.api import atendimentos, basicas, orquestrador, webhook_whatsapp
+from maria.api import atendimentos, basicas, orquestrador, versoes, webhook_whatsapp
 from maria.api.docs import registrar_docs
 from maria.api.pipeline import PipelineFastify
 from maria.fluxos import ambiente, catalogo_para_classificacao, fluxos_ligados, fluxos_por_id
@@ -38,6 +38,9 @@ from maria.shared.fluxos_planejados_db import fechar_fluxos_planejados_store, li
 from maria.shared.logger import logger
 from maria.shared.pendentes_db import fechar_pendentes_store
 from maria.shared.perguntas_db import fechar_perguntas_store, obter_perguntas_store
+from maria.shared.trava import fechar_travas
+from maria.versionamento.manifesto import montar_manifesto
+from maria.versionamento.registro import carregar_meta, registrar_versoes
 
 Inicializador = Callable[[], Awaitable[object]]
 
@@ -69,6 +72,8 @@ FINALIZADORES: tuple[Inicializador, ...] = (
     fechar_cliente_http,
     # #450: a store dos assuntos pendentes não entra no boot (só o release a usa), mas fecha junto.
     fechar_pendentes_store,
+    # #453: o pool das travas por chave (criação do atendimento, próximo assunto e ponte do WhatsApp).
+    fechar_travas,
 )
 
 
@@ -80,6 +85,22 @@ async def _pre_aquecer_catalogo() -> None:
     except Exception as erro:
         # Fire-and-forget, como o .catch de server.ts: a falha só é registrada.
         logger.error("[embeddingsFluxos] falha ao pré-aquecer catálogo no boot", err=erro)
+
+
+async def _registrar_versoes_dos_fluxos() -> None:
+    """#542: grava no Postgres a versão de cada fluxo que mudou desde o último deploy, para auditoria.
+
+    Em segundo plano, como o pré-aquecimento: não atrasa o `/health` nem derruba a subida. Sem DATABASE_URL (testes), não faz nada.
+    """
+    url = os.environ.get("DATABASE_URL")
+    if not url:
+        return
+    try:
+        manifesto = await asyncio.to_thread(montar_manifesto)
+    except Exception as erro:
+        logger.error("[versionamento] falha ao ler os fluxos para registrar a versão (a Maria segue atendendo)", err=erro)
+        return
+    await registrar_versoes(url, ambiente() or "(ausente)", manifesto, carregar_meta())
 
 
 def _registrar_fluxos_ligados() -> None:
@@ -107,13 +128,15 @@ def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO,
             await inicializar()
         _registrar_fluxos_ligados()
         aquecimento = asyncio.create_task(_pre_aquecer_catalogo()) if pre_aquecer else None
+        registro_de_versoes = asyncio.create_task(_registrar_versoes_dos_fluxos()) if pre_aquecer else None
         try:
             yield
         finally:
-            if aquecimento is not None:
-                aquecimento.cancel()
-                with contextlib.suppress(asyncio.CancelledError):
-                    await aquecimento
+            for tarefa in (aquecimento, registro_de_versoes):
+                if tarefa is not None:
+                    tarefa.cancel()
+                    with contextlib.suppress(asyncio.CancelledError):
+                        await tarefa
             for finalizar in FINALIZADORES:
                 await finalizar()
 
@@ -121,7 +144,20 @@ def criar_app(inicializadores: Sequence[Inicializador] = INICIALIZADORES_PADRAO,
     # (e do /health) ficam no PipelineFastify, com o contrato do Fastify de develop.
     # O FastAPI fica com o lifespan e o /docs (spec 07, D-3).
     app = FastAPI(lifespan=lifespan, docs_url=None, redoc_url=None, openapi_url=None)
-    rotas = [*basicas.ROTAS, *atendimentos.ROTAS, *orquestrador.ROTAS, *webhook_whatsapp.ROTAS]
+    # #339 (decisão da Nicole, 2026-11-18): o webhook do WhatsApp é público e ainda não confere a assinatura da Meta.
+    # Ele só existe onde o WhatsApp está configurado; na produção, que não tem o WhatsApp, a rota não existe (404).
+    rotas = [
+        *basicas.ROTAS,
+        *atendimentos.ROTAS,
+        *orquestrador.ROTAS,
+        *(webhook_whatsapp.ROTAS if webhook_whatsapp.ligado() else ()),
+        # #547: leitura das versões dos fluxos para o Visor, com chave própria; sem `VERSOES_API_KEY` a rota não existe (404).
+        *(versoes.ROTAS if versoes.ligado() else ()),
+    ]
     registrar_docs(app, rotas)
-    app.add_middleware(PipelineFastify, rotas=rotas, chave_api=chave_api)
+    chave_versoes = versoes.chave_configurada()
+    if chave_versoes == chave_api:
+        raise RuntimeError("VERSOES_API_KEY deve ser diferente da API_KEY (a chave da Tykhe não pode abrir a leitura das versões)")
+    chaves_extras = {versoes.CHAVE: chave_versoes} if chave_versoes else {}
+    app.add_middleware(PipelineFastify, rotas=rotas, chave_api=chave_api, chaves_extras=chaves_extras)
     return app

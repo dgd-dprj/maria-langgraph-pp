@@ -5,6 +5,7 @@ Issue #198. Canal alternativo pra testar o orquestrador com um usuário real dig
 Rota pública (fora das rotas protegidas por Bearer em `src/maria/app.py` — é a Meta quem chama, não um cliente autenticado nosso):
 
 - `GET /webhook/whatsapp` — verificação do webhook exigida pela Meta na configuração do app (responde `hub.challenge` se `hub.verify_token` bater com `WHATSAPP_VERIFY_TOKEN`, senão 403).
+- **As duas rotas só existem com `WHATSAPP_VERIFY_TOKEN` definido (#339, 2026-11-18).** Sem ele, como na produção, elas respondem 404 e nada chega ao orquestrador. O webhook ainda não confere a assinatura da Meta (`X-Hub-Signature-256`): isso entra na #339 quando o segredo do app da Meta estiver disponível.
 - `POST /webhook/whatsapp` — recebe mensagem de texto do WhatsApp Cloud API.
 
 ## Decisão de roteamento (`src/maria/api/webhook_whatsapp.py`)

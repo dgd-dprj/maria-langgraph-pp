@@ -39,6 +39,7 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 | `API_KEY` | **obrigatória** | Chave que as rotas exigem em `Authorization: Bearer <chave>`. Sem ela, a API não sobe |
 | `APP_ENV` | ausente | **Só o valor `test` muda o comportamento:** IA e embeddings simulados (nunca chama o Bedrock) e `chatId` opcional, gerado se faltar. **Qualquer outro valor, inclusive `development` e ausente, é o comportamento de produção:** IA real e `chatId` obrigatório |
 | `MARIA_AMBIENTE` | ausente | Qual é o ambiente, declarado no Terraform: `producao` no `ecs.tf` e `release` no `ecs.tf` do root de São Paulo (`infra/terraform-sp/`; #324 e #500). **Só o valor `release` exato liga os fluxos em teste** (`em_teste=True` no registro); ausente, vazia ou qualquer outro valor conta como produção. Para ver um fluxo em teste na sua máquina, ponha `MARIA_AMBIENTE=release` no `.env` |
+| `MARIA_VERSAO_META` | `/app/versao-meta.json` | Arquivo JSON com os metadados da versão (commit, tag da imagem, PRs com solicitante e resumo), gravado na imagem pela esteira de deploy (`--build-arg VERSAO_META`). No startup, a Maria o usa para registrar na tabela `fluxos_versoes` o que mudou nos fluxos (#542, [`docs/versionamento-dos-fluxos.md`](docs/versionamento-dos-fluxos.md)). Ausente ou vazio (build local): a versão é registrada sem autoria |
 | `DATABASE_URL` | ausente | Postgres com a extensão pgvector. Sem ela, checkpoints, atendimentos, perguntas, fluxos planejados e embeddings ficam em memória |
 | `AWS_REGION` | `us-east-1` | Região do Bedrock |
 | `AWS_PROFILE` | ausente | Perfil do AWS CLI usado pelo SDK para chamar o Bedrock |
@@ -58,7 +59,8 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 | `WHATSAPP_API_URL` | `https://graph.facebook.com/v21.0` | API da Meta para o bridge do WhatsApp ([`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md)) |
 | `WHATSAPP_PHONE_NUMBER_ID` | ausente | Número do WhatsApp na Meta. Sem ele (ou sem o token), o envio é simulado e só registrado no log |
 | `WHATSAPP_ACCESS_TOKEN` | ausente | Token da Meta para enviar mensagens |
-| `WHATSAPP_VERIFY_TOKEN` | ausente | Token da verificação do webhook (`GET /webhook/whatsapp`). Sem ele, a verificação sempre devolve 403 |
+| `WHATSAPP_VERIFY_TOKEN` | ausente | Token da verificação do webhook (`GET /webhook/whatsapp`). **Também liga as rotas do webhook (#339):** sem ele, `GET` e `POST /webhook/whatsapp` não existem (404), como na produção. Para testar a ponte localmente, basta defini-lo; o envio segue simulado sem `WHATSAPP_ACCESS_TOKEN` |
+| `VERSOES_API_KEY` | ausente | Bearer **próprio** da leitura das versões dos fluxos (`GET /versoes-dos-fluxos`, #547), para o Visor. Diferente da `API_KEY` da Tykhe (a subida falha se forem iguais). **Sem ela as rotas não existem (404).** Contrato em `docs/versionamento-dos-fluxos.md` |
 | `MOCK_CLASSIFICACAO_FLOWID` | ausente | Com `APP_ENV=test`, o fluxo que a classificação simulada escolhe. Sem ela, o relato vai para `outros` |
 | `MOCK_CLASSIFICACAO_FLOWIDS` | ausente | Com `APP_ENV=test`, vários ids separados por vírgula: simula um relato ambíguo (desambiguação) |
 | `MOCK_NECESSIDADES` | ausente | Com `APP_ENV=test` e `MARIA_AMBIENTE=release`, a lista (JSON) de necessidades que a classificação do multi-fluxo simulada devolve: ids ou objetos com `id`, `evidencia` e `urgente` (#435). Sem ela, vale o sentido de `MOCK_CLASSIFICACAO_FLOWID(S)` |

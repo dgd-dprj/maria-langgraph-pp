@@ -4,14 +4,18 @@ Cadastra no Verde quem não foi encontrado pelo CPF: pergunta nome e data de
 nascimento, coleta o endereço (subgrafo `coletar_endereco` embutido como nó) e
 faz o POST `/pessoa`. Quando vem do orquestrador, confirma os dados.
 
-Reproduzido de develop, com issues abertas para depois da migração:
-- o endereço coletado não volta ao pai: o `dadosPessoa` do cadastro não tem
-  `enderecoDetalhado` (#231);
+Desde a #231 (decisão da Nicole, 2026-11-18), o `dadosPessoa` de quem acabou
+de se cadastrar traz `enderecoDetalhado` com o CEP coletado, no formato do
+Verde para quem já tinha cadastro (8 dígitos, texto, sem hífen). Assim o
+`consultar_cep` da violência doméstica preenche os ids como faz para os outros.
+
+Reproduzido de develop, com issue aberta para depois da migração:
 - a soma de tokens se compõe com o subgrafo aninhado (#230).
 """
 
 from __future__ import annotations
 
+import re
 from typing import Any
 
 from langgraph.graph import END, START, StateGraph
@@ -29,6 +33,16 @@ TEXTO_NOME = "Não encontrei seu cadastro no sistema. Pra criar um novo, qual o 
 TEXTO_DATA_NASCIMENTO = "Qual a sua data de nascimento? (dd/mm/aaaa)"
 
 Atualizacao = dict[str, Any]
+
+
+def cep_do_verde(cep: Any) -> str | None:
+    """#231: o CEP digitado no formato que o Verde devolve em `enderecoDetalhado.cep` (`"25780000"`): só os 8 dígitos,
+    como texto. Fora disso (vazio, curto, longo), None, e o `enderecoDetalhado` fica de fora, como antes."""
+    if not isinstance(cep, str):
+        return None
+    # [^0-9], e não \D: em Python, \D casa dígitos Unicode como "٠".
+    digitos = re.sub(r"[^0-9]", "", cep)
+    return digitos if len(digitos) == 8 else None
 
 
 def texto_confirma_assistido(state: CadastroPessoaState) -> str:
@@ -70,16 +84,21 @@ async def cadastrar_pessoa(state: CadastroPessoaState) -> Atualizacao:
     resultado = await cadastrar_pessoa_verde(dados)
     if not resultado["sucesso"]:
         return {"cadastroErro": _js.coalesce(resultado.get("erro"), "erro desconhecido")}
-    # Mesmo formato que o identificar_assistido preenche quando encontra; sem
-    # enderecoDetalhado (#231). Objeto aninhado: undefined de develop é chave
-    # ausente, e null continua null (regra de estado, MIGRACAO.md).
+    # Mesmo formato que o identificar_assistido preenche quando encontra. Objeto
+    # aninhado: undefined de develop é chave ausente, e null continua null
+    # (regra de estado, MIGRACAO.md).
     # - idPessoa: no sucesso, o Verde sempre traz a chave; `"idPessoa": null`
     #   continua None, como o null de develop (o guarda lá é `=== undefined`).
     # - nome: develop nunca grava undefined no canal; ausência da chave é o
     #   undefined (não vai para o objeto), e None é null (vai como null).
+    # - enderecoDetalhado (#231): o CEP coletado, depois do nome, na mesma ordem
+    #   das chaves do Verde (`CHAVES_PESSOA`). O POST /pessoa acima não muda.
     dados_pessoa: dict[str, Any] = {"encontrado": True, "idPessoa": resultado.get("idPessoa")}
     if "nome" in state:
         dados_pessoa["nome"] = state["nome"]
+    cep = cep_do_verde(endereco.get("cep")) if isinstance(endereco, dict) else None
+    if cep is not None:
+        dados_pessoa["enderecoDetalhado"] = {"cep": cep}
     return {"dadosPessoa": dados_pessoa}
 
 

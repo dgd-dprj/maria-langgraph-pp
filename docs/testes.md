@@ -53,6 +53,31 @@ O `.github/workflows/ci.yml` tem três jobs:
 
 O `.github/workflows/codeql.yml` (#502) roda o CodeQL (Python e os próprios workflows, consultas `security-extended`) em todo PR, em todo push na `develop` e toda segunda-feira. Os alertas ficam em Security → Code scanning.
 
+**Depuração com IA (#503).** Quando o CI de um PR **do próprio repositório** falha, o `.github/workflows/depuracao.yml` roda o `scripts/depuracao/investigar.py`. Nunca roda para PR de fork, porque executa o código do PR com acesso à AWS.
+
+| Fase | O que a rotina faz | Usa IA? |
+|---|---|---|
+| 1 | Lê os testes e os cenários que falharam e classifica o defeito | sim (Qwen3 Coder, `sa-east-1`) |
+| 2 | Roda 3 vezes os arquivos desses testes, para separar o defeito consistente do intermitente | não |
+| 3 | Roda o `git bisect` entre a base do PR e o commit que falha | não |
+| 4 | Testa até 3 hipóteses, cada uma com um patch aplicado e conferido pelos testes | sim |
+| 5 | Roda a suíte rápida com o patch | não |
+| 6 | Abre a issue `[BUG]` com a etiqueta `depuracao-ia` e o bloco de dados do Visor | não |
+
+- **O patch** fica no artefato da execução: a rotina **não abre PR**.
+- **O teto** é de US$ 0,10 por investigação. Se for passar, a rotina para e menciona a Nicole e o Ícaro.
+- **A issue pública** leva os nomes dos testes, os commits e as hipóteses, nunca a saída do CI.
+- **Os testes da rotina** (`tests/scripts/test_depuracao.py`) simulam a IA, o git e o pytest, sem gasto.
+- **Para validar na máquina:** `uv run python scripts/depuracao/investigar.py --log <saída do pytest> --base <commit bom> --head <commit que falha> --sem-issue`. Essa validação chama o Bedrock e custa cerca de US$ 0,01.
+
+**QA da staging (#502, parte C).** Depois de cada "Deploy — release (homolog)" da `staging` que termina bem, o `.github/workflows/qa-staging.yml` roda o `scripts/qa/qa_staging.py` contra o release de São Paulo e comenta o resumo no último PR que entrou na `staging`.
+
+- **O que confere:** a publicação é do commit atual da `staging`; o `/health` e o `/docs`; os fluxos que não consultam pessoa no Verde (orquestrador, ordem, assuntos em aberto, a recusa do CPF antes do Verde); e nenhum erro de nível 50 no log do release durante o teste.
+- **O que não confere:** os fluxos que consultam pessoa no Verde, porque a homologação tem cópia de dados reais. Isso fica para o teste da equipe.
+- **Teto de IA:** US$ 0,10 por rodada. Se passar, o QA para e o comentário menciona a Nicole e o Ícaro.
+- **Precisa do segredo `RELEASE_API_KEY`** no repositório (a chave da API do release). Sem ele, o QA não roda e o comentário diz o que falta. A AWS só é lida, pelo papel do repositório.
+- **Na máquina:** `uv run python -X utf8 scripts/qa/qa_staging.py` (a chave vem do Secrets Manager, pela sua credencial).
+
 **Rodar o ponta a ponta na sua máquina** (Docker; nada sai dela):
 
 ```sh

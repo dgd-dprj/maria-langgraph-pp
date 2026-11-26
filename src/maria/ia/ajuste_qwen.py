@@ -16,7 +16,7 @@ import os
 
 SUFIXO_NECESSIDADES = """
 Conferência final antes de responder (vale para qualquer assunto):
-- Cada necessidade precisa de um PEDIDO da pessoa. Fato citado sem pedido (alguém doente, desempregado, preso, morando longe) é só contexto e não vira necessidade, a menos que a pessoa peça algo sobre esse fato.
+- Cada necessidade precisa de um PEDIDO da pessoa. Fato citado sem pedido (alguém doente, desempregado, preso, morando longe) é só contexto e não vira necessidade, a menos que a pessoa peça algo sobre esse fato. Mensagem que é só o nome do assunto, sem mais nada ("preso", "cadeia", "pensão"), já é o pedido sobre ele.
 - Se "quantidade" for "uma" ou "mais_de_uma", a lista "necessidades" não pode ficar vazia. Confira cada assunto do relato contra o catálogo, um por um, e inclua todos os que cabem em algum id.
 - Quando a informação que decide entre dois ids do catálogo não está no relato, marque "haAmbiguidade" como true e liste os dois ids em "idsEmAmbiguidade", em vez de escolher um sozinho. Exemplo de outro assunto: pedido de pensão sem dizer se é para filho ou para ex-cônjuge é dúvida entre os dois ids de pensão, e não a escolha de um deles.
 - Quando o relato já traz a informação que decide, escolha só o id que cobre o caso e não acrescente outros por garantia."""  # noqa: E501
@@ -30,6 +30,12 @@ Como decidir (vale para qualquer assunto):
 
 SUFIXO_DESAMBIGUAR = """
 Na pergunta, cite as opções em dúvida pelo que as separa, de forma neutra e na mesma pergunta (por exemplo: "pelo plano de saúde ou pelo SUS?", "você já tem um processo ou quer abrir um novo?"). Não pergunte só sobre uma das opções."""  # noqa: E501
+
+# #508 (decisões da Nicole, 2026-11-16): o Qwen vai ser a IA de frente e deve ser simpático com a pessoa atendida.
+# Por enquanto, só na pergunta de desambiguação. Emoji permitido, nunca nos temas sensíveis; além da regra, o
+# código tira o emoji da pergunta quando uma das opções é violência doméstica ou pessoa presa (desambiguar.py).
+SUFIXO_TOM_DESAMBIGUAR = """
+Tom: acolhedor, simples e gentil, como quem atende bem no balcão da Defensoria. Frases curtas, palavras do dia a dia, trate a pessoa por "você", sem termo jurídico. Pode usar um emoji discreto, menos quando uma das opções for violência doméstica ou pessoa presa: nesses casos, nenhum emoji."""  # noqa: E501
 
 # #212 (decisão da Nicole, 2026-11-12): o parentesco só da lista, sem inventar. Medido na comparação da #472, com 53
 # respostas no formato das da produção (1 a 4 palavras): o VL 235B foi de 48 para 60 de 61 (8 delas fora dos exemplos

@@ -24,7 +24,7 @@ O código TypeScript não foi copiado nem convive com o Python. Ele continua em 
 |---|---|---|
 | 1 | #316 | Prazo: a próxima renovação automática do token de produção, em 2026-10-25, ~13:27. É a causa do incidente de 22 e 23/10 (#308). **Feita em 2026-10-23** (PR #318, `fc345df`) |
 | 2 | #239 e #232 | O mesmo padrão do incidente: falha de infraestrutura (Verde, CEP) vira resposta de negócio para a pessoa |
-| 3 | #220 | Corpo da resposta do Verde no log, com dado pessoal. Falta a medição |
+| 3 | #220 | Corpo da resposta do Verde no log, com dado pessoal. **2026-11-18 (decisão da Nicole): o log do cadastro e do encaminhamento passa a ter só o status HTTP e o `codigo` do erro.** Faltam a conferência dos logs já gravados (30 dias) e a decisão sobre a mensagem do Verde que o cadastro devolve à pessoa |
 | 4 | #212 | Validação da saída da IA e lista de parentescos |
 | 5 | #210, #211, #231 e #280 | Mudam o que a Tykhe recebe |
 | 6 | #230 | Contagem de tokens. Falta a medição |
@@ -76,6 +76,14 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - As frases novas vão para a revisão da equipe, e o guia de teste foi atualizado.
 - Em aberto: a rota de atendimento online do Verde.
 
+**#508 (decisões da Nicole, 2026-11-16 e 17): o Qwen simpático na pergunta de desambiguação, com o tom medido na produção.**
+- **Por quê:** o Qwen vai ser a IA de frente, no lugar do Haiku, e respondia de forma literal ("ok", no teste do Actions).
+- **Onde:** só na pergunta de desambiguação, e só com o Qwen. A reescrita das perguntas segue desligada desde 31/08. Com o Haiku, o prompt fica idêntico.
+- **Emoji:** permitido, nunca em violência doméstica nem pessoa presa. Além da regra no prompt, o código tira o emoji nesses casos.
+- **Comparação** (aprovada, US$ 0,1922; 30 relatos inventados × 3 versões × 2 passadas): acolhimento em 59 de 60 no Qwen com o tom, contra 51 do Haiku e 54 do Qwen sem o tom, com 18,8 palavras em média.
+- **Tom de verdade, só em números (17/11):** "não faz sentido o painel com tudo fictício". A Maria registra o evento `desambiguacao_tom` com as regras de cada pergunta, nunca o texto nem o relato, e o Visor mostra (visor-maria#12).
+- Muda o que a pessoa vê no release: o guia de teste foi atualizado, e o merge espera o horário combinado. Deve entrar antes do corte para São Paulo (#509), para o Qwen chegar à produção já com o tom.
+
 **#502 e #503 (decisão da Nicole, 2026-11-16): depuração em 6 fases (detectar, reproduzir, isolar, achar a causa, corrigir e prevenir), conferida no Visor.**
 - **#502, sem IA e sem custo:**
   - o job `ponta_a_ponta` do CI testa os fluxos do Verde até o fim, com o Verde, a IA e o e-mail simulados. É o que o QA da staging não confere, porque o Verde de homologação tem cópia de dados reais;
@@ -83,6 +91,13 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
   - o CodeQL roda em todo PR, na `develop` e toda semana.
 - **QA da staging no Actions (#502, depois da #463):** contra o release de São Paulo, com teto de US$ 0,10 por rodada. Se passar, o QA para e avisa a Nicole e o Ícaro, para os dois decidirem se vale passar o valor naquela verificação.
 - **#503:** a rotina com IA percorre as 6 fases, também com teto de US$ 0,10 por investigação e o mesmo aviso. O patch fica como artefato, sem PR automático, e a issue pública nunca leva conteúdo de log. O custo é medido com `count_tokens` antes de ligar.
+  - **17/11, custo medido** (aprovado, US$ 0,0541): o `count_tokens` não aceita o Qwen, e a medida veio do `usage` de uma investigação de teste. Por investigação, de US$ 0,011 a 0,015 só com o trecho alterado, e de US$ 0,025 a 0,058 com os arquivos inteiros, no preço do Haiku.
+  - **17/11, decisões da Nicole:** o Qwen3 Coder 30B (achou a causa e o patch em cerca de 1 s por fase); na hipótese, só o trecho alterado; teto de US$ 0,10.
+  - **17/11, implementada** (`scripts/depuracao/investigar.py`, `.github/workflows/depuracao.yml`):
+    - o gatilho é o CI de um PR **do próprio repositório** que falhou (nunca fork), pelo papel `nicole-github-actions`;
+    - o bisect, a reprodução e a conferência dos patches rodam sem IA.
+  - **Validada** (duas rodadas aprovadas, US$ 0,0128 e US$ 0,0113, mais uma repetição gratuita com as respostas salvas): as 6 fases até "correção pronta", com o culpado certo. As rodadas acharam e corrigiram três defeitos da própria rotina: o id de teste com parâmetro, o patch sem contexto depois com o CRLF no Windows, e a frase nova do bisect.
+  - **Decisão da Nicole:** fica na `develop` e só sobe para a `staging` quando ela chamar.
 - **Achados de 16/11 (comentados na #463):**
   - o release da Virgínia já foi apagado, mas o `deploy-release.yml` ainda publica lá;
   - o release de São Paulo, o que a Tykhe usa, roda o código de 11/11, sem a #495 e a #497.
@@ -118,6 +133,11 @@ Os itens 3 e 4 da #393 (o órgão e o município em violência doméstica e a co
 - A suíte escolhe o modelo por `MARIA_MODELO_TESTE_IA`; sem a variável, continua o Haiku da produção.
 - Custo das medições: US$ 1,65 de US$ 3,00 aprovados.
 - **Comparação na configuração da produção (2026-11-12, critérios aprovados antes; [registro](https://github.com/dgd-dprj/maria-langgraph-pp/issues/472#issuecomment-6831091969)):** o Qwen passa em triagem, falhas, custo (−57%) e tempo em São Paulo; não passa no parentesco por 1 caso e no p95 em us-east-1 (1,49 s contra 0,65 s do Haiku). **Decisão da Nicole:** aprovado para São Paulo; se a produção continuar em us-east-1, a troca espera a mudança de região, e o critério de tempo não muda. Faltam o Ícaro confirmar a cota e a volta atrás. Custo: US$ 1,39 (US$ 1,32 aprovados para a comparação e US$ 0,10 para a rodada do "genro").
+
+**São Paulo e a volta atrás do Qwen (decisões da Nicole, 2026-11-12, #472 e #482).**
+- **A volta atrás do Qwen é o Ministral 14B, e não o Haiku.** Medido como o Qwen: 56,3 de 61 no parentesco e 25,3 de 32 na triagem, sem nenhuma resposta fora do formato. O 3B saiu: "mãe" virava "Outro". A task de São Paulo passa a autorizar o 14B (#482).
+- **Nenhum tráfego real em São Paulo antes de a Maria rodar lá como produção.** O `MARIA_AMBIENTE` do stack sai do `environment`: só `release` liga o plano de saúde e o multi-fluxo (#482).
+- **O tempo limite de quem chama a Maria já é conhecido:** 30 s, cortados pelo CloudFront (#344; nenhum `cloudfront.tf` define `origin_read_timeout`; a Tykhe tem `timeout: null`, #300). A #477 não depende mais da Tykhe.
 
 **#212, parentesco (decisão da Nicole, 2026-11-12): a IA escolhe só da lista, sem inventar.** Achado da comparação Haiku x Qwen da #472, com 53 respostas inventadas no formato das da produção (1 a 4 palavras, pelos tokens do log).
 - O fluxo da pessoa presa confere o parentesco da IA: valor fora da lista vira "Outro", com o evento `parentesco_fora_da_lista` (só o motivo, nunca o valor). O Haiku devolveu "Irmã(o)" 2 vezes em 159; o Qwen, nenhuma. A exceção A13 da pessoa presa saiu da conformidade.
@@ -674,8 +694,8 @@ Spec 08 (`docs/migracao/specs/08-scripts.md`), aprovada em 2026-10-19. Fonte: de
 - **D-4:** num JSON inválido do Verde, a mensagem de erro sai no texto do Python, e não no do V8.
 
 **Achados:**
-- **B1 → #251:** a coleta apaga a árvore da categoria sem transação e sai com código 0 quando falha. É o padrão da #196 numa ferramenta de manutenção. Aberta antes da execução, por decisão: o comportamento está no código.
-- **B2:** o seed sobrescreve toda edição por SQL em `fluxos_planejados`. **Colide com a #249:** corrigir `mensagem_fixa` só no banco some no próximo seed. Registrado na #249. **Issue própria: #253** (`[TECH]`, aberta em 2026-10-19 por decisão do usuário): qual é a fonte do dado. A #249 e a #253 se referenciam.
+- **B1 → #251:** a coleta apaga a árvore da categoria sem transação e sai com código 0 quando falha. É o padrão da #196 numa ferramenta de manutenção. Aberta antes da execução, por decisão: o comportamento está no código. **Corrigido em 2026-11-18 (decisão da Nicole):** a varredura fica em memória, as categorias que deram certo trocam de árvore numa transação só no fim (`substituir_arvores` em `perguntas_db.py`), a categoria que falha fica com a árvore anterior e o script sai com código 1. A conferência gravada (`tests/fixtures/scripts/conferencia-coleta/`) passa a divergir de develop de propósito nos cenários com falha: o banco e o código de saída.
+- **B2:** o seed sobrescreve toda edição por SQL em `fluxos_planejados`. **Colide com a #249:** corrigir `mensagem_fixa` só no banco some no próximo seed. Registrado na #249. **Issue própria: #253** (`[TECH]`, aberta em 2026-10-19 por decisão do usuário): qual é a fonte do dado. A #249 e a #253 se referenciam. **Corrigido em 2026-11-18 (decisão da Nicole): o arquivo vale.** O seed compara o banco com o arquivo antes de gravar e, com diferença, mostra cada registro e coluna e não grava nada; `--force` sobrescreve de propósito. A gravação passou a ser uma transação só. A #249, se mexer em `mensagem_fixa`, leva a mudança ao JSON por PR. **Aposentada no mesmo PR:** a conferência do JSON contra o `.ts` de develop (`tests/scripts/test_seed_extracao.py`, a fixture `seedFluxosPlanejados-1157a6d.ts`, o leitor `leitor_literal_ts.py` e o `extrair_seed.mjs`), que impedia a mudança de dado que a regra pede. A transcrição de 18/10 foi conferida por ela e continua registrada na spec 08; `tests/scripts/test_seed_dados.py` confere o próprio JSON.
 - **B3:** `logs-prod.sh` descarta o stderr do `aws`; credencial vencida fica em silêncio. A ausência do `aws` entra nas checagens da D-3; o resto fica para decisão.
 - **B4:** a palavra-chave `"sofri preconceito` (planejado "direitos e diversidade") tem uma aspa solta em develop. Achado pelo leitor estrito da extração. Reproduzido; cosmético, sem issue.
 - **B5 → #255:** importar os fluxos inicializa o checkpointer (o ponto 1 da #208, em develop). Nos scripts: uma linha de log extra, as tabelas de checkpoint criadas no banco de destino e a morte sem o próprio prefixo de erro, antes das guardas. A fundação Python já tinha desfeito o acoplamento, então os scripts Python reproduzem o efeito com uma chamada explícita.
@@ -1190,6 +1210,42 @@ Duas coisas diferentes:
   - a Tykhe repassa o objeto ao abrir o próximo assunto (`POST /atendimentos` com o `flowId` do item), e o fluxo pula o que já sabe;
   - nunca vai o texto do relato.
 - **Achado durante a implementação:** a resposta à pergunta da ordem (e à desambiguação, também na produção) volta só com `{ chatId, resposta }`, e o fluxo aberto depois começava sem os `dadosConhecidos` da 1ª chamada (CPF, endereço). Agora o orquestrador guarda esses dados no estado dele (`dadosConhecidos`, só no checkpoint, nunca em log) e os usa ao abrir o fluxo; o que a Tykhe mandar de novo vale por cima. A conferência com as respostas e os logs gravados de develop continua igual.
+
+## Fechamento da #240, da #393 e da #212 (decidido em 2026-11-17)
+
+- **#240, `dadosConhecidos` (decisão da Nicole: barrar só os campos internos).** A lista combinada com a Tykhe deu lugar ao contrário: em vez de listar o que a Tykhe pode mandar, a Maria descarta o que é interno dos fluxos (desfechos, contadores, resultados do Verde, `tokensGastos` e marcas de etapa) e registra o nome de cada campo descartado (`dados_conhecidos_descartados`). Assim nada que a Tykhe manda hoje deixa de funcionar. Fecha o protocolo falso (com `encaminhamentoId` pré-preenchido e o encaminhamento falhando, a pessoa recebia "Protocolo: <valor>") e a divergência D-5 (`tokensGastos` de fora dava 500). Casos gravados aposentados com registro: `erro-nao-tratado-500` (contrato; o formato do 500 continua conferido pelos `erro-nao-tratado-webhook-*`) e os `dados_encaminhamentoId_*` da pr1. O `viaOrquestrador` continua descartado sem aviso, como desde a #191.
+- **#393, itens 3 e 4 (decisão da Nicole).** Item 3: a mensagem final da violência doméstica traz o nome do órgão, mas não o município, porque quem informa o CPF de outra pessoa via a região dela (caso `vd_via_orq_3` da pr2 aposentado). Item 4: a confirmação do cadastro fica como está, porque o nome é o que a própria pessoa acabou de digitar. Os itens 1 e 2 entraram em 2026-11-04 (PR #409).
+- **#212, saída da IA (decisão da Nicole: validar já, sem a medição prévia).** A escolha única, a múltipla e a pergunta da desambiguação são conferidas; o que não bate segue o caminho de falha que já existia. Na escolha múltipla, saem só os ids de fora da lista (o critério que estava em aberto), para a escolha válida não se perder. Aviso `ia_saida_invalida`, sem o valor. O `extrair` e o `reescrever`, desligados na produção, seguem sem validação. A lista de 8 valores do SIPEN, que muda o contrato do parentesco, foi para a #522 (decisão de produto do Ícaro).
+
+## #210 e #211: o corpo dos erros da API (decidido em 2026-11-18)
+
+- **Decisão da Nicole:** um PR só, sem mudar nenhum status.
+- **#211:** o 400 de validação e de leitura do corpo, nas rotas que declaram o 400, traz `{"erro": <motivo>}` em português curto, no formato dos erros de negócio, em vez do `{}` do Fastify. O motivo cita o campo e nunca o valor (o valor recusado pode ser um relato). As rotas que não declaram o 400 (o webhook) mantêm o corpo padrão do Fastify. O 400 continua 400: as rotas de negócio passam pelo `PipelineFastify`, e não pela validação do FastAPI, que daria 422.
+- **#210:** o 500 traz `message` fixo e o `reqId`. O identificador é o da requisição, criado uma vez no `PipelineFastify` e presente em todas as linhas de log dela, e não um gerado no tratamento do erro: assim ele leva à linha com a exceção e a stack.
+- **Respostas gravadas aposentadas (regra 2), sem editar nenhuma:**
+  - todo 400 gravado com `{}` sai por regra (`casos_dos_erros_da_api` em `tests/api/casos_aposentados.py`): 5 do contrato, 95 da pr1 e 14 da pr2;
+  - os 500 saem pelo nome: 3 do contrato (`erro-nao-tratado-webhook-*`, exceto o de HEAD) e 3 da pr2. Ficam de fora os 500 de HEAD, que não têm corpo e continuam iguais à gravação, e os dois de `tokensGastos` da pr1, que a #240 já trata à parte;
+  - o caso que voltar a bater com a gravação faz a conferência falhar, como nos outros aposentados. Foi esse aviso que tirou os de HEAD e os da pr1 da lista;
+  - **só o corpo sai da conferência; o status continua conferido** nesses 120 casos (`mantem_status`, com a falha de status marcada `[status]` nas três conferências). Uma mudança futura que leve uma dessas rotas a 422 ou a 500 continua sendo pega. **Verificado por mutação:** com o 400 trocado por 422, as três conferências falharam, com 89 falhas de status.
+- **Teste escrito:** `tests/api/test_erros_api.py`, com os cinco casos da #211, o 400 de negócio sem mudança, o motivo sem o valor recebido e o 500 com um gatilho real (o item nulo do webhook): o `reqId` do corpo é o da linha de erro e o de todas as linhas da requisição. A spec D-2 (`test_spec_api_pr2.py`) passou a conferir o corpo novo.
+- **Tykhe:** entra no aviso único (#531). Na produção, só depois da promoção para a `main`, que está na lista de bloqueios do índice.
+
+## #231: o endereço de quem acabou de se cadastrar (decidido em 2026-11-18)
+
+- **Decisão da Nicole:** quem acabou de se cadastrar volta com `dadosPessoa.enderecoDetalhado`, pelo menos com o CEP.
+- **O formato:** `{"cep": "<8 dígitos>"}`, texto e sem hífen, o mesmo do Verde para quem já tinha cadastro (`"25780000"`, observado ao vivo, `docs/integracao-verde.md`) e o mesmo que a Tykhe manda em `dadosConhecidos.endereco.cep`. Assim a Tykhe lê o campo do mesmo jeito em todo lugar. O CEP digitado é limpo (`cep_do_verde`, em `subgrafos/cadastro_pessoa/graph.py`); fora de 8 dígitos, a chave não vem, como antes. A chave entra depois do `nome`, na ordem das chaves do Verde.
+- **O que não muda:** o POST `/pessoa` (o endereço vai ao Verde como foi digitado) e o que a pessoa vê.
+- **Na violência doméstica**, o `consultar_cep` do pai encontra o CEP e preenche `idUf`, `idBairro` e `idMunicipio`, como para quem já tinha cadastro. Na pessoa presa, que não consulta o CEP, vem só o `cep`.
+- **O simulador do Verde** devolve `"20000-000"` (com hífen) para a pessoa encontrada, como em develop. Ele não foi mudado, para não mexer nas respostas gravadas; o formato de referência é o do Verde real.
+- **Respostas gravadas:** nenhuma mudou. Nenhum caso gravado termina num cadastro bem-sucedido com CEP (os de cadastro usam um CPF que a #497 já desvia).
+- **Testes:** `tests/subgrafos/test_cadastro_cep.py` (o formato, a chave ausente com CEP fora do formato, o POST `/pessoa` igual) e `tests/api/test_cadastro_cep_resposta.py` (o caminho inteiro, cadastro → `consultar_cep` → resposta, com o CEP e os ids).
+- **Tykhe:** entra no aviso único (#531), junto com a #210 e a #211, e na lista de bloqueios da `main`.
+
+## O relógio do TTL nos testes (2026-11-19)
+
+- **O defeito era do teste.** Com `TTL_INATIVIDADE_HORAS=0`, a Maria pergunta se a pessoa quer continuar quando o intervalo desde a última atividade é maior que zero. No Windows, o relógio anda em degraus de cerca de 15 ms, e a criação e a resposta às vezes caíam no mesmo degrau: o intervalo dava zero, e o teste falhava de vez em quando (`ttl_c0_confirmacao` da pr2, 1 vez em cerca de 14, achado no PR #541). No Linux do CI o degrau é bem menor. Na produção, com 24 h, isso não acontece.
+- **A correção:** o teste diz que o tempo passou. `tests/api/relogio.py` troca o relógio que o TTL lê por um 1 segundo à frente do real. Ele vale nos 27 cenários da pr2 que definem o TTL e nos 3 arquivos de teste que o zeram (`test_ttl_inatividade.py`, `test_destino.py` e `test_webhook_whatsapp.py`). O `test_spec_api_pr2.py` já para o relógio de propósito, para conferir o intervalo zero, e não mudou. O código da Maria não mudou. Conferido com 20 rodadas seguidas, sem falha.
+
 ## Pendências operacionais
 
 - **Remover o worktree de captura.** As fixtures de contrato e a caracterização da dupla contagem foram gravadas num worktree destacado de `develop` @ `4e695f2`, registrado no git local de quem fez a captura (`git worktree list`). Ele é removido com `git worktree remove <caminho>` depois que as fixtures estiverem no primeiro commit de `migration` (feito na fundação) e o teste de caracterização (`caracterizacao-tokens-subgrafo.test.ts`, já copiado para fora do worktree) tiver sido traduzido no módulo `subgrafos`.

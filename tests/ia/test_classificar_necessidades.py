@@ -116,3 +116,62 @@ async def test_simulado_de_antes_mantem_o_sentido(
     r = await cn.classificar_necessidades("relato", OPCOES)
     assert [n["id"] for n in r["necessidades"]] == necessidades
     assert r["idsEmAmbiguidade"] == duvida
+
+
+# ── #553: "há assunto" sem nenhuma necessidade válida repete a chamada uma vez ──
+
+INCOERENTE_VAZIA = {"quantidade": "uma", "haAmbiguidade": False, "necessidades": []}
+INCOERENTE_ID_INVENTADO = {
+    "quantidade": "uma",
+    "haAmbiguidade": False,
+    "necessidades": [{"id": "pensao", "evidencia": "pensão", "evidenciaClara": True, "urgente": False}],
+}
+COERENTE = {
+    "quantidade": "uma",
+    "haAmbiguidade": False,
+    "necessidades": [{"id": "pp", "evidencia": "preso", "evidenciaClara": True, "urgente": False}],
+}
+
+
+@pytest.mark.parametrize("incoerente", [INCOERENTE_VAZIA, INCOERENTE_ID_INVENTADO], ids=["lista-vazia", "id-inventado"])
+async def test_saida_incoerente_repete_uma_vez_e_soma_os_tokens(
+    ia: BedrockFalso, capsys: pytest.CaptureFixture[str], incoerente: dict[str, Any]
+) -> None:
+    ia.roteirizar(ferramenta(incoerente), ferramenta(COERENTE))
+    capsys.readouterr()
+    r = await cn.classificar_necessidades("relato-que-nao-vai-para-o-log", OPCOES)
+    assert len(ia.requisicoes) == 2
+    assert [n["id"] for n in r["necessidades"]] == ["pp"]
+    assert (r["tokensEntrada"], r["tokensSaida"], r["tokensTotal"]) == (22, 14, 36), "as duas chamadas contam"
+    saida = capsys.readouterr().out
+    [aviso] = [json.loads(x) for x in saida.splitlines() if '"classificacao_incoerente_repetida"' in x]
+    assert aviso["quantidade"] == "uma"
+    assert "relato-que-nao-vai-para-o-log" not in saida
+
+
+async def test_incoerente_duas_vezes_para_na_segunda_e_vira_nada_identificado(ia: BedrockFalso) -> None:
+    ia.roteirizar(ferramenta(INCOERENTE_VAZIA))
+    r = await cn.classificar_necessidades("relato", OPCOES)
+    assert len(ia.requisicoes) == 2, "uma repetição só"
+    assert (r["necessidades"], r["idsEmAmbiguidade"], r["viaIA"]) == ([], [], True)
+    assert r["tokensTotal"] == 36
+
+
+@pytest.mark.parametrize(
+    "saida",
+    [
+        {"quantidade": "sem_id_compativel", "haAmbiguidade": False, "necessidades": []},
+        {"quantidade": "uma", "haAmbiguidade": True, "idsEmAmbiguidade": ["pp", "plano"], "necessidades": []},
+        {
+            "quantidade": "uma",
+            "haAmbiguidade": False,
+            "necessidades": [{"id": "fora_da_lista", "evidencia": "x", "evidenciaClara": True, "urgente": False}],
+        },
+        COERENTE,
+    ],
+    ids=["sem-id-compativel", "duvida-entre-duas", "fora-da-lista", "coerente"],
+)
+async def test_saida_coerente_nao_repete(ia: BedrockFalso, saida: dict[str, Any]) -> None:
+    ia.roteirizar(ferramenta(saida))
+    await cn.classificar_necessidades("relato", OPCOES)
+    assert len(ia.requisicoes) == 1

@@ -53,8 +53,21 @@ Passos objetivos para o revisor validar.
 ## Observações (opcional)
 
 Decisões, débitos assumidos, prints.
+
+## Solicitado por
+
+<!-- Só quando o PR muda um fluxo (código, textos, grafo ou configuração). Nome ou login de quem pediu a mudança; mais de
+uma pessoa, separadas por vírgula. Apague este comentário e escreva embaixo. -->
+
+## Resumo da mudança
+
+<!-- Só quando o PR muda um fluxo. Uma ou duas frases: o que mudou nos fluxos e por quê. Vai para a tabela fluxos_versoes. -->
 ```
 
+- **PR para a `develop` que muda um fluxo** (#542): as seções "Solicitado por" e "Resumo da mudança" são obrigatórias, e o job
+  `versao-dos-fluxos` da CI falha sem elas. O PR de promoção (`develop` → `staging` → `main`) não pede de novo. Nos PRs abertos
+  pelo Claude, ele escreve as duas seções (solicitante = quem pediu a mudança na conversa). Detalhes em
+  [`versionamento-dos-fluxos.md`](versionamento-dos-fluxos.md).
 - `Closes #N` / `Fixes #N` para fechar a issue no merge.
 - "Como testar" obrigatório quando há mudança de comportamento visível.
 

@@ -321,16 +321,17 @@ async def falha_encaminhamento(state: ViolenciaDomesticaState) -> Atualizacao:
 
 
 def montar_mensagem_encaminhamento(orgao: Any, urgente: bool, encaminhamento_id: Any) -> str:
-    municipio = _primeiro_endereco(orgao, "municipio")
-    localizacao = f" ({_js.texto_template(municipio)})" if _js.verdadeiro(municipio) else ""
+    """#393, item 3 (decisão da Nicole, 2026-11-17): o nome do órgão continua, para a pessoa saber aonde ir, e o
+    município sai. O órgão é escolhido pelo endereço do cadastro, e quem informa o CPF de outra pessoa via a região
+    dela. Antes: "... para <órgão> (<município>)." (#236)."""
     protocolo = f" Protocolo: {_js.texto_template(encaminhamento_id)}." if encaminhamento_id is not None else ""
     nome = _js.texto_template(_js.prop(orgao, "nome"))
     if urgente:
         return (
-            f"Como você já tem Boletim de Ocorrência, vou encaminhar seu atendimento com urgência para {nome}{localizacao}"
+            f"Como você já tem Boletim de Ocorrência, vou encaminhar seu atendimento com urgência para {nome}"
             f" — sem necessidade de agendamento.{protocolo}"
         )
-    return f"Vou encaminhar seu caso para {nome}{localizacao}.{protocolo}"
+    return f"Vou encaminhar seu caso para {nome}.{protocolo}"
 
 
 async def concluir(state: ViolenciaDomesticaState) -> Atualizacao:
