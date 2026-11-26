@@ -1,6 +1,7 @@
 """Tradução de `fluxos/violenciaDomestica/graph.test.ts` (develop @ 0aecd98): 31 testes,
 na mesma ordem, com o Verde em mock e o checkpointer em memória."""
 
+import datetime
 import re
 from typing import Any
 
@@ -389,3 +390,98 @@ async def test_cpf_da_tykhe_nao_encontrado_cpf_digitado_continua_com_confirmacao
     r = await f.responder("não")
     assert r["statusFinal"] == "handoff_humano"
     assert r["motivoHandoff"] == "assistido_nao_confirmado"
+
+
+# ---- #565: plantão vigente sem órgão para a vítima -------------------------------------------------------------------
+# Decisão do Felipe (2026-11-26): dia útil, o humano; sábado, domingo ou feriado nacional ou estadual, o 129.
+
+
+async def _ate_o_orgao_de_plantao_sem_orgao(monkeypatch: pytest.MonkeyPatch, util: bool | None) -> dict[str, Any]:
+    monkeypatch.setenv("MOCK_PLANTAO_VIGENTE", "true")
+
+    async def sem_orgao(*_: Any) -> dict[str, Any]:
+        return {"encontrado": False, "orgaos": []}
+
+    async def hoje() -> bool | None:
+        return util
+
+    monkeypatch.setattr("maria.fluxos.violencia_domestica.graph.consultar_orgaos_plantao_violencia_domestica", sem_orgao)
+    monkeypatch.setattr("maria.fluxos.violencia_domestica.graph.hoje_e_dia_util", hoje)
+    f = _fluxo()
+    await f.iniciar()
+    await f.responder("true", "false", "false")
+    return await f.responder("12345678909")
+
+
+async def test_565_plantao_sem_orgao_em_dia_util_transfere_ao_humano_sem_o_129(monkeypatch: pytest.MonkeyPatch) -> None:
+    r = await _ate_o_orgao_de_plantao_sem_orgao(monkeypatch, True)
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "sem_orgao_disponivel"
+    assert "129" not in r["mensagemFinal"]
+    assert re.search("atendente humano", r["mensagemFinal"])
+
+
+@pytest.mark.parametrize("util", [False, None])
+async def test_565_plantao_sem_orgao_em_dia_nao_util_ou_sem_saber_manda_o_129(monkeypatch: pytest.MonkeyPatch, util: bool | None) -> None:
+    r = await _ate_o_orgao_de_plantao_sem_orgao(monkeypatch, util)
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "sem_orgao_disponivel"
+    assert "129" in r["mensagemFinal"]
+
+
+async def test_565_sem_plantao_vigente_continua_como_antes(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas: list[int] = []
+
+    async def hoje() -> bool | None:
+        chamadas.append(1)
+        return True
+
+    monkeypatch.setattr("maria.fluxos.violencia_domestica.graph.hoje_e_dia_util", hoje)
+    f = _fluxo()
+    await f.iniciar()
+    await f.responder("true", "false", "false")
+    r = await f.responder("12345678909")
+    assert chamadas == [], "sem plantão vigente a data nem é consultada"
+    assert r["statusFinal"] == "concluido"
+
+
+async def test_565_mensagem_do_verde_com_contactar_crc_continua_valendo(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setenv("MOCK_PLANTAO_VIGENTE", "true")
+
+    async def crc(*_: Any) -> dict[str, Any]:
+        return {"encontrado": False, "orgaos": [], "contactarCrc": True, "mensagemCrc": "Mensagem própria do Verde."}
+
+    async def hoje() -> bool | None:
+        return True
+
+    monkeypatch.setattr("maria.fluxos.violencia_domestica.graph.consultar_orgaos_plantao_violencia_domestica", crc)
+    monkeypatch.setattr("maria.fluxos.violencia_domestica.graph.hoje_e_dia_util", hoje)
+    f = _fluxo()
+    await f.iniciar()
+    await f.responder("true", "false", "false")
+    r = await f.responder("12345678909")
+    assert r["mensagemFinal"] == "Mensagem própria do Verde."
+
+
+@pytest.mark.parametrize(
+    ("data", "feriado", "esperado"),
+    [
+        (datetime.date(2026, 11, 26), False, True),  # quinta-feira comum
+        (datetime.date(2026, 11, 28), False, False),  # sábado
+        (datetime.date(2026, 11, 29), False, False),  # domingo
+        (datetime.date(2026, 11, 20), True, False),  # sexta-feira, Consciência Negra (estadual)
+        (datetime.date(2026, 11, 26), None, None),  # o Verde não respondeu
+    ],
+)
+async def test_565_e_dia_util(monkeypatch: pytest.MonkeyPatch, data: datetime.date, feriado: bool | None, esperado: bool | None) -> None:
+    from maria.fluxos.violencia_domestica import graph
+
+    chamadas: list[datetime.date] = []
+
+    async def falso(d: datetime.date) -> bool | None:
+        chamadas.append(d)
+        return feriado
+
+    monkeypatch.setattr(graph, "consultar_feriado_nacional_ou_estadual", falso)
+    assert await graph.e_dia_util(data) is esperado
+    assert chamadas == ([] if data.weekday() >= 5 else [data]), "fim de semana nem consulta o feriado"

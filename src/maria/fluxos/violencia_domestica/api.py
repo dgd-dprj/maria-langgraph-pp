@@ -46,6 +46,11 @@ MENSAGEM_NAO_VITIMA = "Esse atendimento é destinado apenas para quem é vítima
 MENSAGEM_SEM_ORGAO_DISPONIVEL = (
     "Não encontrei um órgão disponível pra encaminhar seu caso agora. Por favor, ligue 129 pra Central de Relacionamento com o Cidadão."
 )
+# #565 (decisão do Felipe, 2026-11-26): com plantão vigente e sem órgão para a vítima, em dia útil a conversa passa a um
+# atendente pelo próprio WhatsApp; em dia não útil (sábado, domingo, feriado nacional ou estadual) vale o 129.
+MENSAGEM_SEM_ORGAO_DIA_UTIL = (
+    "Não encontrei um órgão disponível agora pra encaminhar seu caso. Vou transferir você para um atendente humano."
+)
 MENSAGEM_FALHA_ENCAMINHAMENTO = (
     "Identifiquei o órgão certo pro seu caso, mas tive um problema técnico ao registrar o encaminhamento. "
     "Vou passar seu atendimento pra equipe confirmar manualmente."
