@@ -250,6 +250,8 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
             tokensGastosTotal=tokens_rodada,
             rodada=rodada,
             **no_log_pendentes,
+            # #553: o atalho por palavra decidiu, sem IA. Só o motivo, nunca a mensagem.
+            **({"atalho": resultado["atalho"]} if resultado.get("atalho") else {}),
         )
         return Resposta(200, _com_pendentes(_resposta_redirecionada(chat_id, tipo, tokens_conversa), pendentes))
 
@@ -274,6 +276,8 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
         tokensGastosTotal=tokens_rodada,
         rodada=rodada,
         **no_log_pendentes,
+        # #553: o atalho por palavra decidiu, sem IA. Só o motivo, nunca a mensagem.
+        **({"atalho": resultado["atalho"]} if resultado.get("atalho") else {}),
     )
     # O gasto da triagem vira o ponto de partida do acumulador do fluxo (#35).
     # #442: os dados da 1ª chamada, com o que vier nesta por cima (a Tykhe pode mandar de novo).

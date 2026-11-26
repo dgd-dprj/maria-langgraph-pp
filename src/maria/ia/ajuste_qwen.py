@@ -16,7 +16,7 @@ import os
 
 SUFIXO_NECESSIDADES = """
 Conferência final antes de responder (vale para qualquer assunto):
-- Cada necessidade precisa de um PEDIDO da pessoa. Fato citado sem pedido (alguém doente, desempregado, preso, morando longe) é só contexto e não vira necessidade, a menos que a pessoa peça algo sobre esse fato.
+- Cada necessidade precisa de um PEDIDO da pessoa. Fato citado sem pedido (alguém doente, desempregado, preso, morando longe) é só contexto e não vira necessidade, a menos que a pessoa peça algo sobre esse fato. Mensagem que é só o nome do assunto, sem mais nada ("preso", "cadeia", "pensão"), já é o pedido sobre ele.
 - Se "quantidade" for "uma" ou "mais_de_uma", a lista "necessidades" não pode ficar vazia. Confira cada assunto do relato contra o catálogo, um por um, e inclua todos os que cabem em algum id.
 - Quando a informação que decide entre dois ids do catálogo não está no relato, marque "haAmbiguidade" como true e liste os dois ids em "idsEmAmbiguidade", em vez de escolher um sozinho. Exemplo de outro assunto: pedido de pensão sem dizer se é para filho ou para ex-cônjuge é dúvida entre os dois ids de pensão, e não a escolha de um deles.
 - Quando o relato já traz a informação que decide, escolha só o id que cobre o caso e não acrescente outros por garantia."""  # noqa: E501
