@@ -9,7 +9,7 @@ Reproduzido de develop, com issues abertas para depois da migração:
 - `pedirConfirmaNome` mostrava o nome do apenado a partir do RG digitado (#236);
   desde a #393, mostra o nome mascarado (primeiro nome e iniciais);
 - a lista de parentescos difere da do SIPEN (#212); desde 2026-11-12, o valor da IA fora da lista vira "Outro";
-- `situacao`, `tipoPreso` ou `regime` com `null` do Verde lançam TypeError no
+- `situacao` ou `regime` com `null` do Verde lançam TypeError no
   `concluir`, como o `null.toUpperCase()` de develop (spec 05, 3.2).
 
 Regra de `undefined` × `null` (spec 05, tabela 0.2): `temProcesso`,
@@ -66,7 +66,7 @@ SITUACOES_PERMITIDAS = frozenset(
         "ABERTO/DOMICÍLIO COVID-19",
     }
 )
-TIPO_PRESO_PERMITIDO = "CONDENADO"
+# #561 (decisão do Felipe, 2026-11-26): o tipo de preso não decide mais; só situação e regime.
 REGIMES_PERMITIDOS = frozenset({"FECHADO", "SEMIABERTO"})
 
 TEXTO_LIVRE = (
@@ -149,30 +149,23 @@ def normalizar_situacao(situacao: Any) -> str:
 
 
 def dados_apenado_atendidos(state: PessoaPresaState) -> bool:
-    # `const { situacao, tipoPreso, regime } = state.dadosApenado ?? {}`
+    # `const { situacao, regime } = state.dadosApenado ?? {}`. O `tipoPreso` saiu da regra na #561.
     dados = _js.coalesce(_ler(state, "dadosApenado"), {})
     situacao = _js.prop(dados, "situacao")
-    tipo_preso = _js.prop(dados, "tipoPreso")
     regime = _js.prop(dados, "regime")
-    if situacao is _js.AUSENTE or tipo_preso is _js.AUSENTE or regime is _js.AUSENTE:
+    if situacao is _js.AUSENTE or regime is _js.AUSENTE:
         return False
     # `&&` com curto-circuito: só o primeiro null encontrado lança.
-    return (
-        normalizar_situacao(situacao) in SITUACOES_PERMITIDAS
-        and _to_upper_case(tipo_preso, "tipoPreso") == TIPO_PRESO_PERMITIDO
-        and _to_upper_case(regime, "regime") in REGIMES_PERMITIDOS
-    )
+    return normalizar_situacao(situacao) in SITUACOES_PERMITIDAS and _to_upper_case(regime, "regime") in REGIMES_PERMITIDOS
 
 
 def _criterio_nao_atendido(dados: Any) -> tuple[str, bool] | None:
     """O 1º critério da #57 que barrou, na ordem do `concluir`, e se foi por falta do dado. None se todos batem."""
-    for campo in ("situacao", "tipoPreso", "regime"):
+    for campo in ("situacao", "regime"):
         valor = _js.prop(dados, campo) if _js.verdadeiro(dados) else _js.AUSENTE
         if valor is _js.AUSENTE or not isinstance(valor, str):
             return campo, True
         if campo == "situacao" and normalizar_situacao(valor) not in SITUACOES_PERMITIDAS:
-            return campo, False
-        if campo == "tipoPreso" and valor.upper() != TIPO_PRESO_PERMITIDO:
             return campo, False
         if campo == "regime" and valor.upper() not in REGIMES_PERMITIDOS:
             return campo, False
@@ -181,11 +174,11 @@ def _criterio_nao_atendido(dados: Any) -> tuple[str, bool] | None:
 
 def campos_de_log_do_fim(values: Mapping[str, Any]) -> dict[str, Any]:
     """#457: o porquê de cada atendimento humano, no `atendimento_finalizado`, só quando se aplica e **sem dado pessoal**:
-    nunca o número do processo, o RG, o nome, a situação, o tipo ou o regime, só o nome do critério.
+    nunca o número do processo, o RG, o nome, a situação ou o regime, só o nome do critério.
 
     - `origem_processo_nao_suportada`: `processoLocalizado` e, quando o Verde achou, `origemProcesso` (o sistema de
       origem, como "PJe"); quando não achou, `statusVerdeProcesso` (400, 404 ou 422).
-    - `dados_pessoa_nao_atendidos`: `criterioNaoAtendido` (`situacao`, `tipoPreso` ou `regime`, o 1º que barrou) e
+    - `dados_pessoa_nao_atendidos`: `criterioNaoAtendido` (`situacao` ou `regime`, o 1º que barrou) e
       `criterioSemDado` (o Verde não mandou esse campo).
     - `rg_nao_encontrado`: `digitosRg`, quantos dígitos tinha o último RG consultado."""
     motivo = values.get("motivoHandoff")

@@ -52,13 +52,12 @@ def test_processo_sem_resposta_do_verde_so_diz_que_nao_localizou() -> None:
     ("apenado", "esperado"),
     [
         ({**APENADO_OK, "situacao": "EVADIDO"}, ("situacao", False)),
-        ({**APENADO_OK, "tipoPreso": "PROVISÓRIO"}, ("tipoPreso", False)),
         ({**APENADO_OK, "regime": "ABERTO"}, ("regime", False)),
         # Na ordem do `concluir`: a situação é olhada antes do regime.
         ({**APENADO_OK, "situacao": "EVADIDO", "regime": "ABERTO"}, ("situacao", False)),
         # O Verde não mandou o campo, ou mandou nulo.
         ({"encontrado": True, "situacao": "ATIVO", "tipoPreso": "CONDENADO"}, ("regime", True)),
-        ({**APENADO_OK, "tipoPreso": None}, ("tipoPreso", True)),
+        ({**APENADO_OK, "regime": None}, ("regime", True)),
         (None, ("situacao", True)),
     ],
 )
@@ -66,6 +65,12 @@ def test_criterio_que_barrou_sem_o_valor(apenado: Any, esperado: tuple[str, bool
     campos = campos_de_log_do_fim({"motivoHandoff": "dados_pessoa_nao_atendidos", "dadosApenado": apenado})
     assert campos == {"criterioNaoAtendido": esperado[0], "criterioSemDado": esperado[1]}
     assert not {"EVADIDO", "PROVISÓRIO", "ABERTO"} & {str(v) for v in campos.values()}
+
+
+@pytest.mark.parametrize("tipo_preso", ["SENTENCIADO", "PROVISÓRIO", None])
+def test_561_tipo_de_preso_nao_e_criterio(tipo_preso: str | None) -> None:
+    campos = campos_de_log_do_fim({"motivoHandoff": "dados_pessoa_nao_atendidos", "dadosApenado": {**APENADO_OK, "tipoPreso": tipo_preso}})
+    assert campos == {}
 
 
 @pytest.mark.parametrize(("rg", "digitos"), [("123456789", 9), ("12.345.678-9", 9), ("12345678", 8), ("12345678901", 11)])
