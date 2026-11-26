@@ -747,3 +747,50 @@ async def test_446_falha_de_infra_na_consulta_completa_nao_leva_status(verde_rea
 
     verde_real.tratador = tratar
     assert await verde.consultar_pessoa_por_cpf("1", completo=True) == {"encontrado": False, "falhaInfra": True}
+
+
+# --- #558: casos da pessoa (GET /caso/consultar-casos-pessoa/{idPessoa}) ------------------------------------------
+
+
+async def test_558_casos_da_pessoa_devolvem_so_digitos_e_ids(verde_real: TransporteFalso) -> None:
+    async def tratador(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(
+            200,
+            json={
+                "dados": [
+                    {"numeroProcesso": "0130854-84.2017.8.19.0001", "idProcesso": 926, "assunto": {"nome": "x"}},
+                    {"numeroProcesso": "00590785520168190002", "idProcesso": "nao-e-numero"},
+                    {"numeroProcesso": None, "idProcesso": 7},
+                    {"andamentos": []},
+                ]
+            },
+        )
+
+    verde_real.tratador = tratador
+    casos = await verde.consultar_casos_pessoa(2861514)
+    assert casos == {"consultado": True, "numeros": ["01308548420178190001", "00590785520168190002"], "ids": [926, 7]}
+    assert verde_real.requisicoes[0].url.raw_path == b"/api/integra/caso/consultar-casos-pessoa/2861514"
+    assert verde_real.requisicoes[0].headers["authorization"] == "Bearer token-de-teste"
+
+
+@pytest.mark.parametrize("corpo", [{"dados": {}}, {"dados": None}, {}, {"dados": "x"}])
+async def test_558_resposta_fora_do_formato_nao_conta_como_consultada(verde_real: TransporteFalso, corpo: dict[str, object]) -> None:
+    async def tratador(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=corpo)
+
+    verde_real.tratador = tratador
+    assert await verde.consultar_casos_pessoa(1) == {"consultado": False, "numeros": [], "ids": []}
+
+
+@pytest.mark.parametrize("status", [404, 500])
+async def test_558_erro_do_verde_nao_conta_como_consultada(verde_real: TransporteFalso, status: int) -> None:
+    async def tratador(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(status)
+
+    verde_real.tratador = tratador
+    assert (await verde.consultar_casos_pessoa(1))["consultado"] is False
+
+
+async def test_558_sem_token_nao_consulta_e_nao_barra(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(verde, "VERDE_JWT_TOKEN", "")
+    assert await verde.consultar_casos_pessoa(1) == {"consultado": False, "numeros": [], "ids": []}
