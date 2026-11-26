@@ -17,6 +17,7 @@ Fidelidade a develop que não é óbvia (spec do módulo integracoes, #219):
 from __future__ import annotations
 
 import asyncio
+import datetime
 import os
 import re
 import time
@@ -596,6 +597,29 @@ async def consultar_plantao_vigente() -> list[Plantao]:
         _js.definir(plantao, "tipo", _js.prop(p, "tipo"))
         plantoes.append(cast(Plantao, plantao))
     return plantoes
+
+
+async def consultar_feriado_nacional_ou_estadual(data: datetime.date) -> bool | None:
+    """#565: a data é feriado nacional ou estadual? `GET /feriado?data=dd/mm/aaaa`, sem município, então o feriado municipal
+    não conta. `None` quando não deu para saber (falha de infra, formato fora do esperado ou modo mock); o chamador decide.
+    O Verde devolve `dados` como lista quando há feriado e como objeto vazio quando não há."""
+    if not VERDE_JWT_TOKEN:
+        logger.warn(MENSAGEM_MOCK, **contexto_atual())
+        return None
+    inicio = _agora_ms()
+    url = f"{VERDE_API_URL}/feriado?data={_escapar(data.strftime('%d/%m/%Y'))}"
+    resultado = await chamar_verde_com_retry("feriado", _requisicao("GET", url, com_accept=True, ler_corpo=True))
+    if not resultado.ok or resultado.res is None:
+        await _fechar(resultado)
+        return None
+    corpo = _js.json_parse(resultado.res.content)
+    if _js.verdadeiro(_js.prop(corpo, "codigo")):
+        return None
+    _sucesso("feriado", inicio)
+    dados = _js.prop(corpo, "dados")
+    if not isinstance(dados, list):
+        return False
+    return any(_js.prop(f, "tipo") in ("Nacional", "Estadual") for f in dados)
 
 
 async def consultar_orgaos_plantao_violencia_domestica(id_plantao: list[int | None], id_assistido: int) -> OrgaosViolenciaDomestica:

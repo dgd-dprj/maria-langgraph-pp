@@ -19,8 +19,10 @@ develop.
 
 from __future__ import annotations
 
+import datetime
 import re
 from typing import Any
+from zoneinfo import ZoneInfo
 
 from langgraph.graph import END, START, StateGraph
 from langgraph.types import interrupt
@@ -31,12 +33,14 @@ from maria.fluxos.violencia_domestica.api import (
     MENSAGEM_FALHA_CADASTRO,
     MENSAGEM_FALHA_ENCAMINHAMENTO,
     MENSAGEM_NAO_VITIMA,
+    MENSAGEM_SEM_ORGAO_DIA_UTIL,
     MENSAGEM_SEM_ORGAO_DISPONIVEL,
 )
 from maria.fluxos.violencia_domestica.state import ViolenciaDomesticaState
 from maria.ia.reescrever import preparar_pergunta
 from maria.integracoes.verde import (
     DadosEncaminhamento,
+    consultar_feriado_nacional_ou_estadual,
     consultar_orgaos_plantao_violencia_domestica,
     consultar_orgaos_violencia_domestica,
     consultar_plantao_vigente,
@@ -45,6 +49,8 @@ from maria.integracoes.verde import (
 from maria.integracoes.verde import consultar_cep as consultar_cep_verde
 from maria.integracoes.verde import consultar_processo as consultar_processo_verde
 from maria.shared import _js
+from maria.shared.contexto import contexto_atual
+from maria.shared.logger import logger
 from maria.shared.respostas import resposta_eh_sim
 from maria.subgrafos.cadastro_pessoa.graph import grafo as subgrafo_cadastro_pessoa
 from maria.subgrafos.identificar_assistido.graph import grafo as subgrafo_identificar_assistido
@@ -285,8 +291,36 @@ def depois_de_consultar_orgaos(state: ViolenciaDomesticaState) -> str:
     return "prosseguir" if _js.verdadeiro(tamanho) else "semOrgao"
 
 
+FUSO_BRASIL = ZoneInfo("America/Sao_Paulo")
+
+
+async def e_dia_util(data: datetime.date) -> bool | None:
+    """#565: dia útil = não é sábado, domingo nem feriado nacional ou estadual. `None` se o Verde não respondeu."""
+    if data.weekday() >= 5:
+        return False
+    feriado = await consultar_feriado_nacional_ou_estadual(data)
+    return None if feriado is None else not feriado
+
+
+async def hoje_e_dia_util() -> bool | None:
+    return await e_dia_util(datetime.datetime.now(FUSO_BRASIL).date())
+
+
 async def sem_orgao_disponivel(state: ViolenciaDomesticaState) -> Atualizacao:
-    mensagem = _js.coalesce(_js.opt(_ler(state, "orgaosViolenciaDomestica"), "mensagemCrc"), MENSAGEM_SEM_ORGAO_DISPONIVEL)
+    orgaos_vd = _ler(state, "orgaosViolenciaDomestica")
+    mensagem = _js.coalesce(_js.opt(orgaos_vd, "mensagemCrc"), MENSAGEM_SEM_ORGAO_DISPONIVEL)
+    plantao_ids = _js.coalesce(state.get("plantaoIds"), [])
+    if len(plantao_ids) > 0 and not _js.verdadeiro(_js.opt(orgaos_vd, "contactarCrc")):
+        # Plantão vigente que não atende a vítima: em dia útil, o humano; senão (ou sem saber), o 129, que sempre funciona.
+        util = await hoje_e_dia_util()
+        logger.info(
+            "[violencia-domestica] plantão vigente sem órgão para a vítima",
+            **contexto_atual(),
+            evento="plantao_sem_orgao",
+            diaUtil=util,
+        )
+        if util is True:
+            mensagem = MENSAGEM_SEM_ORGAO_DIA_UTIL
     return {"statusFinal": "handoff_humano", "motivoHandoff": "sem_orgao_disponivel", "mensagemFinal": mensagem}
 
 
