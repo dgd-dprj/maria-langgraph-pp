@@ -53,3 +53,18 @@ async def test_sem_atalho_a_linha_nao_tem_o_campo(
     r = await cliente.post(BASE, json={"chatId": f"teste-atalho-{next(_ids)}", "mensagem": "meu filho foi preso ontem"}, headers=auth)
     assert r.json()["flowId"] == ID_PESSOA_PRESA
     assert "atalho" not in _linha_identificado(capsys.readouterr().out)
+
+
+async def test_tipo_da_tykhe_pelo_atalho_redireciona_com_o_campo_no_log(
+    cliente: httpx.AsyncClient, auth: dict[str, str], monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    monkeypatch.setenv("MOCK_CLASSIFICACAO_FLOWID", "tykhe:outros")
+    capsys.readouterr()
+    r = await cliente.post(BASE, json={"chatId": f"teste-atalho-{next(_ids)}", "mensagem": "Remédio!"}, headers=auth)
+    corpo = r.json()
+    assert (corpo["status"], corpo["tipoCaso"]) == ("redirecionado", "saude")
+    assert corpo["tokensGastos"] == {"input": 0, "output": 0, "total": 0}
+    saida = capsys.readouterr().out
+    [linha] = [json.loads(x) for x in saida.splitlines() if '"orquestrador_redirecionado"' in x]
+    assert linha["atalho"] == "palavra_de_saude"
+    assert "Remédio" not in saida and "Rem\\u00e9dio" not in saida

@@ -137,6 +137,30 @@ def _validar(parsed: Any, ids: list[str]) -> tuple[list[Necessidade], list[str]]
     return necessidades, em_duvida
 
 
+# #553: quantas chamadas, no máximo, quando a IA diz que há assunto mas não sobra nenhuma necessidade válida.
+TENTATIVAS_SAIDA_INCOERENTE = 2
+
+
+def _quantidade(parsed: Any) -> Any:
+    return parsed.get("quantidade") if isinstance(parsed, dict) else None
+
+
+def _incoerente(quantidade: Any, necessidades: list[Necessidade], em_duvida: list[str]) -> bool:
+    """A IA disse que o relato tem assunto ("uma" ou "mais_de_uma"), mas nenhuma necessidade válida sobrou e não há
+    dúvida entre duas opções. Achado da #553 (26/11, Qwen3 VL 235B): "pensão" e "cirurgia" voltaram assim 1 vez em 3,
+    e a conversa ia para "outros" sem motivo. As duas formas que dão nisso: a lista vazia, ou itens com id fora da
+    lista, que `_validar` descarta. "sem_id_compativel" com a lista vazia é coerente e não repete."""
+    return quantidade in ("uma", "mais_de_uma") and not necessidades and len(em_duvida) < 2
+
+
+def _somar_tokens(acumulado: dict[str, int], raw: Any) -> None:
+    """Os tokens de todas as chamadas, como `definir_tokens` (chave ausente quando não há contagem)."""
+    desta: dict[str, Any] = {}
+    definir_tokens(desta, raw)
+    for chave, valor in desta.items():
+        acumulado[chave] = acumulado.get(chave, 0) + valor
+
+
 def _mock() -> ResultadoNecessidades:
     """APP_ENV=test nunca chama o Bedrock.
 
@@ -182,10 +206,22 @@ async def classificar_necessidades(mensagem: str, opcoes: list[OpcaoParaNecessid
     descricoes = "\n".join(f'- id "{o["id"]}" ({o["nome"]}): {o["descricao"]}' for o in opcoes)
     try:
         sistema = com_ajuste_qwen(SISTEMA.format(descricoes=descricoes), SUFIXO_NECESSIDADES)
-        resultado = await invocar_estruturado(modelo, esquema(ids), sistema, mensagem)
-        necessidades, em_duvida = _validar(resultado["parsed"], ids)
-        saida: dict[str, Any] = {"necessidades": necessidades, "idsEmAmbiguidade": em_duvida, "viaIA": True}
-        definir_tokens(saida, resultado["raw"])
+        tokens: dict[str, int] = {}
+        for tentativa in range(1, TENTATIVAS_SAIDA_INCOERENTE + 1):
+            resultado = await invocar_estruturado(modelo, esquema(ids), sistema, mensagem)
+            necessidades, em_duvida = _validar(resultado["parsed"], ids)
+            _somar_tokens(tokens, resultado["raw"])
+            quantidade = _quantidade(resultado["parsed"])
+            if not _incoerente(quantidade, necessidades, em_duvida) or tentativa == TENTATIVAS_SAIDA_INCOERENTE:
+                break
+            # #553: "há assunto" sem nenhuma necessidade válida. Repete a chamada uma vez; o log não leva o relato.
+            logger.warning(
+                "[classificar] saída incoerente da IA (assunto sem necessidade válida), repetindo a classificação",
+                **contexto_atual(),
+                evento="classificacao_incoerente_repetida",
+                quantidade=quantidade,
+            )
+        saida: dict[str, Any] = {"necessidades": necessidades, "idsEmAmbiguidade": em_duvida, "viaIA": True, **tokens}
         return saida  # type: ignore[return-value]
     except Exception as erro:
         # Na falha, segue como hoje numa falha da classificação: nada identificado.

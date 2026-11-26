@@ -134,8 +134,9 @@ async def classificar(state: OrquestradorState) -> dict[str, Any]:
 
 
 def _pelo_atalho(state: OrquestradorState, catalogo: list[CandidatoOrquestrador]) -> dict[str, Any] | None:
-    """#553: o relato que é só uma palavra da lista do atalho vai direto ao fluxo, sem busca e sem IA, na produção e no
-    release. Só no relato (1ª classificação ou relato novo); a resposta a uma pergunta de esclarecimento segue com a IA.
+    """#553: o relato que é só uma expressão curta da lista do atalho (`atalho.py`) vai direto ao destino (fluxo da Maria
+    ou tipo da Tykhe), sem busca e sem IA, na produção e no release. Só no relato (1ª classificação ou relato novo); a
+    resposta a uma pergunta de esclarecimento segue com a IA.
 
     `tokensGastosRodada` fica None, como em toda rodada sem chamada de IA (#34); a conversa soma 0."""
     atalho = atalho_pela_palavra(state.get("mensagem"))

@@ -7,8 +7,8 @@ from typing import Any
 import pytest
 from langgraph.types import Command
 
-from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA
-from maria.orquestrador.atalho import MOTIVO_PESSOA_PRESA, atalho_pela_palavra
+from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, catalogo_para_classificacao
+from maria.orquestrador.atalho import ATALHOS, MOTIVO_PESSOA_PRESA, atalho_pela_palavra, expressao_normalizada
 from maria.orquestrador.graph import obter_grafo
 from tests.fluxos.conftest import novo_config, pergunta
 from tests.orquestrador.conftest import Modelo
@@ -77,6 +77,59 @@ def test_mensagem_que_nao_e_texto_nao_ativa(mensagem: Any) -> None:
     assert atalho_pela_palavra(mensagem) is None
 
 
+@pytest.mark.parametrize(
+    ("mensagem", "destino"),
+    [
+        ("Violência doméstica", ID_VIOLENCIA_DOMESTICA),
+        ("lei Maria da Penha!", ID_VIOLENCIA_DOMESTICA),
+        ("medida protetiva", ID_VIOLENCIA_DOMESTICA),
+        ("agressão", ID_VIOLENCIA_DOMESTICA),
+        ("remédio", "tykhe:saude"),
+        ("Vaga na UTI", "tykhe:saude"),
+        ("fraldas", "tykhe:saude"),
+        ("divórcio", "tykhe:novo-processo"),
+        ("pensão alimentícia", "tykhe:novo-processo"),
+        ("processo novo", "tykhe:novo-processo"),
+        ("andamento do processo", "tykhe:andamento-processo"),
+        ("número do processo?", "tykhe:andamento-processo"),
+        ("meus agendamentos", "tykhe:agendamentos"),
+        ("remarcar", "tykhe:agendamentos"),
+        ("esqueci minha senha", "tykhe:ajuda-app"),
+        ("App", "tykhe:ajuda-app"),
+        ("tchau", "tykhe:sair"),
+        ("não quero mais", "tykhe:sair"),
+    ],
+)
+def test_expressao_curta_de_outros_destinos(mensagem: str, destino: str) -> None:
+    atalho = atalho_pela_palavra(mensagem)
+    assert atalho is not None and atalho[0] == destino
+
+
+@pytest.mark.parametrize(
+    "mensagem",
+    # Pedem a pergunta da Maria: plano ou SUS, DNA ou saúde, custódia ou processo, novo ou andamento, agradecimento.
+    ["cirurgia", "exame", "audiência", "processo", "pensão", "obrigado", "plano de saúde", "guarda", "consulta"],
+)
+def test_palavra_que_pede_a_pergunta_da_maria_nao_ativa(mensagem: str) -> None:
+    assert atalho_pela_palavra(mensagem) is None
+
+
+def test_cada_expressao_tem_um_destino_so() -> None:
+    vistas: dict[str, str] = {}
+    for atalho in ATALHOS:
+        for expressao in atalho.expressoes:
+            assert expressao == expressao_normalizada(expressao), f"{expressao!r} não está normalizada"
+            assert expressao not in vistas, f"{expressao!r} em {vistas.get(expressao)} e em {atalho.destino}"
+            vistas[expressao] = atalho.destino
+    assert len({a.motivo for a in ATALHOS}) == len(ATALHOS)
+
+
+@pytest.mark.usefixtures("ambiente")
+async def test_todo_destino_esta_no_catalogo() -> None:
+    ids = {c["id"] for c in await catalogo_para_classificacao()}
+    assert {a.destino for a in ATALHOS} <= ids
+
+
 @pytest.fixture(params=["producao", "release"])
 def ambiente(request: pytest.FixtureRequest, monkeypatch: pytest.MonkeyPatch) -> str:
     monkeypatch.setenv("MARIA_AMBIENTE", request.param)
@@ -120,3 +173,15 @@ async def test_resposta_a_pergunta_de_esclarecimento_segue_pela_ia(modelo: Model
     assert r["flowIdEscolhido"] == ID_VIOLENCIA_DOMESTICA
     assert r.get("atalho") is None
     assert len(modelo.textos_classificados) == 2
+
+
+@pytest.mark.usefixtures("ambiente")
+@pytest.mark.parametrize(
+    ("mensagem", "destino"), [("Lei Maria da Penha", ID_VIOLENCIA_DOMESTICA), ("remédio", "tykhe:saude"), ("tchau", "tykhe:sair")]
+)
+async def test_outros_destinos_pelo_grafo_sem_ia(modelo: Modelo, mensagem: str, destino: str) -> None:
+    modelo.classificacoes = [{"ids": ["tykhe:outros"]}]
+    r: dict[str, Any] = await obter_grafo().ainvoke({"mensagem": mensagem}, novo_config("teste-orq-atalho"))
+    assert (r["statusFinal"], r["flowIdEscolhido"]) == ("identificado", destino)
+    assert r["atalho"]
+    assert modelo.textos_classificados == []
