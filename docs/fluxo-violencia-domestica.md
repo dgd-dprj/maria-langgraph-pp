@@ -69,7 +69,7 @@ A Tykhe consome este fluxo direto via `POST /atendimentos` com `flowId` explíci
 | Motivo | Quando |
 |---|---|
 | `nao_e_vitima` | Respondeu "não" na 1ª pergunta. |
-| `sem_orgao_disponivel` | Pessoa encontrada, mas o Verde não achou nenhum órgão pra ela (só acontece com RO:true — sem RO sempre tem fallback). Vem com `mensagemCrc` pronta do Verde ("...ligar 129"). |
+| `sem_orgao_disponivel` | Pessoa encontrada, mas o Verde não achou nenhum órgão pra ela (só acontece com RO:true — sem RO sempre tem fallback). Vem com `mensagemCrc` pronta do Verde ("...ligar 129"). **Com plantão vigente (issue #565, decisão do Felipe de 2026-11-26)**, se o órgão do plantão não atende a vítima e o Verde não mandou mensagem própria: em **dia útil** a mensagem transfere para um atendente humano, sem o 129; em **dia não útil** (sábado, domingo, feriado `Nacional` ou `Estadual` de `GET /feriado?data=dd/mm/aaaa`, sem município) ou se o Verde não responde o feriado, a mensagem manda ligar para o 129. O `status`, o `destino` e o motivo não mudam; o log leva `plantao_sem_orgao` com `diaUtil`. Sem plantão vigente, nada muda. |
 | `falha_cadastro` | Só no caminho `viaOrquestrador`: esgotou as 3 tentativas de CPF sem achar a pessoa **e** o cadastro novo no Verde (subgrafo `cadastroPessoa`, issue #171) também falhou — não confunde com `sem_orgao_disponivel` (que é pra pessoa já encontrada/cadastrada). |
 | `cpf_nao_encontrado` | Só no caminho SEM `viaOrquestrador` (Tykhe): esgotou as 3 tentativas de CPF sem achar a pessoa — handoff direto, nunca tenta cadastro (issue #72, restaurado na #191). |
 | `assistido_nao_confirmado` | Só no caminho `viaOrquestrador`: achou por CPF **ou** cadastrou com sucesso, mas a pessoa negou que os dados são dela (issue #189) — não confunde com `falha_cadastro` (que é sobre o `POST /integra/pessoa` em si falhar, não sobre confirmação). |
@@ -102,6 +102,7 @@ Antes de consultar órgão, o fluxo checa `GET /plantao/vigente` (sem parâmetro
 - `GET /pessoa?cpf=` — `idPessoa`, `nome`, `nomeSocial`, `genero`, `endereco`, `enderecoDetalhado.cep`.
 - `GET /cep/{cep}` — ids (`idUf`/`idBairro`/`idMunicipio`) e, quando cadastrados, texto (`uf`/`bairro`/`municipio`/`logradouro`) (issue #127; podem vir incompletos mesmo com o CEP existindo, quando a Verde não tem todo detalhe cadastrado — usado por `coletarEndereco`, issue #176, pra não perguntar de novo o que já veio).
 - `GET /plantao/vigente` — lista de plantões ativos agora.
+- `GET /feriado?data=dd/mm/aaaa` (#565) — feriados da data: lista com `tipo` (`Nacional`, `Estadual`, `Municipal`) e `nome`; sem feriado, `dados` vem como objeto vazio; `aaaa-mm-dd` volta 400.
 - `GET /orgao/violencia-domestica?indicacaoRO=&idPessoa=` (ou `/orgao/plantao/violencia-domestica` em horário de plantão) — órgão(s) de destino, em ordem de prioridade.
 - `POST /encaminhamento/encaminhar` — cria o encaminhamento real.
 - `POST /integra/pessoa` (issue #171, endereço na #176) — cadastra pessoa nova quando CPF não encontrado. Nome, CPF, data de nascimento e endereço completo.

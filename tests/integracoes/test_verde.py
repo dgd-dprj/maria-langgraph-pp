@@ -794,3 +794,41 @@ async def test_558_erro_do_verde_nao_conta_como_consultada(verde_real: Transport
 async def test_558_sem_token_nao_consulta_e_nao_barra(monkeypatch: pytest.MonkeyPatch) -> None:
     monkeypatch.setattr(verde, "VERDE_JWT_TOKEN", "")
     assert await verde.consultar_casos_pessoa(1) == {"consultado": False, "numeros": [], "ids": []}
+
+
+# --- #565: feriado nacional ou estadual (GET /feriado?data=dd/mm/aaaa) -------------------------------------------------
+
+
+@pytest.mark.parametrize(
+    ("corpo", "esperado"),
+    [
+        ({"dados": [{"tipo": "Nacional", "nome": "Natal"}]}, True),
+        ({"dados": [{"tipo": "Estadual", "nome": "Dia da Consciência Negra"}]}, True),
+        ({"dados": [{"tipo": "Municipal", "nome": "Feriado Municipal", "municipio": "Rio de Janeiro"}]}, False),
+        ({"dados": {}}, False),
+        ({"dados": []}, False),
+        ({"dados": [{"tipo": "Municipal"}, {"tipo": "Estadual"}]}, True),
+        ({"codigo": "FORMATO_DE_DATA_INVALIDO", "mensagem": "x"}, None),
+    ],
+)
+async def test_565_feriado_nacional_ou_estadual(verde_real: TransporteFalso, corpo: dict[str, object], esperado: bool | None) -> None:
+    import datetime
+
+    async def tratador(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(200, json=corpo)
+
+    verde_real.tratador = tratador
+    assert await verde.consultar_feriado_nacional_ou_estadual(datetime.date(2026, 12, 25)) is esperado
+    assert verde_real.requisicoes[0].url.raw_path == b"/api/integra/feriado?data=25%2F12%2F2026", "dd/mm/aaaa, sem município"
+
+
+async def test_565_feriado_erro_do_verde_ou_sem_token_nao_sabe(verde_real: TransporteFalso, monkeypatch: pytest.MonkeyPatch) -> None:
+    import datetime
+
+    async def tratador(_: httpx.Request) -> httpx.Response:
+        return httpx.Response(500)
+
+    verde_real.tratador = tratador
+    assert await verde.consultar_feriado_nacional_ou_estadual(datetime.date(2026, 12, 25)) is None
+    monkeypatch.setattr(verde, "VERDE_JWT_TOKEN", "")
+    assert await verde.consultar_feriado_nacional_ou_estadual(datetime.date(2026, 12, 25)) is None
