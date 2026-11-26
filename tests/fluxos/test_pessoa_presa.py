@@ -116,17 +116,25 @@ async def test_fluxo_completo_processo_nao_encontrado_mesmo_motivo_de_origem() -
     "rg",
     [
         pytest.param("22222222222", id="situacao-libertado"),
-        pytest.param("33333333333", id="tipo-preso-provisorio"),
         pytest.param("44444444444", id="regime-aberto"),
     ],
 )
 async def test_fluxo_completo_dados_do_apenado_fora_do_permitido_issue_57(rg: str) -> None:
-    # Três testes de develop (situação, tipo de preso e regime), um por sentinela.
+    # Testes de develop (situação e regime), um por sentinela. O tipo de preso saiu da regra na #561.
     f = _fluxo()
     await f.iniciar()
     r_final = await f.responder("true", "0000088-95.2026.8.19.0010", rg, "true", "amigo")
     assert r_final["statusFinal"] == "handoff_humano"
     assert r_final["motivoHandoff"] == "dados_pessoa_nao_atendidos"
+
+
+async def test_561_tipo_de_preso_provisorio_conclui_se_situacao_e_regime_passam() -> None:
+    # "33333333333" é a sentinela do mock: ATIVO, PROVISÓRIO, SEMIABERTO. O Felipe disse que o regime decide.
+    f = _fluxo()
+    await f.iniciar()
+    r_final = await f.responder("true", "0000088-95.2026.8.19.0010", "33333333333", "true", "amigo")
+    assert r_final["statusFinal"] == "concluido"
+    assert r_final.get("motivoHandoff") is None
 
 
 async def test_fluxo_completo_situacao_com_prefixo_em_conclui_issue_57() -> None:
@@ -669,3 +677,91 @@ async def test_cpf_digitado_via_orquestrador_continua_com_confirmacao_issue_236(
     r = await f.responder("sim")
     assert pergunta(r) is None
     assert r["statusFinal"] == "concluido"
+
+
+# ---- #558: o processo informado tem de ser da pessoa do RG ------------------------
+# O Verde de teste (mock) não tem casos; os testes trocam a consulta de casos por uma resposta fixa.
+
+
+def _casos(
+    monkeypatch: pytest.MonkeyPatch, *, consultado: bool = True, numeros: list[str] | None = None, ids: list[int] | None = None
+) -> None:
+    async def falso(id_pessoa: int) -> dict[str, Any]:
+        return {"consultado": consultado, "numeros": numeros or [], "ids": ids or []}
+
+    monkeypatch.setattr("maria.fluxos.pessoa_presa.graph.consultar_casos_pessoa", falso)
+
+
+async def _ate_o_fim() -> dict[str, Any]:
+    f = _fluxo()
+    await f.iniciar()
+    await f.responder("true", "0000088-95.2026.8.19.0010")
+    await f.responder("11111111111")
+    await f.responder("true")
+    return await f.responder("amigo")
+
+
+async def test_558_processo_nos_casos_do_rg_conclui(monkeypatch: pytest.MonkeyPatch) -> None:
+    _casos(monkeypatch, numeros=["00000889520268190010"])
+    r = await _ate_o_fim()
+    assert r["statusFinal"] == "concluido"
+    assert r.get("motivoHandoff") is None
+
+
+async def test_558_processo_pelo_id_do_processo_tambem_vale(monkeypatch: pytest.MonkeyPatch) -> None:
+    _casos(monkeypatch, numeros=["99999999999999999999"], ids=[999999])  # o `id` do processo no mock do Verde é 999999
+    r = await _ate_o_fim()
+    assert r["statusFinal"] == "concluido"
+
+
+async def test_558_processo_fora_dos_casos_vai_ao_humano_sem_avisar(monkeypatch: pytest.MonkeyPatch) -> None:
+    _casos(monkeypatch, numeros=["11111111111111111111"], ids=[1])
+    r = await _ate_o_fim()
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "processo_nao_vinculado_ao_rg"
+    # Sem mensagemFinal própria: vale a mensagem genérica de encaminhamento, que não cita processo, RG nem divergência.
+    assert r.get("mensagemFinal") is None
+    from maria.fluxos.pessoa_presa.api import MENSAGEM_HANDOFF
+
+    assert not re.search(r"processo|pertence|vincul|diverg", MENSAGEM_HANDOFF, re.IGNORECASE)
+
+
+async def test_558_lista_de_casos_vazia_tambem_vai_ao_humano(monkeypatch: pytest.MonkeyPatch) -> None:
+    _casos(monkeypatch)
+    r = await _ate_o_fim()
+    assert r["statusFinal"] == "handoff_humano"
+    assert r["motivoHandoff"] == "processo_nao_vinculado_ao_rg"
+
+
+async def test_558_consulta_de_casos_falhou_segue_como_antes(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    _casos(monkeypatch, consultado=False)
+    r = await _ate_o_fim()
+    assert r["statusFinal"] == "concluido"
+    assert "processo_rg_nao_conferido" in capsys.readouterr().out
+
+
+async def test_558_sem_numero_de_processo_nao_consulta_casos(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas: list[int] = []
+
+    async def falso(id_pessoa: int) -> dict[str, Any]:
+        chamadas.append(id_pessoa)
+        return {"consultado": True, "numeros": [], "ids": []}
+
+    monkeypatch.setattr("maria.fluxos.pessoa_presa.graph.consultar_casos_pessoa", falso)
+    f = _fluxo()
+    await f.iniciar()
+    await f.responder("false")
+    await f.responder("11111111111")
+    await f.responder("true")
+    r = await f.responder("amigo")
+    assert r["motivoHandoff"] == "sem_numero_processo"
+    assert chamadas == []
+
+
+async def test_558_o_log_nao_leva_numero_do_processo_nem_rg(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    _casos(monkeypatch, numeros=["11111111111111111111"])
+    await _ate_o_fim()
+    saida = capsys.readouterr().out
+    assert "processo_nao_vinculado_ao_rg" in saida
+    assert "0000088-95.2026.8.19.0010" not in saida and "00000889520268190010" not in saida
+    assert "11111111111" not in saida.replace("11111111111111111111", "")

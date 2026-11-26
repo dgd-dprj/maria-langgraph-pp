@@ -9,7 +9,7 @@ Reproduzido de develop, com issues abertas para depois da migração:
 - `pedirConfirmaNome` mostrava o nome do apenado a partir do RG digitado (#236);
   desde a #393, mostra o nome mascarado (primeiro nome e iniciais);
 - a lista de parentescos difere da do SIPEN (#212); desde 2026-11-12, o valor da IA fora da lista vira "Outro";
-- `situacao`, `tipoPreso` ou `regime` com `null` do Verde lançam TypeError no
+- `situacao` ou `regime` com `null` do Verde lançam TypeError no
   `concluir`, como o `null.toUpperCase()` de develop (spec 05, 3.2).
 
 Regra de `undefined` × `null` (spec 05, tabela 0.2): `temProcesso`,
@@ -39,7 +39,7 @@ from maria.ia.ajuste_qwen import SUFIXO_PARENTESCO, com_ajuste_qwen
 from maria.ia.classificar import classificar_entre_opcoes
 from maria.ia.extrair import extrair_campos_livre
 from maria.ia.reescrever import preparar_pergunta
-from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_apenado_por_rg
+from maria.integracoes.verde import STATUS_PROCESSO_NAO_LOCALIZADO, consultar_apenado_por_rg, consultar_casos_pessoa
 from maria.integracoes.verde import consultar_processo_com_status as consultar_processo_verde
 from maria.shared import _js
 from maria.shared.contexto import contexto_atual
@@ -66,7 +66,7 @@ SITUACOES_PERMITIDAS = frozenset(
         "ABERTO/DOMICÍLIO COVID-19",
     }
 )
-TIPO_PRESO_PERMITIDO = "CONDENADO"
+# #561 (decisão do Felipe, 2026-11-26): o tipo de preso não decide mais; só situação e regime.
 REGIMES_PERMITIDOS = frozenset({"FECHADO", "SEMIABERTO"})
 
 TEXTO_LIVRE = (
@@ -149,30 +149,23 @@ def normalizar_situacao(situacao: Any) -> str:
 
 
 def dados_apenado_atendidos(state: PessoaPresaState) -> bool:
-    # `const { situacao, tipoPreso, regime } = state.dadosApenado ?? {}`
+    # `const { situacao, regime } = state.dadosApenado ?? {}`. O `tipoPreso` saiu da regra na #561.
     dados = _js.coalesce(_ler(state, "dadosApenado"), {})
     situacao = _js.prop(dados, "situacao")
-    tipo_preso = _js.prop(dados, "tipoPreso")
     regime = _js.prop(dados, "regime")
-    if situacao is _js.AUSENTE or tipo_preso is _js.AUSENTE or regime is _js.AUSENTE:
+    if situacao is _js.AUSENTE or regime is _js.AUSENTE:
         return False
     # `&&` com curto-circuito: só o primeiro null encontrado lança.
-    return (
-        normalizar_situacao(situacao) in SITUACOES_PERMITIDAS
-        and _to_upper_case(tipo_preso, "tipoPreso") == TIPO_PRESO_PERMITIDO
-        and _to_upper_case(regime, "regime") in REGIMES_PERMITIDOS
-    )
+    return normalizar_situacao(situacao) in SITUACOES_PERMITIDAS and _to_upper_case(regime, "regime") in REGIMES_PERMITIDOS
 
 
 def _criterio_nao_atendido(dados: Any) -> tuple[str, bool] | None:
     """O 1º critério da #57 que barrou, na ordem do `concluir`, e se foi por falta do dado. None se todos batem."""
-    for campo in ("situacao", "tipoPreso", "regime"):
+    for campo in ("situacao", "regime"):
         valor = _js.prop(dados, campo) if _js.verdadeiro(dados) else _js.AUSENTE
         if valor is _js.AUSENTE or not isinstance(valor, str):
             return campo, True
         if campo == "situacao" and normalizar_situacao(valor) not in SITUACOES_PERMITIDAS:
-            return campo, False
-        if campo == "tipoPreso" and valor.upper() != TIPO_PRESO_PERMITIDO:
             return campo, False
         if campo == "regime" and valor.upper() not in REGIMES_PERMITIDOS:
             return campo, False
@@ -181,11 +174,11 @@ def _criterio_nao_atendido(dados: Any) -> tuple[str, bool] | None:
 
 def campos_de_log_do_fim(values: Mapping[str, Any]) -> dict[str, Any]:
     """#457: o porquê de cada atendimento humano, no `atendimento_finalizado`, só quando se aplica e **sem dado pessoal**:
-    nunca o número do processo, o RG, o nome, a situação, o tipo ou o regime, só o nome do critério.
+    nunca o número do processo, o RG, o nome, a situação ou o regime, só o nome do critério.
 
     - `origem_processo_nao_suportada`: `processoLocalizado` e, quando o Verde achou, `origemProcesso` (o sistema de
       origem, como "PJe"); quando não achou, `statusVerdeProcesso` (400, 404 ou 422).
-    - `dados_pessoa_nao_atendidos`: `criterioNaoAtendido` (`situacao`, `tipoPreso` ou `regime`, o 1º que barrou) e
+    - `dados_pessoa_nao_atendidos`: `criterioNaoAtendido` (`situacao` ou `regime`, o 1º que barrou) e
       `criterioSemDado` (o Verde não mandou esse campo).
     - `rg_nao_encontrado`: `digitosRg`, quantos dígitos tinha o último RG consultado."""
     motivo = values.get("motivoHandoff")
@@ -522,6 +515,34 @@ async def pedir_parentesco(state: PessoaPresaState) -> Atualizacao:
     }
 
 
+async def processo_e_do_rg(state: PessoaPresaState) -> bool:
+    """#558: o processo informado está entre os casos da pessoa do RG? Falso só quando o Verde respondeu e o processo não
+    está lá. Sem número, sem `idPessoa` ou com a consulta de casos falhando (infra, mock), segue como antes (True):
+    não derruba quem está certo. O log leva o resultado e a contagem, nunca o número do processo, o RG nem o corpo."""
+    numero = state.get("numeroProcesso")
+    id_pessoa = _js.opt(_ler(state, "dadosApenado"), "idPessoa")
+    if not isinstance(numero, str) or not isinstance(id_pessoa, int) or isinstance(id_pessoa, bool):
+        return True
+    casos = await consultar_casos_pessoa(id_pessoa)
+    if not casos["consultado"]:
+        logger.warn(
+            "[pessoa-presa] conferência do processo com o RG não feita; segue como antes",
+            **contexto_atual(),
+            evento="processo_rg_nao_conferido",
+        )
+        return True
+    id_processo = _js.opt(_ler(state, "dadosProcesso"), "id")
+    if re.sub(r"\D", "", numero) in casos["numeros"] or (isinstance(id_processo, int) and id_processo in casos["ids"]):
+        return True
+    logger.info(
+        "[pessoa-presa] o processo não está entre os casos da pessoa do RG",
+        **contexto_atual(),
+        evento="processo_nao_vinculado_ao_rg",
+        casos=len(casos["numeros"]),
+    )
+    return False
+
+
 async def concluir(state: PessoaPresaState) -> Atualizacao:
     if state.get("temProcesso") is False:
         return {
@@ -538,6 +559,10 @@ async def concluir(state: PessoaPresaState) -> Atualizacao:
             "motivoHandoff": "origem_processo_nao_suportada",
             "mensagemFinal": MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO if nao_localizado else MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA,
         }
+    if not await processo_e_do_rg(state):
+        # #558 (decisão do Icaro, 2026-11-26): o assistido não é avisado do motivo. Sem mensagemFinal: a rota usa a
+        # mensagemHandoff do FluxoConfig, a mesma dos outros encaminhamentos.
+        return {"statusFinal": "handoff_humano", "motivoHandoff": "processo_nao_vinculado_ao_rg"}
     if not dados_apenado_atendidos(state):
         # Sem mensagemFinal: a rota usa a mensagemHandoff do FluxoConfig.
         return {"statusFinal": "handoff_humano", "motivoHandoff": "dados_pessoa_nao_atendidos"}
