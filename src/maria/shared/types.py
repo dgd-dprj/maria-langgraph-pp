@@ -44,6 +44,17 @@ class DadosApenado(TypedDict, total=False):
     falhaInfra: bool
 
 
+class CasosPessoa(TypedDict):
+    """#558: o que a conferência processo x RG precisa dos casos de uma pessoa (`GET /caso/consultar-casos-pessoa`).
+
+    `consultado` é False quando a consulta falhou por infra ou o Verde está em mock; nesse caso `numeros` e `ids` vêm vazios
+    e a conferência não barra ninguém. `numeros` são só dígitos do `numeroProcesso`; `ids`, os `idProcesso`."""
+
+    consultado: bool
+    numeros: list[str]
+    ids: list[int]
+
+
 class MovimentoProcesso(TypedDict, total=False):
     titulo: str
     data: str
