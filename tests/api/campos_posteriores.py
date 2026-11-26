@@ -38,6 +38,8 @@ CAMPOS_DE_LOG_POSTERIORES: dict[str, CampoPosterior] = {
     "criterioNaoAtendido": _LOG_457,
     "criterioSemDado": _LOG_457,
     "digitosRg": _LOG_457,
+    # #553: o motivo do atalho por palavra na linha "orquestrador: fluxo identificado".
+    "atalho": CampoPosterior(issue=553, teste="tests/api/test_orquestrador_atalho.py"),
 }
 
 

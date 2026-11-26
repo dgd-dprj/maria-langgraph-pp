@@ -310,7 +310,7 @@ Efeito na migração:
 | `[verde] {chamada}: HTTP não-ok` | `error` (`auth_ou_infra`) ou `warn` (`nao_encontrado`) | `chatId`, `fluxoId`, `status`, `tipoErro`, `evento:"verde_chamada"`, `chamada`, `resultado:"nao_ok"`, `duracaoMs`, e em infra `tentativa` e `tentativasRestantes` |
 | `[verde] {chamada}: falha na chamada (tentativa {n})` | `error` | `chatId`, `fluxoId`, `err`, `evento`, `chamada`, `resultado:"erro"`, `duracaoMs`, `tentativa`, `tipoErro:"auth_ou_infra"` |
 | `[verde] {chamada}: chamada concluída` | `info` | `chatId`, `fluxoId`, `evento`, `chamada`, `resultado:"sucesso"`, `duracaoMs`. Em encaminhamento e cadastro, também `corpo` |
-| `[verde] encaminhamento: falhou, corpo de erro da Verde` e `[verde] cadastroPessoa: falhou, ...` | `error` | `corpo`, `status`, `evento`, `chamada`, `resultado:"nao_ok"`, `duracaoMs` |
+| `[verde] encaminhamento: falhou, corpo de erro da Verde` e `[verde] cadastroPessoa: falhou, ...` | `error` | `corpo`, `status`, `evento`, `chamada`, `resultado:"nao_ok"`, `duracaoMs`. **Desde 2026-11-18 (#220): sem `corpo`; no lugar, `codigo` (só quando é texto ou número curto, até 64 caracteres). O sucesso dessas duas chamadas também deixou de registrar o `corpo`** |
 | `[whatsapp] mensagem enviada` / `envio falhou` / `erro ao enviar mensagem` / modo mock | `info` / `error` / `error` / `warn` | `chatId`, `duracaoMs`, `evento`, `status`, `erroDetalhe`, `erro` |
 
 Detalhes:

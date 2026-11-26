@@ -1,0 +1,90 @@
+name: Depuração com IA
+
+# #503: quando o CI de um PR falha, a depuração percorre as 6 fases (coleta, reprodução, isolamento,
+# causa, correção e registro) e abre uma issue [BUG] com a etiqueta depuracao-ia. Não abre PR: o patch
+# fica nos artefatos desta execução. IA: o Qwen3 Coder de São Paulo, pelo papel nicole-github-actions
+# (testado em 16/11). Teto de US$ 0,10 por investigação (decisão da Nicole): se for passar, para e avisa.
+#
+# Segurança: o workflow_run roda com acesso à AWS e executa o código do PR (os testes e o bisect). Por
+# isso só roda para PRs de branches deste repositório, nunca de fork.
+on:
+  workflow_run:
+    workflows: ["CI"]
+    types: [completed]
+  workflow_dispatch:
+    inputs:
+      execucao:
+        description: "id da execução do CI que falhou"
+        required: true
+
+permissions:
+  contents: read
+
+concurrency:
+  group: depuracao-${{ github.event.workflow_run.head_sha || inputs.execucao }}
+  cancel-in-progress: false
+
+jobs:
+  investigar:
+    if: >-
+      github.event_name == 'workflow_dispatch' ||
+      (github.event.workflow_run.conclusion == 'failure' &&
+       github.event.workflow_run.event == 'pull_request' &&
+       github.event.workflow_run.head_repository.full_name == github.repository)
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+    permissions:
+      contents: read
+      actions: read
+      issues: write
+      id-token: write # OIDC para a AWS (Bedrock em sa-east-1)
+    defaults:
+      run:
+        shell: bash
+    steps:
+      - name: Execução e commits
+        id: alvo
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXECUCAO: ${{ github.event.workflow_run.id || inputs.execucao }}
+        run: |
+          gh api "repos/$GITHUB_REPOSITORY/actions/runs/$EXECUCAO" > execucao.json
+          echo "execucao=$EXECUCAO" >> "$GITHUB_OUTPUT"
+          echo "head=$(jq -r .head_sha execucao.json)" >> "$GITHUB_OUTPUT"
+          echo "base=$(jq -r '.pull_requests[0].base.ref // "develop"' execucao.json)" >> "$GITHUB_OUTPUT"
+
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ steps.alvo.outputs.head }}
+          fetch-depth: 0
+
+      - name: Instalar uv
+        uses: astral-sh/setup-uv@d0cc045d04ccac9d8b7881df0226f9e82c39688e # v6.8.0
+
+      - name: Instalar Python (versão de .python-version) e dependências
+        run: uv sync --frozen
+
+      - uses: aws-actions/configure-aws-credentials@7474bc4690e29a8392af63c5b98e7449536d5c3a # v4.3.1
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_ARN_NICOLE }}
+          aws-region: sa-east-1
+
+      - name: Investigar
+        env:
+          GH_TOKEN: ${{ github.token }}
+          EXECUCAO: ${{ steps.alvo.outputs.execucao }}
+          HEAD: ${{ steps.alvo.outputs.head }}
+          BASE_REF: ${{ steps.alvo.outputs.base }}
+        run: |
+          git config user.name "depuracao-ia"
+          git config user.email "depuracao-ia@users.noreply.github.com"
+          BASE=$(git merge-base "origin/$BASE_REF" "$HEAD")
+          uv run python scripts/depuracao/investigar.py --execucao "$EXECUCAO" --base "$BASE" --head "$HEAD" --saida depuracao
+
+      - name: Guardar o patch e o resultado
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: depuracao-${{ steps.alvo.outputs.execucao }}
+          path: depuracao/
+          if-no-files-found: ignore

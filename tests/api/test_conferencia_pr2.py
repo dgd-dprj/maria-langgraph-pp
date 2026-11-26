@@ -30,8 +30,9 @@ import pytest
 from maria.api.webhook_whatsapp import limpar_conversas_ativas_de_teste
 from maria.app import criar_app
 from tests.api.campos_posteriores import sem_campos_posteriores
-from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, PREFIXO_STATUS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
+from tests.api.relogio import adiantar_relogio_do_ttl
 
 RAIZ = Path("tests/fixtures/contrato/conferencia-api-pr2")
 CENARIOS: list[dict[str, Any]] = json.loads((RAIZ / "cenarios.json").read_text(encoding="utf-8"))
@@ -126,7 +127,12 @@ async def _conferir(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
     monkeypatch.setenv("API_KEY", "chave-conferencia")
     monkeypatch.setenv("MARIA_AMBIENTE", AMBIENTE_DAS_CONFERENCIAS)  # #324: o contrato vale na produção
     limpar_conversas_ativas_de_teste()
+    # #339: o webhook do WhatsApp só é registrado com o token de verificação; nas gravações de develop ele sempre existia.
+    # A aplicação nasce com um token, e ele sai do ambiente logo depois: cada cenário roda com o ambiente da gravação, e a
+    # lógica da rota segue conferida. A rota ausente sem o token é coberta em test_webhook_whatsapp.py.
+    monkeypatch.setenv("WHATSAPP_VERIFY_TOKEN", "registra-o-webhook-na-conferencia")
     app = criar_app(pre_aquecer=False)
+    monkeypatch.delenv("WHATSAPP_VERIFY_TOKEN")
     por_caso: dict[str, list[str]] = {}
     async with app.router.lifespan_context(app):
         for c in CENARIOS:
@@ -135,13 +141,17 @@ async def _conferir(monkeypatch: pytest.MonkeyPatch) -> dict[str, list[str]]:
                 for k, v in c["env"].items():
                     if k != "APP_ENV":
                         m.setenv(k, v)
+                if "TTL_INATIVIDADE_HORAS" in c["env"]:
+                    # O cenário mede a inatividade: o tempo passa de propósito, e não por sorte (tests/api/relogio.py).
+                    adiantar_relogio_do_ttl(m)
                 r = await _asgi(app, c)
             d = DEVELOP[c["nome"]]
             esperado_corpo = "" if c["nome"] in HEAD_SEM_CORPO else d["corpo"]
             do_caso = por_caso.setdefault(c["nome"], [])
             for campo in ("status", "contentType", "location"):
                 if r[campo] != d[campo]:
-                    do_caso.append(f"{c['nome']}: {campo} {r[campo]!r} != {d[campo]!r}")
+                    prefixo = PREFIXO_STATUS if campo == "status" else ""
+                    do_caso.append(f"{prefixo}{c['nome']}: {campo} {r[campo]!r} != {d[campo]!r}")
             if d["status"] == 500 and r["corpo"] and esperado_corpo:
                 obtido, esperado = json.loads(r["corpo"]), json.loads(esperado_corpo)
                 obtido.pop("message"), esperado.pop("message")  # #210

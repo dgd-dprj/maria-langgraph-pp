@@ -395,18 +395,18 @@ async def test_6_pergunta_vazia_vai_vazia_no_interrupt(modelo: Modelo) -> None:
     assert pergunta(r) == {"pergunta": "", "tipo": "texto"}
 
 
-async def test_6_ids_string_pelo_bedrock_falso_chega_ao_grafo_e_lanca(bedrock: BedrockFalso, monkeypatch: pytest.MonkeyPatch) -> None:
-    # De ponta a ponta: o ia não valida (#212) e repassa a string; o grafo lança
-    # como o `ids.map` de develop. O retrieval fica fora (chamaria o embedding).
+async def test_6_ids_string_pelo_bedrock_falso_vira_nenhum_candidato(bedrock: BedrockFalso, monkeypatch: pytest.MonkeyPatch) -> None:
+    # De ponta a ponta. Em develop, a string chegava ao grafo e lançava ("ids.map is not a function"): a rota dava
+    # 500. Desde a #212, a classificação valida a saída: o que não é lista vira nenhum candidato, e a conversa segue
+    # como "não identificado". O retrieval fica fora (chamaria o embedding).
     async def pool(mensagem: str, k: int, catalogo: Any) -> Any:
         return list(catalogo)[:k]
 
     monkeypatch.setattr(graph, "buscar_candidatos", pool)
     bedrock.roteirizar(ferramenta({"idsPlausiveis": ID_PESSOA_PRESA}))
-    with pytest.raises(TypeError) as erro:
-        await Conversa().iniciar()
-    # O LangGraph anexa uma nota ("During task with name ..."); o str() fica igual ao de develop.
-    assert str(erro.value) == "ids.map is not a function"
+    r = await Conversa().iniciar()
+    assert r["statusFinal"] == "nao_identificado"
+    assert "flowIdEscolhido" not in r
     assert len(bedrock.requisicoes) == 1
 
 

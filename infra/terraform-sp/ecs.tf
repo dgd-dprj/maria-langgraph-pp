@@ -1,4 +1,11 @@
 # Cluster, roles, task e service do release em São Paulo. A task role (Bedrock) vem de iam.tf.
+
+# #482: o ambiente da Maria sai do `environment` do stack, com a regra do código (maria/fluxos/__init__.py):
+# só "release" liga os fluxos em teste (plano de saúde e multi-fluxo); qualquer outro stack roda como produção.
+# Assim um stack de produção em São Paulo nunca herda o "release" por esquecimento.
+locals {
+  maria_ambiente = var.environment == "release" ? "release" : "producao"
+}
 resource "aws_ecs_cluster" "main" {
   name = "${var.project}-sp"
 
@@ -58,8 +65,8 @@ resource "aws_ecs_task_definition" "api" {
       { name = "PORT", value = tostring(var.container_port) },
       { name = "AWS_REGION", value = var.aws_region },
       { name = "BEDROCK_MODEL_ID", value = var.bedrock_model_id },
-      # Só "release" exato liga os fluxos em teste (maria/fluxos/__init__.py).
-      { name = "MARIA_AMBIENTE", value = "release" },
+      # Só "release" exato liga os fluxos em teste (maria/fluxos/__init__.py). Vem do environment (#482).
+      { name = "MARIA_AMBIENTE", value = local.maria_ambiente },
     ]
     secrets = concat([
       for k in [

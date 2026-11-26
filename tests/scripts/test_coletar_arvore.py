@@ -7,6 +7,7 @@ inventadas; as stores ficam em memória (sem DATABASE_URL).
 import asyncio
 import json
 from collections.abc import AsyncIterator, Awaitable, Callable
+from datetime import UTC, datetime, timedelta
 from typing import Any
 
 import httpx
@@ -80,9 +81,11 @@ async def ambiente(monkeypatch: pytest.MonkeyPatch, stores_limpas: None) -> Asyn
 
 
 async def _crawlear(rotas: dict[str, Resposta], flow_id: str = "flow-a", categoria: int = 9001, nome: str = "categoria a") -> VerdeFalso:
+    """Varre uma categoria e troca a árvore dela, como `coletar` faz no fim."""
     verde = VerdeFalso(rotas)
     async with httpx.AsyncClient(transport=httpx.MockTransport(verde)) as cliente:
-        await crawler.crawlear_flow(cliente, CONFIG, flow_id, categoria, nome)
+        arvore = await crawler.varrer_flow(cliente, CONFIG, flow_id, categoria, nome)
+    await (await obter_perguntas_store()).substituir_arvores([arvore])
     return verde
 
 
@@ -224,7 +227,7 @@ async def test_assunto_com_id_null_vira_get_assunto_null() -> None:
     with pytest.raises(Exception, match=r"^GET /assunto/null HTTP 404$"):
         verde = VerdeFalso(rotas)
         async with httpx.AsyncClient(transport=httpx.MockTransport(verde)) as cliente:
-            await crawler.crawlear_flow(cliente, CONFIG, "flow-a", 9001, "categoria a")
+            await crawler.varrer_flow(cliente, CONFIG, "flow-a", 9001, "categoria a")
     assert verde.chamadas[-1] == "/assunto/null"
 
 
@@ -305,7 +308,7 @@ async def test_falha_de_rede() -> None:
 
     async with httpx.AsyncClient(transport=httpx.MockTransport(recusar)) as cliente:
         with pytest.raises(crawler.ErroJs) as erro:
-            await crawler.crawlear_flow(cliente, CONFIG, "flow-a", 9001, "categoria a")
+            await crawler.varrer_flow(cliente, CONFIG, "flow-a", 9001, "categoria a")
     assert str(erro.value) == "fetch failed"
 
 
@@ -313,7 +316,7 @@ async def test_url_do_verde_vazia() -> None:
     config = crawler.ConfigVerde(api_url="", jwt_token="t", client_id="")
     async with httpx.AsyncClient(transport=httpx.MockTransport(VerdeFalso({}))) as cliente:
         with pytest.raises(crawler.ErroJs) as erro:
-            await crawler.crawlear_flow(cliente, config, "flow-a", 9001, "categoria a")
+            await crawler.varrer_flow(cliente, config, "flow-a", 9001, "categoria a")
     assert str(erro.value) == "Failed to parse URL from /assunto/consultar-item-arvore?idCategoria=9001"
 
 
@@ -336,54 +339,159 @@ ARVORE_VD: dict[str, Resposta] = {
 }
 
 
-async def _coletar(rotas: dict[str, Resposta]) -> VerdeFalso:
-    await adicionar_planejado_de_teste(
-        {"id": "planejado-a", "nome": "categoria a", "descricao": "d", "idCategoriaAssuntoVerde": 9001, "palavrasChave": []}
-    )
-    await adicionar_planejado_de_teste(
-        {"id": "planejado-b", "nome": "categoria b", "descricao": "d", "idCategoriaAssuntoVerde": 9002, "palavrasChave": []}
-    )
+async def _coletar(rotas: dict[str, Resposta], *, cadastrar: bool = True) -> tuple[VerdeFalso, int]:
+    """Roda `coletar` com a violência doméstica e duas categorias planejadas. Devolve o Verde falso e as falhas.
+
+    Numa segunda rodada do mesmo teste, `cadastrar=False`: as planejadas já estão cadastradas."""
+    if cadastrar:
+        await adicionar_planejado_de_teste(
+            {"id": "planejado-a", "nome": "categoria a", "descricao": "d", "idCategoriaAssuntoVerde": 9001, "palavrasChave": []}
+        )
+        await adicionar_planejado_de_teste(
+            {"id": "planejado-b", "nome": "categoria b", "descricao": "d", "idCategoriaAssuntoVerde": 9002, "palavrasChave": []}
+        )
     verde = VerdeFalso(rotas)
     async with httpx.AsyncClient(transport=httpx.MockTransport(verde)) as cliente:
-        await crawler.coletar(cliente, CONFIG)
-    return verde
+        falhas = await crawler.coletar(cliente, CONFIG)
+    return verde, falhas
 
 
 async def test_coletar_segue_depois_de_categoria_com_falha(capsys: pytest.CaptureFixture[str]) -> None:
     rotas: dict[str, Resposta] = {**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idCategoria=9002": (503, {})}
-    verde = await _coletar(rotas)
+    verde, falhas = await _coletar(rotas)
     captura = capsys.readouterr()
     assert captura.out.splitlines() == [
         "crawl iniciado — 3 categorias",
         "[violencia-domestica] 1 pergunta(s), 1 assunto(s)",
         "[categoria a] 4 pergunta(s), 4 assunto(s)",
         "crawl concluído: 5 pergunta(s), 5 assunto(s), 1 falha(s) em 3 categorias",
-        "categorias com falha (revisar manualmente — pode ser categoria sem árvore no Verde): categoria b",
+        "categorias com falha (a árvore anterior foi mantida): categoria b (nunca coletada com sucesso)",
     ]
     assert captura.err.splitlines() == ['[categoria b] falhou: consultar-item-arvore HTTP 503 ({"idCategoria":9002})']
+    assert falhas == 1
     # Ordem dos alvos: violência doméstica primeiro, depois os planejados.
     assert verde.chamadas[0] == "/assunto/consultar-item-arvore?idCategoria=10113"
 
 
-async def test_b1_falha_na_raiz_apaga_a_arvore_anterior() -> None:
-    # Achado #251, reproduzido de propósito: a régua é develop.
-    await _coletar({**ARVORE_VD, **ARVORE_9001, **_categoria_b_boa()})
+# #251 (decisão da Nicole, 2026-11-18): a varredura fica em memória, e a troca das árvores acontece numa transação só,
+# no fim. Uma categoria que falha fica com a árvore anterior. Em develop (achado B1), a árvore era apagada antes.
+
+
+async def _arvore(flow_id: str) -> tuple[list[Any], list[Any]]:
     store = await obter_perguntas_store()
-    assert len(await store.listar_perguntas_por_flow("planejado-b")) == 1
-
-    await _coletar({**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idCategoria=9002": (500, {})})
-    assert await store.listar_perguntas_por_flow("planejado-b") == []
-    assert await store.listar_assuntos_por_flow("planejado-b") == []
+    return await store.listar_perguntas_por_flow(flow_id), await store.listar_assuntos_por_flow(flow_id)
 
 
-async def test_b1_falha_no_meio_deixa_a_arvore_parcial() -> None:
+async def test_251_falha_na_raiz_mantem_a_arvore_anterior() -> None:
+    await _coletar({**ARVORE_VD, **ARVORE_9001, **_categoria_b_boa()})
+    antes = await _arvore("planejado-b")
+    assert len(antes[0]) == 1 and len(antes[1]) == 1
+
+    _, falhas = await _coletar({**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idCategoria=9002": (500, {})}, cadastrar=False)
+    assert falhas == 1
+    assert await _arvore("planejado-b") == antes
+
+
+async def test_251_falha_no_meio_mantem_a_arvore_anterior_inteira() -> None:
+    # O cenário BDD da issue: a categoria tem árvore gravada, e o Verde cai depois da terceira pergunta.
+    await _coletar({**ARVORE_VD, **ARVORE_9001, **_categoria_b_boa()})
+    antes = await _arvore("planejado-a")
+    assert [p["ordem"] for p in antes[0]] == [0, 1, 2, 3]
+
     rotas: dict[str, Resposta] = {**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idItemCategoria=12": (500, {})}
     rotas.update(_categoria_b_boa())
-    await _coletar(rotas)
+    _, falhas = await _coletar(rotas, cadastrar=False)
+    assert falhas == 1
+    assert await _arvore("planejado-a") == antes  # nada da varredura parcial (raiz e ramo 11) chegou ao banco
+
+
+async def test_251_as_categorias_boas_trocam_mesmo_com_uma_falha() -> None:
+    await _coletar({**ARVORE_VD, **ARVORE_9001, **_categoria_b_boa()})
+    nova_b: dict[str, Resposta] = {
+        "/assunto/consultar-item-arvore?idCategoria=9002": _no("B, VERSÃO NOVA?", (82, "x")),
+        "/assunto/consultar-item-arvore?idItemCategoria=82": _folha(802),
+        "/assunto/802": _detalhe("Assunto B novo"),
+    }
+    _, falhas = await _coletar({**ARVORE_VD, "/assunto/consultar-item-arvore?idCategoria=9001": (500, {}), **nova_b}, cadastrar=False)
+    assert falhas == 1
+    perguntas, assuntos = await _arvore("planejado-b")
+    assert [p["textoPergunta"] for p in perguntas] == ["B, VERSÃO NOVA?"]
+    assert [a["nome"] for a in assuntos] == ["Assunto B novo"]
+    assert len((await _arvore("planejado-a"))[0]) == 4  # a categoria a, que falhou, ficou como estava
+
+
+async def test_251_nada_vai_ao_banco_antes_do_fim(monkeypatch: pytest.MonkeyPatch) -> None:
+    # A troca acontece uma vez, no fim, com as categorias que deram certo; a varredura não grava nada.
     store = await obter_perguntas_store()
-    perguntas = await store.listar_perguntas_por_flow("planejado-a")
-    assert [p["ordem"] for p in perguntas] == [0, 1, 2]  # a raiz e o ramo 11 ficaram; o ramo 12 não
-    assert len(await store.listar_assuntos_por_flow("planejado-a")) == 2
+    chamadas: list[list[str]] = []
+    original = store.substituir_arvores
+
+    async def registrar(arvores: list[Any]) -> None:
+        chamadas.append([a["flowId"] for a in arvores])
+        await original(arvores)
+
+    for metodo in ("inserir_pergunta", "inserir_assunto", "inserir_flow_assunto", "limpar_flow"):
+
+        async def proibido(*_: object) -> None:
+            raise AssertionError("a coleta só grava pela troca no fim (#251)")
+
+        monkeypatch.setattr(store, metodo, proibido)
+    monkeypatch.setattr(store, "substituir_arvores", registrar)
+    await _coletar({**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idCategoria=9002": (500, {})})
+    assert chamadas == [[ID_VIOLENCIA_DOMESTICA, "planejado-a"]]
+
+
+# #526 (decisão da Nicole, 2026-11-18, caminho 1): a data da última coleta bem-sucedida de cada categoria, gravada na troca,
+# aparece no resumo para as categorias que falharam. O aviso de falhas seguidas (caminho 2) fica para quando a coleta for agendada.
+
+
+async def test_526_categoria_que_falhou_mostra_a_ultima_coleta(capsys: pytest.CaptureFixture[str]) -> None:
+    await _coletar({**ARVORE_VD, **ARVORE_9001, **_categoria_b_boa()})
+    store = await obter_perguntas_store()
+    # Simula que a última coleta boa da categoria b foi há 16 dias.
+    store._coletas["planejado-b"] = datetime.now(UTC) - timedelta(days=16, hours=1)  # type: ignore[attr-defined]
+    capsys.readouterr()
+    await _coletar({**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idCategoria=9002": (500, {})}, cadastrar=False)
+    ultima = capsys.readouterr().out.splitlines()[-1]
+    data = (datetime.now(UTC) - timedelta(days=16, hours=1)).astimezone(crawler.BRASILIA).strftime("%d/%m/%Y")
+    assert ultima == f"categorias com falha (a árvore anterior foi mantida): categoria b (última coleta em {data}, há 16 dias)"
+
+
+async def test_526_so_a_troca_que_deu_certo_atualiza_a_data() -> None:
+    await _coletar({**ARVORE_VD, **ARVORE_9001, **_categoria_b_boa()})
+    store = await obter_perguntas_store()
+    antes = await store.datas_das_coletas(["planejado-a", "planejado-b"])
+    assert set(antes) == {"planejado-a", "planejado-b"}
+    await _coletar({**ARVORE_VD, **ARVORE_9001, "/assunto/consultar-item-arvore?idCategoria=9002": (500, {})}, cadastrar=False)
+    depois = await store.datas_das_coletas(["planejado-a", "planejado-b"])
+    assert depois["planejado-b"] == antes["planejado-b"]  # falhou: a data da última coleta boa fica
+    assert depois["planejado-a"] >= antes["planejado-a"]
+
+
+@pytest.mark.parametrize(
+    ("quando", "esperado"),
+    [
+        (None, "nunca coletada com sucesso"),
+        (datetime(2026, 11, 18, 12, 0, tzinfo=UTC), "última coleta em 18/11/2026, hoje"),
+        (datetime(2026, 11, 17, 11, 0, tzinfo=UTC), "última coleta em 17/11/2026, há 1 dia"),
+        (datetime(2026, 11, 2, 12, 0, tzinfo=UTC), "última coleta em 02/11/2026, há 16 dias"),
+        # 01:00 em UTC ainda é o dia anterior em Brasília.
+        (datetime(2026, 11, 10, 1, 0, tzinfo=UTC), "última coleta em 09/11/2026, há 8 dias"),
+    ],
+)
+def test_526_descrever_ultima_coleta(quando: datetime | None, esperado: str) -> None:
+    assert crawler.descrever_ultima_coleta(quando, datetime(2026, 11, 18, 15, 0, tzinfo=UTC)) == esperado
+
+
+@pytest.mark.parametrize(("falhas", "codigo"), [(0, 0), (1, 1), (3, 1)])
+def test_251_codigo_de_saida_com_categoria_que_falhou(monkeypatch: pytest.MonkeyPatch, falhas: int, codigo: int) -> None:
+    async def coletar_falso(*_: object) -> int:
+        return falhas
+
+    monkeypatch.setenv("VERDE_JWT_TOKEN", "t")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://ninguem@127.0.0.1:1/nada")
+    monkeypatch.setattr(crawler, "coletar", coletar_falso)
+    assert crawler.main() == codigo
 
 
 def _categoria_b_boa() -> dict[str, Resposta]:
@@ -394,26 +502,28 @@ def _categoria_b_boa() -> dict[str, Resposta]:
     }
 
 
-def _checkpointer_falso(monkeypatch: pytest.MonkeyPatch, ordem: list[str], erro: Exception | None = None) -> None:
-    async def inicializar() -> None:
-        ordem.append("checkpointer")
-        if erro is not None:
-            raise erro
+# #255 (decisão da Nicole, 2026-11-17): a coleta não inicializa mais o checkpointer do LangGraph. Em develop, a importação
+# dos fluxos criava as tabelas de checkpoint antes das guardas do script e, com o banco fora, matava o processo sem o
+# "crawl falhou:" (B5).
 
-    async def fechar() -> None:
-        ordem.append("fechar checkpointer")
 
-    monkeypatch.setattr(crawler, "inicializar_checkpointer", inicializar)
-    monkeypatch.setattr(crawler, "fechar_checkpointer", fechar)
+def _checkpointer_proibido(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Qualquer chamada ao checkpointer quebra o teste: a coleta não deve tocar nele."""
+
+    async def proibido() -> None:
+        raise AssertionError("a coleta não pode inicializar o checkpointer (#255)")
+
+    from maria.shared import checkpointer
+
+    monkeypatch.setattr(checkpointer, "inicializar_checkpointer", proibido)
+    monkeypatch.setattr(checkpointer, "fechar_checkpointer", proibido)
 
 
 def test_sem_token(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    ordem: list[str] = []
-    _checkpointer_falso(monkeypatch, ordem)
+    _checkpointer_proibido(monkeypatch)
     monkeypatch.setenv("VERDE_JWT_TOKEN", "")
     monkeypatch.setenv("DATABASE_URL", "postgresql://ninguem@127.0.0.1:1/nada")
     assert crawler.main() == 1
-    assert ordem == ["checkpointer", "fechar checkpointer"]
     captura = capsys.readouterr()
     assert captura.out == ""
     assert captura.err.splitlines()[0] == (
@@ -422,27 +532,16 @@ def test_sem_token(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixtur
 
 
 def test_sem_database_url(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
+    _checkpointer_proibido(monkeypatch)
     monkeypatch.setenv("VERDE_JWT_TOKEN", "t")
     monkeypatch.setenv("DATABASE_URL", "")
     assert crawler.main() == 1
     captura = capsys.readouterr()
-    # B5: o checkpointer nasce antes das guardas do script e loga o aviso do MemorySaver.
-    (linha,) = captura.out.splitlines()
-    assert json.loads(linha)["msg"] == "[checkpoint] DATABASE_URL ausente — usando MemorySaver (não persiste)"
+    # Sem a linha do MemorySaver no stdout: o checkpointer não nasce mais.
+    assert captura.out == ""
     assert captura.err.splitlines()[0] == (
         "crawl falhou: Error: DATABASE_URL obrigatório — sem isso o resultado do crawl não fica salvo em lugar nenhum"
     )
-
-
-def test_falha_do_checkpointer_vem_antes_da_guarda_do_token(monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]) -> None:
-    # B5: em develop, a importação dos fluxos falha antes de o main() checar o token.
-    ordem: list[str] = []
-    _checkpointer_falso(monkeypatch, ordem, ConnectionRefusedError("connect ECONNREFUSED 127.0.0.1:1"))
-    monkeypatch.setenv("VERDE_JWT_TOKEN", "")
-    with pytest.raises(ConnectionRefusedError):
-        crawler.main()
-    assert ordem == ["checkpointer"]
-    assert "crawl falhou" not in capsys.readouterr().err
 
 
 def test_fluxo_de_violencia_domestica_tem_categoria() -> None:

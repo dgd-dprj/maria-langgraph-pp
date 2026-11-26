@@ -18,6 +18,7 @@ from typing import Any, ClassVar
 from langgraph.types import Command
 
 from maria.api import esquemas
+from maria.api.dados_conhecidos import sem_campos_internos
 from maria.api.pipeline import Contexto, LogRequisicao, Resposta, Rota
 from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA, FluxoConfig, buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.pessoa_presa.graph import campos_de_log_do_fim
@@ -43,6 +44,7 @@ from maria.shared._js import AUSENTE, numero_js
 from maria.shared.atendimentos_db import ConclusaoAtendimento, obter_atendimentos_store
 from maria.shared.pendentes_db import obter_pendentes_store
 from maria.shared.respostas import normalizar_resposta, resposta_eh_nao, resposta_eh_sim
+from maria.shared.trava import trava
 
 # Formas naturais de responder à confirmação de TTL além de sim/não (#227), já
 # normalizadas (sem acento, minúsculas: ver normalizar_resposta).
@@ -180,6 +182,21 @@ async def criar_atendimento(
     if chat_id_gerado:
         log.warn("chatId ausente na requisição — gerado UUID (só permitido em NODE_ENV=test)", fluxoId=fluxo_id, chatId=chat_id)
 
+    # #453: duas chamadas iguais ao mesmo tempo (um reenvio da Tykhe) não rodam o fluxo duas vezes. A trava vale entre
+    # processos (no banco) e tem espera máxima: a segunda chamada espera a primeira terminar e devolve o estado atual.
+    async with trava(f"atendimento:{chat_id}") as obtida:
+        return await _criar_ou_retomar(fluxo, fluxo_id, chat_id, dados_conhecidos, log, via_orquestrador, obtida)
+
+
+async def _criar_ou_retomar(
+    fluxo: FluxoConfig,
+    fluxo_id: str,
+    chat_id: str,
+    dados_conhecidos: Any,
+    log: LogRequisicao,
+    via_orquestrador: bool,
+    trava_obtida: bool,
+) -> Resposta:
     # Registra chatId→flowId ANTES de tocar no grafo: chatId de outro fluxo é 409.
     store = await obter_atendimentos_store()
     registro = await store.registrar(chat_id, fluxo_id)
@@ -202,6 +219,18 @@ async def criar_atendimento(
         log.warn("POST em chatId que já existe — devolvendo estado atual, sem reiniciar", fluxoId=fluxo_id, chatId=chat_id)
         corpo = montar_resposta_atendimento(fluxo, fluxo_id, chat_id, interrupt_anterior, valores_anteriores)
         return Resposta(200, corpo, {"Location": f"/atendimentos/{chat_id}"})
+
+    if not trava_obtida:
+        # #453: a primeira chamada ainda está rodando depois da espera máxima e não gravou nada. Rodar o fluxo aqui
+        # o abriria duas vezes; devolver o estado vazio diria à pessoa algo que não aconteceu. Fica um 409 que
+        # pede para tentar de novo, e a próxima tentativa encontra o estado gravado.
+        log.warn(
+            "atendimento em processamento por outra chamada — sem rodar de novo",
+            fluxoId=fluxo_id,
+            chatId=chat_id,
+            evento="atendimento_em_processamento",
+        )
+        return Resposta(409, {"erro": "atendimento em processamento — tente de novo em instantes", "status": "em_andamento"})
 
     log.info("atendimento criado", fluxoId=fluxo_id, chatId=chat_id, evento="atendimento_criado")
     dados = {k: v for k, v in (dados_conhecidos if isinstance(dados_conhecidos, dict) else {}).items() if k != "viaOrquestrador"}
@@ -298,8 +327,10 @@ async def _post_atendimentos(ctx: Contexto) -> Resposta:
     fluxo = await buscar_fluxo(fluxo_id)
     if fluxo is None:
         return Resposta(404, {"erro": "fluxo não encontrado — ver GET /fluxos"})
+    # #240: campo interno dos fluxos em `dadosConhecidos` não entra no estado; o nome vai para o log.
+    conhecidos = sem_campos_internos(corpo.get("dadosConhecidos", AUSENTE), ctx.log, "atendimentos")
     # 200, e não 201: a Tykhe só reconhece 200 como sucesso (pedido explícito).
-    return await criar_atendimento(fluxo, fluxo_id, corpo.get("chatId", AUSENTE), corpo.get("dadosConhecidos", AUSENTE), ctx.log)
+    return await criar_atendimento(fluxo, fluxo_id, corpo.get("chatId", AUSENTE), conhecidos, ctx.log)
 
 
 async def _fluxo_do_chat(chat_id: Any) -> tuple[FluxoConfig, str] | Resposta:

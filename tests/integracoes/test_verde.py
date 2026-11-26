@@ -554,6 +554,117 @@ def _linhas_brutas(texto: str) -> list[str]:
     return [linha for linha in texto.splitlines() if linha.strip()]
 
 
+# --- #220: a resposta do Verde fora do log do encaminhamento e do cadastro ---------------------------------------------
+# Decisão da Nicole (2026-11-18): fica só o status HTTP e o `codigo` do erro. Os dados abaixo são inventados.
+
+NOME_FICTICIO = "PESSOA FICTICIA DA SILVA"
+CPF_FICTICIO = "98765432100"
+DADOS_CADASTRO = {"nome": NOME_FICTICIO, "cpf": CPF_FICTICIO, "dataNascimento": "2000-01-01"}
+DADOS_ENCAMINHAMENTO = {"idPessoa": 1, "idOrgao": 2, "urgente": True}
+
+
+def _linhas_com(saida: str, msg: str) -> list[dict[str, object]]:
+    return [linha for linha in (json.loads(x) for x in _linhas_brutas(saida)) if linha["msg"] == msg]
+
+
+async def _escrever(chamada: str) -> object:
+    if chamada == "cadastroPessoa":
+        return await verde.cadastrar_pessoa(DADOS_CADASTRO)  # type: ignore[arg-type]
+    return await verde.criar_encaminhamento_violencia_domestica(DADOS_ENCAMINHAMENTO)  # type: ignore[arg-type]
+
+
+@pytest.mark.parametrize("chamada", ["cadastroPessoa", "encaminhamento"])
+async def test_220_falha_registra_so_status_e_codigo(verde_real: TransporteFalso, capsys: pytest.CaptureFixture[str], chamada: str) -> None:
+    mensagem = f"Pessoa {NOME_FICTICIO} (CPF {CPF_FICTICIO}) já cadastrada anteriormente"
+
+    async def tratar(_req: httpx.Request) -> httpx.Response:
+        return json_ok({"codigo": "PESSOA_JA_CADASTRADA", "mensagem": mensagem}, 400)
+
+    verde_real.tratador = tratar
+    capsys.readouterr()
+    resultado = await _escrever(chamada)
+    saida = capsys.readouterr().out
+    [linha] = _linhas_com(saida, f"[verde] {chamada}: falhou, corpo de erro da Verde")
+    assert {k: linha[k] for k in ("status", "codigo", "evento", "chamada", "resultado")} == {
+        "status": 400,
+        "codigo": "PESSOA_JA_CADASTRADA",
+        "evento": "verde_chamada",
+        "chamada": chamada,
+        "resultado": "nao_ok",
+    }
+    assert "corpo" not in linha and "mensagem" not in linha
+    assert NOME_FICTICIO not in saida and CPF_FICTICIO not in saida
+    # O que volta para o fluxo não muda neste PR: a mensagem do Verde segue em `erro`.
+    assert resultado == {"sucesso": False, "erro": mensagem}
+
+
+@pytest.mark.parametrize(
+    ("chamada", "resposta"),
+    [
+        ("cadastroPessoa", {"dados": {"idPessoa": 5, "nome": NOME_FICTICIO, "cpf": CPF_FICTICIO}}),
+        ("encaminhamento", {"dados": {"id": 9, "urgente": True, "nomeAssistido": NOME_FICTICIO}}),
+    ],
+)
+async def test_220_sucesso_nao_registra_o_corpo(
+    verde_real: TransporteFalso, capsys: pytest.CaptureFixture[str], chamada: str, resposta: dict[str, object]
+) -> None:
+    async def tratar(_req: httpx.Request) -> httpx.Response:
+        return json_ok(resposta, 201)
+
+    verde_real.tratador = tratar
+    capsys.readouterr()
+    resultado = await _escrever(chamada)
+    saida = capsys.readouterr().out
+    [linha] = [json.loads(x) for x in _linhas_brutas(saida)]
+    assert linha["msg"] == f"[verde] {chamada}: chamada concluída"
+    assert linha["resultado"] == "sucesso" and isinstance(linha["duracaoMs"], int)
+    assert "corpo" not in linha
+    assert NOME_FICTICIO not in saida and CPF_FICTICIO not in saida
+    assert resultado == ({"sucesso": True, "idPessoa": 5} if chamada == "cadastroPessoa" else {"sucesso": True, "id": 9})
+
+
+@pytest.mark.parametrize(
+    ("corpo", "codigo"),
+    [
+        ({"codigo": 409, "mensagem": "x"}, 409),
+        ({"codigo": "X" * 64}, "X" * 64),
+        ({"codigo": "X" * 65}, None),  # longo demais para ser um código: pode ser texto livre
+        ({"codigo": ""}, None),
+        ({"codigo": True}, None),
+        ({"codigo": {"nome": NOME_FICTICIO}}, None),
+        ({"codigo": [CPF_FICTICIO]}, None),
+        ({"mensagem": "sem código"}, None),
+        ([], None),
+    ],
+)
+async def test_220_codigo_so_entra_quando_e_um_codigo_curto(
+    verde_real: TransporteFalso, capsys: pytest.CaptureFixture[str], corpo: object, codigo: object
+) -> None:
+    async def tratar(_req: httpx.Request) -> httpx.Response:
+        return json_ok(corpo, 422)
+
+    verde_real.tratador = tratar
+    capsys.readouterr()
+    await _escrever("cadastroPessoa")
+    [linha] = _linhas_com(capsys.readouterr().out, "[verde] cadastroPessoa: falhou, corpo de erro da Verde")
+    assert linha.get("codigo") == codigo
+    assert ("codigo" in linha) is (codigo is not None)
+    assert linha["status"] == 422
+
+
+async def test_220_falha_de_infra_nao_tem_status_nem_codigo(verde_real: TransporteFalso, capsys: pytest.CaptureFixture[str]) -> None:
+    async def cair(_req: httpx.Request) -> httpx.Response:
+        raise httpx.ConnectError("sem rede")
+
+    verde_real.tratador = cair
+    capsys.readouterr()
+    assert await _escrever("cadastroPessoa") == {"sucesso": False, "erro": "falha na chamada ao Verde (infra esgotada)"}
+    linhas = [json.loads(x) for x in _linhas_brutas(capsys.readouterr().out)]
+    final = [x for x in linhas if x["msg"] == "[verde] cadastroPessoa: falhou, corpo de erro da Verde"]
+    assert len(final) == 1
+    assert "status" not in final[0] and "codigo" not in final[0] and "corpo" not in final[0]
+
+
 # --- Consulta completa da pessoa (#433): data de nascimento, e-mail e telefones só quando pedido ----------------------
 
 CORPO_PESSOA = {

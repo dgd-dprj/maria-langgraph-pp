@@ -9,6 +9,10 @@ O prompt é o da fase 0 da #279, medido fora do ar com 343 relatos inventados (2
 decisões da Nicole: a prisão citada só como contexto não é pedido sobre pessoa presa; urgência só
 com os 4 sinais combinados em 28/10; erro de digitação e jeito de falar são entendidos pelo sentido.
 
+#553 (decisão da Nicole, 26/11): a mensagem curta que só nomeia o assunto ("preso", "cadeia") é o pedido sobre ele.
+Sem essa regra, a da prisão como contexto fazia a palavra solta cair em "outros". As palavras da prisão também têm o
+atalho do orquestrador (`orquestrador/atalho.py`), que nem chama a IA.
+
 Só roda no release (`fluxo_em_teste_liga`); a produção segue com `classificar_fluxos_plausiveis`.
 Diferente dela, aqui a saída É validada: id fora da lista sai, e item malformado é ignorado.
 É código novo, sem develop para reproduzir (#212 vale para o caminho de hoje).
@@ -73,6 +77,7 @@ Regras:
 - O motivo, a causa, a consequência ou o contexto de um pedido não é outro assunto. Exemplos de um assunto só: "meu cartão de gratuidade foi bloqueado e eu faço tratamento três vezes por semana" (o tratamento é o motivo); "o hospital não me dá o prontuário do meu pai, que faleceu lá" (o falecimento é o contexto). Só é outro assunto quando a pessoa pede outra coisa.
 - Jeitos populares de dizer que alguém foi preso: "rodou", "a polícia levou", "tá na cana", "foi pra Bangu", "tá puxando cadeia", "tá no sistema", "pegaram ele".
 - Citar que alguém está preso não é, sozinho, pedido sobre pessoa presa. Quando a prisão aparece só como contexto de outro pedido ("meu marido está preso e eu quero me divorciar dele"; "meu marido foi preso, tenho direito a algum benefício?"), conte só o outro pedido. Conte pessoa presa quando a pessoa pede algo sobre o preso ou sobre a prisão: onde está, situação, processo, quando sai.
+- Mensagem de uma ou poucas palavras que só nomeia um assunto, sem contar mais nada ("preso", "cadeia", "divórcio"), é o pedido sobre esse assunto: classifique na opção que cobre o assunto, ou marque ambiguidade se ele couber em mais de uma. Não devolva "sem_id_compativel" só porque o relato é curto.
 - Cirurgia ou operação sem dizer se é pelo plano de saúde (convênio) ou pela rede pública (SUS, posto, hospital público) é dúvida entre as duas opções de saúde: marque ambiguidade entre elas.
 - Relato vago, que pode caber em mais de uma opção sem dizer qual, é ambiguidade: marque as opções possíveis em vez de devolver "sem_id_compativel". Use "sem_id_compativel" só quando o relato claramente não cabe em nenhuma opção.
 - Não invente informação. A evidência é um trecho curto copiado do relato. Se faltar dado, marque a evidência como não clara.
@@ -132,6 +137,30 @@ def _validar(parsed: Any, ids: list[str]) -> tuple[list[Necessidade], list[str]]
     return necessidades, em_duvida
 
 
+# #553: quantas chamadas, no máximo, quando a IA diz que há assunto mas não sobra nenhuma necessidade válida.
+TENTATIVAS_SAIDA_INCOERENTE = 2
+
+
+def _quantidade(parsed: Any) -> Any:
+    return parsed.get("quantidade") if isinstance(parsed, dict) else None
+
+
+def _incoerente(quantidade: Any, necessidades: list[Necessidade], em_duvida: list[str]) -> bool:
+    """A IA disse que o relato tem assunto ("uma" ou "mais_de_uma"), mas nenhuma necessidade válida sobrou e não há
+    dúvida entre duas opções. Achado da #553 (26/11, Qwen3 VL 235B): "pensão" e "cirurgia" voltaram assim 1 vez em 3,
+    e a conversa ia para "outros" sem motivo. As duas formas que dão nisso: a lista vazia, ou itens com id fora da
+    lista, que `_validar` descarta. "sem_id_compativel" com a lista vazia é coerente e não repete."""
+    return quantidade in ("uma", "mais_de_uma") and not necessidades and len(em_duvida) < 2
+
+
+def _somar_tokens(acumulado: dict[str, int], raw: Any) -> None:
+    """Os tokens de todas as chamadas, como `definir_tokens` (chave ausente quando não há contagem)."""
+    desta: dict[str, Any] = {}
+    definir_tokens(desta, raw)
+    for chave, valor in desta.items():
+        acumulado[chave] = acumulado.get(chave, 0) + valor
+
+
 def _mock() -> ResultadoNecessidades:
     """APP_ENV=test nunca chama o Bedrock.
 
@@ -177,10 +206,22 @@ async def classificar_necessidades(mensagem: str, opcoes: list[OpcaoParaNecessid
     descricoes = "\n".join(f'- id "{o["id"]}" ({o["nome"]}): {o["descricao"]}' for o in opcoes)
     try:
         sistema = com_ajuste_qwen(SISTEMA.format(descricoes=descricoes), SUFIXO_NECESSIDADES)
-        resultado = await invocar_estruturado(modelo, esquema(ids), sistema, mensagem)
-        necessidades, em_duvida = _validar(resultado["parsed"], ids)
-        saida: dict[str, Any] = {"necessidades": necessidades, "idsEmAmbiguidade": em_duvida, "viaIA": True}
-        definir_tokens(saida, resultado["raw"])
+        tokens: dict[str, int] = {}
+        for tentativa in range(1, TENTATIVAS_SAIDA_INCOERENTE + 1):
+            resultado = await invocar_estruturado(modelo, esquema(ids), sistema, mensagem)
+            necessidades, em_duvida = _validar(resultado["parsed"], ids)
+            _somar_tokens(tokens, resultado["raw"])
+            quantidade = _quantidade(resultado["parsed"])
+            if not _incoerente(quantidade, necessidades, em_duvida) or tentativa == TENTATIVAS_SAIDA_INCOERENTE:
+                break
+            # #553: "há assunto" sem nenhuma necessidade válida. Repete a chamada uma vez; o log não leva o relato.
+            logger.warning(
+                "[classificar] saída incoerente da IA (assunto sem necessidade válida), repetindo a classificação",
+                **contexto_atual(),
+                evento="classificacao_incoerente_repetida",
+                quantidade=quantidade,
+            )
+        saida: dict[str, Any] = {"necessidades": necessidades, "idsEmAmbiguidade": em_duvida, "viaIA": True, **tokens}
         return saida  # type: ignore[return-value]
     except Exception as erro:
         # Na falha, segue como hoje numa falha da classificação: nada identificado.

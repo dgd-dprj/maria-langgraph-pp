@@ -29,7 +29,7 @@ import pytest
 
 from maria.app import criar_app
 from tests.api.campos_posteriores import linha_sem_campos_posteriores, sem_campos_posteriores
-from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, falhas_da_conferencia
+from tests.api.casos_aposentados import AMBIENTE_DAS_CONFERENCIAS, CASOS_APOSENTADOS, PREFIXO_STATUS, falhas_da_conferencia
 from tests.api.fluxo_de_brinquedo import CASOS_DE_UM_FLUXO_NOVO, aposentados_do_brinquedo, casos_que_falharam, registrar_fluxo_de_brinquedo
 
 RAIZ = Path("tests/fixtures/contrato")
@@ -141,7 +141,7 @@ async def _conferir(cliente: httpx.AsyncClient, nome: str, capsys: pytest.Captur
         r = await cliente.request(req["metodo"], req["caminho"], headers=_cabecalhos(f), content=_conteudo(f))
         esperado = f["resposta"]
         if r.status_code != esperado["status"]:
-            falhas.append(f"{f['nome']}: status {r.status_code} != {esperado['status']}: {r.text}")
+            falhas.append(f"{PREFIXO_STATUS}{f['nome']}: status {r.status_code} != {esperado['status']}: {r.text}")
             continue
         if r.headers.get("content-type") != esperado["contentType"]:
             falhas.append(f"{f['nome']}: content-type {r.headers.get('content-type')} != {esperado['contentType']}")

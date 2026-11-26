@@ -15,7 +15,7 @@ import httpx
 import pytest
 
 from maria.api import atendimentos, webhook_whatsapp
-from maria.api.pipeline import UrlInvalida, _consulta, _decodificar_parametro, _sanitizar
+from maria.api.pipeline import MENSAGEM_500, UrlInvalida, _consulta, _decodificar_parametro, _sanitizar
 from maria.fluxos import ID_PESSOA_PRESA, ID_VIOLENCIA_DOMESTICA
 from maria.shared.atendimentos_db import obter_atendimentos_store
 
@@ -35,10 +35,12 @@ async def test_d2_resposta_original_vazia_na_retomada_do_ttl_da_500_como_develop
     capsys.readouterr()
     r = await cliente.post("/atendimentos/respostas", json={"chatId": chat_id, "resposta": "sim"}, headers=auth)
     assert r.status_code == 500
-    assert r.json() == {"statusCode": 500, "error": "Internal Server Error", "message": "Received empty Command input"}
     erros = [json.loads(x) for x in capsys.readouterr().out.splitlines() if '"level":50' in x]
     assert erros and erros[0]["err"]["type"] == "EmptyInputError"
     assert erros[0]["err"]["name"] == "EmptyInputError"
+    # #210: o texto da exceção ("Received empty Command input") fica só no log; o corpo leva o texto fixo e o reqId
+    # da linha de log.
+    assert r.json() == {"statusCode": 500, "error": "Internal Server Error", "message": MENSAGEM_500, "reqId": erros[0]["reqId"]}
     # E o grafo não avançou: continua na 1ª pergunta.
     get = await cliente.get(f"/atendimentos/{chat_id}", headers=auth)
     assert get.json()["resposta"] == "Você é a vítima de violência doméstica?"

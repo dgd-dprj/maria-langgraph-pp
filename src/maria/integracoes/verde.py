@@ -615,10 +615,25 @@ def _mensagem_de_erro(corpo_erro: Any, resultado: ResultadoChamadaVerde) -> Any:
     return _js.coalesce(_js.opt(corpo_erro, "mensagem"), padrao)
 
 
+# #220 (decisão da Nicole, 2026-11-18): a resposta do Verde não vai mais para o log do encaminhamento e do cadastro.
+# A mensagem de erro é escrita pelo Verde e pode repetir o que foi enviado (nome, CPF, endereço). Fica só o status
+# HTTP e o `codigo` do erro, quando ele é um código curto (texto ou número), como o WhatsApp faz com `erroDetalhe`.
+TAMANHO_MAXIMO_DO_CODIGO = 64
+
+
+def _codigo_do_erro(corpo_erro: Any) -> Any:
+    codigo = _js.opt(corpo_erro, "codigo")
+    if isinstance(codigo, bool) or not isinstance(codigo, str | int):
+        return AUSENTE
+    if isinstance(codigo, str) and (not codigo or len(codigo) > TAMANHO_MAXIMO_DO_CODIGO):
+        return AUSENTE
+    return codigo
+
+
 async def _registrar_falha_de_escrita(chamada: str, resultado: ResultadoChamadaVerde, inicio: int) -> Any:
     corpo_erro = AUSENTE if resultado.res is None else await _ler_json_ou_vazio(resultado.res)
     campos: dict[str, Any] = dict(contexto_atual())
-    _js.definir(campos, "corpo", corpo_erro)
+    _js.definir(campos, "codigo", _codigo_do_erro(corpo_erro))
     if resultado.res is not None:
         campos["status"] = resultado.res.status_code
     logger.error(
@@ -658,7 +673,7 @@ async def criar_encaminhamento_violencia_domestica(dados: DadosEncaminhamento) -
         await _fechar(resultado)
         return {"sucesso": False, "erro": _mensagem_de_erro(corpo_erro, resultado)}
     corpo = await _ler_json_ou_vazio(resultado.res)
-    _sucesso("encaminhamento", inicio, corpo=corpo)
+    _sucesso("encaminhamento", inicio)
     saida: dict[str, Any] = {"sucesso": True}
     _js.definir(saida, "id", _js.opt(_js.prop(corpo, "dados"), "id"))
     return cast(ResultadoEncaminhamento, saida)
@@ -706,7 +721,7 @@ async def cadastrar_pessoa(dados: DadosCadastroPessoa) -> ResultadoCadastroPesso
         await _fechar(resultado)
         return {"sucesso": False, "erro": _mensagem_de_erro(corpo_erro, resultado)}
     corpo = await _ler_json_ou_vazio(resultado.res)
-    _sucesso("cadastroPessoa", inicio, corpo=corpo)
+    _sucesso("cadastroPessoa", inicio)
     id_pessoa = _js.opt(_js.prop(corpo, "dados"), "idPessoa")
     if id_pessoa is AUSENTE:
         return {"sucesso": False, "erro": "Verde não devolveu idPessoa"}

@@ -30,6 +30,13 @@ class CasoAposentado:
     issue: int
     motivo: str
     teste: str  # caminho a partir da raiz do repositório
+    # Aposenta só o corpo: o status continua conferido contra a gravação (#210, #211). Uma mudança que levasse o caso a
+    # outro status (um 422, um 500) continua sendo pega pela conferência.
+    mantem_status: bool = False
+
+
+# A falha de status que as conferências registram à parte, para valer mesmo num caso aposentado com `mantem_status`.
+PREFIXO_STATUS = "[status] "
 
 
 # Conferência -> (arquivo de teste dela, nomes dos casos que ela percorre).
@@ -60,10 +67,9 @@ def nomes_dos_casos(conferencia: str) -> list[str]:
 # ligam, é coberto por testes escritos, e não pelas gravações.
 AMBIENTE_DAS_CONFERENCIAS = "producao"
 
-# #393 (decisão da Nicole, 2026-11-04): "Confirma que a pessoa presa é …?" mostra o nome mascarado.
-_NOME_MASCARADO = CasoAposentado(
-    issue=393, motivo="o nome do apenado sai mascarado na confirmação do RG", teste="tests/fluxos/test_pessoa_presa.py"
-)
+# #551 (2026-11-25): a confirmação do RG voltou a mostrar o nome completo da pessoa presa; os 4 casos que a #393
+# aposentou (pessoa-presa-resposta-rg-200, pessoa-presa-get-metadados-parciais-200, pp_rg, pp_get_confirma_nome)
+# voltam a bater com as gravações e saíram daqui.
 
 # Histórico dos casos de `GET /fluxos`: a #329 aposentou 6 (contrato `fluxos-200`; pr1 `fluxos`,
 # `fluxos_query`, `auth_bearer_espacos_fluxos`, `auth_bearer_duplo_espaco_fluxos`; pr2
@@ -99,16 +105,84 @@ _CASOS_CPF_NUMERICO = (
     "dados_cpf_objeto_cheio",
 )
 
+# #240 (decisão da Nicole, 2026-11-17): campo interno dos fluxos em `dadosConhecidos` é descartado. A gravação provocava
+# o erro não tratado com `dadosConhecidos.tokensGastos: null`; agora o campo sai, e a criação segue com 200. O formato do
+# 500, que mudou com a #210, é conferido em `tests/api/test_erros_api.py`.
+_CAMPO_INTERNO = CasoAposentado(
+    issue=240,
+    motivo="tokensGastos de fora é campo interno e é descartado; a criação não quebra mais",
+    teste="tests/api/test_dados_conhecidos_internos.py",
+)
+
+# #210 e #211 (decisão da Nicole, 2026-11-18, um PR só): os erros da API mudaram de corpo, com o mesmo status.
+# - O 400 de validação e de leitura do corpo, nas rotas que declaram o 400, trazia `{}`; agora traz `{"erro": <motivo>}`.
+#   Todo 400 gravado com `{}` é um desses (os 400 de negócio já vinham com `erro`), e por isso eles saem por regra.
+# - O 500 trazia o texto da exceção em `message`; agora traz um texto fixo e o `reqId`. Os 500 gravados saem pelo nome:
+#   todos continuavam respondendo 500 quando foram aposentados, só o corpo mudou. Ficam de fora os 500 de HEAD, que não
+#   têm corpo e continuam iguais à gravação, e os dois 500 de `tokensGastos` da PR1, que a #240 já trata à parte (200).
+#   Nos dois, só o corpo sai da conferência: o status continua conferido (`mantem_status`).
+_ERRO_400_COM_MOTIVO = CasoAposentado(
+    issue=211,
+    motivo="o 400 de validação e de leitura do corpo traz o motivo em português, em vez de {}",
+    teste="tests/api/test_erros_api.py",
+    mantem_status=True,
+)
+_ERRO_500_SEM_EXCECAO = CasoAposentado(
+    issue=210,
+    motivo="o 500 traz um texto fixo e o reqId, em vez do texto da exceção",
+    teste="tests/api/test_erros_api.py",
+    mantem_status=True,
+)
+_CASOS_500: dict[str, tuple[str, ...]] = {
+    "contrato": (
+        "erro-nao-tratado-webhook-challenge-repetido-500",
+        "erro-nao-tratado-webhook-mensagem-null-500",
+        "erro-nao-tratado-webhook-texto-numero-500",
+    ),
+    "pr1": (),
+    "pr2": ("wh_get_challenge_repetido", "wh_post_item_null", "wh_post_numero_texto_numero"),
+}
+
+
+def _respostas_gravadas(conferencia: str) -> list[tuple[str, int, str]]:
+    """Nome, status e corpo de cada resposta gravada da conferência."""
+    if conferencia == "contrato":
+        saida = []
+        for nome in _nomes_contrato():
+            resposta = json.loads((RAIZ_FIXTURES / "http" / f"{nome}.json").read_text(encoding="utf-8"))["resposta"]
+            saida.append((nome, resposta["status"], resposta["corpoBruto"]))
+        return saida
+    pasta = {"pr1": "conferencia-api-pr1", "pr2": "conferencia-api-pr2"}[conferencia]
+    gravadas = json.loads((RAIZ_FIXTURES / pasta / "develop.json").read_text(encoding="utf-8"))
+    return [(g["nome"], g["status"], g["corpo"]) for g in gravadas]
+
+
+def casos_dos_erros_da_api(conferencia: str) -> dict[str, CasoAposentado]:
+    """#210 e #211: os casos gravados com 400 `{}` (por regra) e os 500 (pelo nome)."""
+    casos = {nome: _ERRO_400_COM_MOTIVO for nome, status, corpo in _respostas_gravadas(conferencia) if status == 400 and corpo == "{}"}
+    casos.update(dict.fromkeys(_CASOS_500[conferencia], _ERRO_500_SEM_EXCECAO))
+    return casos
+
+
 CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
     "contrato": {
-        "pessoa-presa-resposta-rg-200": _NOME_MASCARADO,
-        "pessoa-presa-get-metadados-parciais-200": _NOME_MASCARADO,
+        **casos_dos_erros_da_api("contrato"),
+        "erro-nao-tratado-500": _CAMPO_INTERNO,
         "pessoa-presa-resposta-texto-sem-opcoes-200": _PERGUNTA_DO_RG,
     },
-    "pr1": {nome: _CPF_NUMERICO for nome in _CASOS_CPF_NUMERICO},
+    "pr1": {
+        **casos_dos_erros_da_api("pr1"),
+        **{nome: _CPF_NUMERICO for nome in _CASOS_CPF_NUMERICO},
+        # #240: develop devolvia em `metadados` o `encaminhamentoId` pré-preenchido; agora ele é descartado na entrada.
+        # O `null` fica fora: a gravação já não o mostrava, e a resposta continua igual.
+        **{
+            nome: _CAMPO_INTERNO
+            for nome in nomes_dos_casos("pr1")
+            if nome.startswith("dados_encaminhamentoId_") and nome != "dados_encaminhamentoId_null"
+        },
+    },
     "pr2": {
-        "pp_rg": _NOME_MASCARADO,
-        "pp_get_confirma_nome": _NOME_MASCARADO,
+        **casos_dos_erros_da_api("pr2"),
         # #394 (decisão da Nicole, 2026-11-12): a recusa do RG pelo formato diz a tentativa e dá um exemplo.
         "pp_rg_invalido": CasoAposentado(
             issue=394, motivo="a mensagem de recusa do RG pelo formato mudou", teste="tests/fluxos/test_pessoa_presa.py"
@@ -118,6 +192,12 @@ CASOS_APOSENTADOS: dict[str, dict[str, CasoAposentado]] = {
         # #212 (decisão da Nicole, 2026-11-13): "Irmão(a)" virou "Irmão" e "Irmã"; a resposta "irmão" grava "Irmão".
         "pp_parentesco": _IRMAO_E_IRMA,
         "pp_get_concluido": _IRMAO_E_IRMA,
+        # #393, item 3 (decisão da Nicole, 2026-11-17): o município do órgão saiu da mensagem final da violência doméstica.
+        "vd_via_orq_3": CasoAposentado(
+            issue=393,
+            motivo="o município do órgão saiu da mensagem final da violência doméstica",
+            teste="tests/fluxos/test_mensagem_sem_municipio.py",
+        ),
         "vd_cpf": _CPF_PELA_CONTA,
         "vd_get_concluido": _CPF_PELA_CONTA,
         "vd_409_concluido": _CPF_PELA_CONTA,
@@ -131,12 +211,15 @@ def falhas_que_valem(nome: str, falhas_do_caso: list[str], aposentados: Mapping[
     """As falhas de um caso que contam na conferência.
 
     Caso fora da lista: as próprias falhas. Caso aposentado: nenhuma, a não ser que ele tenha
-    voltado a bater com a gravação, o que vira falha de entrada esquecida."""
+    voltado a bater com a gravação, o que vira falha de entrada esquecida. Caso aposentado só no
+    corpo (`mantem_status`): as falhas de status (`PREFIXO_STATUS`) continuam valendo."""
     caso = aposentados.get(nome)
     if caso is None:
         return falhas_do_caso
     if not falhas_do_caso:
         return [f"{nome}: aposentado (#{caso.issue}), mas voltou a bater com a gravação; tire a entrada de casos_aposentados.py"]
+    if caso.mantem_status:
+        return [f for f in falhas_do_caso if f.startswith(PREFIXO_STATUS)]
     return []
 
 

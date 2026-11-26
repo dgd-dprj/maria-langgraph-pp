@@ -1,0 +1,4 @@
+{
+  // #412: a extensão do mypy mostra no editor os mesmos erros de tipo que o CI acusa; o ruff, os mesmos de lint.
+  "recommendations": ["ms-python.python", "ms-python.mypy-type-checker", "charliermarsh.ruff"]
+}

@@ -12,7 +12,6 @@ do fluxo escolhido depois (que usa o `chatId` puro).
 
 from __future__ import annotations
 
-import asyncio
 import os
 import uuid
 from typing import Any, cast
@@ -21,6 +20,7 @@ from langgraph.types import Command
 
 from maria.api import esquemas
 from maria.api.atendimentos import criar_atendimento, extrair_interrupt, normalizar_cpf_conhecido
+from maria.api.dados_conhecidos import sem_campos_internos
 from maria.api.pipeline import Contexto, Resposta, Rota
 from maria.fluxos import buscar_fluxo, fluxo_em_teste_liga
 from maria.fluxos.tipos_tykhe import TipoCasoTykhe, TipoTykhe, tipo_tykhe_por_caso, tipo_tykhe_por_id
@@ -46,11 +46,12 @@ from maria.orquestrador.fila import (
     texto_proximo_assunto,
     texto_retomada,
 )
-from maria.orquestrador.graph import assuntos_em_aberto, obter_grafo, usuario_do_chat
+from maria.orquestrador.graph import assuntos_em_aberto, obter_grafo, pendentes_ainda_nao_abertos, usuario_do_chat
 from maria.shared import _js
 from maria.shared._js import AUSENTE
 from maria.shared.atendimentos_db import AtendimentosStore, obter_atendimentos_store
 from maria.shared.pendentes_db import Situacao, obter_pendentes_store
+from maria.shared.trava import trava
 
 MENSAGEM_NAO_IDENTIFICADO = (
     "Não consegui identificar como te ajudar a partir do que você escreveu. "
@@ -124,6 +125,10 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
     recusa = normalizar_cpf_conhecido(corpo, ctx.log)
     if recusa is not None:
         return recusa
+    # #240: campo interno dos fluxos em `dadosConhecidos` é descartado aqui, uma vez, para as duas leituras
+    # do corpo nesta requisição (a da 1ª chamada, guardada, e a do fluxo aberto).
+    if "dadosConhecidos" in corpo:
+        corpo["dadosConhecidos"] = sem_campos_internos(corpo["dadosConhecidos"], ctx.log, "orquestrador")
     mensagem = corpo.get("mensagem", AUSENTE)
     resposta = corpo.get("resposta", AUSENTE)
     # #185: resposta "" barrada ANTES do "algum dos dois", senão chegaria a Command(resume="").
@@ -245,6 +250,8 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
             tokensGastosTotal=tokens_rodada,
             rodada=rodada,
             **no_log_pendentes,
+            # #553: o atalho por palavra decidiu, sem IA. Só o motivo, nunca a mensagem.
+            **({"atalho": resultado["atalho"]} if resultado.get("atalho") else {}),
         )
         return Resposta(200, _com_pendentes(_resposta_redirecionada(chat_id, tipo, tokens_conversa), pendentes))
 
@@ -269,6 +276,8 @@ async def _post_orquestrador(ctx: Contexto) -> Resposta:
         tokensGastosTotal=tokens_rodada,
         rodada=rodada,
         **no_log_pendentes,
+        # #553: o atalho por palavra decidiu, sem IA. Só o motivo, nunca a mensagem.
+        **({"atalho": resultado["atalho"]} if resultado.get("atalho") else {}),
     )
     # O gasto da triagem vira o ponto de partida do acumulador do fluxo (#35).
     # #442: os dados da 1ª chamada, com o que vier nesta por cima (a Tykhe pode mandar de novo).
@@ -465,8 +474,14 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
     resposta = ctx.corpo.get("resposta")
     # Duas chamadas ao mesmo tempo para a mesma conversa (um retry da Tykhe) esperam a vez: sem a trava, a
     # 2ª via o atendimento já registrado, mas ainda sem conversa, e devolvia a mensagem de sucesso do fluxo
-    # (achado do teste de consistência, 2026-11-09). A API roda num processo só, como a ponte do WhatsApp.
-    async with _TRAVAS_PROXIMO.setdefault(origem, asyncio.Lock()):
+    # (achado do teste de consistência, 2026-11-09). #453: a trava passou para o banco, porque durante os deploys
+    # duas ou três tarefas atendem ao mesmo tempo; e a espera tem limite (orçamento da #477).
+    async with trava(f"proximo:{origem}") as obtida:
+        if not obtida:
+            ctx.log.warn(
+                "orquestrador: próximo assunto em processamento por outra chamada", chatId=chat_id, evento="proximo_em_processamento"
+            )
+            return Resposta(409, {"erro": "assunto em processamento — tente de novo em instantes", "status": "em_andamento"})
         if not (isinstance(assunto, str) and assunto) and isinstance(resposta, str) and resposta.strip():
             abertos = await assuntos_em_aberto(chat_id)
             escolha = escolha_nos_abertos(resposta, abertos)
@@ -490,9 +505,6 @@ async def _post_proximo_assunto(ctx: Contexto) -> Resposta:
                 return await _abrir_proximo_assunto(ctx, origem, posicao)
             return await _abrir_guardado(ctx, chat_id, assunto)
         return await _abrir_proximo_assunto(ctx, origem)
-
-
-_TRAVAS_PROXIMO: dict[str, asyncio.Lock] = {}
 
 
 def _resposta_lista(chat_id: str, abertos: list[AssuntoAberto]) -> dict[str, Any]:
@@ -600,7 +612,6 @@ async def _abrir_proximo_assunto(ctx: Contexto, origem: str, so_posicao: int | N
         if so_posicao is not None and posicao != so_posicao:
             continue
         novo = chat_id_do_assunto(origem, posicao)
-        restantes = _com_cpf(pendentes[indice + 1 :], cpf)
         tipo_caso = item.get("tipoCaso")
         if tipo_caso is not None:
             if posicao in encaminhados:
@@ -616,6 +627,8 @@ async def _abrir_proximo_assunto(ctx: Contexto, origem: str, so_posicao: int | N
             )
             corpo = _resposta_redirecionada(novo, tipo_tykhe_por_caso(cast(TipoCasoTykhe, tipo_caso)), None)
             corpo["chatId"] = novo
+            # #493: só os que ainda não foram abertos nem encaminhados, inclusive os abertos fora da ordem.
+            restantes = _com_cpf(await pendentes_ainda_nao_abertos(origem, valores, posicao), cpf)
             return Resposta(200, _com_pendentes(corpo, restantes))
 
         flow_id = item.get("flowId")
@@ -647,6 +660,8 @@ async def _abrir_proximo_assunto(ctx: Contexto, origem: str, so_posicao: int | N
             if novo_agora and isinstance(texto, str):
                 resposta_fluxo.corpo["resposta"] = f"{texto_proximo_assunto(item)}\n\n{texto}"
             resposta_fluxo.corpo["chatId"] = novo
+            # #493: calculado depois de abrir este assunto, sem os já abertos (inclusive fora da ordem) nem os encaminhados.
+            restantes = _com_cpf(await pendentes_ainda_nao_abertos(origem, valores, posicao), cpf)
             _com_pendentes(resposta_fluxo.corpo, restantes)
         return resposta_fluxo
 

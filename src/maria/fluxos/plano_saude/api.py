@@ -79,7 +79,7 @@ def extrair_dados_coletados_plano_saude(values: Mapping[str, Any]) -> dict[str, 
 
 
 # Provisório: o texto final, com documentos e prazo, é da #335; o envio ao NUDECON, da #345.
-MENSAGEM_CONCLUIDO = "Recebi suas informações e vou encaminhar seu atendimento ao NUDECON, que entra em contato com você."
+MENSAGEM_CONCLUIDO = "Seu atendimento foi registrado e entraremos em contato o mais breve possível."
 MENSAGEM_IMAGENS_PENDENTES = "Não recebi as imagens dos documentos. Vou encaminhar seu atendimento para a equipe dar continuidade."
 MENSAGEM_SITUACAO_NAO_INFORMADA = "Não consegui entender a sua situação. Vou encaminhar seu atendimento para a equipe dar continuidade."
 MENSAGEM_RENDA_NAO_ENTENDIDA = "Não consegui entender a sua renda. Vou encaminhar seu atendimento para a equipe dar continuidade."

@@ -122,6 +122,41 @@ def test_codeql_analisa_python_e_os_workflows() -> None:
     assert job["permissions"]["security-events"] == "write"
 
 
+def test_depuracao_so_roda_em_falha_de_pr_do_proprio_repositorio() -> None:
+    # #503: o workflow_run tem acesso à AWS e roda o código do PR; nunca para fork, nunca abre PR.
+    workflow = _carregar("depuracao.yml")
+    assert _gatilhos(workflow)["workflow_run"] == {"workflows": ["CI"], "types": ["completed"]}
+    job = workflow["jobs"]["investigar"]
+    condicao = " ".join(job["if"].split())
+    assert "github.event.workflow_run.conclusion == 'failure'" in condicao
+    assert "github.event.workflow_run.head_repository.full_name == github.repository" in condicao
+    assert job["permissions"] == {"contents": "read", "actions": "read", "issues": "write", "id-token": "write"}
+    assert "pull-requests" not in job["permissions"], "a rotina não abre PR"
+    texto = json.dumps(job)
+    assert "AWS_ROLE_ARN_NICOLE" in texto and "sa-east-1" in texto
+    assert "secrets." not in texto
+
+
+def test_qa_da_staging_roda_depois_da_publicacao_e_so_le_a_aws() -> None:
+    # #502, parte C: depois do "Deploy — release (homolog)" da staging, com sucesso; a chave do release vem do
+    # segredo RELEASE_API_KEY, que só vai para o passo do QA e nunca é impressa.
+    workflow = _carregar("qa-staging.yml")
+    assert _gatilhos(workflow)["workflow_run"] == {
+        "workflows": ["Deploy — release (homolog)"],
+        "types": ["completed"],
+        "branches": ["staging"],
+    }
+    job = workflow["jobs"]["qa"]
+    assert "github.event.workflow_run.conclusion == 'success'" in job["if"]
+    assert job["permissions"] == {"contents": "read", "actions": "read", "pull-requests": "write", "id-token": "write"}
+    passos = {p.get("name") or p.get("uses", ""): p for p in job["steps"]}
+    assert passos["QA do release"]["env"]["RELEASE_API_KEY"] == "${{ secrets.RELEASE_API_KEY }}"
+    assert sum("secrets." in json.dumps(p) for p in job["steps"]) == 1, "o segredo vai só para o passo do QA"
+    texto = json.dumps(job)
+    assert "vars.AWS_ROLE_ARN }}" in texto and "sa-east-1" in texto
+    assert (WORKFLOWS.parent.parent / "scripts" / "qa" / "qa_staging.py").is_file()
+
+
 def test_nenhum_workflow_usa_node_para_a_aplicacao() -> None:
     for nome in ("ci.yml", "deploy-prod.yml", "deploy-release.yml"):
         texto = (WORKFLOWS / nome).read_text(encoding="utf-8")
@@ -369,3 +404,28 @@ def test_producao_nao_redeploya_com_desired_count_zero() -> None:
     passos = _passos("deploy-prod.yml", "deploy")
     forcar = next(p for p in passos if "Forçar novo deployment" in p.get("name", ""))["run"]
     assert "desiredCount" in forcar and "-gt 0" in forcar
+
+
+def test_ci_confere_a_versao_dos_fluxos_so_nos_prs_para_a_develop() -> None:
+    # #542: o PR que muda um fluxo precisa de "Solicitado por" e "Resumo da mudança". Não é check obrigatório do ruleset.
+    job = _carregar("ci.yml")["jobs"]["versao-dos-fluxos"]
+    assert job["if"] == "github.base_ref == 'develop'"
+    texto = str(job["steps"])
+    assert "base.sha" in texto and "verificar-pr" in texto
+    # O corpo do PR vai por variável de ambiente, nunca interpolado no script (é texto de quem abre o PR).
+    comandos = "\n".join(passo.get("run", "") for passo in job["steps"])
+    assert "github.event.pull_request.body" not in comandos
+    assert "versao-dos-fluxos" not in {"test", "imagem"}
+
+
+@pytest.mark.parametrize("nome", ["deploy-release.yml", "deploy-prod.yml"])
+def test_deploy_leva_a_versao_dos_fluxos_na_imagem_e_publica_a_tag_do_commit(nome: str) -> None:
+    # #542: metadados da versão dentro da imagem, tag `sha-<commit>` além da tag do ambiente, e o deploy não depende deles.
+    assert _carregar(nome)["permissions"]["pull-requests"] == "read"
+    passos = _passos(nome, "deploy")
+    meta = next(p for p in passos if "Metadados da versão" in p.get("name", ""))["run"]
+    assert "montar_versao_meta.py" in meta and "|| echo" in meta
+    build = next(p for p in passos if "Build e push" in p.get("name", ""))["run"]
+    assert "--build-arg VERSAO_META" in build
+    assert '-t "$ECR_REPO:sha-$GITHUB_SHA"' in build
+    assert 'docker push "$ECR_REPO:sha-$GITHUB_SHA"' in build

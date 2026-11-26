@@ -295,7 +295,7 @@ PERGUNTAS_PP_LIVRE_E_RG_INVALIDO = [
         "tipo": "texto",
     },
     # #393: o nome do mock ("Pessoa de Teste (mock)") sai mascarado.
-    {"pergunta": "Confirma que a pessoa presa é Pessoa T.?", "tipo": "sim_nao", "opcoes": SIM_NAO},
+    {"pergunta": "Confirma que a pessoa presa é Pessoa de Teste (mock)?", "tipo": "sim_nao", "opcoes": SIM_NAO},
     {"pergunta": "Qual seu parentesco com a pessoa presa?", "tipo": "texto"},
 ]
 
@@ -423,7 +423,8 @@ async def test_3_endereco_detalhado_mantem_a_posicao_das_chaves(verde_real: Tran
             [{"id": 7, "nome": "X", "enderecos": [{"idLocalAtendimento": None, "municipio": "Niterói"}]}],
             '{"idPessoa":4242,"idOrgao":7,"idLocalAtendimento":null,"urgencia":false,'
             '"preferenciaAtendimento":"Remoto","fluxoEncaminhamento":"VIOLENCIA_DOMESTICA"}',
-            "Vou encaminhar seu caso para X (Niterói). Protocolo: 31337.",
+            # #393, item 3: o município do órgão saiu da mensagem; o nome continua.
+            "Vou encaminhar seu caso para X. Protocolo: 31337.",
             id="null-vai-como-null",
         ),
         pytest.param(
@@ -637,7 +638,7 @@ async def test_6_um_no_retry_do_rg_vira_rg_digitado() -> None:
     f, perguntas, _ = await _conversa(obter_pp(), {}, ["Não", "000000000", "1"])
     estado = await f.estado()
     assert estado["rg"] == "1" and estado["digitouRgDireto"] is True
-    assert perguntas[-1]["pergunta"] == "Confirma que a pessoa presa é Pessoa T.?"  # #393: nome mascarado
+    assert perguntas[-1]["pergunta"] == "Confirma que a pessoa presa é Pessoa de Teste (mock)?"  # #551: nome completo
 
 
 async def test_6_processo_pontuado_de_20_digitos_e_digitado_direto_e_gravado_cru() -> None:

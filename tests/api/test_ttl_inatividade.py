@@ -12,6 +12,7 @@ import httpx
 import pytest
 
 from maria.fluxos import ID_VIOLENCIA_DOMESTICA
+from tests.api.relogio import adiantar_relogio_do_ttl
 
 BASE = "/atendimentos"
 FLOW_ID = ID_VIOLENCIA_DOMESTICA
@@ -32,6 +33,7 @@ async def _com_confirmacao_pendente(
     chat_id = novo_chat_id()
     await cliente.post(BASE, json={"chatId": chat_id, "flowId": FLOW_ID}, headers=auth)
     monkeypatch.setenv("TTL_INATIVIDADE_HORAS", "0")
+    adiantar_relogio_do_ttl(monkeypatch)
     confirmacao = await _responder(cliente, auth, chat_id, resposta_original)
     assert confirmacao.json()["tipoResposta"] == "sim_nao"
     monkeypatch.delenv("TTL_INATIVIDADE_HORAS")
@@ -53,6 +55,7 @@ async def test_fora_do_ttl_pergunta_se_quer_continuar(
     chat_id = novo_chat_id()
     await cliente.post(BASE, json={"chatId": chat_id, "flowId": FLOW_ID}, headers=auth)
     monkeypatch.setenv("TTL_INATIVIDADE_HORAS", "0")
+    adiantar_relogio_do_ttl(monkeypatch)
     r = await _responder(cliente, auth, chat_id, "true")
     assert r.status_code == 200
     assert r.json()["tipoResposta"] == "sim_nao"

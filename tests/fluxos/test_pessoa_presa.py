@@ -455,26 +455,23 @@ async def test_497_evento_rg_parece_cpf_sem_o_numero(capsys: pytest.CaptureFixtu
     assert "123.456.789-09" not in saida and "12345678909" not in saida
 
 
-# ---- #393: o nome da pessoa presa sai mascarado ------------------------------------
-# Decisão da Nicole (2026-11-04): quem digita o RG de qualquer pessoa não vê o nome
-# completo dela. Cobre os casos aposentados pessoa-presa-resposta-rg-200,
-# pessoa-presa-get-metadados-parciais-200, pp_rg e pp_get_confirma_nome
-# (tests/api/casos_aposentados.py).
+# ---- #551: a confirmação do RG mostra o nome completo da pessoa presa -------------
+# Pedido do Ícaro (2026-11-25), que desfaz o item 2 da #393. A confirmação do CPF do
+# assistido continua mascarada (tests/subgrafos/test_subgrafos.py).
 
 
-async def test_393_confirmacao_do_rg_mostra_o_nome_mascarado() -> None:
+async def test_551_confirmacao_do_rg_mostra_o_nome_completo() -> None:
     f = _fluxo()
     await f.iniciar()
     r = await f.responder("false", "11111111111")
-    assert texto(r) == "Confirma que a pessoa presa é Pessoa T.?"
-    assert "de Teste" not in texto(r) and "(mock)" not in texto(r)
+    assert texto(r) == "Confirma que a pessoa presa é Pessoa de Teste (mock)?"
 
 
-def test_393_texto_da_confirmacao_com_nome_real_e_sem_nome() -> None:
+def test_551_texto_da_confirmacao_com_nome_real_e_sem_nome() -> None:
     from maria.fluxos.pessoa_presa.graph import texto_confirma_nome
 
     assert texto_confirma_nome({"dadosApenado": {"encontrado": True, "nome": "JOSE DOS SANTOS PEREIRA"}}) == (
-        "Confirma que a pessoa presa é Jose S. P.?"
+        "Confirma que a pessoa presa é JOSE DOS SANTOS PEREIRA?"
     )
     assert texto_confirma_nome({}) == "Confirma que a pessoa presa é essa pessoa?"
 

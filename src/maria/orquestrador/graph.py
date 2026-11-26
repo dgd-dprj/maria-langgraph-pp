@@ -32,6 +32,7 @@ from maria.ia.classificar_necessidades import classificar_necessidades
 from maria.ia.desambiguar import CandidatoParaDesambiguar, gerar_pergunta_desambiguacao
 from maria.ia.sumarizar import sumarizar_relato
 from maria.orquestrador import fila as _fila
+from maria.orquestrador.atalho import atalho_pela_palavra
 from maria.orquestrador.state import CandidatoOrquestrador, OrquestradorState
 from maria.shared import _js
 from maria.shared.atendimentos_db import obter_atendimentos_store
@@ -109,6 +110,8 @@ async def classificar(state: OrquestradorState) -> dict[str, Any]:
     # mock devolve um id fixo sem olhar o pool (embedding falso, sem significado).
     catalogo_completo = await catalogo_para_classificacao()
     pool: list[CandidatoOrquestrador] | None = state.get("candidatosRestantes")
+    if pool is None and (atalho := _pelo_atalho(state, catalogo_completo)) is not None:
+        return atalho
     if pool is None:
         # A rota sempre manda `mensagem` no 1º invoke (`body.mensagem ?? ""`).
         pool = await buscar_candidatos(cast(str, state.get("mensagem", _js.AUSENTE)), CANDIDATOS_MAXIMOS, catalogo_completo)
@@ -127,6 +130,28 @@ async def classificar(state: OrquestradorState) -> dict[str, Any]:
         "candidatosRestantes": plausiveis,
         "tokensGastosRodada": resultado.get("tokensTotal"),
         "tokensGastosConversa": _delta_tokens(resultado),
+    }
+
+
+def _pelo_atalho(state: OrquestradorState, catalogo: list[CandidatoOrquestrador]) -> dict[str, Any] | None:
+    """#553: o relato que é só uma expressão curta da lista do atalho (`atalho.py`) vai direto ao destino (fluxo da Maria
+    ou tipo da Tykhe), sem busca e sem IA, na produção e no release. Só no relato (1ª classificação ou relato novo); a
+    resposta a uma pergunta de esclarecimento segue com a IA.
+
+    `tokensGastosRodada` fica None, como em toda rodada sem chamada de IA (#34); a conversa soma 0."""
+    atalho = atalho_pela_palavra(state.get("mensagem"))
+    if atalho is None:
+        return None
+    flow_id, motivo = atalho
+    candidato = next((c for c in catalogo if c["id"] == flow_id), None)
+    if candidato is None:
+        return None  # fluxo fora do catálogo (desligado): a IA decide, como antes
+    return {
+        "candidatosRestantes": [candidato],
+        "fila": None,
+        "atalho": motivo,
+        "tokensGastosRodada": None,
+        "tokensGastosConversa": {"input": 0, "output": 0, "total": 0},
     }
 
 
@@ -403,6 +428,7 @@ RECOMECO: dict[str, Any] = {
     "perguntaAtualTexto": None,
     "assuntosPendentes": None,
     "tokensGastosRodada": None,
+    "atalho": None,
 }
 
 
@@ -498,8 +524,26 @@ async def assuntos_pendentes_do_chat(chat_id: str) -> list[_fila.AssuntoPendente
     # conversa de origem que vêm depois dele.
     origem, posicao = _fila.origem_do_chat(chat_id)
     estado = await obter_grafo().aget_state({"configurable": {"thread_id": f"orquestrador:{origem}"}})
-    pendentes = (estado.values or {}).get("assuntosPendentes") or []
-    return pendentes[posicao - 1 :] or None
+    return await pendentes_ainda_nao_abertos(origem, estado.values or {}, posicao) or None
+
+
+async def pendentes_ainda_nao_abertos(origem: str, valores: Mapping[str, Any], depois_da_posicao: int) -> list[_fila.AssuntoPendente]:
+    """#493: os pendentes da conversa depois da posição dada que ainda não foram abertos nem encaminhados, na ordem.
+
+    O mesmo critério de `assuntos_em_aberto`: um assunto da Tykhe já devolvido (`assuntosEncaminhados`) ou um assunto
+    com atendimento registrado (aberto pela rota do próximo assunto, inclusive fora da ordem) sai da lista. Sem isso, a
+    Tykhe podia oferecer ou abrir de novo um assunto que a pessoa já resolveu."""
+    atendimentos = await obter_atendimentos_store()
+    encaminhados = set(valores.get("assuntosEncaminhados") or [])
+    restantes: list[_fila.AssuntoPendente] = []
+    for indice, pendente in enumerate(valores.get("assuntosPendentes") or []):
+        posicao = indice + 2
+        if posicao <= depois_da_posicao or posicao in encaminhados:
+            continue
+        if await atendimentos.buscar_atividade(_fila.chat_id_do_assunto(origem, posicao)) is not None:
+            continue
+        restantes.append(pendente)
+    return restantes
 
 
 async def assunto_guardado_do_chat(chat_id: str) -> str | None:
