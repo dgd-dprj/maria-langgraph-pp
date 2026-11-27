@@ -18,6 +18,7 @@ from __future__ import annotations
 
 import asyncio
 import datetime
+import json
 import os
 import re
 import time
@@ -47,8 +48,9 @@ from maria.shared.types import (
     ResultadoEncaminhamento,
 )
 
-# TODO herdado de develop, atualizado: o VERDE_JWT_TOKEN é renovado pelo workflow
-# verificar-token-verde.yml (docs/integracao-verde.md); a aplicação só o lê no boot.
+# O VERDE_JWT_TOKEN é renovado pelo workflow verificar-token-verde.yml
+# (docs/integracao-verde.md). A aplicação o lê no boot e, com VERDE_SEGREDO_ID
+# definido, o relê do Secrets Manager ao receber 401 (recarregar_token_verde).
 # Lidos na importação, como em develop (verde.ts:17-19): sem fail-fast.
 VERDE_API_URL = os.environ.get("VERDE_API_URL", "https://homologacao.verde.rj.def.br/api/integra")
 VERDE_JWT_TOKEN = os.environ.get("VERDE_JWT_TOKEN", "")
@@ -56,6 +58,11 @@ VERDE_CLIENT_ID = os.environ.get("VERDE_CLIENT_ID", "")
 # Issue #196: um RG real voltou "não encontrado" porque o Verde de homologação
 # levou 13,5 s e o timeout antigo era de 20 s.
 TIMEOUT_VERDE_S = 30.0
+# Segredo (nome ou ARN) que guarda o VERDE_JWT_TOKEN. Vazio: sem recarga (dev local, testes).
+VERDE_SEGREDO_ID = os.environ.get("VERDE_SEGREDO_ID", "")
+# Intervalo mínimo entre duas leituras do segredo: um Verde fora do ar não vira rajada no Secrets Manager.
+INTERVALO_RECARGA_TOKEN_S = 30.0
+_ultima_recarga_token = 0.0
 TENTATIVAS_RETRY_VERDE = 3
 
 MENSAGEM_MOCK = "[verde] VERDE_JWT_TOKEN ausente — modo mock (dev local)"
@@ -74,6 +81,40 @@ def _agora_ms() -> int:
 def _escapar(valor: str) -> str:
     """encodeURIComponent: só A-Z a-z 0-9 - _ . ! ~ * ' ( ) ficam sem codificar."""
     return quote(valor, safe="!*'()")
+
+
+# --- Recarga do token sem reinício ----------------------------------------------
+
+
+def _ler_token_do_segredo(segredo_id: str) -> str:
+    import boto3  # type: ignore[import-untyped]  # só carrega quando há recarga configurada
+
+    resposta = boto3.client("secretsmanager").get_secret_value(SecretId=segredo_id)
+    return str(json.loads(resposta["SecretString"]).get("VERDE_JWT_TOKEN", ""))
+
+
+async def recarregar_token_verde() -> bool:
+    """Relê o VERDE_JWT_TOKEN do Secrets Manager e o troca em memória. Devolve True
+    só se o token mudou. Nunca lança: qualquer falha mantém o token atual e a
+    chamada segue o caminho normal (handoff humano). Nada do token vai para o log."""
+    global VERDE_JWT_TOKEN, _ultima_recarga_token
+    if not VERDE_SEGREDO_ID:
+        return False
+    agora = time.monotonic()
+    if _ultima_recarga_token and agora - _ultima_recarga_token < INTERVALO_RECARGA_TOKEN_S:
+        return False
+    _ultima_recarga_token = agora
+    try:
+        novo = await asyncio.to_thread(_ler_token_do_segredo, VERDE_SEGREDO_ID)
+    except Exception as erro:
+        logger.error("[verde] recarga do token falhou", **contexto_atual(), err=erro, evento="verde_token_recarga", resultado="erro")
+        return False
+    if not novo or novo == VERDE_JWT_TOKEN:
+        logger.warn("[verde] recarga do token: segredo sem token novo", **contexto_atual(), evento="verde_token_recarga", resultado="igual")
+        return False
+    VERDE_JWT_TOKEN = novo
+    logger.info("[verde] token recarregado do segredo", **contexto_atual(), evento="verde_token_recarga", resultado="trocado")
+    return True
 
 
 # --- Retry de infra (issue #172) ---------------------------------------------
@@ -130,6 +171,8 @@ async def chamar_verde_com_retry(chamada: str, montar_requisicao: Callable[[], A
             if tentativa == TENTATIVAS_RETRY_VERDE:
                 return ResultadoChamadaVerde(ok=False, res=res, falha_infra=True)
             await res.aclose()
+            if res.status_code == 401:
+                await recarregar_token_verde()
         except Exception as erro:
             duracao_ms = _agora_ms() - inicio
             logger.error(

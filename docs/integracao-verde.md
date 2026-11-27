@@ -16,7 +16,7 @@ Todo o código de chamada ao Verde mora em `src/maria/integracoes/verde.py`, sob
 
 ### O container só lê o token quando inicia (#316)
 
-O Verde invalida o token antigo **na hora** da renovação, e cada container lê o `VERDE_JWT_TOKEN` do segredo só quando sobe. Até o container ser trocado, toda consulta ao Verde recebe 401. **Trocar o segredo, à mão ou pelo workflow, não muda nada até o container reiniciar.**
+O Verde invalida o token antigo **na hora** da renovação. Com `VERDE_SEGREDO_ID` definido (task do ECS de SP), a Maria relê o segredo ao receber 401 (no máximo uma leitura a cada 30 s) e segue com o token novo, sem reinício; a task precisa de `secretsmanager:GetSecretValue` nesse segredo (`infra/terraform-sp`). Sem `VERDE_SEGREDO_ID`, cada container lê o `VERDE_JWT_TOKEN` só quando sobe, e até trocar o container toda consulta ao Verde recebe 401. O stack da Virgínia (legado) não tem a recarga.
 
 Foi o incidente de 2026-10-22 e 23 (#308): a renovação rodou, o redeploy travou no ECS, o workflow terminou com sucesso, e o container antigo ficou cerca de 23 horas no ar com o token invalidado. A troca manual do segredo no dia seguinte também não teve efeito, porque nenhum container novo subiu.
 

@@ -67,6 +67,7 @@ resource "aws_ecs_task_definition" "api" {
       { name = "BEDROCK_MODEL_ID", value = var.bedrock_model_id },
       # Só "release" exato liga os fluxos em teste (maria/fluxos/__init__.py). Vem do environment (#482).
       { name = "MARIA_AMBIENTE", value = local.maria_ambiente },
+      { name = "VERDE_SEGREDO_ID", value = aws_secretsmanager_secret.app.arn },
     ]
     secrets = concat([
       for k in [
