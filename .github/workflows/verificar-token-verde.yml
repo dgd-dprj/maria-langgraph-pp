@@ -16,7 +16,12 @@ name: Verificar expiração do token Verde
 on:
   schedule:
     - cron: "0 12 * * *" # todo dia, meio-dia UTC
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      testar_aviso:
+        description: "Só envia o e-mail de teste do aviso (#571): não consulta o Verde, não renova e não mexe em segredo nem em serviço"
+        type: boolean
+        default: false
 
 permissions:
   id-token: write # necessário pro OIDC (aws-actions/configure-aws-credentials)
@@ -50,6 +55,8 @@ jobs:
           aws-region: ${{ matrix.aws_region }}
 
       - name: Checar e renovar VERDE_JWT_TOKEN se necessário
+        id: renovar
+        if: ${{ !inputs.testar_aviso }}
         env:
           AMBIENTE: ${{ matrix.ambiente }}
           ECS_CLUSTER: ${{ matrix.ecs_cluster }}
@@ -75,6 +82,13 @@ jobs:
           # Threshold igual ao alerta original (issue #113) — renova
           # PROATIVAMENTE nesse ponto, não só avisa.
           DIAS_LIMITE = 7
+
+          # #571: o passo de aviso (abaixo) lê estes dois arquivos do diretório do job.
+          # `etapa.txt`: em que etapa a execução estava (para o e-mail de falha);
+          # `renovado.json`: só existe se o token foi renovado e gravado (expiração nova, nunca o token).
+          def etapa(nome):
+              with open("etapa.txt", "w", encoding="utf-8") as arq:
+                  arq.write(nome)
 
           with open("secret.json") as f:
               segredo = json.load(f)
@@ -104,6 +118,7 @@ jobs:
           # formato inesperado) e issue #298 (a consulta saiu para o script, que o
           # deploy também usa): ver scripts/conferir_token_verde.py. Só o refresh,
           # abaixo, continua usando `chamar`.
+          etapa("consulta do status ao Verde")
           try:
               status = ler_status(*consultar_status(api_url, token, client_id))
           except ErroDeStatus as erro:
@@ -136,6 +151,7 @@ jobs:
               sys.exit(0)
 
           print(f"[{ambiente}] token perto de vencer ou expirado dentro do grace period — chamando refresh")
+          etapa("renovação no Verde (POST token/refresh)")
           refresh_code, refresh = chamar("POST", "/autenticacao/token/refresh", token)
           if refresh_code != 200:
               print(f"::error::[{ambiente}] POST token/refresh falhou (HTTP {refresh_code}): {refresh} — grace period de 5 dias provavelmente estourado, precisa de token novo manual")
@@ -146,6 +162,7 @@ jobs:
               sys.exit(1)
           token_novo = refresh["token"]
 
+          etapa("gravação do token novo no Secrets Manager")
           segredo["VERDE_JWT_TOKEN"] = token_novo
           try:
               subprocess.run(
@@ -164,6 +181,15 @@ jobs:
               print(f"::error::[{ambiente}] token renovado na Verde, mas a gravação no Secrets Manager falhou (código {err.returncode}) — o token antigo já foi invalidado e o novo não foi gravado: precisa de token NOVO emitido manualmente na Verde")
               sys.exit(1)
           print(f"[{ambiente}] token renovado, gravado no Secrets Manager — forçando redeploy do ECS")
+          expira_novo = refresh.get("expiraEm")
+          if not expira_novo:
+              payload_novo = token_novo.split(".")[1]
+              payload_novo += "=" * (-len(payload_novo) % 4)
+              exp_novo = json.loads(base64.urlsafe_b64decode(payload_novo)).get("exp")
+              expira_novo = time.strftime("%Y-%m-%d", time.gmtime(exp_novo)) if exp_novo else ""
+          with open("renovado.json", "w", encoding="utf-8") as arq:
+              json.dump({"expiraEm": str(expira_novo)}, arq)
+          etapa("redeploy do ECS")
 
           redeploy_manual = f"aws ecs update-service --cluster {cluster} --service {service} --force-new-deployment --region {region}"
           try:
@@ -203,6 +229,7 @@ jobs:
               f"o container em execução está com o token INVALIDADO e toda consulta à Verde vai receber 401. "
               f"Veja os eventos do serviço no ECS e force o deploy de novo: {redeploy_manual}"
           )
+          etapa("espera do serviço estabilizar")
           try:
               subprocess.run(
                   [
@@ -217,6 +244,7 @@ jobs:
               print(f"{container_velho} (o serviço não estabilizou no tempo de espera)")
               sys.exit(1)
 
+          etapa("conferência do deploy novo")
           servico = json.loads(
               subprocess.run(
                   [
@@ -239,3 +267,18 @@ jobs:
               sys.exit(1)
           print(f"[{ambiente}] container novo no ar ({cluster}/{service}, {servico['runningCount']} tarefa(s)) — token renovado em uso")
           EOF
+
+      # #571: aviso por e-mail (função maria-email-nudecon, modelo neutro `aviso`), só quando o token foi
+      # renovado ou a execução falhou. Nunca muda o resultado do job: o aviso é paralelo à renovação.
+      - name: Avisar por e-mail (renovação ou falha)
+        if: always()
+        continue-on-error: true
+        env:
+          AMBIENTE: ${{ matrix.ambiente }}
+          STATUS_DO_JOB: ${{ job.status }}
+          TESTE_AVISO: ${{ inputs.testar_aviso }}
+          ID_DA_EXECUCAO: ${{ github.run_id }}
+          EMAIL_AVISO_URL: ${{ secrets.EMAIL_AVISO_URL }}
+          EMAIL_AVISO_API_KEY: ${{ secrets.EMAIL_AVISO_API_KEY }}
+          URL_DA_EXECUCAO: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}
+        run: python3 scripts/avisar_token_verde.py

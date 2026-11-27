@@ -38,6 +38,9 @@ async def test_tem_processo_true_consulta_processo_e_segue_pro_rg() -> None:
     await f.iniciar()
     r = await f.responder("true", "0000088-95.2026.8.19.0010")
     assert re.search("RG da pessoa presa", texto(r)), "consultarProcesso não deve travar o fluxo"
+    # #484: a consulta roda em segundo plano; o resultado entra no estado no `concluir`.
+    assert "dadosProcesso" not in r
+    r = await f.responder("11111111111", "Sim", "amigo")
     assert isinstance(r["dadosProcesso"]["encontrado"], bool)
 
 
@@ -485,12 +488,14 @@ def test_551_texto_da_confirmacao_com_nome_real_e_sem_nome() -> None:
 
 
 async def test_extracao_livre_campos_pre_preenchidos_pulam_perguntas_mas_verde_roda() -> None:
-    r = await _fluxo().iniciar(
-        {"temProcesso": True, "numeroProcesso": "0000088-95.2026.8.19.0010", "rg": "11111111111", "parentesco": "amigo"}
-    )
+    f = _fluxo()
+    r = await f.iniciar({"temProcesso": True, "numeroProcesso": "0000088-95.2026.8.19.0010", "rg": "11111111111", "parentesco": "amigo"})
     assert re.search("Confirma que a pessoa presa é", texto(r))
-    assert isinstance(r["dadosProcesso"]["encontrado"], bool)
     assert r["dadosApenado"]["encontrado"] is True
+    # #484: a consulta de processo roda em segundo plano e entra no estado no `concluir`.
+    assert "dadosProcesso" not in r
+    r = await f.responder("Sim")
+    assert isinstance(r["dadosProcesso"]["encontrado"], bool)
 
 
 async def test_extracao_livre_confirmacao_de_nome_nunca_pula() -> None:
