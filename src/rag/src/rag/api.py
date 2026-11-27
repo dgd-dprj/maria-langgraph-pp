@@ -10,7 +10,7 @@ from fastapi import FastAPI, HTTPException
 from pydantic import BaseModel, Field
 
 from .catalogo import CandidatoCatalogo
-from .chain import ExplicadorVerde
+from .chain import ExplicadorVerde, ModoEntrada
 from .embeddings import criar_modelo_embeddings
 from .recuperador_catalogo import LIMITE_CANDIDATOS, RecuperadorCatalogo
 from .retriever import RecuperadorVerde
@@ -48,6 +48,14 @@ class ExplicarRequest(BaseModel):
     endpoint: str = Field(default="", max_length=500)
     metodo: str = Field(default="", max_length=12)
     status_http: int | None = Field(default=None, ge=100, le=599)
+    modo: ModoEntrada = Field(
+        default="auto",
+        description="Modo do RAG: 'auto' (modelo escolhe entre 'verde' e 'duvidas'), 'verde' ou 'duvidas'.",
+    )
+
+
+class DuvidaRequest(BaseModel):
+    pergunta: str = Field(min_length=1, max_length=4000)
 
 
 class CandidatoRequest(BaseModel):
@@ -117,9 +125,19 @@ def explicar(pedido: ExplicarRequest) -> dict[str, Any]:
     if explicador is None:
         raise HTTPException(status_code=503, detail="RAG ainda não inicializado.")
     try:
-        return explicador.explicar(pedido.mensagem, pedido.endpoint, pedido.metodo, pedido.status_http)
+        return explicador.explicar(pedido.mensagem, pedido.endpoint, pedido.metodo, pedido.status_http, pedido.modo)
     except Exception as erro:
         raise HTTPException(status_code=500, detail=f"Falha ao explicar a mensagem: {erro}") from erro
+
+
+@app.post("/api/duvidas")
+def responder_duvida(pedido: DuvidaRequest) -> dict[str, Any]:
+    if explicador is None:
+        raise HTTPException(status_code=503, detail="RAG ainda não inicializado.")
+    try:
+        return explicador.responder_duvida(pedido.pergunta)
+    except Exception as erro:
+        raise HTTPException(status_code=500, detail=f"Falha ao responder a dúvida: {erro}") from erro
 
 
 @app.post("/api/catalog/index")

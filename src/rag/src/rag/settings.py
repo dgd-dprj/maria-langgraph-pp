@@ -28,8 +28,8 @@ class Configuracoes:
 def carregar_configuracoes() -> Configuracoes:
     return Configuracoes(
         database_url=os.getenv("DATABASE_URL", "postgresql://rag_user:rag_local_password@127.0.0.1:55433/rag_db"),
-        aws_region=os.getenv("AWS_REGION", "us-east-1"),
-        modelo_chat=os.getenv("BEDROCK_MODEL_ID", "us.amazon.nova-2-lite-v1:0"),
+        aws_region=os.getenv("AWS_REGION", "sa-east-1"),
+        modelo_chat=os.getenv("BEDROCK_MODEL_ID", "qwen.qwen3-vl-235b-a22b"),
         modelo_embedding=os.getenv("BEDROCK_EMBEDDING_MODEL_ID", "amazon.titan-embed-text-v2:0"),
         limiar_similaridade=float(os.getenv("RAG_SIMILARITY_THRESHOLD", "0.25")),
     )

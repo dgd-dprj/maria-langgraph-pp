@@ -21,12 +21,12 @@ vetorial são criados por SQL em `src/rag/src/rag/vector_store.py`.
 | `src/rag/embeddings.py`     | Configura o modelo Titan Embeddings do Amazon Bedrock.                                      |
 | `src/rag/vector_store.py`   | Cria a tabela `rag_documentos_swagger` e executa gravação e busca por cosseno no pgvector.  |
 | `src/rag/retriever.py`      | Evita embeddings repetidos por hash, indexa documentos e recupera os três melhores trechos. |
-| `src/rag/prompt.py`         | Orienta a explicação a usar linguagem simples e não extrapolar o contexto recuperado. |
-| `src/rag/chain.py`          | Liga recuperação e geração da explicação com um modelo do Bedrock.                          |
+| `src/rag/prompt.py`         | Define os prompts coexistentes do modo da API Verde, do modo de dúvidas da pessoa, do roteador de modo e do agente conferidor. |
+| `src/rag/chain.py`          | Implementa a coexistência do modo Verde com o modo de dúvidas (2 agentes: respondedor e conferidor), escolha automática de modo e métricas por chamada. |
 | `src/rag/ingest.py`         | Permite executar a ingestão pela linha de comando.                                          |
 | `src/rag/catalogo.py` | Define o formato dos candidatos e normaliza texto para busca lexical. |
 | `src/rag/recuperador_catalogo.py` | Indexa e recupera candidatos por busca semântica ou fusão RRF. |
-| `src/rag/api.py` | Expõe endpoints para indexar Swagger e catálogo, buscar trechos e explicar mensagens. |
+| `src/rag/api.py` | Expõe endpoints para indexar Swagger e catálogo, buscar trechos, explicar mensagens do Verde e responder dúvidas (`/api/explain` e `/api/duvidas`). |
 
 O banco deste projeto é exclusivo: serviço `rag-postgres`, porta `55433`, banco
 `rag_db` e volume `rag_pgvector_data`, separado do banco da aplicação principal.
