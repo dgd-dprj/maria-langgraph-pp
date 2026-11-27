@@ -54,6 +54,7 @@ Todas ficam no `.env` (carregado no boot) ou no ambiente. Sem `DATABASE_URL`, tu
 | `VERDE_API_URL` | homologação do Verde | Endereço da API do Verde |
 | `VERDE_JWT_TOKEN` | ausente | Token do Verde. Sem ele, todas as chamadas ao Verde são simuladas |
 | `VERDE_CLIENT_ID` | ausente | Enviado ao Verde no cabeçalho `x-client-id` |
+| `VERDE_SEGREDO_ID` | ausente | Nome ou ARN do segredo que guarda o `VERDE_JWT_TOKEN`. Com ele, a Maria relê o token ao receber 401 do Verde, sem reiniciar. Sem ele, o token só é lido no boot |
 | `EMAIL_NUDECON_URL` | ausente | Endereço da função Lambda `maria-email-nudecon`, que a Maria chama ao concluir o plano de saúde no Rio (#405). Sem ele (ou sem a chave) o envio não acontece e a conversa vai ao atendimento humano; só com `APP_ENV=test` é simulado |
 | `EMAIL_NUDECON_API_KEY` | ausente | Chave enviada à função em `Authorization: Bearer` |
 | `WHATSAPP_API_URL` | `https://graph.facebook.com/v21.0` | API da Meta para o bridge do WhatsApp ([`docs/bridge-whatsapp.md`](docs/bridge-whatsapp.md)) |

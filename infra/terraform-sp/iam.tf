@@ -45,3 +45,17 @@ resource "aws_iam_role_policy" "task" {
   role   = aws_iam_role.task.id
   policy = data.aws_iam_policy_document.task.json
 }
+
+# A Maria relê o VERDE_JWT_TOKEN deste segredo ao receber 401 (verde.py: recarregar_token_verde), sem reinício. Só leitura, só o segredo do app.
+data "aws_iam_policy_document" "ler_token_verde" {
+  statement {
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.app.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ler_token_verde" {
+  name   = "ler-token-verde"
+  role   = aws_iam_role.task.id
+  policy = data.aws_iam_policy_document.ler_token_verde.json
+}

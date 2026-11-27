@@ -80,6 +80,55 @@ async def test_401_retenta_e_sucede_depois() -> None:
     assert resultado.ok is True
 
 
+async def test_401_recarrega_o_token_do_segredo_e_a_proxima_tentativa_usa_o_novo(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(verde, "VERDE_SEGREDO_ID", "segredo-de-teste")
+    monkeypatch.setattr(verde, "VERDE_JWT_TOKEN", "token-velho")
+    monkeypatch.setattr(verde, "_ultima_recarga_token", 0.0)
+    monkeypatch.setattr(verde, "_ler_token_do_segredo", lambda _id: "token-novo")
+    usados: list[str] = []
+
+    async def montar() -> httpx.Response:
+        usados.append(verde.VERDE_JWT_TOKEN)
+        return resposta(401 if verde.VERDE_JWT_TOKEN == "token-velho" else 200)
+
+    resultado = await verde.chamar_verde_com_retry("teste", montar)
+    assert usados == ["token-velho", "token-novo"]
+    assert resultado.ok is True
+
+
+async def test_recarga_sem_segredo_configurado_nao_faz_nada(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(verde, "VERDE_SEGREDO_ID", "")
+    assert await verde.recarregar_token_verde() is False
+
+
+async def test_recarga_que_falha_mantem_o_token_e_nao_lanca(monkeypatch: pytest.MonkeyPatch) -> None:
+    def falhar(_id: str) -> str:
+        raise RuntimeError("sem permissão")
+
+    monkeypatch.setattr(verde, "VERDE_SEGREDO_ID", "segredo-de-teste")
+    monkeypatch.setattr(verde, "VERDE_JWT_TOKEN", "token-velho")
+    monkeypatch.setattr(verde, "_ultima_recarga_token", 0.0)
+    monkeypatch.setattr(verde, "_ler_token_do_segredo", falhar)
+    assert await verde.recarregar_token_verde() is False
+    assert verde.VERDE_JWT_TOKEN == "token-velho"
+
+
+async def test_recarga_respeita_o_intervalo_minimo(monkeypatch: pytest.MonkeyPatch) -> None:
+    chamadas: list[str] = []
+
+    def ler(segredo_id: str) -> str:
+        chamadas.append(segredo_id)
+        return "token-novo"
+
+    monkeypatch.setattr(verde, "VERDE_SEGREDO_ID", "segredo-de-teste")
+    monkeypatch.setattr(verde, "VERDE_JWT_TOKEN", "token-velho")
+    monkeypatch.setattr(verde, "_ultima_recarga_token", 0.0)
+    monkeypatch.setattr(verde, "_ler_token_do_segredo", ler)
+    assert await verde.recarregar_token_verde() is True
+    assert await verde.recarregar_token_verde() is False
+    assert len(chamadas) == 1
+
+
 async def test_403_retenta_igual_401_e_500() -> None:
     c = _Contador()
 
