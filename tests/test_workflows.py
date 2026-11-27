@@ -367,6 +367,17 @@ def test_o_aviso_roda_depois_da_renovacao_sem_mudar_o_resultado_do_job() -> None
     assert aviso["run"] == "python3 scripts/avisar_token_verde.py"
 
 
+def test_workflow_dispatch_tem_o_modo_de_teste_do_aviso_que_nao_renova() -> None:
+    wf = _carregar("verificar-token-verde.yml")
+    entrada = _gatilhos(wf)["workflow_dispatch"]["inputs"]["testar_aviso"]
+    assert entrada["type"] == "boolean" and entrada["default"] is False
+    passos = _passos("verificar-token-verde.yml", "verificar")
+    renovar = next(p for p in passos if p.get("id") == "renovar")
+    assert renovar["if"] == "${{ !inputs.testar_aviso }}"  # no teste, nada é consultado nem renovado
+    aviso = next(p for p in passos if "Avisar por e-mail" in p.get("name", ""))
+    assert aviso["env"]["TESTE_AVISO"] == "${{ inputs.testar_aviso }}"
+
+
 # --- Conferência do token do Verde depois do deploy (#298) ---
 
 

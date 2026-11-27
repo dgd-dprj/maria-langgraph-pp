@@ -4,7 +4,8 @@ Roda como último passo do `verificar-token-verde.yml`, só com a biblioteca pad
 `maria-email-nudecon` com o campo `aviso` (modelo neutro, sem a marca do NUDECON).
 
 Entrada (variáveis de ambiente): `AMBIENTE`, `STATUS_DO_JOB` (`success` ou `failure`), `URL_DA_EXECUCAO`,
-`EMAIL_AVISO_URL` e `EMAIL_AVISO_API_KEY`; e, no diretório atual, os arquivos que o passo de renovação deixa:
+`EMAIL_AVISO_URL` e `EMAIL_AVISO_API_KEY`; `TESTE_AVISO=true` (com `ID_DA_EXECUCAO`) manda só um e-mail de teste,
+sem renovar nada; e, no diretório atual, os arquivos que o passo de renovação deixa:
 `etapa.txt` (etapa em andamento) e `renovado.json` (só existe se o token foi renovado e gravado).
 
 Só avisa se o token foi renovado ou se o job falhou; token saudável não manda e-mail. Nunca imprime nem envia o token,
@@ -61,6 +62,21 @@ def montar_aviso(
     return None
 
 
+def montar_aviso_de_teste(ambiente: str, id_da_execucao: str, url_da_execucao: str, hoje: date) -> dict[str, Any]:
+    """E-mail de teste do aviso (#571): confirma o caminho até a caixa sem renovar o token. O id da execução entra no
+    `protocolo` para o teste poder ser repetido no mesmo dia (a função só envia uma vez por protocolo)."""
+    nome = NOMES_DO_AMBIENTE.get(ambiente, ambiente)
+    return {
+        "protocolo": f"TOKEN-VERDE-{ambiente.upper()}-TESTE-{hoje.strftime('%Y%m%d')}-{id_da_execucao}"[:64],
+        "dados": {"Ambiente": nome, "Resultado": "Teste do aviso (nada foi renovado)", "Execução": url_da_execucao},
+        "aviso": {
+            "assunto": f"Teste do aviso do token do Verde ({nome})",
+            "titulo": "Teste do aviso do token do Verde",
+            "texto": "Este é um e-mail de teste do aviso de renovação. Nenhum token foi consultado nem renovado.",
+        },
+    }
+
+
 def _ler_texto(caminho: Path) -> str:
     return caminho.read_text(encoding="utf-8").strip() if caminho.exists() else ""
 
@@ -94,13 +110,18 @@ def main(env: dict[str, str] | None = None, pasta: Path | None = None) -> int:
     env = dict(os.environ) if env is None else env
     pasta = pasta or Path(".")
     ambiente = env.get("AMBIENTE", "")
-    corpo = montar_aviso(
-        ambiente,
-        env.get("STATUS_DO_JOB", ""),
-        _ler_texto(pasta / "etapa.txt"),
-        _ler_renovado(pasta / "renovado.json"),
-        env.get("URL_DA_EXECUCAO", ""),
-        date.today(),
+    teste = env.get("TESTE_AVISO", "").lower() == "true"
+    corpo = (
+        montar_aviso_de_teste(ambiente, env.get("ID_DA_EXECUCAO", "0"), env.get("URL_DA_EXECUCAO", ""), date.today())
+        if teste
+        else montar_aviso(
+            ambiente,
+            env.get("STATUS_DO_JOB", ""),
+            _ler_texto(pasta / "etapa.txt"),
+            _ler_renovado(pasta / "renovado.json"),
+            env.get("URL_DA_EXECUCAO", ""),
+            date.today(),
+        )
     )
     if corpo is None:
         print(f"[{ambiente}] token sem renovação e sem falha: nenhum aviso")
