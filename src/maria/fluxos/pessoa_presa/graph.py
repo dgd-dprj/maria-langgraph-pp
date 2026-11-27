@@ -19,8 +19,10 @@ conflito, decidido como divergência aceita (`None` é o undefined de develop).
 
 from __future__ import annotations
 
+import asyncio
 import os
 import re
+import time
 from collections.abc import Mapping
 from typing import Any, TypedDict
 
@@ -313,10 +315,65 @@ async def pedir_numero_processo(state: PessoaPresaState) -> Atualizacao:
     return {"numeroProcesso": resposta}
 
 
+# #484: a consulta de processo no Verde leva uns 10 s (medido na homologação em 2026-11-27) e a Tykhe desiste de uma
+# resposta em cerca de 11 s e repete a mensagem. Por isso a consulta roda em segundo plano, enquanto a Maria já pergunta o
+# RG, e o resultado só é esperado no `concluir`, que é onde ele é usado. A tarefa fica em memória, por conversa; se ela
+# se perdeu (a conversa continuou em outro processo, ou houve reinício), o `concluir` consulta na hora, como antes.
+PRAZO_ESPERA_PROCESSO_S = 20.0
+RETENCAO_CONSULTA_PROCESSO_S = 600.0
+_ResultadoProcesso = tuple[Any, int | None]
+_consultas_processo: dict[str, tuple[asyncio.Task[_ResultadoProcesso], float]] = {}
+
+
+async def _consultar_processo_sem_lancar(numero: str) -> _ResultadoProcesso:
+    """A consulta que roda em segundo plano nunca lança: qualquer erro vira "não encontrado", e o `concluir` encaminha
+    ao atendimento humano, como na consulta de antes."""
+    try:
+        return await consultar_processo_verde(numero)
+    except Exception as erro:
+        logger.error("[pessoa-presa] consulta do processo falhou", **contexto_atual(), err=erro, evento="processo_consulta_erro")
+        return {"encontrado": False}, None
+
+
+def _esquecer_consultas_antigas() -> None:
+    limite = time.monotonic() - RETENCAO_CONSULTA_PROCESSO_S
+    for chave in [c for c, (tarefa, criada) in _consultas_processo.items() if criada < limite and tarefa.done()]:
+        del _consultas_processo[chave]
+
+
 async def consultar_processo(state: PessoaPresaState) -> Atualizacao:
-    # Sem contagem de tentativas: o processo não tem retry neste fluxo.
-    dados, status = await consultar_processo_verde(_js.coalesce(state.get("numeroProcesso"), ""))
-    return {"dadosProcesso": dados, "statusConsultaProcesso": status}
+    # Sem contagem de tentativas: o processo não tem retry neste fluxo. Não espera o Verde: o resultado entra no estado
+    # no `concluir` (#484).
+    chat_id = contexto_atual().get("chatId")
+    if not isinstance(chat_id, str):
+        # Sem conversa identificada (não acontece pela API): consulta na hora, como antes.
+        dados, status = await consultar_processo_verde(_js.coalesce(state.get("numeroProcesso"), ""))
+        return {"dadosProcesso": dados, "statusConsultaProcesso": status}
+    _esquecer_consultas_antigas()
+    tarefa = asyncio.create_task(_consultar_processo_sem_lancar(_js.coalesce(state.get("numeroProcesso"), "")))
+    _consultas_processo[chat_id] = (tarefa, time.monotonic())
+    return {}
+
+
+async def _resultado_da_consulta_de_processo(state: PessoaPresaState) -> _ResultadoProcesso:
+    """O `dadosProcesso` e o status da consulta: do estado (consulta feita na hora), da tarefa em segundo plano (#484) ou,
+    se ela se perdeu, de uma consulta nova. Sem número de processo, não consulta (o `concluir` segue como antes)."""
+    if "dadosProcesso" in state:
+        return state.get("dadosProcesso"), state.get("statusConsultaProcesso")
+    if "numeroProcesso" not in state:
+        # A pergunta do número foi pulada (`temProcesso: null`): não houve consulta, e o `concluir` segue como antes.
+        return _js.AUSENTE, None
+    chat_id = contexto_atual().get("chatId")
+    achada = _consultas_processo.pop(chat_id, None) if isinstance(chat_id, str) else None
+    if achada is None:
+        return await _consultar_processo_sem_lancar(_js.coalesce(state.get("numeroProcesso"), ""))
+    tarefa, _ = achada
+    try:
+        return await asyncio.wait_for(asyncio.shield(tarefa), timeout=PRAZO_ESPERA_PROCESSO_S)
+    except TimeoutError:
+        tarefa.cancel()
+        logger.warn("[pessoa-presa] consulta do processo não terminou no prazo", **contexto_atual(), evento="processo_consulta_demorou")
+        return {"encontrado": False}, None
 
 
 async def preparar_pergunta_rg(state: PessoaPresaState) -> Atualizacao:
@@ -550,11 +607,20 @@ async def concluir(state: PessoaPresaState) -> Atualizacao:
             "motivoHandoff": "sem_numero_processo",
             "mensagemFinal": MENSAGEM_HANDOFF_SEM_NUMERO_PROCESSO,
         }
+    # #484: o resultado da consulta de processo (feita em segundo plano desde que a pessoa informou o número) entra no
+    # estado aqui, para o resumo do atendimento e o log do fim terem os mesmos campos de antes.
+    gravar: Atualizacao = {}
+    if "dadosProcesso" not in state:
+        dados_processo, status_processo = await _resultado_da_consulta_de_processo(state)
+        if dados_processo is not _js.AUSENTE:
+            gravar = {"dadosProcesso": dados_processo, "statusConsultaProcesso": status_processo}
+            state = {**state, **gravar}  # type: ignore[typeddict-item]
     if _js.opt(_ler(state, "dadosProcesso"), "origem") != ORIGEM_PROCESSO_SUPORTADA:
         # #341/#352: o motivo continua o mesmo (o contrato não muda); só a mensagem
         # deixa de falar em origem quando o Verde respondeu que não achou o número.
         nao_localizado = state.get("statusConsultaProcesso") in STATUS_PROCESSO_NAO_LOCALIZADO
         return {
+            **gravar,
             "statusFinal": "handoff_humano",
             "motivoHandoff": "origem_processo_nao_suportada",
             "mensagemFinal": MENSAGEM_HANDOFF_PROCESSO_NAO_LOCALIZADO if nao_localizado else MENSAGEM_HANDOFF_ORIGEM_NAO_SUPORTADA,
@@ -562,11 +628,11 @@ async def concluir(state: PessoaPresaState) -> Atualizacao:
     if not await processo_e_do_rg(state):
         # #558 (decisão do Icaro, 2026-11-26): o assistido não é avisado do motivo. Sem mensagemFinal: a rota usa a
         # mensagemHandoff do FluxoConfig, a mesma dos outros encaminhamentos.
-        return {"statusFinal": "handoff_humano", "motivoHandoff": "processo_nao_vinculado_ao_rg"}
+        return {**gravar, "statusFinal": "handoff_humano", "motivoHandoff": "processo_nao_vinculado_ao_rg"}
     if not dados_apenado_atendidos(state):
         # Sem mensagemFinal: a rota usa a mensagemHandoff do FluxoConfig.
-        return {"statusFinal": "handoff_humano", "motivoHandoff": "dados_pessoa_nao_atendidos"}
-    return {"statusFinal": "concluido"}
+        return {**gravar, "statusFinal": "handoff_humano", "motivoHandoff": "dados_pessoa_nao_atendidos"}
+    return {**gravar, "statusFinal": "concluido"}
 
 
 async def nao_confirmado(state: PessoaPresaState) -> Atualizacao:

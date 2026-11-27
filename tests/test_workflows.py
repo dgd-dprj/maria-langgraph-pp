@@ -321,6 +321,63 @@ def test_token_saudavel_nao_pede_deploy(monkeypatch: pytest.MonkeyPatch, tmp_pat
     assert "token saudável" in saida
 
 
+def test_renovacao_registra_a_expiracao_nova_e_nunca_o_token(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    # #571: o passo de aviso lê `renovado.json`; ele só existe se o token foi renovado e gravado.
+    codigo, _, _ = _renovar(monkeypatch, tmp_path, capsys)
+    assert codigo == 0
+    assert json.loads((tmp_path / "renovado.json").read_text(encoding="utf-8")) == {"expiraEm": "2026-11-30T09:28:22-03:00"}
+    assert TOKEN_NOVO not in (tmp_path / "renovado.json").read_text(encoding="utf-8")
+
+
+def test_token_saudavel_nao_deixa_renovado_json(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    _renovar(monkeypatch, tmp_path, capsys, dias=20)
+    assert not (tmp_path / "renovado.json").exists()
+
+
+@pytest.mark.parametrize(
+    ("kwargs", "etapa"),
+    [
+        ({"grava": False}, "gravação do token novo no Secrets Manager"),
+        ({"estabiliza": False}, "espera do serviço estabilizar"),
+        ({"deploys_depois": (DEPLOY_VELHO,)}, "conferência do deploy novo"),
+    ],
+)
+def test_a_falha_deixa_a_etapa_para_o_aviso(
+    monkeypatch: pytest.MonkeyPatch, tmp_path: Path, capsys: pytest.CaptureFixture[str], kwargs: dict[str, Any], etapa: str
+) -> None:
+    codigo, _, _ = _renovar(monkeypatch, tmp_path, capsys, **kwargs)
+    assert codigo == 1
+    assert (tmp_path / "etapa.txt").read_text(encoding="utf-8") == etapa
+
+
+def test_o_aviso_roda_depois_da_renovacao_sem_mudar_o_resultado_do_job() -> None:
+    passos = _passos("verificar-token-verde.yml", "verificar")
+    renovar = next(p for p in passos if p.get("id") == "renovar")
+    aviso = next(p for p in passos if "Avisar por e-mail" in p.get("name", ""))
+    assert passos.index(aviso) > passos.index(renovar)
+    assert aviso["if"] == "always()"  # roda também quando a renovação falhou
+    assert aviso["continue-on-error"] is True  # o aviso nunca troca o resultado do job
+    assert aviso["env"]["STATUS_DO_JOB"] == "${{ job.status }}"
+    assert aviso["env"]["EMAIL_AVISO_URL"] == "${{ secrets.EMAIL_AVISO_URL }}"
+    assert aviso["env"]["EMAIL_AVISO_API_KEY"] == "${{ secrets.EMAIL_AVISO_API_KEY }}"
+    assert aviso["run"] == "python3 scripts/avisar_token_verde.py"
+
+
+def test_workflow_dispatch_tem_o_modo_de_teste_do_aviso_que_nao_renova() -> None:
+    wf = _carregar("verificar-token-verde.yml")
+    entrada = _gatilhos(wf)["workflow_dispatch"]["inputs"]["testar_aviso"]
+    assert entrada["type"] == "boolean" and entrada["default"] is False
+    passos = _passos("verificar-token-verde.yml", "verificar")
+    renovar = next(p for p in passos if p.get("id") == "renovar")
+    assert renovar["if"] == "${{ !inputs.testar_aviso }}"  # no teste, nada é consultado nem renovado
+    aviso = next(p for p in passos if "Avisar por e-mail" in p.get("name", ""))
+    assert aviso["env"]["TESTE_AVISO"] == "${{ inputs.testar_aviso }}"
+
+
 # --- Conferência do token do Verde depois do deploy (#298) ---
 
 

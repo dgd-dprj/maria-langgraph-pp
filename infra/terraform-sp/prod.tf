@@ -100,6 +100,20 @@ resource "aws_iam_role_policy" "task_prod" {
   policy = data.aws_iam_policy_document.task.json
 }
 
+# A Maria relê o VERDE_JWT_TOKEN deste segredo ao receber 401 (verde.py: recarregar_token_verde), sem reinício. Só leitura, só o segredo do app.
+data "aws_iam_policy_document" "ler_token_verde_prod" {
+  statement {
+    actions   = ["secretsmanager:GetSecretValue"]
+    resources = [aws_secretsmanager_secret.app_prod.arn]
+  }
+}
+
+resource "aws_iam_role_policy" "ler_token_verde_prod" {
+  name   = "ler-token-verde"
+  role   = aws_iam_role.task_prod.id
+  policy = data.aws_iam_policy_document.ler_token_verde_prod.json
+}
+
 # ── Task definition e service ────────────────────────────────────────────────────────────────────────────────────────
 resource "aws_cloudwatch_log_group" "api_prod" {
   name              = "/ecs/${local.prod}-sp/api"
@@ -127,6 +141,7 @@ resource "aws_ecs_task_definition" "api_prod" {
       # Fixo em "producao" (e não derivado do environment deste stack, que é "release"): só "release" exato liga os
       # fluxos em teste (maria/fluxos/__init__.py), e a produção nunca pode herdá-lo. Um teste confere este valor.
       { name = "MARIA_AMBIENTE", value = "producao" },
+      { name = "VERDE_SEGREDO_ID", value = aws_secretsmanager_secret.app_prod.arn },
     ]
     secrets = concat([
       for k in ["VERDE_API_URL", "VERDE_JWT_TOKEN", "VERDE_CLIENT_ID", "DATABASE_URL", "LANGSMITH_API_KEY", "LANGSMITH_PROJECT", "API_KEY"] :

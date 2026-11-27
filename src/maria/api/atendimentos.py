@@ -8,10 +8,13 @@ entram no PR 2 (spec 07, D-4).
 
 from __future__ import annotations
 
+import copy
 import math
 import os
+import time
 import uuid
 from collections.abc import Mapping
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any, ClassVar
 
@@ -395,7 +398,76 @@ async def _com_o_que_falta(chat_id: str, corpo: dict[str, Any], final: str, pend
     corpo["opcoesDoFim"] = opcoes_do_fim(abertos)
 
 
+# #484: a Tykhe desiste de uma resposta lenta em cerca de 11 s e repete a mesma mensagem (até 3 vezes). Se a Maria já
+# avançou com a primeira, a repetição cairia na pergunta seguinte (o número do processo lido como RG). Uma repetição
+# idêntica de uma resposta que foi lenta devolve a resposta já calculada, sem avançar o fluxo de novo. Só vale para
+# resposta lenta: quem repete "Sim" de propósito, logo em seguida, a uma pergunta que respondeu rápido, é lido normalmente.
+DURACAO_LENTA_S = 5.0
+JANELA_REENVIO_S = 15.0
+
+
+@dataclass
+class _UltimaResposta:
+    texto: str
+    fim: float  # time.monotonic() de quando a resposta ficou pronta
+    duracao_s: float
+    resposta: Resposta
+
+
+# Em memória, por conversa: com uma tarefa só no ECS (`desired_count = 1`) cobre o reenvio; durante um deploy, em que
+# duas ou três tarefas atendem ao mesmo tempo, o reenvio que cair em outra tarefa é lido como antes.
+_ultimas_respostas: dict[str, _UltimaResposta] = {}
+
+
+def _esquecer_respostas_antigas(agora: float) -> None:
+    for chave in [c for c, u in _ultimas_respostas.items() if agora - u.fim > 10 * JANELA_REENVIO_S]:
+        del _ultimas_respostas[chave]
+
+
 async def _post_respostas(ctx: Contexto) -> Resposta:
+    """`POST /atendimentos/respostas`, com a trava por conversa e a conferência de repetição (#484)."""
+    chegada = time.monotonic()
+    chat_id = ctx.corpo.get("chatId", AUSENTE)
+    texto = ctx.corpo.get("resposta", AUSENTE)
+    if not (isinstance(chat_id, str) and isinstance(texto, str) and chat_id and texto):
+        return await _processar_resposta(ctx)  # os 400 de sempre
+    # A trava entre processos segura a repetição até a primeira terminar: duas respostas da mesma conversa nunca avançam
+    # o fluxo ao mesmo tempo (a Tykhe repetiu a mensagem com a primeira ainda no Verde, e as três rodavam juntas).
+    async with trava(f"resposta:{chat_id}") as obtida:
+        if not obtida:
+            ctx.log.warn(
+                "resposta em processamento por outra chamada — sem rodar de novo",
+                chatId=chat_id,
+                evento="resposta_em_processamento",
+            )
+            return Resposta(409, {"erro": "atendimento em processamento — tente de novo em instantes", "status": "em_andamento"})
+        anterior = _ultimas_respostas.get(chat_id)
+        if (
+            anterior is not None
+            and anterior.texto == texto
+            and anterior.duracao_s >= DURACAO_LENTA_S
+            and chegada - anterior.fim <= JANELA_REENVIO_S
+        ):
+            ctx.log.warn(
+                "resposta repetida depois de uma resposta lenta — devolvendo a anterior, sem avançar o fluxo",
+                chatId=chat_id,
+                evento="resposta_repetida",
+                duracaoMs=round(anterior.duracao_s * 1000),
+            )
+            # Cópia rasa: o corpo leva o sentinela `AUSENTE` (por identidade), que uma cópia profunda trocaria por outro objeto.
+            return Resposta(anterior.resposta.status, copy.copy(anterior.resposta.corpo), dict(anterior.resposta.cabecalhos))
+        inicio = time.monotonic()
+        resposta = await _processar_resposta(ctx)
+        fim = time.monotonic()
+        _esquecer_respostas_antigas(fim)
+        if resposta.status == 200:
+            _ultimas_respostas[chat_id] = _UltimaResposta(texto, fim, fim - inicio, resposta)
+        else:
+            _ultimas_respostas.pop(chat_id, None)
+        return resposta
+
+
+async def _processar_resposta(ctx: Contexto) -> Resposta:
     """`POST /atendimentos/respostas`: avança o fluxo, com o TTL de inatividade
     checado antes de tocar no grafo (#166). O checkpoint nunca sabe de
     "expirado": isso é só controle da tabela `atendimentos`."""
