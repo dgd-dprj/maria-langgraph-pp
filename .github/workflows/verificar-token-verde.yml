@@ -16,7 +16,12 @@ name: Verificar expiração do token Verde
 on:
   schedule:
     - cron: "0 12 * * *" # todo dia, meio-dia UTC
-  workflow_dispatch: {}
+  workflow_dispatch:
+    inputs:
+      testar_aviso:
+        description: "Só envia o e-mail de teste do aviso (#571): não consulta o Verde, não renova e não mexe em segredo nem em serviço"
+        type: boolean
+        default: false
 
 permissions:
   id-token: write # necessário pro OIDC (aws-actions/configure-aws-credentials)
@@ -51,6 +56,7 @@ jobs:
 
       - name: Checar e renovar VERDE_JWT_TOKEN se necessário
         id: renovar
+        if: ${{ !inputs.testar_aviso }}
         env:
           AMBIENTE: ${{ matrix.ambiente }}
           ECS_CLUSTER: ${{ matrix.ecs_cluster }}
@@ -270,6 +276,8 @@ jobs:
         env:
           AMBIENTE: ${{ matrix.ambiente }}
           STATUS_DO_JOB: ${{ job.status }}
+          TESTE_AVISO: ${{ inputs.testar_aviso }}
+          ID_DA_EXECUCAO: ${{ github.run_id }}
           EMAIL_AVISO_URL: ${{ secrets.EMAIL_AVISO_URL }}
           EMAIL_AVISO_API_KEY: ${{ secrets.EMAIL_AVISO_API_KEY }}
           URL_DA_EXECUCAO: ${{ github.server_url }}/${{ github.repository }}/actions/runs/${{ github.run_id }}

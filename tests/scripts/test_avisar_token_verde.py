@@ -10,7 +10,7 @@ from typing import Any
 
 import pytest
 
-from avisar_token_verde import main, montar_aviso
+from avisar_token_verde import main, montar_aviso, montar_aviso_de_teste
 
 HOJE = date(2026, 11, 27)
 EXECUCAO = "https://github.com/dgd-dprj/maria-langgraph-pp/actions/runs/1"
@@ -121,3 +121,18 @@ def test_sem_os_secrets_nao_envia_e_avisa_no_log(tmp_path: Path, email: EmailFal
     assert main(env, tmp_path) == 1
     assert "ausentes" in capsys.readouterr().out
     assert email.recebidos == []
+
+
+def test_teste_do_aviso_manda_o_email_sem_depender_de_renovacao_ou_falha(tmp_path: Path, email: EmailFalso) -> None:
+    env = {**_env(email), "TESTE_AVISO": "true", "ID_DA_EXECUCAO": "123456"}
+    assert main(env, tmp_path) == 0
+    assert len(email.recebidos) == 1
+    corpo = email.recebidos[0][1]
+    assert corpo["protocolo"].startswith("TOKEN-VERDE-PROD-TESTE-") and corpo["protocolo"].endswith("-123456")
+    assert corpo["aviso"]["assunto"] == "Teste do aviso do token do Verde (Produção (SP))"
+    assert corpo["dados"]["Resultado"] == "Teste do aviso (nada foi renovado)"
+
+
+def test_protocolo_do_teste_cabe_no_limite_da_funcao() -> None:
+    corpo = montar_aviso_de_teste("release", "9" * 20, EXECUCAO, HOJE)
+    assert len(corpo["protocolo"]) <= 64
